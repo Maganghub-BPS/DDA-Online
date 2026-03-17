@@ -1,0 +1,15 @@
+<?php
+
+use CodeIgniter\Router\RouteCollection;
+
+/**
+ * @var RouteCollection $routes
+ */
+$routes->get('/', 'Home::index');
+$routes->setAutoRoute(true);
+
+$routes->get('admin/login', 'Admin::login');
+$routes->post('admin/do_login', 'Admin::do_login');
+$routes->get('admin', 'Admin::index');
+$routes->get('test', 'Test::index');
+$routes->get('test/hello', 'Test::hello');
