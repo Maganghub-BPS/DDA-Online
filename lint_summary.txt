@@ -1,7 +1,0 @@
-Scanned at: 2026-03-17 06:17:43
-Errors found: 1
-
-File: C:\laragon\www\dda-online-ci4\app\Helpers\h2p\html2fpdf.php
-Output: 
-Fatal error: Array and string offset access syntax with curly braces is no longer supported in C:\laragon\www\dda-online-ci4\app\Helpers\h2p\html2fpdf.php on line 1815
-Errors parsing C:\laragon\www\dda-online-ci4\app\Helpers\h2p\html2fpdf.php
