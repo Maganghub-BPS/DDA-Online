@@ -12,6 +12,7 @@
 			<ul class="nav navbar-nav">
 				<li><a href="<?php echo base_URL(); ?>index.php/admin/master_tabel/add"><i class="icon-plus-sign icon-white"> </i> Tambah Data</a></li>
 				<li><a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/"><i class="icon-zoom-in icon-white"> </i> Tabel Usulan</a></li>
+				<li><a href="#" data-toggle="modal" data-target="#ModalBulkPortal" class="text-info"><i class="icon-upload icon-white"> </i> Bulk Portal Update</a></li>
 			</ul>
 			<ul class="nav navbar-nav navbar-right">
 				<form class="navbar-form navbar-left" method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari">
@@ -50,11 +51,11 @@
         </div>
 
         <!-- FILTER 2: OPD -->
-        <div class="form-group">
+        <div class="form-group" style="margin-right: 15px;">
             <label style="font-weight: bold; margin-right: 5px;">
                 <i class="icon-filter"></i> Filter OPD:
             </label>
-            <select name="filter_opd" class="form-control" onchange="this.form.submit()" style="width: 350px;">
+            <select name="filter_opd" class="form-control" onchange="this.form.submit()" style="width: 250px;">
                 <option value="all">-- Tampilkan Semua OPD --</option>
                 <?php 
                 if(isset($list_opd)) {
@@ -67,8 +68,24 @@
             </select>
         </div>
 
+        <!-- FILTER 3: TAHUN -->
+        <div class="form-group">
+            <label style="font-weight: bold; margin-right: 5px;">
+                <i class="icon-calendar"></i> Filter Tahun:
+            </label>
+            <select name="filter_tahun" class="form-control" onchange="this.form.submit()" style="width: 150px;">
+                <option value="all">-- Semua Tahun --</option>
+                <?php 
+                for ($i = 2020; $i <= (date('Y')+1); $i++) {
+                    $selected = (isset($selected_tahun) && $selected_tahun == $i) ? 'selected' : '';
+                    echo "<option value='$i' $selected>$i</option>";
+                }
+                ?>
+            </select>
+        </div>
+
         <!-- TOMBOL RESET -->
-        <?php if((isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all')) { ?>
+        <?php if((isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all') || (isset($selected_tahun) && $selected_tahun != 'all')) { ?>
            <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-default btn-sm" style="margin-left: 5px;"><i class="icon-refresh"></i> Reset Filter
 			</a>
         <?php } ?>
@@ -80,12 +97,13 @@
 	<thead>
 		<tr>
 			<th width="5%">No.</th>
-			<th width="25%">Judul Indonesia</th>
-			<th width="25%">Judul Inggris</th>
-			<th width="20%">Link Tabel</th>
-			<th width="20%">Link Tahun Sebelumnya</th>
+			<th width="5%">Tahun</th>
+			<th width="20%">Judul Indonesia</th>
+			<th width="20%">Judul Inggris</th>
+			<th width="15%">Link Tabel</th>
+			<th width="15%">Link Tahun Sebelumnya</th>
 			<th width="15%">Penanggung Jawab</th>
-			<th width="10%">Action</th>
+			<th width="5%">Action</th>
 		</tr>
 	</thead>
 	
@@ -99,9 +117,17 @@
 		?>
 		<tr>
 			<td align="center"><?php echo $no;?></td>
+			<td align="center"><?php echo $b->tahun;?></td>
 			<td><?php echo $b->judul_ind;?></td>
 			<td><?php echo $b->judul_en ;?></td>
-			<td><?php echo $b->link_tabel;?></td>
+			<td>
+				<code><?php echo $b->link_tabel;?></code><br>
+				<?php if(strpos($b->link_tabel, 'view_portal_tabel') !== false): ?>
+					<span class="label label-primary"><i class="icon-globe"></i> PORTAL</span>
+				<?php else: ?>
+					<span class="label label-success"><i class="icon-file"></i> SHEET</span>
+				<?php endif; ?>
+			</td>
 			<td><?php echo $b->link_sebelumnya;?></td>
 			<td><?php echo $b->unitkerja_ind;?></td>
 			<td class="ctr">
@@ -121,7 +147,34 @@
 		?>
 	</tbody>
 </table>
-<center><ul class="pagination"><?php echo $pagi; ?></ul></center>-->
+<center><ul class="pagination"><?php echo $pagi; ?></ul></center>
+</div>
+
+<!-- Modal Bulk Update Portal -->
+<div id="ModalBulkPortal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="padding: 20px;">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                <h4 class="modal-title">Bulk Update Portal Mapping</h4>
+            </div>
+            <form action="<?php echo base_url(); ?>index.php/admin/preview_bulk_portal" method="post" enctype="multipart/form-data">
+                <?php echo csrf_field(); ?>
+                <div class="modal-body">
+                    <p>Gunakan file mapping untuk memperbarui link tabel secara massal.</p>
+                    <p><a href="<?php echo base_url(); ?>index.php/admin/download_xlsx_template" class="btn btn-xs btn-default"><i class="icon-download"></i> Download Template CSV (Excel)</a></p>
+                    <div class="form-group">
+                        <label>Pilih File (Format .csv atau .xlsx yang disimpan sebagai .csv)</label>
+                        <input type="file" name="file_mapping" class="form-control" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Mulai Sinkronisasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- Modal Popup untuk Delete--> 

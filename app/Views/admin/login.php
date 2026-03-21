@@ -9,23 +9,23 @@
 	  font-family: 'Cabin';
 	  font-style: normal;
 	  font-weight: 400;
-	  src: local('Cabin Regular'), local('Cabin-Regular'), url(<?php echo base_url(); ?>aset/font/satu.woff) format('woff');
+	  src: local('Cabin Regular'), local('Cabin-Regular'), url("<?php echo base_url('aset/font/satu.woff'); ?>") format('woff');
 	}
 	@font-face {
 	  font-family: 'Cabin';
 	  font-style: normal;
 	  font-weight: 700;
-	  src: local('Cabin Bold'), local('Cabin-Bold'), url(<?php echo base_url(); ?>aset/font/dua.woff) format('woff');
+	  src: local('Cabin Bold'), local('Cabin-Bold'), url("<?php echo base_url('aset/font/dua.woff'); ?>") format('woff');
 	}
 	@font-face {
 	  font-family: 'Lobster';
 	  font-style: normal;
 	  font-weight: 400;
-	  src: local('Lobster'), url(<?php echo base_url(); ?>aset/font/tiga.woff) format('woff');
-	}	
+	  src: local('Lobster'), url("<?php echo base_url('aset/font/tiga.woff'); ?>") format('woff');
+	}
 	
 	</style>
-    <link rel="stylesheet" href="<?php echo base_url(); ?>aset/css/bootstrap.css" media="screen">
+    <link rel="stylesheet" href="<?php echo base_url('aset/css/bootstrap.css'); ?>" media="screen">
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="../bower_components/bootstrap/assets/js/html5shiv.js"></script>
@@ -33,10 +33,11 @@
     <![endif]-->
   
 
-    <script src="<?php echo base_url(); ?>aset/js/jquery.min.js"></script>
-    <script src="<?php echo base_url(); ?>aset/js/bootstrap.min.js"></script>
-    <script src="<?php echo base_url(); ?>aset/js/bootswatch.js"></script>
-    <script src="<?php echo base_url(); ?>aset/js/jquery.chained.js"></script>
+    <script src="<?php echo base_url('aset/js/jquery.min.js'); ?>"></script>
+    <script src="<?php echo base_url('aset/js/bootstrap.min.js'); ?>"></script>
+    <script src="<?php echo base_url('aset/js/bootswatch.js'); ?>"></script>
+    <script src="<?php echo base_url('aset/js/jquery.chained.js'); ?>"></script>
+  </head>
   <body style="">
     <div class="navbar navbar-inverse navbar-fixed-top">
       <div class="container">
@@ -78,7 +79,7 @@
 		<table align="center" style="margin-bottom: 0" class="table-form" width="90%">
 			<tr><td width="40%">Username</td><td><input type="text" autofocus name="u" required style="width: 200px" autofocus class="form-control"></td></tr>
 			<tr><td>Password</td><td><input type="password" name="p" required style="width: 200px" class="form-control"></td></tr>
-			<tr><td>Tahun</td><td><select name="ta" class="form-control" required><option value="">--</option>
+			<tr><td>Tahun</td><td><select name="ta" class="form-control"><option value="">-- Opt. for Admin --</option>
 			<?php 
 			for ($i = 2016; $i <= (date('Y')+1); $i++) {
 				if (date('Y') == $i) {

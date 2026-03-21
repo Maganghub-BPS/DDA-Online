@@ -218,8 +218,14 @@
 								<a class="dropdown-toggle" data-toggle="dropdown" href="#" id="themes"><i class="icon-user icon-white"></i> <?php echo session()->get('admin_nama'); ?><span class="caret"></span></a>
 								<ul class="dropdown-menu" aria-labelledby="themes">
 									<li><a tabindex="-1" href="<?php echo base_url(); ?>admin/passwod">Rubah Password</a></li>
-									<li><a tabindex="-1" href="<?php echo base_url(); ?>admin/set_tahun/2025/">2025</a></li>
-									<li><a tabindex="-1" href="<?php echo base_url(); ?>admin/set_tahun/2026/">2026</a></li>
+									<li class="divider"></li>
+									<li class="dropdown-header">Pilih Tahun Data:</li>
+									<?php 
+									for ($i = 2020; $i <= (date('Y')+1); $i++) {
+										echo "<li><a tabindex='-1' href='".base_url()."admin/set_tahun/$i/'>$i</a></li>";
+									}
+									?>
+									<li class="divider"></li>
 									<li><a tabindex="-1" href="<?php echo base_url(); ?>admin/logout">Logout</a></li>
 								</ul>
 							</li>

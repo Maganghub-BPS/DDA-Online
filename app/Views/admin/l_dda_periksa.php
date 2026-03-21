@@ -1,16 +1,69 @@
 <?php
-	if(segment_safe(3) == null )
-	{
-		$tab=1;
-	}
-	else 
-	//if(null!==segment_safe(3))
-	{
+	if(segment_safe(3) == null) {
+		$tab = 1;
+	} else {
 		$tab = segment_safe(3);
 	}
-	
 ?>
 
+<style>
+.search-tabel-container {
+	padding: 12px 15px;
+	background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%);
+	border-radius: 8px;
+	margin-bottom: 10px;
+	border: 1px solid #d5dbe3;
+}
+.search-tabel-container .input-group {
+	max-width: 550px;
+}
+.search-tabel-container input.form-control {
+	border-radius: 20px 0 0 20px;
+	border: 2px solid #e67e22;
+	padding: 8px 15px;
+	font-size: 14px;
+	box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+	transition: border-color 0.3s, box-shadow 0.3s;
+}
+.search-tabel-container input.form-control:focus {
+	border-color: #d35400;
+	box-shadow: 0 2px 10px rgba(230,126,34,0.3);
+	outline: none;
+}
+.search-tabel-container .input-group-btn .btn {
+	border-radius: 0 20px 20px 0;
+	border: 2px solid #e67e22;
+	border-left: none;
+	background: #e67e22;
+	color: #fff;
+	padding: 8px 15px;
+	transition: background 0.3s;
+}
+.search-tabel-container .input-group-btn .btn:hover {
+	background: #d35400;
+}
+.search-tabel-info {
+	margin-top: 8px;
+	font-size: 13px;
+	color: #7f8c8d;
+	display: none;
+}
+.search-tabel-info.active {
+	display: block;
+}
+.no-result-tabel {
+	display: none;
+}
+.no-result-tabel.active {
+	display: table-row;
+}
+.no-result-tabel td {
+	text-align: center;
+	font-weight: bold;
+	color: #e74c3c;
+	padding: 20px !important;
+}
+</style>
 
 <div class="clearfix">
 <div class="row">
@@ -19,23 +72,36 @@
 	
 		<div class="navbar-header">
 			<a class="navbar-brand" href="#" style="text-align:center">TABEL YANG HARUS DIPERIKSA DI JAWA TENGAH DALAM ANGKA </a>
-			<!--<ul class="nav navbar-nav navbar-right" style="margin-right: -20px">
-					<form class="navbar-form navbar-left" method="post" action="<?php echo base_URL(); ?>index.php/admin/kontrak/cari">
-						<input type="text" class="form-control" name="q" style="width: 200px" placeholder="Kata kunci pencarian ..." required>
-						<button type="submit" class="btn btn-danger"><i class="icon-search icon-white"> </i> Cari</button>
-					</form>
-			</ul>-->
 		</div>
 
 </div><!-- /.navbar -->
   
 <?php echo session()->getFlashdata("k");?>  
-	  
+
+	<!-- Search Box Judul Tabel -->
+	<div class="search-tabel-container">
+		<div class="row">
+			<div class="col-sm-7 col-md-6">
+				<div class="input-group">
+					<input type="text" class="form-control" id="searchTabel" placeholder="&#128269; Cari judul tabel..." autocomplete="off">
+					<span class="input-group-btn">
+						<button class="btn btn-warning" type="button" id="btnClearSearchTabel" title="Hapus pencarian">
+							<i class="icon-remove icon-white"></i> Reset
+						</button>
+					</span>
+				</div>
+				<div class="search-tabel-info" id="searchTabelInfo">
+					Menampilkan <strong id="searchTabelCount">0</strong> dari <strong id="totalTabelCount">0</strong> tabel
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<div class="container">
 	<div class="row">
     <div class="col-sm-12 blog-main">
 		<br>
-	   		<table class="table table-bordered table-hover">
+	   		<table class="table table-bordered table-hover" id="tableTabel">
 				<thead>
 					<tr>
 						<th width="5%">No.</th>
@@ -51,14 +117,23 @@
 					if (empty($data)) {
 						echo "<tr><td colspan='5'  style='text-align: center; font-weight: bold'>--Tabel tidak ditemukan--</td></tr>";
 					} else {
-						$no 	= 1;
+						$no 	= (isset($offset) ? $offset : 0) + 1;
 						foreach ($data as $b) {
 $judul_bersih = preg_replace("/\r|\n/", " ", $b->judul_ind);
 
 					?>
-					<tr>
-						<td  align="center"><?php echo $no;?></td>
-						<td><a href="<?php echo $b->link_tabel ; ?>" target="blank"><?php echo htmlspecialchars($judul_bersih); ?></a></td>
+					<tr class="tabel-row">
+						<td align="center" class="tabel-row-number"><?php echo $no;?></td>
+						<td class="tabel-judul">
+					<?php 
+					// Jika link dimulai dengan http = Google Sheet, selain itu = internal portal URL
+					$tabel_url = $b->link_tabel;
+					if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
+						$tabel_url = base_url() . $tabel_url;
+					}
+					?>
+					<a href="<?php echo $tabel_url; ?>" target="blank"><?php echo htmlspecialchars($judul_bersih); ?></a>
+					</td>
 						<!--STATUS PENGISIAN-->
 						<td align="left">
 							<?php if($b->is_periksa == '1') { 
@@ -113,42 +188,15 @@ $judul_bersih = preg_replace("/\r|\n/", " ", $b->judul_ind);
 						?>
 						</td>
 
-
-
-
-
-<!--
-						<td  align="left">
-						<?php
-						 if ($b->is_periksa == '2')
-						 {
-						    echo 'Belum Diperiksa' ;
-						 }
-						 else
-						 {
-							echo 'Sudah Diperiksa : '.$b->catatan_periksa ;
-						 }
-			
-						if(session()->get('admin_unitkerja') == 'bps' and $b->is_periksa=='0')
-						{
-						$id_konfirm=$b->id;
-						?>
-						<div class="btn-group">
-								<a href="#" class="konfirmasi_modal btn btn-info btn-sm"  id="<?php echo $id_konfirm;?>" title="Konfirmasi Data Pengawas"><i class="icon-check icon-white"> </i> Konfirmasi Data</a>
-							</div>
-						<?php
-						}
-						?>
-						</td>-->
-					<!--	<td align="center"><a href="<?php echo base_URL()?>index.php/admin/dda/kondef?id=<?php echo $b->id ;?>"><i class="icon-search icon-black"> </i></a></td>-->
 					</tr>
 					<?php 
-						
-						
 						$no++;
 					}
 					}
 					?>
+					<tr class="no-result-tabel" id="noResultTabel">
+						<td colspan="5">-- Tidak ada tabel yang cocok dengan pencarian --</td>
+					</tr>
 				</tbody>
 			</table>
 	    </div>
@@ -208,7 +256,7 @@ $judul_bersih = preg_replace("/\r|\n/", " ", $b->judul_ind);
 </script>	
 
 
-<!-- Modal Popup untuk KOnfirmasi--> 
+<!-- Modal Popup untuk Konfirmasi--> 
 <div id="ModalKonfirmasi" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
 
 </div>
@@ -262,16 +310,7 @@ $judul_bersih = preg_replace("/\r|\n/", " ", $b->judul_ind);
         </div>
     </div>
 </div>
-/*
-<script type="text/javascript">
-    function isi_data(id, judul, asal) {
-        $('#id_tabel_modal').val(id);
-        $('#judul_tabel_modal').val(judul);
-		$('#asal_data_modal').val(asal);
-        $('#ModalIsiData').modal('show');
-    }
-</script>
-*/
+
 <script>
 $(document).on('click', '.btn-isi-data', function () {
     $('#id_tabel_modal').val(this.dataset.id);
@@ -281,3 +320,61 @@ $(document).on('click', '.btn-isi-data', function () {
 });
 </script>
 
+<!-- JavaScript untuk pencarian Judul Tabel -->
+<script type="text/javascript">
+$(document).ready(function() {
+	var $searchInput = $('#searchTabel');
+	var $rows = $('.tabel-row');
+	var $searchInfo = $('#searchTabelInfo');
+	var $searchCount = $('#searchTabelCount');
+	var $totalCount = $('#totalTabelCount');
+	var $noResult = $('#noResultTabel');
+	var totalRows = $rows.length;
+	
+	$totalCount.text(totalRows);
+	
+	// Real-time search on keyup
+	$searchInput.on('keyup', function() {
+		var keyword = $(this).val().toLowerCase().trim();
+		var visibleCount = 0;
+		
+		if (keyword === '') {
+			$rows.show();
+			$searchInfo.removeClass('active');
+			$noResult.removeClass('active');
+			var num = 1;
+			$rows.each(function() {
+				$(this).find('.tabel-row-number').text(num++);
+			});
+			return;
+		}
+		
+		$searchInfo.addClass('active');
+		var num = 1;
+		
+		$rows.each(function() {
+			var judulTabel = $(this).find('.tabel-judul').text().toLowerCase();
+			if (judulTabel.indexOf(keyword) > -1) {
+				$(this).show();
+				$(this).find('.tabel-row-number').text(num++);
+				visibleCount++;
+			} else {
+				$(this).hide();
+			}
+		});
+		
+		$searchCount.text(visibleCount);
+		
+		if (visibleCount === 0) {
+			$noResult.addClass('active');
+		} else {
+			$noResult.removeClass('active');
+		}
+	});
+	
+	// Clear search button
+	$('#btnClearSearchTabel').on('click', function() {
+		$searchInput.val('').trigger('keyup').focus();
+	});
+});
+</script>

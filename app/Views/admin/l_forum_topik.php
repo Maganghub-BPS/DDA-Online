@@ -28,7 +28,7 @@
 
 		<div class="navbar-header">
 
-			<span class="navbar-brand" href="#" style="align:center">SELAMAT DATANG DI FORUM DISKUSI</span>
+			<span class="navbar-brand" href="#" style="text-align:center">SELAMAT DATANG DI FORUM DISKUSI</span>
 
 			<!--<ul class="nav navbar-nav navbar-right" style="margin-right: -20px">
 
@@ -86,7 +86,7 @@
 
 					} else {
 
-						$no 	= 1;
+						$no 	= (isset($offset) ? $offset : 0) + 1;
 
 						foreach ($data as $b) {
 

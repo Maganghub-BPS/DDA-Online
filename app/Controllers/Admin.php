@@ -847,8 +847,34 @@ public function master_tabel() {
         return redirect()->to('admin/master_tabel/');
     } 
     else if ($mau_ke == "cari") {
-        $cari = addslashes($this->input->post('q'));
-        $a['data'] = $this->db->query("SELECT t.*,m.* from t_list_tabel t inner join m_unitkerja m on t.id_unitkerja=m.id_unitkerja where tahun='$ta' and (t.judul_ind LIKE '%$cari%' or m.unitkerja_ind LIKE '%$cari%') ")->getResult();
+        $filter_opd    = $this->session->get('sess_f_opd') ?? 'all';
+        $filter_bidang = $this->session->get('sess_f_bidang') ?? 'all';
+        $filter_tahun  = $this->session->get('sess_f_tahun') ?? 'all';
+
+        $where_tahun = ($filter_tahun != 'all') ? "l.tahun = '$filter_tahun'" : "1=1";
+        $cari = addslashes($this->request->getPost('q'));
+
+        $where_filters = "WHERE $where_tahun";
+        if ($filter_opd != 'all') $where_filters .= " AND l.id_unitkerja = '$filter_opd' ";
+        if ($filter_bidang != 'all') $where_filters .= " AND u.user_wali = '$filter_bidang' ";
+
+        $a['data'] = $this->db->query("
+            SELECT l.*, u.unitkerja_ind, u.user_wali 
+            FROM t_list_tabel l 
+            LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja 
+            $where_filters 
+            AND (l.judul_ind LIKE '%$cari%' OR u.unitkerja_ind LIKE '%$cari%')
+            ORDER BY l.id DESC
+        ")->getResult();
+
+        $a['selected_opd']    = $filter_opd;
+        $a['selected_bidang'] = $filter_bidang; 
+        $a['selected_tahun']  = $filter_tahun;
+        
+        $a['list_tim'] = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' ORDER BY user_wali ASC")->getResult();
+        $a['opd']      = $this->db->query("SELECT * FROM m_unitkerja ORDER BY id_unitkerja ASC")->getResult();
+        
+        $a['pagi'] = "";
         $a['page'] = "l_master_tabel";
     } 
     else if ($mau_ke == "add") {
@@ -874,6 +900,7 @@ public function master_tabel() {
         if (isset($_GET['action']) && $_GET['action'] == 'reset') {
             session()->remove('sess_f_opd');
             session()->remove('sess_f_bidang');
+            session()->remove('sess_f_tahun');
             return redirect()->to('admin/master_tabel');
         }
 
@@ -887,23 +914,35 @@ public function master_tabel() {
             $this->session->set('sess_f_bidang', $val);
         }
 
+        if (isset($_GET['filter_tahun'])) {
+            $val = $_GET['filter_tahun'];
+            $this->session->set('sess_f_tahun', $val);
+        }
+
         $filter_opd    = $this->session->get('sess_f_opd');
         $filter_bidang = $this->session->get('sess_f_bidang');
+        $filter_tahun  = $this->session->get('sess_f_tahun');
         
         if (empty($filter_opd)) $filter_opd = 'all';
         if (empty($filter_bidang)) $filter_bidang = 'all';
+        if (empty($filter_tahun)) $filter_tahun = 'all';
 
         $a['selected_opd']    = $filter_opd;
         $a['selected_bidang'] = $filter_bidang; 
+        $a['selected_tahun']  = $filter_tahun;
 
         $sql_base  = "FROM t_list_tabel l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja";
-        $sql_where = "WHERE l.tahun='$ta'";
+        $sql_where = "WHERE 1=1";
+
+        if ($filter_tahun != 'all') {
+            $sql_where .= " AND l.tahun = '$filter_tahun'";
+        }
 
         if ($filter_opd != 'all') {
             $sql_where .= " AND l.id_unitkerja = '$filter_opd'";
         }
 
-        else if ($filter_bidang != 'all') {
+        if ($filter_bidang != 'all') {
             $sql_where .= " AND u.user_wali = '$filter_bidang'";
         }
 
@@ -1675,8 +1714,167 @@ public function ambil_tahun_terakhir_dari_match()
 }
 
 
+	/**
+	 * Menampilkan tabel data dari Portal Data Jawa Tengah via API
+	 * URL: admin/view_portal_tabel?id={id_api}
+	 */
+	/**
+	 * Menampilkan tabel data dari Portal Data Jawa Tengah via API
+	 * URL: admin/view_portal_tabel?id={id_api}
+	 * Mendukung Multiple ID dipisahkan koma (misal: ?id=uuid1,uuid2)
+	 */
+	public function view_portal_tabel()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
 
+		$id_api = $this->request->getGet('id');
 
+		if (empty($id_api)) {
+			$a['page'] = "d_amain";
+			$this->session->setFlashdata("k", '<div class="alert alert-danger" id="alert">ID Portal Data tidak ditemukan</div>');
+			return view('admin/index', $a);
+		}
 
+		// Support multiple IDs (comma separated)
+		$ids = explode(',', $id_api);
+		$combined_data = [];
+		
+		foreach ($ids as $id) {
+			$id = trim($id);
+			if (empty($id)) continue;
+
+			$url = "https://satudata.jatengprov.go.id/v1/data/{$id}";
+			$res = $this->callApi2($url);
+
+			if (empty($combined_data)) {
+				$combined_data = $res;
+			} else if (isset($res['data'])) {
+				// Cek struktur data
+				if (isset($res['data'][0])) {
+					// Flat array
+					$combined_data['data'] = array_merge($combined_data['data'] ?? [], $res['data']);
+				} elseif (isset($res['data']['rows'])) {
+					// Nested rows
+					$combined_data['data']['rows'] = array_merge($combined_data['data']['rows'] ?? [], $res['data']['rows']);
+				}
+			}
+		}
+
+		// Cari Judul DDA asli dari database agar sinkron
+		$dda_info = $this->db->query("SELECT judul_ind, judul_en FROM t_list_tabel WHERE link_tabel LIKE ? LIMIT 1", ['%' . $ids[0] . '%'])->getRow();
+
+		$a['api_result']   = $combined_data;
+		$a['dda_title']    = $dda_info->judul_ind ?? '';
+		$a['dda_title_en'] = $dda_info->judul_en ?? '';
+		$a['id_api']       = $id_api;
+		$a['page']         = "v_portal_tabel";
+
+		return view('admin/index', $a);
+	}
+
+	/**
+	 * Fitur Bulk Update Link Portal dari file CSV mapping
+	 * Format CSV (semicolon): Judul;ID_Portal1,ID_Portal2
+	 */
 	
+	/**
+	 * Download Template untuk Bulk Portal Update (Format CSV untuk Excel)
+	 */
+	public function download_xlsx_template()
+	{
+		$filename = "template_bulk_portal.csv";
+		
+		// Add BOM for Excel UTF-8 support
+		$csv  = "\xEF\xBB\xBF";
+		$csv .= "Judul Tabel DDA (Indonesia);ID_Portal_Data\n";
+		$csv .= "Contoh Nama Tabel Satu (ID Tunggal);0f918215-695c-4167-9e09-9d79e01f918d\n";
+		$csv .= "Contoh Nama Tabel Multiple (Gunakan Koma);uuid-data-1,uuid-data-2,uuid-data-3\n";
+		
+		return $this->response->setBody($csv)
+							  ->setHeader('Content-Type', 'text/csv')
+							  ->setHeader('Content-Disposition', 'attachment; filename=' . $filename);
+	}
+
+	/**
+	 * Preview Bulk Portal Update dari File CSV (Separator Titik Koma)
+	 */
+	public function preview_bulk_portal()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$file = $this->request->getFile('file_mapping');
+		if (!$file || !$file->isValid()) {
+			return redirect()->back()->with('k', '<div class="alert alert-danger">File tidak valid atau tidak terbaca!</div>');
+		}
+
+		$handle = fopen($file->getTempName(), "r");
+		
+		// Skip header
+		fgetcsv($handle, 2000, ";");
+
+		$list_data = [];
+		while (($row = fgetcsv($handle, 2000, ";")) !== FALSE) {
+			$input_key = trim($row[0] ?? '');
+			$ids       = trim($row[1] ?? '');
+
+			if (empty($input_key)) continue;
+
+			// Cek apakah input adalah ID (Angka) atau Judul
+			// Flexible matching: Cek per ID atau per Judul (case insensitive)
+			$check = $this->db->query("SELECT id, judul_ind FROM t_list_tabel WHERE id = ? OR LOWER(judul_ind) = LOWER(?)", [$input_key, $input_key])->getRow();
+
+			$list_data[] = [
+				'input_key' => $input_key,
+				'judul'     => $check ? $check->judul_ind : $input_key,
+				'id_tabel'  => $check ? $check->id : null,
+				'ids'       => $ids,
+				'exists'    => ($check ? true : false)
+			];
+		}
+		fclose($handle);
+
+		// Ambil list semua tabel untuk fallback dropdown di VIEW
+		$a['all_tables']   = $this->db->query("SELECT id, judul_ind FROM t_list_tabel ORDER BY judul_ind ASC")->getResult();
+		$a['data_preview'] = $list_data;
+		$a['page']         = "v_preview_bulk";
+
+		return view('admin/index', $a);
+	}
+
+	/**
+	 * Simpan hasil Bulk Update setelah dikonfirmasi dari Preview
+	 */
+	public function bulk_portal_save()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$selected_indices = $this->request->getPost('id_selected'); // Ini array index (0, 1, 2...)
+		$id_tabels        = $this->request->getPost('id_tabel_final'); // Array [index => id_tabel]
+		$portal_ids_list  = $this->request->getPost('portal_ids'); // Array [index => portal_ids]
+
+		if (empty($selected_indices)) {
+			return redirect()->to('admin/master_tabel')->with('k', '<div class="alert alert-danger">Tidak ada data yang dipilih untuk diupdate.</div>');
+		}
+
+		$count = 0;
+		foreach ($selected_indices as $index) {
+			$id_tabel   = $id_tabels[$index] ?? '';
+			$portal_ids = $portal_ids_list[$index] ?? '';
+
+			if (empty($id_tabel) || empty($portal_ids)) continue;
+
+			$new_link = "index.php/admin/view_portal_tabel?id=" . $portal_ids;
+			$this->db->query("UPDATE t_list_tabel SET link_tabel = ? WHERE id = ?", [$new_link, $id_tabel]);
+			$count += $this->db->affectedRows();
+		}
+
+		return redirect()->to('admin/master_tabel')->with('k', '<div class="alert alert-success">Berhasil memperbarui ' . $count . ' tabel ke Portal Data.</div>');
+	}
+
 }

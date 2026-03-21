@@ -43,12 +43,11 @@
 		if (empty($data)) {
 			echo "<tr><td colspan='5'  style='text-align: center; font-weight: bold'>--Data tidak ditemukan--</td></tr>";
 		} else {
-			$no 	= (segment_safe(4) + 1);
-			$number=1;
+			$no 	= (isset($offset) ? $offset : 0) + 1;
 			foreach ($data as $b) {
 		?>
 		<tr>
-			<td class="ctr"><?php echo $number;?></td>
+			<td class="ctr"><?php echo $no;?></td>
 			<td><?php echo $b->username?></td>
 			<td><?php echo $b->nama."<br>".$b->nip?></td>
 			<td><?php echo $b->level?></td>
@@ -62,7 +61,6 @@
 		</tr>
 		<?php 
 			$no++;
-			$number++;
 			}
 		}
 		?>

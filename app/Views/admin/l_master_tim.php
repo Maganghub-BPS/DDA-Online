@@ -50,7 +50,7 @@
             if (empty($data)) {
                 echo "<tr><td colspan='4' style='text-align: center; font-weight: bold; padding: 20px;'>-- Belum ada Data Tim --</td></tr>";
             } else {
-                $no = (segment_safe(4) + 1);
+                $no 	= (isset($offset) ? $offset : 0) + 1;
                 foreach ($data as $b) {
             ?>
             <tr>

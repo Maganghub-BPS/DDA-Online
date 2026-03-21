@@ -18,7 +18,7 @@
 	<div class="navbar navbar-inverse">
 	
 		<div class="navbar-header">
-			<span class="navbar-brand" href="#" style="align:center">TABEL ANDA YANG DIMUAT DI JAWA TENGAH DALAM ANGKA </span>
+			<span class="navbar-brand" href="#" style="text-align:center">TABEL ANDA YANG DIMUAT DI JAWA TENGAH DALAM ANGKA </span>
 			<!--<ul class="nav navbar-nav navbar-right" style="margin-right: -20px">
 					<form class="navbar-form navbar-left" method="post" action="<?php echo base_URL(); ?>index.php/admin/kontrak/cari">
 						<input type="text" class="form-control" name="q" style="width: 200px" placeholder="Kata kunci pencarian ..." required>
@@ -64,7 +64,7 @@
 					if (empty($data)) {
 						echo "<tr><td colspan='5'  style='text-align: center; font-weight: bold'>--Data tidak ditemukan--</td></tr>";
 					} else {
-						$no 	= 1;
+						$no 	= (isset($offset) ? $offset : 0) + 1;
 						foreach ($data as $b) {
 					?>
 					<tr>
@@ -77,7 +77,7 @@
 						<?php
 						}
 						?>
-						<td><a href="https://docs.google.com/spreadsheets/d/1xTacZ81bViCQfWBOcO9vLuUzal4MpquX9nITMyF6dmA/edit#gid=1686441889<?php// echo base_URL()?>index.php/admin/oi/edt/<?php //echo $b->id; ?>" target="blank"><?php echo $b->kepentingan_kel.' : '.$b->kepentingan_uraian;?></a></td>
+						<td><a href="https://docs.google.com/spreadsheets/d/1xTacZ81bViCQfWBOcO9vLuUzal4MpquX9nITMyF6dmA/edit#gid=1686441889" target="blank"><?php echo $b->kepentingan_kel.' : '.$b->kepentingan_uraian;?></a></td>
 						<td  align="center"><?php echo $b->jam_keluar; ?></td>
 						<td  align="center"><?php echo $b->jam_masuk;?>
 						<div class="btn-group">

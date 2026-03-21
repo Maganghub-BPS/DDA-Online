@@ -94,7 +94,7 @@
 
 		} else {
 
-			$no 	= 1;
+			$no 	= (isset($offset) ? $offset : 0) + 1;
 
 			foreach ($data as $b) {
 
