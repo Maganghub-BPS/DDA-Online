@@ -1,115 +1,371 @@
 
 <!DOCTYPE html>
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>.:: Jateng Dalam Angka ::.</title>
+<html lang="id">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>.:: Jateng Dalam Angka — Login ::.</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
-	<style type="text/css">
-	@font-face {
-	  font-family: 'Cabin';
-	  font-style: normal;
-	  font-weight: 400;
-	  src: local('Cabin Regular'), local('Cabin-Regular'), url("<?php echo base_url('aset/font/satu.woff'); ?>") format('woff');
-	}
-	@font-face {
-	  font-family: 'Cabin';
-	  font-style: normal;
-	  font-weight: 700;
-	  src: local('Cabin Bold'), local('Cabin-Bold'), url("<?php echo base_url('aset/font/dua.woff'); ?>") format('woff');
-	}
-	@font-face {
-	  font-family: 'Lobster';
-	  font-style: normal;
-	  font-weight: 400;
-	  src: local('Lobster'), url("<?php echo base_url('aset/font/tiga.woff'); ?>") format('woff');
-	}
-	
-	</style>
-    <link rel="stylesheet" href="<?php echo base_url('aset/css/bootstrap.css'); ?>" media="screen">
-    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-    <!--[if lt IE 9]>
-      <script src="../bower_components/bootstrap/assets/js/html5shiv.js"></script>
-      <script src="../bower_components/bootstrap/assets/js/respond.min.js"></script>
-    <![endif]-->
-  
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #FF6D1F;
+            --primary-hover: #e05e15;
+            --glass-bg: rgba(255, 255, 255, 0.95);
+        }
 
-    <script src="<?php echo base_url('aset/js/jquery.min.js'); ?>"></script>
-    <script src="<?php echo base_url('aset/js/bootstrap.min.js'); ?>"></script>
-    <script src="<?php echo base_url('aset/js/bootswatch.js'); ?>"></script>
-    <script src="<?php echo base_url('aset/js/jquery.chained.js'); ?>"></script>
-  </head>
-  <body style="">
-    <div class="navbar navbar-inverse navbar-fixed-top">
-      <div class="container">
-        <div class="navbar-header">
-          <span class="navbar-brand"><strong style="font-family: verdana; margin-left: 310px; text-align: center">Selamat Datang di Sistem Pengelolaan Jateng Dalam Angka</strong></span>
-          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#navbar-main">
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Floating decorative circles */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 109, 31, 0.08);
+            border-radius: 50%;
+            top: -80px;
+            right: -80px;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 109, 31, 0.06);
+            border-radius: 50%;
+            bottom: -50px;
+            left: -50px;
+            z-index: 0;
+        }
+
+        .login-wrapper {
+            width: 100%;
+            max-width: 440px;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .brand-logo img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #fff;
+            padding: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+
+        .brand-logo h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 12px;
+            font-size: 1.25rem;
+        }
+
+        .brand-logo p {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        .login-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 30px 35px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .login-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .login-card h5 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+            font-size: 1.5rem;
+        }
+
+        .login-card .subtitle {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #334155;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+
+        .input-group {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .input-group-text {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-right: none;
+            color: #94a3b8;
+            padding: 10px 14px;
+        }
+
+        .form-control {
+            border: 1px solid #e2e8f0;
+            border-left: none;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            z-index: 0 !important;
+        }
+
+        /* Password Toggle Button */
+        .password-toggle {
+            cursor: pointer;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: none;
+            color: #94a3b8;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .password-toggle:hover {
+            color: var(--primary-color);
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.1);
+        }
+
+        .form-control:focus + .input-group-text,
+        .input-group:focus-within .input-group-text {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .form-select {
+            border: 1px solid #e2e8f0;
+            border-left: none;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.1);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, #FF6D1F 0%, #e05e15 100%);
+            border: none;
+            color: #fff;
+            padding: 13px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            width: 100%;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 15px rgba(255, 109, 31, 0.3);
+        }
+
+        .btn-login:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(255, 109, 31, 0.4);
+            color: #fff;
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 24px;
+            color: #94a3b8;
+            font-size: 0.8rem;
+        }
+
+        /* Alert animation */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert {
+            animation: fadeInDown 0.5s ease;
+            border-radius: 12px;
+            border: none;
+            font-size: 0.9rem;
+        }
+
+        /* Decorative extra circle */
+        .circle-decoration {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 109, 31, 0.05);
+            border-radius: 50%;
+            bottom: 20%;
+            right: 10%;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="circle-decoration"></div>
+
+    <?php 
+    $db = \Config\Database::connect();
+    $q_instansi = $db->query("SELECT * FROM tr_instansi LIMIT 1")->getRow();
+    ?>
+
+    <div class="login-wrapper">
+        <!-- Brand Logo -->
+        <div class="brand-logo">
+            <img src="<?php echo base_url(); ?>upload/<?php echo $q_instansi->logo; ?>" alt="Logo">
+            <h4><?php echo $q_instansi->nama; ?></h4>
+            <p><?php echo $q_instansi->alamat; ?></p>
         </div>
-        
-      </div>
+
+        <!-- Login Card -->
+        <div class="login-card">
+            <h5>Selamat Datang</h5>
+            <p class="subtitle">Masuk ke Sistem Pengelolaan Jateng Dalam Angka</p>
+
+            <!-- Alert -->
+            <?php if(session()->getFlashdata("k")): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert" id="alert">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    <?php echo session()->getFlashdata("k"); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
+
+            <form action="<?php echo base_URL(); ?>index.php/admin/do_login" method="post">
+                <!-- Username -->
+                <div class="mb-2">
+                    <label class="form-label">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" name="u" class="form-control" placeholder="Masukkan username" required autofocus>
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-2 mt-3">
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" name="p" id="password" class="form-control" placeholder="Masukkan password" required>
+                        <span class="password-toggle" id="togglePassword">
+                            <i class="bi bi-eye" id="eyeIcon"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Tahun -->
+                <div class="mb-3 mt-3">
+                    <label class="form-label">Tahun Data</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+                        <select name="ta" class="form-select">
+                            <option value="">-- Opt. for Admin --</option>
+                            <?php 
+                            for ($i = 2016; $i <= (date('Y')+1); $i++) {
+                                if (date('Y') == $i) {
+                                    echo "<option value='$i' selected>$i</option>";
+                                } else {
+                                    echo "<option value='$i'>$i</option>";
+                                }
+                            }
+                            ?>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn btn-login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Masuk
+                </button>
+            </form>
+        </div>
+
+        <div class="footer-text">
+            Versi 5.0 &copy; <a href="http://jateng.bps.go.id" style="color: var(--primary-color); text-decoration: none;">BPS Provinsi Jawa Tengah</a>
+        </div>
     </div>
 
-	<?php 
-	$db = \Config\Database::connect();
-	$q_instansi	= $db->query("SELECT * FROM tr_instansi LIMIT 1")->getRow();
-	?>
-    <div class="container">
-	
-	<br><br>
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-dismiss alert after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            var alertEl = document.getElementById('alert');
+            if (alertEl) {
+                setTimeout(function() {
+                    alertEl.style.transition = 'opacity 0.8s ease';
+                    alertEl.style.opacity = '0';
+                    setTimeout(function() { alertEl.remove(); }, 800);
+                }, 5000);
+            }
 
-	<div class="container-fluid" style="margin-top: 30px">
-	
-      <div class="row-fluid">
-		<div style="width: 400px; margin: 0 auto">
-			<div class="well well-sm">
-				<img src="<?php echo base_url(); ?>upload/<?php echo $q_instansi->logo; ?>" class="thumbnail span3" style="display: inline; float: left; margin-right: 20px; width: 80px; height: 80px">
-				<h3 style="margin: 5px 0 0.4em 0; font-size: 21px; color: #000; font-weight: bold;font-family: Arial"><?php echo $q_instansi->nama; ?></h3>
-				<div style="color: #000; font-size: 15px ;font-family: Arial" class="clearfix"><?php echo $q_instansi->alamat; ?></div>
-			 </div>
-		</div>
-		
-		<div class="well" style="width: 400px; margin: 20px auto; border: solid 1px #d9d9d9; padding: 30px 20px; border-radius: 8px">
-		<form action="<?php echo base_URL(); ?>index.php/admin/do_login" method="post">
-		<legend>Login</legend>	
-		<?php echo session()->getFlashdata("k"); ?>
-		<table align="center" style="margin-bottom: 0" class="table-form" width="90%">
-			<tr><td width="40%">Username</td><td><input type="text" autofocus name="u" required style="width: 200px" autofocus class="form-control"></td></tr>
-			<tr><td>Password</td><td><input type="password" name="p" required style="width: 200px" class="form-control"></td></tr>
-			<tr><td>Tahun</td><td><select name="ta" class="form-control"><option value="">-- Opt. for Admin --</option>
-			<?php 
-			for ($i = 2016; $i <= (date('Y')+1); $i++) {
-				if (date('Y') == $i) {
-					echo "<option value='$i' selected>$i</option>";
-				} else {
-					echo "<option value='$i'>$i</option>";
-				}
-			}
-			?>
-			</select>
-			</td></tr>
-			<tr><td></td><td><input type="submit" class="btn btn-success" value="Login"></td></tr>
-		</table>
-		<!--<center style="font-size: 11px">Username : <b>admin</b>, Password : <b>admin</b></center>-->
-		</form>
-		</div><!--/span-->
-      </div><!--/row-->
+            // Password Toggle
+            const togglePassword = document.getElementById('togglePassword');
+            const password = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
 
-    </div><!--/.fluid-container-->
-	<center style="margin-top: -15px;">Versi 1.0 (Januari 2018) &copy; <a href="http://jateng.bps.go.id">BPS Provinsi Jawa Tengah</a>  
-	
-	</center>
-	
-	<script type="text/javascript">
-	$(document).ready(function(){
-		$(" #alert" ).fadeOut(6000);
-	});
-	</script>
-	  
-    </div>
-  
-</body></html>
-
+            togglePassword.addEventListener('click', function() {
+                const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                password.setAttribute('type', type);
+                
+                // Toggle Icon
+                eyeIcon.classList.toggle('bi-eye');
+                eyeIcon.classList.toggle('bi-eye-slash');
+            });
+        });
+    </script>
+</body>
+</html>

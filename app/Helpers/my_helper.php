@@ -27,17 +27,43 @@ function _page($total_row, $per_page, $uri_segment, $url) {
     if ($total_row <= $per_page) return '';
     
     $request = \Config\Services::request();
-    $segments = $request->getUri()->getSegments();
-    $current_offset = isset($segments[$uri_segment-1]) ? (int)$segments[$uri_segment-1] : 0;
+    $current_offset = (int)(segment_safe($uri_segment) ?? 0);
     
-    $html = '<ul class="pagination">';
     $total_pages = ceil($total_row / $per_page);
-    for ($i = 0; $i < $total_pages; $i++) {
-        $offset = $i * $per_page;
-        $active = ($offset == $current_offset) ? 'class="active disabled"' : '';
-        $html .= '<li ' . $active . '><a href="' . $url . '/' . $offset . '">' . ($i + 1) . '</a></li>';
+    $current_page = floor($current_offset / $per_page) + 1;
+    
+    $html = '<nav class="d-flex justify-content-center"><ul class="pagination pagination-sm gap-1 mb-0">';
+    
+    // First & Previous
+    if ($current_page > 1) {
+        $prev_offset = ($current_page - 2) * $per_page;
+        $html .= '<li class="page-item"><a class="page-link border-0 bg-gray-100 text-secondary border-radius-md" href="' . $url . '/0"><i class="bi bi-chevron-double-left"></i></a></li>';
+        $html .= '<li class="page-item"><a class="page-link border-0 bg-gray-100 text-secondary border-radius-md" href="' . $url . '/' . $prev_offset . '"><i class="bi bi-chevron-left"></i></a></li>';
     }
-    $html .= '</ul>';
+
+    // Numbers
+    $start = max(1, $current_page - 2);
+    $end = min($total_pages, $start + 4);
+    if ($end - $start < 4) $start = max(1, $end - 4);
+
+    for ($i = $start; $i <= $end; $i++) {
+        $offset = ($i - 1) * $per_page;
+        if ($i == $current_page) {
+            $html .= '<li class="page-item active"><span class="page-link border-0 border-radius-md bg-primary-orange text-white fw-bold px-3">' . $i . '</span></li>';
+        } else {
+            $html .= '<li class="page-item"><a class="page-link border-0 bg-gray-100 text-secondary border-radius-md fw-bold px-3" href="' . $url . '/' . $offset . '">' . $i . '</a></li>';
+        }
+    }
+
+    // Next & Last
+    if ($current_page < $total_pages) {
+        $next_offset = $current_page * $per_page;
+        $last_offset = ($total_pages - 1) * $per_page;
+        $html .= '<li class="page-item"><a class="page-link border-0 bg-gray-100 text-secondary border-radius-md" href="' . $url . '/' . $next_offset . '"><i class="bi bi-chevron-right"></i></a></li>';
+        $html .= '<li class="page-item"><a class="page-link border-0 bg-gray-100 text-secondary border-radius-md" href="' . $url . '/' . $last_offset . '"><i class="bi bi-chevron-double-right"></i></a></li>';
+    }
+
+    $html .= '</ul></nav>';
     return $html;
 }
 

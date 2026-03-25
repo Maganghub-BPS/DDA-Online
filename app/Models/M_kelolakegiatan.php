@@ -9,86 +9,88 @@ class m_kelolakegiatan extends Model{
     protected $table="t_data";
     
     function cek($id,$data){
-        $this->db->where("id",$id);
-        $this->db->where("data",$data);
-        return $this->db->get("t_data");
+        return $this->db->table("t_data")
+                        ->where("id",$id)
+                        ->where("data",$data)
+                        ->get();
     }
     
     function semua($limit=10,$offset=0,$order_column='',$order_type='asc'){
-       // return $this->db->get("m_kab");
+        $builder = $this->builder();
 	    if(empty($order_column) || empty($order_type))
-            $this->db->order_by($this->primary,'asc');
+            $builder->orderBy($this->primaryKey,'asc');
         else
-            $this->db->order_by($order_column,$order_type);
-        return $this->db->get($this->table,$limit,$offset);
+            $builder->orderBy($order_column,$order_type);
+        return $builder->get($limit,$offset);
     }
     
 	function semuabyskpd($limit=10,$offset=0,$order_column='',$order_type='asc'){
-       // return $this->db->get("m_kab");
-	   $skpd=$this->session->get('level');
+	   $skpd = session()->get('level');
+       $builder = $this->builder();
 	    if(empty($order_column) || empty($order_type))
-			{$this->db->where("skpd1",$skpd);
-			$this->db->or_where("skpd2",$skpd);
-            $this->db->order_by($this->primary,'asc');}
+			{$builder->where("skpd1",$skpd);
+			$builder->orWhere("skpd2",$skpd);
+            $builder->orderBy($this->primaryKey,'asc');}
         else
-			{$this->db->where("skpd1",$skpd);
-			$this->db->or_where("skpd2",$skpd);
-            $this->db->order_by($order_column,$order_type);}
-        return $this->db->get($this->table,$limit,$offset);
+			{$builder->where("skpd1",$skpd);
+			$builder->orWhere("skpd2",$skpd);
+            $builder->orderBy($order_column,$order_type);}
+        return $builder->get($limit,$offset);
     }
 	
 	function jumlah(){
-        return $this->db->count_all($this->table);
+        return $this->db->table($this->table)->countAllResults();
     }
 	
     function cekKode($kode){
-        $this->db->where("kode_indikator",$kode);
-        return $this->db->get("m_indikator");
+        return $this->db->table("m_indikator")
+                        ->where("kode_indikator",$kode)
+                        ->get();
     }
 	
 	function viewdata($kode){
-        $this->db->select('d.data,d.id_kab,k.nama_kab,i.nama_indikator,t.tahun,d.kode_indikator,d.flag,d.id,d.username,d.level');
-		$this->db->from('t_data as d');
-		$this->db->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
-		$this->db->join('m_tahun as t', 'd.tahun = t.id');
-		$this->db->join('m_kab as k', 'd.id_kab = k.id_kab');	
-		$this->db->where("d.kode_indikator",$kode);
-        return $this->db->get();
+        $builder = $this->db->table('t_data as d');
+        $builder->select('d.data,d.id_kab,k.nama_kab,i.nama_indikator,t.tahun,d.kode_indikator,d.flag,d.id,d.username,d.level');
+		$builder->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
+		$builder->join('m_tahun as t', 'd.tahun = t.id');
+		$builder->join('m_kab as k', 'd.id_kab = k.id_kab');	
+		$builder->where("d.kode_indikator",$kode);
+        return $builder->get();
     }
 	
 	
 	function viewdataringkas($kode){
-        $this->db->select('distinct(d.kode_indikator),d.data, i.nama_indikator,t.tahun,d.flag,d.id,d.username,d.level');
-		$this->db->from('t_data as d');
-		$this->db->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
-		$this->db->join('m_tahun as t', 'd.tahun = t.id');
-		$this->db->where("d.kode_indikator",$kode);
-		$this->db->where("d.id_kab",'3301');
-        return $this->db->get();
+        $builder = $this->db->table('t_data as d');
+        $builder->select('distinct(d.kode_indikator),d.data, i.nama_indikator,t.tahun,d.flag,d.id,d.username,d.level');
+		$builder->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
+		$builder->join('m_tahun as t', 'd.tahun = t.id');
+		$builder->where("d.kode_indikator",$kode);
+		$builder->where("d.id_kab",'3301');
+        return $builder->get();
     }
 	
 	function viewsdata($kode,$level){
-        $this->db->select('d.data,d.id_kab,,k.nama_kab,i.nama_indikator,t.tahun,d.kode_indikator,d.flag,d.id,d.username,d.level');
-		$this->db->from('t_data as d');
-		$this->db->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
-		$this->db->join('m_tahun as t', 'd.tahun = t.id');
-		$this->db->join('m_kab as k', 'd.id_kab = k.id_kab');	
-		$this->db->where("d.kode_indikator",$kode);
-		$this->db->where("d.level",$level);
-        return $this->db->get();
+        $builder = $this->db->table('t_data as d');
+        $builder->select('d.data,d.id_kab,k.nama_kab,i.nama_indikator,t.tahun,d.kode_indikator,d.flag,d.id,d.username,d.level');
+		$builder->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
+		$builder->join('m_tahun as t', 'd.tahun = t.id');
+		$builder->join('m_kab as k', 'd.id_kab = k.id_kab');	
+		$builder->where("d.kode_indikator",$kode);
+		$builder->where("d.level",$level);
+        return $builder->get();
     }
 	
 	function cekDataEdit($tahun, $kode_indikator){
-        $this->db->select('d.data, i.nama_indikator,h.tahun,d.kode_indikator,d.kode_goal,d.kode_target,d.flag,t.nama_target, g.nama_goal,d.id');
-		$this->db->from('t_data as d');
-		$this->db->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
-		$this->db->join('m_tahun as h', 'd.tahun = h.id');
-		$this->db->join('m_target as t', 'd.kode_target = t.kode_target');
-		$this->db->join('m_goal as g', 'd.kode_goal = g.kode_goal');
-		$this->db->where("h.tahun",$tahun);
-		$this->db->where("d.kode_indikator",$kode_indikator);
-		$this->db->where("d.id_kab",'3301');
-        return $this->db->get();
+        $builder = $this->db->table('t_data as d');
+        $builder->select('d.data, i.nama_indikator,h.tahun,d.kode_indikator,d.kode_goal,d.kode_target,d.flag,t.nama_target, g.nama_goal,d.id');
+		$builder->join('m_indikator as i', 'd.kode_indikator = i.kode_indikator');
+		$builder->join('m_tahun as h', 'd.tahun = h.id');
+		$builder->join('m_target as t', 'd.kode_target = t.kode_target');
+		$builder->join('m_goal as g', 'd.kode_goal = g.kode_goal');
+		$builder->where("h.tahun",$tahun);
+		$builder->where("d.kode_indikator",$kode_indikator);
+		$builder->where("d.id_kab",'3301');
+        return $builder->get();
     }
 	
 	function cekDataEditLengkap($tahun, $kode_indikator){
@@ -96,70 +98,77 @@ class m_kelolakegiatan extends Model{
     }
 	
 	function cekData($tahun,$kode_goal,$kode_target,$kode_indikator){
-        $this->db->where("tahun",$tahun);
-		$this->db->where("kode_goal",$kode_goal);
-		$this->db->where("kode_target",$kode_target);
-		$this->db->where("kode_indikator",$kode_indikator);
-		$this->db->where("id_kab",'3301');
-        return $this->db->get("t_data");
+        return $this->db->table('t_data')
+                        ->where("tahun",$tahun)
+		                ->where("kode_goal",$kode_goal)
+		                ->where("kode_target",$kode_target)
+		                ->where("kode_indikator",$kode_indikator)
+		                ->where("id_kab",'3301')
+                        ->get();
     }
     
     function cekId($kode){
-        //$this->db->where("kode_indikator",$kode);
-		$this->db->select('i.*, t.nama_target, g.nama_goal');
-		$this->db->from('m_indikator as i');
-		$this->db->join('m_target as t', 'i.kode_target = t.kode_target');
-		$this->db->join('m_goal as g', 'i.kode_goal = g.kode_goal');
-		$this->db->where("i.kode_indikator",$kode);
-		return $this->db->get();
-        //return $this->db->get("m_indikator");
+        $builder = $this->db->table('m_indikator as i');
+		$builder->select('i.*, t.nama_target, g.nama_goal');
+		$builder->join('m_target as t', 'i.kode_target = t.kode_target');
+		$builder->join('m_goal as g', 'i.kode_goal = g.kode_goal');
+		$builder->where("i.kode_indikator",$kode);
+		return $builder->get();
     }
     
     function update_record($id,$info){
-        $this->db->where("kode_indikator",$id);
-        $this->db->update("m_indikator",$info);
+        $this->db->table("m_indikator")
+                 ->where("kode_indikator",$id)
+                 ->update($info);
     }
     
 	function updatedata($id,$info){
-        $this->db->where("id",$id);
-        $this->db->update("t_data",$info);
+        $this->db->table("t_data")
+                 ->where("id",$id)
+                 ->update($info);
     }
 	
     function inputdata($info){
-        $this->db->insert("t_data",$info);
+        $this->db->table("t_data")->insert($info);
     }
     
     function hapus($tahunbeneran,$kode_indikator){
-        $this->db->where("tahun",$tahunbeneran);
-		$this->db->where("kode_indikator",$kode_indikator);
-        $this->db->delete("t_data");
+        $this->db->table("t_data")
+                 ->where("tahun",$tahunbeneran)
+		         ->where("kode_indikator",$kode_indikator)
+                 ->delete();
     }
 	
 	 function verifikasi($kode_indikator,$tahunbeneran,$info){
-		$this->db->where("tahun",$tahunbeneran);
-        $this->db->where("kode_indikator",$kode_indikator);
-        $this->db->update("t_data",$info);
+		$this->db->table("t_data")
+                 ->where("tahun",$tahunbeneran)
+                 ->where("kode_indikator",$kode_indikator)
+                 ->update($info);
     }
 	
 	function getIndikator($kode){
-		$this->db->select('kode_indikator');
-		$this->db->from('t_data');
-		$this->db->where("id",$kode);
-		return $this->db->get()->row('kode_indikator');
+		$row = $this->db->table('t_data')
+                        ->select('kode_indikator')
+		                ->where("id",$kode)
+                        ->get()
+                        ->getRow();
+        return $row ? $row->kode_indikator : null;
 	}
 	
 	function getTahun($idtahun)
 	{
-		$this->db->select('id');
-		$this->db->from('m_tahun');
-		$this->db->where("tahun",$idtahun);
-		return $this->db->get()->row('id');
+		$row = $this->db->table('m_tahun')
+                        ->select('id')
+		                ->where("tahun",$idtahun)
+                        ->get()
+                        ->getRow();
+        return $row ? $row->id : null;
 	}
 
     function get_statistik_dashboard($th){
         $sql = "SELECT 
-                    SUM(CASE WHEN is_periksa = 1 THEN 1 ELSE 0 END) as diisi,
-                    SUM(CASE WHEN is_periksa = 0 AND is_confirm != 1 THEN 1 ELSE 0 END) as belum_diisi,
+                    SUM(CASE WHEN is_periksa = 1 OR link_tabel LIKE '%portal%' OR link_tabel LIKE '%satudata%' OR is_confirm = 1 THEN 1 ELSE 0 END) as diisi,
+                    SUM(CASE WHEN (is_periksa = 0 AND link_tabel NOT LIKE '%portal%' AND link_tabel NOT LIKE '%satudata%') AND is_confirm != 1 THEN 1 ELSE 0 END) as belum_diisi,
                     SUM(CASE WHEN is_confirm = 1 THEN 1 ELSE 0 END) as sudah_acc,
                     SUM(CASE WHEN is_confirm != 1 THEN 1 ELSE 0 END) as belum_acc
                 FROM t_list_tabel 
@@ -173,12 +182,12 @@ class m_kelolakegiatan extends Model{
         $sql = "SELECT 
                     m.id_unitkerja as nama_opd, 
                     
-                    -- HIJAU
+                    -- HIJAU: Diverifikasi
                     SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as total_acc,
-                    -- KUNING
-                    SUM(CASE WHEN t.is_periksa = 1 AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_menunggu,
-                    -- MERAH
-                    SUM(CASE WHEN t.is_periksa = 0 AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_belum
+                    -- KUNING: Sudah Diisi (Menunggu Verifikasi)
+                    SUM(CASE WHEN (t.is_periksa = 1 OR t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_menunggu,
+                    -- MERAH: Belum Diisi
+                    SUM(CASE WHEN (t.is_periksa = 0 AND t.link_tabel NOT LIKE '%portal%' AND t.link_tabel NOT LIKE '%satudata%') AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_belum
                     
                 FROM t_list_tabel t  
                 JOIN m_unitkerja m ON t.id_unitkerja = m.id_unitkerja 
@@ -192,12 +201,12 @@ class m_kelolakegiatan extends Model{
     function get_statistik_per_tim($th){
         $sql = "SELECT 
                     m.user_wali as nama_tim,
-                    -- 1. HIJAU
+                    -- 1. HIJAU: Diverifikasi
                     SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as total_acc,
-                    -- 2. KUNING
-                    SUM(CASE WHEN t.is_periksa = 1 AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_menunggu,
-                    -- 3. MERAH
-                    SUM(CASE WHEN t.is_periksa = 0 AND t.is_confirm != 1 AND t.id IS NOT NULL THEN 1 ELSE 0 END) as total_belum
+                    -- 2. KUNING: Sudah Diisi (Menunggu Verifikasi)
+                    SUM(CASE WHEN (t.is_periksa = 1 OR t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_menunggu,
+                    -- 3. MERAH: Belum Diisi
+                    SUM(CASE WHEN (t.is_periksa = 0 AND t.link_tabel NOT LIKE '%portal%' AND t.link_tabel NOT LIKE '%satudata%') AND t.is_confirm != 1 AND t.id IS NOT NULL THEN 1 ELSE 0 END) as total_belum
                     
                 FROM m_unitkerja m
                 LEFT JOIN t_list_tabel t ON m.id_unitkerja = t.id_unitkerja AND t.tahun = '$th'

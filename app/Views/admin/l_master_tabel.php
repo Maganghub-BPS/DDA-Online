@@ -1,200 +1,363 @@
-<div class="clearfix">
-<div class="row">
-  <div class="col-lg-12">
-	
-	<div class="navbar navbar-inverse">
-		<div class="container">
-			<div class="navbar-header">
-				<a class="navbar-brand" href="#">MASTER TABEL DDA</a>
-			</div>
-		<div class="navbar-collapse collapse navbar-inverse-collapse" style="margin-right: -20px">
-		
-			<ul class="nav navbar-nav">
-				<li><a href="<?php echo base_URL(); ?>index.php/admin/master_tabel/add"><i class="icon-plus-sign icon-white"> </i> Tambah Data</a></li>
-				<li><a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/"><i class="icon-zoom-in icon-white"> </i> Tabel Usulan</a></li>
-				<li><a href="#" data-toggle="modal" data-target="#ModalBulkPortal" class="text-info"><i class="icon-upload icon-white"> </i> Bulk Portal Update</a></li>
-			</ul>
-			<ul class="nav navbar-nav navbar-right">
-				<form class="navbar-form navbar-left" method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari">
-					<input type="text" class="form-control" name="q" style="width: 200px" placeholder="Kata kunci pencarian ..." required>
-					<button type="submit" class="btn btn-danger"><i class="icon-search icon-white"> </i> Cari</button>
-				</form>
-			</ul>
-		</div><!-- /.nav-collapse -->
-		</div><!-- /.container -->
-	</div><!-- /.navbar -->
+<?php echo session()->getFlashdata("k"); ?>
 
-  </div>
-</div>
+<!-- Consolidated Control Card -->
+<div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
+    <div class="card-header pb-3 pt-3 px-4 bg-white border-0">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-7">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel/add" class="btn btn-primary btn-sm px-3 border-radius-lg mb-0">
+                        <i class="bi bi-plus-circle me-1"></i> Tambah Data
+                    </a>
+                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/" class="btn btn-outline-primary btn-sm px-3 border-radius-lg mb-0 shadow-none">
+                        <i class="bi bi-patch-question me-1"></i> Tabel Usulan
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary px-3 border-radius-lg mb-0 shadow-none" data-bs-toggle="modal" data-bs-target="#ModalBulkPortal">
+                        <i class="bi bi-cloud-upload me-1"></i> Bulk Portal
+                    </button>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari" onsubmit="return false;">
+                    <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
+                        <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="inputSearchTabel" class="form-control bg-transparent border-0 ps-0" name="q" placeholder="Ketik untuk mencari tabel..." style="box-shadow: none;">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-<?php echo session()->getFlashdata("k");?>
-<div class="well well-sm" style="margin-top: 10px; margin-bottom: 10px;">
-    <form class="form-inline" method="GET" action="<?php echo base_url(); ?>index.php/admin/master_tabel">
-        
-        <!-- FILTER 1: BIDANG / TIM -->
-        <div class="form-group" style="margin-right: 15px;">
-            <label style="font-weight: bold; margin-right: 5px;">
-                <i class="icon-user"></i> Filter Bidang:
-            </label>
-            <select name="filter_bidang" class="form-control" onchange="this.form.submit()" style="width: 200px;">
-                <option value="all">-- Semua Bidang --</option>
-                <?php 
-                if(isset($list_tim)) {
-                    foreach($list_tim as $tim) { 
-                        $sel = (isset($selected_bidang) && $selected_bidang == $tim->user_wali) ? 'selected' : '';
-                        // Tampilkan nama tim (huruf besar biar rapi)
-                        echo "<option value='".$tim->user_wali."' $sel>".strtoupper($tim->user_wali)."</option>";
-                    } 
-                }
-                ?>
-            </select>
+    <div class="card-body px-4 pt-0 pb-4">
+        <div class="bg-gray-50 border-radius-xl p-3 mb-4 border border-light">
+            <form class="row g-3 align-items-end" method="GET" action="<?php echo base_url(); ?>index.php/admin/master_tabel">
+                <!-- Filter Bidang -->
+                <div class="col-md-3">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-1 ls-1">Bidang / Tim</label>
+                    <select name="filter_bidang" class="form-select form-select-sm border-0 shadow-sm border-radius-md py-2" onchange="this.form.submit()">
+                        <option value="all">-- Semua Bidang --</option>
+                        <?php
+                        if (isset($list_tim)) {
+                            foreach ($list_tim as $tim) {
+                                $sel = (isset($selected_bidang) && $selected_bidang == $tim->user_wali) ? 'selected' : '';
+                                echo "<option value='" . $tim->user_wali . "' $sel>" . strtoupper($tim->user_wali) . "</option>";
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+
+                <!-- Filter OPD -->
+                <div class="col-md-4">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-1 ls-1">Instansi (OPD)</label>
+                    <select name="filter_opd" class="form-select form-select-sm border-0 shadow-sm border-radius-md py-2" onchange="this.form.submit()">
+                        <option value="all">-- Semua OPD --</option>
+                        <?php
+                        if (isset($list_opd)) {
+                            foreach ($list_opd as $opd) {
+                                $selected = (isset($selected_opd) && $selected_opd == $opd->id_unitkerja) ? 'selected' : '';
+                                echo "<option value='" . $opd->id_unitkerja . "' $selected>" . $opd->unitkerja_ind . "</option>";
+                            }
+                        }
+                        ?>
+                    </select>
+                </div>
+
+                <!-- Filter Tahun -->
+                <div class="col-md-2">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-1 ls-1">Tahun</label>
+                    <select name="filter_tahun" class="form-select form-select-sm border-0 shadow-sm border-radius-md py-2" onchange="this.form.submit()">
+                        <option value="all">Semua</option>
+                        <?php
+                        for ($i = 2020; $i <= (date('Y') + 1); $i++) {
+                            $selected = (isset($selected_tahun) && $selected_tahun == $i) ? 'selected' : '';
+                            echo "<option value='$i' $selected>$i</option>";
+                        }
+                        ?>
+                    </select>
+                </div>
+
+                <!-- Reset -->
+                <div class="col-md-3 text-end d-flex align-items-center justify-content-end gap-2">
+                    <?php if ((isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all') || (isset($selected_tahun) && $selected_tahun != 'all')): ?>
+                        <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-link text-secondary text-xs mb-0 px-2 fw-bold">
+                            <i class="bi bi-x-circle me-1"></i> Reset
+                        </a>
+                    <?php endif; ?>
+                    <button type="submit" class="btn btn-dark btn-sm border-radius-lg px-3 mb-0 shadow-none">
+                        <i class="bi bi-filter me-1"></i> Filter
+                    </button>
+                </div>
+            </form>
         </div>
 
-        <!-- FILTER 2: OPD -->
-        <div class="form-group" style="margin-right: 15px;">
-            <label style="font-weight: bold; margin-right: 5px;">
-                <i class="icon-filter"></i> Filter OPD:
-            </label>
-            <select name="filter_opd" class="form-control" onchange="this.form.submit()" style="width: 250px;">
-                <option value="all">-- Tampilkan Semua OPD --</option>
-                <?php 
-                if(isset($list_opd)) {
-                    foreach($list_opd as $opd) { 
-                        $selected = (isset($selected_opd) && $selected_opd == $opd->id_unitkerja) ? 'selected' : '';
-                        echo "<option value='".$opd->id_unitkerja."' $selected>".$opd->unitkerja_ind."</option>";
-                    } 
-                }
-                ?>
-            </select>
+        <div class="table-responsive rounded-3 border border-light overflow-hidden">
+            <table class="table table-hover align-items-center mb-0">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th width="45" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">No</th>
+                        <th width="65" class="valign-middle text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Thn</th>
+                        <th class="valign-middle py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Judul Tabel</th>
+                        <th width="200" class="valign-middle py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Sumber / Link</th>
+                        <th width="180" class="valign-middle py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Instansi / Unit Kerja</th>
+                        <th width="85" class="valign-middle text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tableMasterBody" class="divide-y divide-gray-100 bg-white">
+                    <?php
+                    if (empty($data)) {
+                        echo "<tr><td colspan='6' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
+                    } else {
+                        $no = 1;
+                        foreach ($data as $b) {
+                    ?>
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="text-center">
+                                    <span class="text-secondary text-sm"><?php echo $no; ?></span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge badge-sm bg-gray-100 text-dark font-weight-bold"><?php echo $b->tahun; ?></span>
+                                </td>
+                                <td class="py-3">
+                                    <h6 class="mb-0 text-sm font-weight-bold text-dark text-wrap" style="max-width:350px; line-height: 1.5;"><?php echo $b->judul_ind; ?></h6>
+                                    <p class="text-xxs text-secondary mb-0 font-italic text-wrap mt-1" style="max-width:350px; line-height: 1.2;"><?php echo $b->judul_en; ?></p>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-column gap-1">
+                                        <?php if (strpos($b->link_tabel, 'view_portal_tabel') !== false): ?>
+                                            <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold">
+                                                <i class="bi bi-cloud-check me-1"></i>PORTAL DATA
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge badge-sm bg-success-soft text-success border-success-soft align-self-start fw-bold">
+                                                <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPREADSHEET
+                                            </span>
+                                        <?php endif; ?>
+                                        <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo str_replace('index.php/admin/', '', $b->link_tabel); ?></code>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-column">
+                                        <span class="text-xs font-weight-bold text-dark lh-sm"><?php echo $b->unitkerja_ind; ?></span>
+                                        <span class="text-xxs text-secondary opacity-7 mt-1 text-uppercase fw-bold"><?php echo $b->user_wali ?: 'NASIONAL'; ?></span>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="dropdown">
+                                        <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown">
+                                            <i class="bi bi-three-dots-vertical fs-6"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 border-radius-lg p-2">
+                                            <li>
+                                                <a href="<?php echo base_URL() ?>index.php/admin/master_tabel/edt/<?php echo $b->id; ?>/1" class="dropdown-item border-radius-md py-2 text-sm">
+                                                    <i class="bi bi-pencil me-2 text-primary"></i> Edit Detail
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <hr class="dropdown-divider opacity-5 mt-1">
+                                            </li>
+                                            <li>
+                                                <a href="#" class="open_modal dropdown-item border-radius-md py-2 text-sm text-danger" id="<?php echo $b->id; ?>">
+                                                    <i class="bi bi-trash me-2"></i> Hapus Tabel
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                    <?php
+                            $no++;
+                        }
+                    }
+                    ?>
+                </tbody>
+            </table>
         </div>
 
-        <!-- FILTER 3: TAHUN -->
-        <div class="form-group">
-            <label style="font-weight: bold; margin-right: 5px;">
-                <i class="icon-calendar"></i> Filter Tahun:
-            </label>
-            <select name="filter_tahun" class="form-control" onchange="this.form.submit()" style="width: 150px;">
-                <option value="all">-- Semua Tahun --</option>
-                <?php 
-                for ($i = 2020; $i <= (date('Y')+1); $i++) {
-                    $selected = (isset($selected_tahun) && $selected_tahun == $i) ? 'selected' : '';
-                    echo "<option value='$i' $selected>$i</option>";
-                }
-                ?>
-            </select>
-        </div>
-
-        <!-- TOMBOL RESET -->
-        <?php if((isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all') || (isset($selected_tahun) && $selected_tahun != 'all')) { ?>
-           <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-default btn-sm" style="margin-left: 5px;"><i class="icon-refresh"></i> Reset Filter
-			</a>
-        <?php } ?>
-
-    </form>
+        <?php if (!empty($pagi)): ?>
+            <div class="mt-4">
+                <?php echo $pagi; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
-<table class="table table-bordered table-hover">
-	<thead>
-		<tr>
-			<th width="5%">No.</th>
-			<th width="5%">Tahun</th>
-			<th width="20%">Judul Indonesia</th>
-			<th width="20%">Judul Inggris</th>
-			<th width="15%">Link Tabel</th>
-			<th width="15%">Link Tahun Sebelumnya</th>
-			<th width="15%">Penanggung Jawab</th>
-			<th width="5%">Action</th>
-		</tr>
-	</thead>
-	
-	<tbody>
-		<?php 
-		if (empty($data)) {
-			echo "<tr><td colspan='5'  style='text-align: center; font-weight: bold'>--Data tidak ditemukan--</td></tr>";
-		} else {
-			$no 	= 1;
-			foreach ($data as $b) {
-		?>
-		<tr>
-			<td align="center"><?php echo $no;?></td>
-			<td align="center"><?php echo $b->tahun;?></td>
-			<td><?php echo $b->judul_ind;?></td>
-			<td><?php echo $b->judul_en ;?></td>
-			<td>
-				<code><?php echo $b->link_tabel;?></code><br>
-				<?php if(strpos($b->link_tabel, 'view_portal_tabel') !== false): ?>
-					<span class="label label-primary"><i class="icon-globe"></i> PORTAL</span>
-				<?php else: ?>
-					<span class="label label-success"><i class="icon-file"></i> SHEET</span>
-				<?php endif; ?>
-			</td>
-			<td><?php echo $b->link_sebelumnya;?></td>
-			<td><?php echo $b->unitkerja_ind;?></td>
-			<td class="ctr">
-				<div class="btn-group">
-					<a href="<?php echo base_URL()?>index.php/admin/master_tabel/edt/<?php echo $b->id; ?>/1" class="btn btn-success btn-sm" title="Edit Data"><i class="icon-edit icon-white"> </i> Edt</a>
-					<?php
-					$id_delete =$b->id;
-					?>
-					<a href="#" class="open_modal btn btn-warning btn-sm" id="<?php echo $id_delete ;?>"><i class="icon-trash icon-remove"></i> Del</a>		
-					</div>	
-				</td>
-		</tr>
-		<?php 
-			$no++;
-			}
-		}
-		?>
-	</tbody>
-</table>
-<center><ul class="pagination"><?php echo $pagi; ?></ul></center>
-</div>
-
-<!-- Modal Bulk Update Portal -->
-<div id="ModalBulkPortal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" style="padding: 20px;">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-                <h4 class="modal-title">Bulk Update Portal Mapping</h4>
+<!-- Modal Bulk Update Portal (BS5) -->
+<div id="ModalBulkPortal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow-lg border-0 overflow-hidden">
+            <div class="modal-header bg-gray-100 border-0 pt-4 px-4 pb-3">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-cloud-upload me-2 text-primary"></i>Bulk Update Portal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?php echo base_url(); ?>index.php/admin/preview_bulk_portal" method="post" enctype="multipart/form-data">
                 <?php echo csrf_field(); ?>
-                <div class="modal-body">
-                    <p>Gunakan file mapping untuk memperbarui link tabel secara massal.</p>
-                    <p><a href="<?php echo base_url(); ?>index.php/admin/download_xlsx_template" class="btn btn-xs btn-default"><i class="icon-download"></i> Download Template CSV (Excel)</a></p>
-                    <div class="form-group">
-                        <label>Pilih File (Format .csv atau .xlsx yang disimpan sebagai .csv)</label>
-                        <input type="file" name="file_mapping" class="form-control" accept=".csv" required>
+                <div class="modal-body p-4">
+                    <div class="alert bg-gray-100 border-0 text-dark text-sm mb-4">
+                        <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                        Gunakan file CSV mapping untuk memperbarui tautan tabel secara massal ke Portal Data Jawa Tengah.
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">1. Download Panduan</label>
+                        <a href="<?php echo base_url(); ?>index.php/admin/download_xlsx_template" class="btn btn-outline-primary btn-sm w-100 border-radius-lg py-2">
+                            <i class="bi bi-download me-2"></i> Download Template CSV
+                        </a>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">2. Unggah File Mapping</label>
+                        <div class="input-group">
+                            <input type="file" name="file_mapping" class="form-control" accept=".csv" required style="border-radius: 0.6rem;">
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Mulai Sinkronisasi</button>
+                <div class="modal-footer bg-gray-50 border-0 p-4">
+                    <button type="button" class="btn btn-link text-secondary mb-0" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm border-radius-lg px-4 mb-0">Mulai Sinkronisasi</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal Popup untuk Delete--> 
-<div id="ModalDelete" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<!-- Modal Delete (BS5) -->
+<div id="ModalDelete" class="modal fade" tabindex="-1" aria-hidden="true"></div>
 
-</div>
-<!-- Javascript untuk popup modal Edit--> 
+<style>
+    .ls-1 {
+        letter-spacing: 0.8px;
+    }
+
+    .text-xxs {
+        font-size: 0.75rem !important;
+    }
+
+    .text-xs {
+        font-size: 0.82rem !important;
+    }
+
+    .text-sm {
+        font-size: 0.92rem !important;
+    }
+
+    .font-weight-bolder {
+        font-weight: 800 !important;
+    }
+
+    .border-radius-2xl {
+        border-radius: 1.25rem !important;
+    }
+
+    .border-radius-xl {
+        border-radius: 1rem !important;
+    }
+
+    .border-radius-lg {
+        border-radius: 0.6rem !important;
+    }
+
+    .border-radius-md {
+        border-radius: 0.5rem !important;
+    }
+
+    .bg-gray-50 {
+        background-color: #fcfcfc !important;
+    }
+
+    .bg-gray-100 {
+        background-color: #f8f9fa !important;
+    }
+
+    .bg-primary-soft {
+        background-color: rgba(255, 109, 31, 0.08) !important;
+        color: #FF6D1F !important;
+    }
+
+    .bg-success-soft {
+        background-color: rgba(40, 167, 69, 0.08) !important;
+        color: #28a745 !important;
+    }
+
+    .border-primary-soft {
+        border: 1px solid rgba(255, 109, 31, 0.15) !important;
+    }
+
+    .border-success-soft {
+        border: 1px solid rgba(40, 167, 69, 0.15) !important;
+    }
+
+    .table td,
+    .table th {
+        border-color: #f1f1f1 !important;
+        vertical-align: middle !important;
+        font-size: 0.92rem !important;
+    }
+
+    .table thead th {
+        border-bottom: 0 !important;
+        font-size: 0.75rem !important;
+    }
+
+    .input-group-alternative {
+        transition: all 0.2s ease;
+    }
+
+    .input-group-alternative:focus-within {
+        background-color: #fff !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        border-color: #FF6D1F !important;
+    }
+
+    .divide-y>*+* {
+        border-top-width: 1px;
+    }
+
+    .divide-gray-100>*+* {
+        border-color: #f1f1f1;
+    }
+
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+        color: #FF6D1F;
+    }
+</style>
+
 <script type="text/javascript">
-   $(document).ready(function () {
-   $(".open_modal").click(function(e) {
-      var m = $(this).attr("id");
-		   $.ajax({
-    			   url: "<?php echo base_url(); ?>index.php/admin/master_tabel/del/",
-    			   type: "GET",
-    			   data : {delete_id: m,},
-    			   success: function (ajaxData){
-      			   $("#ModalDelete").html(ajaxData);
-      			   $("#ModalDelete").modal('show',{backdrop: 'true'});
-      		   }
-    		   });
+    $(document).ready(function() {
+        // Real-time Client-side Search
+        $("#inputSearchTabel").on("keyup", function() {
+            var value = $(this).val().toLowerCase();
+            $("#tableMasterBody tr").filter(function() {
+                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+            });
+
+            // Show empty state if no results
+            var visibleRows = $("#tableMasterBody tr:visible").length;
+            if (visibleRows === 0) {
+                if ($("#emptySearchState").length === 0) {
+                    $("#tableMasterBody").append('<tr id="emptySearchState"><td colspan="6" class="text-center py-5 text-secondary font-weight-bold opacity-5"><i class="bi bi-search fs-2 d-block mb-2"></i>Tidak ada data yang cocok dengan pencarian Anda</td></tr>');
+                }
+            } else {
+                $("#emptySearchState").remove();
+            }
         });
-      });
+
+        $(".open_modal").click(function(e) {
+            e.preventDefault();
+            var m = $(this).attr("id");
+            $.ajax({
+                url: "<?php echo base_url(); ?>index.php/admin/master_tabel/del/",
+                type: "GET",
+                data: {
+                    delete_id: m
+                },
+                success: function(ajaxData) {
+                    $("#ModalDelete").html(ajaxData);
+                    var bsModal = new bootstrap.Modal(document.getElementById('ModalDelete'));
+                    bsModal.show();
+                }
+            });
+        });
+    });
 </script>

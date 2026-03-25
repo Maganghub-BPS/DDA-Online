@@ -1,296 +1,130 @@
-<?php
-	if(segment_safe(3) == null) {
-		$tab = 1;
-	} else {
-		$tab = segment_safe(3);
-	}
-?>
-
-<style>
-.search-box-container {
-	padding: 12px 15px;
-	background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%);
-	border-radius: 8px;
-	margin-bottom: 15px;
-	border: 1px solid #d5dbe3;
-}
-.search-box-container .input-group {
-	max-width: 500px;
-}
-.search-box-container input.form-control {
-	border-radius: 20px 0 0 20px;
-	border: 2px solid #3498db;
-	padding: 8px 15px;
-	font-size: 14px;
-	box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-	transition: border-color 0.3s, box-shadow 0.3s;
-}
-.search-box-container input.form-control:focus {
-	border-color: #2980b9;
-	box-shadow: 0 2px 10px rgba(52,152,219,0.3);
-	outline: none;
-}
-.search-box-container .input-group-btn .btn {
-	border-radius: 0 20px 20px 0;
-	border: 2px solid #3498db;
-	border-left: none;
-	background: #3498db;
-	color: #fff;
-	padding: 8px 15px;
-	transition: background 0.3s;
-}
-.search-box-container .input-group-btn .btn:hover {
-	background: #2980b9;
-}
-.search-result-info {
-	margin-top: 8px;
-	font-size: 13px;
-	color: #7f8c8d;
-	display: none;
-}
-.search-result-info.active {
-	display: block;
-}
-.no-result-row {
-	display: none;
-}
-.no-result-row.active {
-	display: table-row;
-}
-.no-result-row td {
-	text-align: center;
-	font-weight: bold;
-	color: #e74c3c;
-	padding: 20px !important;
-}
-</style>
-
-<div class="clearfix">
-<div class="row">
-  <div class="col-lg-12">
-	<div class="navbar navbar-inverse">
-		<div class="navbar-header">
-			<span class="navbar-brand" href="#" style="text-align:center"><b>List OPD</b></span>
-		</div>
-	</div><!-- /.navbar -->
-
 <?php 
 $unitkerjalogin = session()->get('admin_unitkerja');
 echo session()->getFlashdata("k");
 ?>  
 
-	<!-- Search Box OPD & Filter Tahun -->
-	<div class="search-box-container">
-		<form method="GET" action="<?php echo base_url(); ?>index.php/admin/dda">
-		<div class="row">
-			<div class="col-sm-6 col-md-5">
-				<div class="input-group">
-					<input type="text" class="form-control" id="searchOPD" placeholder="&#128269; Cari nama OPD..." autocomplete="off">
-					<span class="input-group-btn">
-						<button class="btn btn-primary" type="button" id="btnClearSearch" title="Hapus pencarian">
-							<i class="icon-remove icon-white"></i> Reset
-						</button>
-					</span>
-				</div>
-				<div class="search-result-info" id="searchInfo">
-					Menampilkan <strong id="searchCount">0</strong> dari <strong id="totalCount">0</strong> OPD
-				</div>
-			</div>
-			
-			<div class="col-sm-4 col-md-3">
-				<div class="form-group">
-					<select name="filter_tahun" class="form-control" onchange="this.form.submit()">
-						<option value="all" <?php echo (isset($selected_tahun) && $selected_tahun == 'all') ? 'selected' : ''; ?>>-- Semua Tahun --</option>
-						<?php 
-						for ($i = 2020; $i <= (date('Y')+1); $i++) {
-							$sel = (isset($selected_tahun) && $selected_tahun == $i) ? 'selected' : '';
-							echo "<option value='$i' $sel>$i</option>";
-						}
-						?>
-					</select>
-				</div>
-			</div>
-			
-			<?php if(isset($selected_tahun) && $selected_tahun != 'all') { ?>
-			<div class="col-sm-2">
-				<a href="<?php echo base_url(); ?>index.php/admin/dda?action=reset_dda" class="btn btn-default"><i class="icon-refresh"></i> Reset Tahun</a>
-			</div>
-			<?php } ?>
-		</div>
-		</form>
-	</div>
-
-	<div class="container">
-	<div class="row">
-    <div class="col-sm-12 blog-main">
-
-			<table class="table table-bordered table-hover" id="tableOPD">
-				<thead>
-					<tr>
-						<th width="5%">No.</th>
-						<th width="65%">Nama OPD</th>
-						<?php if(session()->get('admin_level') != 'lo') { ?>
-						<th width="30%">Nama Penanggung Jawab</th>
-						<?php } ?>
-					</tr>
-				</thead>
-				<tbody>
-					<?php 
-					if (empty($data)) {
-						echo "<tr><td colspan='5' style='text-align: center; font-weight: bold'>--Data tidak ditemukan--</td></tr>";
-					} else {
-						$no 	= (isset($offset) ? $offset : 0) + 1;
-						foreach ($data as $b) {
-					?>
-					<tr class="opd-row">
-						<td align="center" class="row-number"><?php echo $no;?></td>
-						<?php if(session()->get('admin_level') == 'lo') { ?>
-						<td class="opd-name"><a href="<?php echo base_URL()?>index.php/admin/dda/view_tabel?id=<?php echo $b->id_unitkerja ;?>"><?php echo $b->unitkerja_ind;?></a></td>
-						<?php } else { ?>
-						<td class="opd-name"><a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo $b->id_unitkerja ;?>"><?php echo $b->unitkerja_ind;?></a></td>	
-						<td align="center"><?php echo $b->user_wali;?></td>	
-						<?php } ?>
-					</tr>
-					<?php 
-						$no++;
-						}
-					}
-					?>
-					<tr class="no-result-row" id="noResultRow">
-						<td colspan="5">-- Tidak ada OPD yang cocok dengan pencarian --</td>
-					</tr>
-				</tbody>
-			</table>
-
-	  </div>
-	</div><!-- /.blog-main -->
-	</div>
-
-	<center><ul class="pagination"><?php echo $pagi; ?></ul></center>	
-
-	</div><!-- /.container -->
-
-  </div>
+<div class="row mb-3">
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <h5 class="fw-bold mb-0 text-primary">
+                        <i class="bi bi-building me-2"></i>Daftar Perangkat Daerah (OPD)
+                    </h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="input-group input-group-sm" style="max-width: 250px;">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control border-start-0 ps-0" id="searchOPD" placeholder="Cari OPD (otomatis)..." autocomplete="off">
+                        </div>
+                        <form method="GET" action="<?php echo base_url(); ?>index.php/admin/dda" class="d-flex gap-2">
+                            <select name="filter_tahun" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                <option value="all" <?php echo (isset($selected_tahun) && $selected_tahun == 'all') ? 'selected' : ''; ?>>-- Semua Tahun --</option>
+                                <?php 
+                                for ($i = 2020; $i <= (date('Y')+1); $i++) {
+                                    $sel = (isset($selected_tahun) && $selected_tahun == $i) ? 'selected' : '';
+                                    echo "<option value='$i' $sel>$i</option>";
+                                }
+                                ?>
+                            </select>
+                            <?php if(isset($selected_tahun) && $selected_tahun != 'all'): ?>
+                                <a href="<?php echo base_url(); ?>index.php/admin/dda?action=reset_dda" class="btn btn-sm btn-light border" title="Reset Tahun">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </a>
+                            <?php endif; ?>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-
-<!-- Modal Popup untuk Delete--> 
-<div id="ModalDelete" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="tableOPD">
+                <thead class="table-light">
+                    <tr>
+                        <th width="5%" class="text-center">No.</th>
+                        <th width="65%">Nama OPD</th>
+                        <?php if(session()->get('admin_level') != 'lo'): ?>
+                        <th width="30%" class="text-center">Penanggung Jawab (Tim)</th>
+                        <?php endif; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    if (empty($data)) {
+                        echo "<tr><td colspan='3' class='text-center py-5 text-muted'><i class='bi bi-inbox me-2 d-block mb-3 display-6'></i>Data tidak ditemukan</td></tr>";
+                    } else {
+                        $no = (isset($offset) ? $offset : 0) + 1;
+                        foreach ($data as $b) {
+                    ?>
+                    <tr class="opd-row">
+                        <td class="text-center opd-no"><?php echo $no;?></td>
+                        <td>
+                            <?php if(session()->get('admin_level') == 'lo'): ?>
+                                <a href="<?php echo base_URL()?>index.php/admin/dda/view_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark">
+                                    <i class="bi bi-folder2 me-2 text-warning"></i><?php echo $b->unitkerja_ind;?>
+                                </a>
+                            <?php else: ?>
+                                <a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark">
+                                    <i class="bi bi-folder-check me-2 text-primary"></i><?php echo $b->unitkerja_ind;?>
+                                </a>
+                            <?php endif; ?>
+                        </td>
+                        <?php if(session()->get('admin_level') != 'lo'): ?>
+                        <td class="text-center text-muted small">
+                            <span class="badge bg-light text-dark border"><i class="bi bi-person-badge me-1"></i><?php echo $b->user_wali;?></span>
+                        </td>
+                        <?php endif; ?>
+                    </tr>
+                    <?php 
+                        $no++;
+                        }
+                    }
+                    ?>
+                    <tr class="no-result-row d-none" id="noResultRow">
+                        <td colspan="3" class="text-center py-4 text-danger fw-bold">-- Tidak ada OPD yang cocok dengan pencarian --</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white text-center pb-3">
+        <?php if(!empty($pagi)): ?>
+        <div class="mt-2 text-center">
+            <?php echo $pagi; ?>
+        </div>
+        <?php endif; ?>
+    </div>
 </div>
-<script type="text/javascript">
-   $(document).ready(function () {
-   $(".open_modal").click(function(e) {
-      var m = $(this).attr("id");
-		   $.ajax({
-    			   url: "<?php echo base_url(); ?>index.php/admin/dda/del/",
-    			   type: "GET",
-    			   data : {delete_id: m,},
-    			   success: function (ajaxData){
-      			   $("#ModalDelete").html(ajaxData);
-      			   $("#ModalDelete").modal('show',{backdrop: 'true'});
-      		   }
-    		   });
-        });
-      });
-</script>
 
-<!-- Modal Popup untuk Kembali--> 
-<div id="ModalEdit" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-</div>
-<script type="text/javascript">
-   $(document).ready(function () {
-   $(".view_modal").click(function(e) {
-      var m = $(this).attr("id");
-		   $.ajax({
-    			   url: "<?php echo base_url(); ?>index.php/admin/dda/in/",
-    			   type: "GET",
-    			   data : {in_id: m,},
-    			   success: function (ajaxData){
-      			   $("#ModalEdit").html(ajaxData);
-      			   $("#ModalEdit").modal('show',{backdrop: 'true'});
-      		   }
-    		   });
-        });
-      });
-</script>	
-
-<!-- Modal Popup untuk Konfirmasi--> 
-<div id="ModalKonfirmasi" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-</div>
-<script type="text/javascript">
-   $(document).ready(function () {
-   $(".konfirmasi_modal").click(function(e) {
-      var m = $(this).attr("id");
-		   $.ajax({
-    			   url: "<?php echo base_url(); ?>index.php/admin/dda/konfirmasi/",
-    			   type: "GET",
-    			   data : {konfirmasi_id: m,},
-    			   success: function (ajaxData){
-      			   $("#ModalKonfirmasi").html(ajaxData);
-      			   $("#ModalKonfirmasi").modal('show',{backdrop: 'true'});
-      		   }
-    		   });
-        });
-      });
-</script>
-
-<!-- JavaScript untuk pencarian OPD -->
 <script type="text/javascript">
 $(document).ready(function() {
-	var $searchInput = $('#searchOPD');
-	var $rows = $('.opd-row');
-	var $searchInfo = $('#searchInfo');
-	var $searchCount = $('#searchCount');
-	var $totalCount = $('#totalCount');
-	var $noResult = $('#noResultRow');
-	var totalRows = $rows.length;
-	
-	$totalCount.text(totalRows);
-	
-	// Real-time search on keyup
-	$searchInput.on('keyup', function() {
-		var keyword = $(this).val().toLowerCase().trim();
-		var visibleCount = 0;
-		
-		if (keyword === '') {
-			// Show all rows and reset numbering
-			$rows.show();
-			$searchInfo.removeClass('active');
-			$noResult.removeClass('active');
-			// Reset numbering
-			var num = 1;
-			$rows.each(function() {
-				$(this).find('.row-number').text(num++);
-			});
-			return;
-		}
-		
-		$searchInfo.addClass('active');
-		var num = 1;
-		
-		$rows.each(function() {
-			var opdName = $(this).find('.opd-name').text().toLowerCase();
-			if (opdName.indexOf(keyword) > -1) {
-				$(this).show();
-				$(this).find('.row-number').text(num++);
-				visibleCount++;
-			} else {
-				$(this).hide();
-			}
-		});
-		
-		$searchCount.text(visibleCount);
-		
-		if (visibleCount === 0) {
-			$noResult.addClass('active');
-		} else {
-			$noResult.removeClass('active');
-		}
-	});
-	
-	// Clear search button
-	$('#btnClearSearch').on('click', function() {
-		$searchInput.val('').trigger('keyup').focus();
-	});
+    $('#searchOPD').on('input', function() {
+        var keyword = $(this).val().toLowerCase().trim();
+        var $rows = $('.opd-row');
+        var $noResult = $('#noResultRow');
+        var visibleCount = 0;
+        var num = 1;
+        
+        $rows.each(function() {
+            var opdName = $(this).find('td:nth-child(2)').text().toLowerCase();
+            if (opdName.indexOf(keyword) > -1) {
+                $(this).removeClass('d-none').show();
+                $(this).find('.opd-no').text(num++);
+                visibleCount++;
+            } else {
+                $(this).addClass('d-none').hide();
+            }
+        });
+
+        if(visibleCount == 0 && keyword != '') {
+            $noResult.removeClass('d-none').show();
+        } else {
+            $noResult.addClass('d-none').hide();
+        }
+    });
 });
 </script>

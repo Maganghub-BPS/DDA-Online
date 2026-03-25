@@ -389,7 +389,8 @@ public function konfirmasi() {
 				$this->db->query("update t_kontrak set flag_konfirm='1' where id_kontrak='$id_kontrak_konfirm'");
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data sudah dikonfirmasi selesai</div>");
 				return redirect()->to('admin/oi/');
-		
+		} else {
+			$a['page'] = 'dashboard';
 		}
 		
 		return view('admin/index', $a);
@@ -973,15 +974,12 @@ public function master_tabel() {
 	public function report()
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return redirect()->to("admin/report");
+			return redirect()->to("admin/login");
 		}
-		$jenis_rekap = $this->input->post('jenis_rekap');
-		if($jenis_rekap == '0')
-		{
-			$data_byjk	= $this->db->query("SELECT t.id_unitkerja,u.unitkerja_ind,count(judul_ind) as jumlah_tabel,sum(case when t.is_confirm = 1 then 1 else 0 end ) as terentri FROM `t_list_tabel` t left join m_unitkerja u on  t.id_unitkerja=u.id_unitkerja group by id_unitkerja order by u.id_unitkerja ")->getResult();
-			$a['page']		= "view_report";
-		}
-	
+		
+		$jenis_rekap = $this->request->getPost('jenis_rekap') ?? '0';
+		
+		$a['jenis_rekap'] = $jenis_rekap;
 		$a['page']	= "report";
 		return view('admin/index', $a);
 	}
@@ -1208,8 +1206,8 @@ public function master_tabel() {
     $data = $this->db->query("
         SELECT m.unitkerja_ind,
             COUNT(t.id) as jumlah_tabel,
-            SUM(CASE WHEN t.is_periksa = 0 AND t.is_confirm != 1 THEN 1 ELSE 0 END) as belum_isi,
-            SUM(CASE WHEN t.is_periksa = 1 AND t.is_confirm != 1 THEN 1 ELSE 0 END) as menunggu_validasi,
+            SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
+            SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
             SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
         FROM m_unitkerja m 
         LEFT JOIN t_list_tabel t ON m.id_unitkerja = t.id_unitkerja AND t.tahun = '$ta'
@@ -1252,8 +1250,8 @@ public function master_tabel() {
             SELECT 
                 u.user_wali,
                 COUNT(t.id) as jumlah_tabel,
-                SUM(CASE WHEN t.is_periksa = 0 AND t.is_confirm != 1 THEN 1 ELSE 0 END) as belum_isi,
-                SUM(CASE WHEN t.is_periksa = 1 AND t.is_confirm != 1 THEN 1 ELSE 0 END) as menunggu_validasi,
+                SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
+                SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
                 SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
             FROM m_unitkerja u
             LEFT JOIN t_list_tabel t ON u.id_unitkerja = t.id_unitkerja AND t.tahun = '$ta'

@@ -1,289 +1,480 @@
-<div class="clearfix">
-    <div class="alert alert-dismissable alert-success">
-        <button type="button" class="close" data-dismiss="alert">×</button>
-        Selamat datang <strong><?php echo session()->get('admin_nama'); ?></strong>. 
-        Berikut adalah Statistik Progres Data DDA Tahun <strong><?php echo session()->get("admin_ta"); ?></strong>.
+<!-- Custom Styles for Dashboard -->
+<style>
+    .card-stat {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card-stat:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .stat-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .card-stat:hover .stat-icon {
+        transform: scale(1.1);
+    }
+</style>
+
+<!-- Welcome Alert -->
+<div class="alert alert-light alert-dismissible fade show border shadow-sm" role="alert" id="alert" style="border-radius: 12px;">
+    <div class="d-flex align-items-center">
+        <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 42px; height: 42px; background: rgba(255,109,31,0.1); flex-shrink: 0;">
+            <i class="bi bi-hand-thumbs-up text-primary" style="font-size: 1.2rem;"></i>
+        </div>
+        <div>
+            Selamat datang <strong><?php echo session()->get('admin_nama'); ?></strong>.
+            Berikut adalah Statistik Progres Data DDA Tahun <strong><?php echo session()->get("admin_ta"); ?></strong>.
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+
+<!-- Info Cards -->
+<div class="row g-3 mb-4">
+    <?php
+    $total_tabel = (isset($stat_diisi) ? $stat_diisi : 0) + (isset($stat_belum_diisi) ? $stat_belum_diisi : 0);
+    // "Sudah Diisi" (Menunggu Verifikasi) = Total yang sudah diisi - yang sudah diverifikasi
+    $sudah_diisi_waiting = (isset($stat_diisi) ? $stat_diisi : 0) - (isset($stat_sudah_acc) ? $stat_sudah_acc : 0);
+    ?>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-stat border-0 shadow-sm bg-primary text-white p-3 h-100">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h3 class="fw-bold mb-1"><?php echo number_format($total_tabel); ?></h3>
+                    <p class="small mb-0 opacity-75">Total Tabel DDA</p>
+                </div>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: rgba(255,255,255,0.15);">
+                    <i class="bi bi-table" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-stat border-0 shadow-sm text-white p-3 h-100" style="background: #ef4444;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h3 class="fw-bold mb-1"><?php echo isset($stat_belum_diisi) ? number_format($stat_belum_diisi) : 0; ?></h3>
+                    <p class="small mb-0 opacity-75">Belum Diisi</p>
+                </div>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: rgba(255,255,255,0.15);">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-stat border-0 shadow-sm text-white p-3 h-100" style="background: #eab308;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h3 class="fw-bold mb-1"><?php echo number_format($sudah_diisi_waiting); ?></h3>
+                    <p class="small mb-0 opacity-75">Sudah Diisi</p>
+                </div>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: rgba(255,255,255,0.15);">
+                    <i class="bi bi-pencil-square" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card card-stat border-0 shadow-sm text-white p-3 h-100" style="background: #22c55e;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h3 class="fw-bold mb-1"><?php echo isset($stat_sudah_acc) ? number_format($stat_sudah_acc) : 0; ?></h3>
+                    <p class="small mb-0 opacity-75">Diverifikasi</p>
+                </div>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; background: rgba(255,255,255,0.15);">
+                    <i class="bi bi-check-circle" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- KOTAK ANGKA RINGKASAN -->
-<div class="row">
-    <div class="col-lg-3 col-md-6">
-        <div class="panel panel-blue" style="background-color: #337; color: white;">
-            <div class="panel-heading">
-                <div class="row">
-                    <div class="col-xs-3">
-                        <i class="fa fa-pencil fa-5x"></i>
-                    </div>
-                    <div class="col-xs-9 text-right">
-                        <div class="huge" style="font-size: 40px; font-weight: bold;">
-                            <?php echo isset($stat_diisi) ? $stat_diisi : 0; ?>
-                        </div>
-                        <div>Sudah Diisi</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6">
-        <div class="panel panel-red" style="background-color: #d9534f; color: white;">
-            <div class="panel-heading">
-                <div class="row">
-                    <div class="col-xs-3">
-                        <i class="fa fa-warning fa-5x"></i>
-                    </div>
-                    <div class="col-xs-9 text-right">
-                        <div class="huge" style="font-size: 40px; font-weight: bold;">
-                            <?php echo isset($stat_belum_diisi) ? $stat_belum_diisi : 0; ?>
-                        </div>
-                        <div>Belum Diisi</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6">
-        <div class="panel panel-green" style="background-color: #5cb85c; color: white;">
-            <div class="panel-heading">
-                <div class="row">
-                    <div class="col-xs-3">
-                        <i class="fa fa-check fa-5x"></i>
-                    </div>
-                    <div class="col-xs-9 text-right">
-                        <div class="huge" style="font-size: 40px; font-weight: bold;">
-                            <?php echo isset($stat_sudah_acc) ? $stat_sudah_acc : 0; ?>
-                        </div>
-                        <div>Sudah Diperiksa</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-3 col-md-6">
-        <div class="panel panel-yellow" style="background-color: #f0ad4e; color: white;">
-            <div class="panel-heading">
-                <div class="row">
-                    <div class="col-xs-3">
-                        <i class="fa fa-clock-o fa-5x"></i>
-                    </div>
-                    <div class="col-xs-9 text-right">
-                        <div class="huge" style="font-size: 40px; font-weight: bold;">
-                            <?php echo isset($stat_belum_acc) ? $stat_belum_acc : 0; ?>
-                        </div>
-                        <div>Belum Diperiksa</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- BARIS GRAFIK 1 -->
-<div class="row" style="margin-top: 20px;">
+<!-- Chart Row 1: Pie Charts -->
+<div class="row g-3 mb-4">
     <div class="col-md-6">
-        <div class="panel panel-default">
-            <div class="panel-heading"><i class="fa fa-pie-chart fa-fw"></i> Persentase Pengisian Data</div>
-            <div class="panel-body">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-pie-chart me-2 text-primary"></i>Persentase Pengisian Data</h6>
+            </div>
+            <div class="card-body">
                 <div id="container_pengisian" style="width: 100%; height: 350px;"></div>
             </div>
         </div>
     </div>
-    <!-- BARIS GRAFIK 2 -->
     <div class="col-md-6">
-        <div class="panel panel-default">
-            <div class="panel-heading"><i class="fa fa-pie-chart fa-fw"></i> Persentase Pemeriksaan Data</div>
-            <div class="panel-body">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-pie-chart me-2 text-success"></i>Persentase Verifikasi Data</h6>
+            </div>
+            <div class="card-body">
                 <div id="container_acc" style="width: 100%; height: 350px;"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- BARIS GRAFIK 3 -->
-<div class="row" style="margin-top: 20px;">
-    <div class="col-lg-12">
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <i class="fa fa-users fa-fw"></i> Progres per Tim 
+<!-- Section: Progres per Tim Kerja -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-people me-2 text-primary"></i>Progres per Tim Kerja</h6>
             </div>
-            <div class="panel-body">
-                <div id="container_tim" style="width: 100%; height: 400px;"></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="5%" class="text-center">No</th>
+                                <th width="25%">Tim Kerja</th>
+                                <th width="20%">Progres</th>
+                                <th width="12%" class="text-center">Belum Diisi</th>
+                                <th width="12%" class="text-center">Sudah Diisi</th>
+                                <th width="12%" class="text-center">Diverifikasi</th>
+                                <th width="12%" class="text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timTableBody">
+                            <!-- Data akan diisi via JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- BARIS GRAFIK 4 -->
-<div class="row" style="margin-top: 20px;">
-    <div class="col-lg-12">
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <i class="fa fa-bar-chart-o fa-fw"></i> Detail Progres per Perangkat Daerah (OPD)/Instansi
+<!-- Leaderboard OPD -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Progres per Perangkat Daerah (OPD)</h6>
+                    <div class="d-flex gap-2">
+                        <div class="input-group input-group-sm" style="width: 220px;">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="searchOPD" placeholder="Cari OPD...">
+                        </div>
+                        <select class="form-select form-select-sm" id="sortOPD" style="width: auto;">
+                            <option value="name-asc">Nama A-Z</option>
+                            <option value="name-desc">Nama Z-A</option>
+                            <option value="progress-desc">Progres Tertinggi</option>
+                            <option value="progress-asc">Progres Terendah</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="panel-body">
-                <div id="container_opd" style="width: 100%; height: 1500px;"></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="5%" class="text-center">No</th>
+                                <th width="25%">Perangkat Daerah</th>
+                                <th width="20%">Progres</th>
+                                <th width="12%" class="text-center">Belum Diisi</th>
+                                <th width="12%" class="text-center">Sudah Diisi</th>
+                                <th width="12%" class="text-center">Diverifikasi</th>
+                                <th width="12%" class="text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardBody">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
 
 <!-- JAVASCRIPT -->
-<script src="<?php echo base_url(); ?>aset/js/highcharts.js"></script>
-
 <script>
-document.addEventListener("DOMContentLoaded", function(event) {
-    
-    // --- VARIABEL DATA ---
-    var valDiisi      = <?php echo (isset($stat_diisi) && $stat_diisi != '') ? $stat_diisi : 0; ?>;
-    var valBelumDiisi = <?php echo (isset($stat_belum_diisi) && $stat_belum_diisi != '') ? $stat_belum_diisi : 0; ?>;
-    var valSudahAcc   = <?php echo (isset($stat_sudah_acc) && $stat_sudah_acc != '') ? $stat_sudah_acc : 0; ?>;
-    var valBelumAcc   = <?php echo (isset($stat_belum_acc) && $stat_belum_acc != '') ? $stat_belum_acc : 0; ?>;
-    
-    // Data Array OPD
-    var listOpd = <?php echo (isset($grafik_opd_nama) && $grafik_opd_nama != '') ? $grafik_opd_nama : '[]'; ?>;
-    var dOpdAcc = <?php echo (isset($grafik_opd_acc) && $grafik_opd_acc != '') ? $grafik_opd_acc : '[]'; ?>;
-    var dOpdWait = <?php echo (isset($grafik_opd_menunggu) && $grafik_opd_menunggu != '') ? $grafik_opd_menunggu : '[]'; ?>;
-    var dOpdBelum = <?php echo (isset($grafik_opd_belum) && $grafik_opd_belum != '') ? $grafik_opd_belum : '[]'; ?>;
+    document.addEventListener("DOMContentLoaded", function(event) {
 
-    // Data Array TIM
-    var listTim = <?php echo (isset($grafik_tim_nama) && $grafik_tim_nama != '') ? $grafik_tim_nama : '[]'; ?>;
-    var dTimAcc = <?php echo (isset($grafik_tim_acc) && $grafik_tim_acc != '') ? $grafik_tim_acc : '[]'; ?>;
-    var dTimWait = <?php echo (isset($grafik_tim_menunggu) && $grafik_tim_menunggu != '') ? $grafik_tim_menunggu : '[]'; ?>;
-    var dTimBelum = <?php echo (isset($grafik_tim_belum) && $grafik_tim_belum != '') ? $grafik_tim_belum : '[]'; ?>;
+        // --- DATA VARIABLES ---
+        var valDiisi = <?php echo (isset($stat_diisi) && $stat_diisi != '') ? $stat_diisi : 0; ?>;
+        var valBelumDiisi = <?php echo (isset($stat_belum_diisi) && $stat_belum_diisi != '') ? $stat_belum_diisi : 0; ?>;
+        var valSudahAcc = <?php echo (isset($stat_sudah_acc) && $stat_sudah_acc != '') ? $stat_sudah_acc : 0; ?>;
+        var valBelumAcc = <?php echo (isset($stat_belum_acc) && $stat_belum_acc != '') ? $stat_belum_acc : 0; ?>;
 
-    // --- 1. RENDER PENGISIAN ---
-    Highcharts.chart('container_pengisian', {
-        chart: { type: 'pie' }, 
-        title: { text: 'Persentase Pengisian Data (Tahun <?php echo session()->get("admin_ta"); ?>)' },
-        tooltip: { pointFormat: '<b>{point.percentage:.1f}%</b>' },
-        plotOptions: { 
-            pie: {
-                innerSize: '50%', 
-                allowPointSelect: true,
-                cursor: 'pointer',
-                dataLabels: { enabled: false }, 
-                showInLegend: true } },
-        colors: ['#337', '#d9534f'],
-        series: [{ name: 'Jumlah', colorByPoint: true, data: [{ name: 'Sudah Diisi', y: valDiisi }, { name: 'Belum Diisi', y: valBelumDiisi, selected: true }] }],
-        exporting: { enabled: false },
-        credits: { enabled: false }
-    });
+        var listOpd = <?php echo (isset($grafik_opd_nama) && $grafik_opd_nama != '') ? $grafik_opd_nama : '[]'; ?>;
+        var dOpdAcc = <?php echo (isset($grafik_opd_acc) && $grafik_opd_acc != '') ? $grafik_opd_acc : '[]'; ?>;
+        var dOpdWait = <?php echo (isset($grafik_opd_menunggu) && $grafik_opd_menunggu != '') ? $grafik_opd_menunggu : '[]'; ?>;
+        var dOpdBelum = <?php echo (isset($grafik_opd_belum) && $grafik_opd_belum != '') ? $grafik_opd_belum : '[]'; ?>;
 
-    // --- 2. RENDER ACC ---
-    Highcharts.chart('container_acc', {
-        chart: { type: 'pie' }, 
-        title: { text: 'Persentase Pemeriksaan Data (Tahun <?php echo session()->get("admin_ta"); ?>)' },
-        tooltip: { pointFormat: '<b>{point.percentage:.1f}%</b>' },
-        plotOptions: { pie: {
-                innerSize: '50%', 
-                allowPointSelect: true,
-                cursor: 'pointer',
-                dataLabels: { enabled: false }, 
-                showInLegend: true } },
-        colors: ['#5cb85c', '#f0ad4e'],
-        series: [{ name: 'Jumlah', colorByPoint: true, data: [{ name: 'Sudah Diperiksa', y: valSudahAcc }, { name: 'Belum Diperiksa', y: valBelumAcc }] }],
-        exporting: { enabled: false },
-        credits: { enabled: false }
-    });
+        var listTim = <?php echo (isset($grafik_tim_nama) && $grafik_tim_nama != '') ? $grafik_tim_nama : '[]'; ?>;
+        var dTimAcc = <?php echo (isset($grafik_tim_acc) && $grafik_tim_acc != '') ? $grafik_tim_acc : '[]'; ?>;
+        var dTimWait = <?php echo (isset($grafik_tim_menunggu) && $grafik_tim_menunggu != '') ? $grafik_tim_menunggu : '[]'; ?>;
+        var dTimBelum = <?php echo (isset($grafik_tim_belum) && $grafik_tim_belum != '') ? $grafik_tim_belum : '[]'; ?>;
 
-    // --- 3. RENDER GRAFIK TIM ---
-   Highcharts.chart('container_tim', {
-        chart: { type: 'column' },
-        title: { text: 'Detail Status Pemeriksaan per Tim (Tahun <?php echo session()->get("admin_ta"); ?>)' },
-        xAxis: {
-            categories: listTim, 
-            title: { text: null },
-            labels: { 
-                style: { fontWeight: 'bold' },
-                autoRotation: [-45, -90] 
-            }
-        },
-        yAxis: {
-            min: 0, 
-            max: 100, 
-            title: { text: 'Persentase (%)' },
-            stackLabels: { enabled: false }
-        },
-        legend: { reversed: true },
-        plotOptions: {
-            series: { 
-                stacking: 'percent', 
-                borderWidth: 0,
-                dataLabels: {
-                    enabled: true,
-                    formatter: function() { if (this.y > 0) return this.y; },
-                    style: { textOutline: '1px contrast' }
-                }
-            }
-        },
-        
-        tooltip: {
-            pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y} Tabel</b> ({point.percentage:.0f}%)<br/>',
-            shared: true
-        },
-        colors: ['#d9534f', '#f0ad4e', '#5cb85c'], 
-        series: [
-            { name: 'Belum Diisi', data: dTimBelum },       
-            { name: 'Sudah Diisi', data: dTimWait },       
-            { name: 'Sudah Diperiksa', data: dTimAcc }            
-        ],
-        exporting: { enabled: false },
-        credits: { enabled: false }
-    });
-
-    // --- 4. RENDER GRAFIK OPD ---
-     Highcharts.chart('container_opd', {
-        chart: { type: 'bar' },
-        title: { text: 'Detail Status Pemeriksaan per OPD (Tahun <?php echo session()->get("admin_ta"); ?>)' },
-        xAxis: {
-            categories: listOpd,
-            title: { text: null }, 
-            labels: { 
-                step: 1,
-                style: { fontSize: '11px' }  
-            } 
-        },
-        yAxis: {
-            min: 0,
-            max: 100, 
-            title: { text: 'Persentase (%)' }, 
-            stackLabels: { enabled: false } 
-        },
-        legend: { reversed: true },
-        
-        plotOptions: {
-            series: {
-                stacking: 'percent',
-                borderWidth: 0, 
-                dataLabels: {
-                    enabled: true,
-                    formatter: function() {
-                        if (this.y > 0) {
-                            return this.y;
+        // --- 1. PIE CHART: Pengisian ---
+        Highcharts.chart('container_pengisian', {
+            chart: {
+                type: 'pie',
+                backgroundColor: 'transparent',
+                style: {
+                    fontFamily: "'Public Sans', sans-serif"
+                },
+                marginTop: 0,
+                spacingTop: 0
+            },
+            title: {
+                text: null
+            }, // Sudah ada di card header
+            tooltip: {
+                pointFormat: '<b>{point.y}</b> Tabel ({point.percentage:.1f}%)'
+            },
+            plotOptions: {
+                pie: {
+                    innerSize: '55%',
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                        enabled: true,
+                        format: '{point.name}: {point.percentage:.1f}%',
+                        distance: 20,
+                        style: {
+                            fontWeight: '500',
+                            fontSize: '11px',
+                            color: '#64748b',
+                            textOutline: 'none'
                         }
                     },
-                    style: {
-                        fontSize: '11px',
-                        textOutline: '1px contrast' 
+                    showInLegend: true,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }
+            },
+            legend: {
+                itemStyle: {
+                    fontSize: '11px',
+                    fontWeight: '500',
+                    color: '#64748b'
+                },
+                align: 'center',
+                verticalAlign: 'bottom',
+                layout: 'horizontal'
+            },
+            colors: ['#FF6D1F', '#ef4444'],
+            series: [{
+                name: 'Status',
+                colorByPoint: true,
+                data: [{
+                        name: 'Sudah Diisi',
+                        y: valDiisi
+                    },
+                    {
+                        name: 'Belum Diisi',
+                        y: valBelumDiisi
                     }
+                ]
+            }],
+            exporting: {
+                enabled: false
+            },
+            credits: {
+                enabled: false
+            }
+        });
+
+        // --- 2. PIE CHART: Pemeriksaan ---
+        Highcharts.chart('container_acc', {
+            chart: {
+                type: 'pie',
+                backgroundColor: 'transparent',
+                style: {
+                    fontFamily: "'Public Sans', sans-serif"
+                },
+                marginTop: 0,
+                spacingTop: 0
+            },
+            title: {
+                text: null
+            }, // Sudah ada di card header
+            tooltip: {
+                pointFormat: '<b>{point.y}</b> Tabel ({point.percentage:.1f}%)'
+            },
+            plotOptions: {
+                pie: {
+                    innerSize: '55%',
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                        enabled: true,
+                        format: '{point.name}: {point.percentage:.1f}%',
+                        distance: 20,
+                        style: {
+                            fontWeight: '500',
+                            fontSize: '11px',
+                            color: '#64748b',
+                            textOutline: 'none'
+                        }
+                    },
+                    showInLegend: true,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }
+            },
+            legend: {
+                itemStyle: {
+                    fontSize: '11px',
+                    fontWeight: '500',
+                    color: '#64748b'
+                },
+                align: 'center',
+                verticalAlign: 'bottom',
+                layout: 'horizontal'
+            },
+            colors: ['#22c55e', '#eab308'],
+            series: [{
+                name: 'Status',
+                colorByPoint: true,
+                data: [{
+                        name: 'Diverifikasi',
+                        y: valSudahAcc
+                    },
+                    {
+                        name: 'Sudah Diisi',
+                        y: valBelumAcc
+                    }
+                ]
+            }],
+            exporting: {
+                enabled: false
+            },
+            credits: {
+                enabled: false
+            }
+        });
+
+        // --- 3. TABEL: Progres Tim Kerja ---
+        function renderTimTable() {
+            var tbody = document.getElementById('timTableBody');
+            if (!tbody) return;
+            var html = '';
+            if (listTim.length === 0) {
+                html = '<tr><td colspan="7" class="text-center py-4 text-muted">Tidak ada data tim</td></tr>';
+            } else {
+                for (var i = 0; i < listTim.length; i++) {
+                    var acc = dTimAcc[i] || 0;
+                    var wait = dTimWait[i] || 0;
+                    var belum = dTimBelum[i] || 0;
+                    var total = acc + wait + belum;
+                    var progress = total > 0 ? Math.round(((acc + wait) / total) * 100) : 0;
+
+                    var accPct = total > 0 ? ((acc / total) * 100).toFixed(1) : 0;
+                    var waitPct = total > 0 ? ((wait / total) * 100).toFixed(1) : 0;
+                    var belumPct = total > 0 ? ((belum / total) * 100).toFixed(1) : 0;
+
+                    html += '<tr>';
+                    html += '<td class="text-center">' + (i + 1) + '</td>';
+                    html += '<td class="fw-medium">' + listTim[i] + '</td>';
+                    html += '<td>';
+                    html += '<div class="progress" style="height: 10px; border-radius: 5px;" data-bs-toggle="tooltip" title="Diverifikasi: ' + accPct + '% | Sudah Diisi: ' + waitPct + '% | Belum Diisi: ' + belumPct + '%">';
+                    html += '<div class="progress-bar" style="width: ' + accPct + '%; background: #22c55e;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + waitPct + '%; background: #eab308;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + belumPct + '%; background: #ef4444;"></div>';
+                    html += '</div>';
+                    html += '<small class="text-muted">' + progress + '% terisi</small>';
+                    html += '</td>';
+                    html += '<td class="text-center"><span class="badge bg-danger-subtle text-danger">' + belum + '</span></td>';
+                    html += '<td class="text-center"><span class="badge bg-warning-subtle text-warning" style="color: #856404 !important;">' + wait + '</span></td>';
+                    html += '<td class="text-center"><span class="badge bg-success-subtle text-success">' + acc + '</span></td>';
+                    html += '<td class="text-center"><span class="badge bg-primary-subtle text-primary">' + total + '</span></td>';
+                    html += '</tr>';
                 }
             }
-        },
-        
-        tooltip: {
-            pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y} Tabel</b> ({point.percentage:.0f}%)<br/>',
-            shared: true
-        },
+            tbody.innerHTML = html;
+            // Tooltip init will follow in renderLeaderboard (global init)
+        }
 
-        colors: ['#d9534f', '#f0ad4e', '#5cb85c'],
-        series: [
-            { name: 'Belum Diisi', data: dOpdBelum },       
-            { name: 'Sudah Diisi', data: dOpdWait },       
-            { name: 'Sudah Diperiksa', data: dOpdAcc }            
-        ],
-        exporting: { enabled: false },
-        credits: { enabled: false }
+        renderTimTable();
+
+
+        // --- 5. LEADERBOARD ---
+        var leaderboardData = [];
+        for (var i = 0; i < listOpd.length; i++) {
+            var acc = dOpdAcc[i] || 0;
+            var wait = dOpdWait[i] || 0;
+            var belum = dOpdBelum[i] || 0;
+            var total = acc + wait + belum;
+            var progress = total > 0 ? Math.round(((acc + wait) / total) * 100) : 0;
+            leaderboardData.push({
+                name: listOpd[i],
+                acc: acc,
+                wait: wait,
+                belum: belum,
+                total: total,
+                progress: progress
+            });
+        }
+
+        function renderLeaderboard(data) {
+            var tbody = document.getElementById('leaderboardBody');
+            if (!tbody) return;
+            var html = '';
+            if (data.length === 0) {
+                html = '<tr><td colspan="7" class="text-center py-4 text-muted">Tidak ada data</td></tr>';
+            } else {
+                data.forEach(function(item, idx) {
+                    var accPct = item.total > 0 ? ((item.acc / item.total) * 100).toFixed(1) : 0;
+                    var waitPct = item.total > 0 ? ((item.wait / item.total) * 100).toFixed(1) : 0;
+                    var belumPct = item.total > 0 ? ((item.belum / item.total) * 100).toFixed(1) : 0;
+                    html += '<tr>';
+                    html += '<td class="text-center">' + (idx + 1) + '</td>';
+                    html += '<td class="fw-medium text-uppercase">' + item.name + '</td>';
+                    html += '<td>';
+                    html += '<div class="progress" style="height: 10px; border-radius: 5px;" data-bs-toggle="tooltip" title="Diverifikasi: ' + accPct + '% | Sudah Diisi: ' + waitPct + '% | Belum Diisi: ' + belumPct + '%">';
+                    html += '<div class="progress-bar" style="width: ' + accPct + '%; background: #22c55e;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + waitPct + '%; background: #eab308;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + belumPct + '%; background: #ef4444;"></div>';
+                    html += '</div>';
+                    html += '<small class="text-muted">' + item.progress + '% terisi</small>';
+                    html += '</td>';
+                    html += '<td class="text-center"><span class="badge bg-danger-subtle text-danger">' + item.belum + '</span></td>';
+                    html += '<td class="text-center"><span class="badge bg-warning-subtle text-warning" style="color: #856404 !important;">' + item.wait + '</span></td>';
+                    html += '<td class="text-center"><span class="badge bg-success-subtle text-success">' + item.acc + '</span></td>';
+                    html += '<td class="text-center"><span class="badge bg-primary-subtle text-primary">' + item.total + '</span></td>';
+                    html += '</tr>';
+                });
+            }
+            tbody.innerHTML = html;
+            // Initialize tooltips
+            var tooltipList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipList.map(function(el) {
+                return new bootstrap.Tooltip(el);
+            });
+        }
+
+        renderLeaderboard(leaderboardData);
+
+        // Search & Sort
+        var searchInput = document.getElementById('searchOPD');
+        var sortSelect = document.getElementById('sortOPD');
+
+        function filterAndSort() {
+            var keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            var sortVal = sortSelect ? sortSelect.value : 'name-asc';
+            var filtered = leaderboardData.filter(function(item) {
+                return item.name.toLowerCase().indexOf(keyword) > -1;
+            });
+            filtered.sort(function(a, b) {
+                if (sortVal === 'name-asc') return a.name.localeCompare(b.name);
+                if (sortVal === 'name-desc') return b.name.localeCompare(a.name);
+                if (sortVal === 'progress-desc') return b.progress - a.progress;
+                if (sortVal === 'progress-asc') return a.progress - b.progress;
+                return 0;
+            });
+            renderLeaderboard(filtered);
+        }
+
+        if (searchInput) searchInput.addEventListener('keyup', filterAndSort);
+        if (sortSelect) sortSelect.addEventListener('change', filterAndSort);
     });
-
-});
 </script>

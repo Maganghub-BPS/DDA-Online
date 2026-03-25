@@ -399,10 +399,10 @@ function get_dda_label_nested($col)
         }
     }
     ?>
-    <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-back">← KEMBALI</a>
-    <div class="pull-right">
+    <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-back"><i class="bi bi-arrow-left"></i> KEMBALI</a>
+    <div class="float-end">
         <button onclick="exportTableToExcel('dda-table', '<?php echo url_title($dda_title ?: 'tabel'); ?>')" class="btn btn-sm btn-success">
-            <i class="icon-download-alt"></i> Export Excel
+            <i class="bi bi-file-earmark-excel"></i> Export Excel
         </button>
     </div>
 
@@ -593,7 +593,7 @@ function get_dda_label_nested($col)
     <div id="export-progress-container">
         <div class="export-header">
             <div class="export-title">
-                <i class="icon-file-text"></i> Export Excel
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
             </div>
         </div>
         <div class="export-progress-bg">
