@@ -89,7 +89,7 @@
                             }
                             ?>
                             <div class="d-flex flex-column gap-1">
-                                <a href="<?php echo $tabel_url; ?>" target="blank" class="text-decoration-none fw-bold text-dark hover-primary" style="font-size: 0.95rem; line-height: 1.4;">
+                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary" style="font-size: 0.95rem; line-height: 1.4;">
                                     <?php echo htmlspecialchars($judul_bersih); ?>
                                 </a>
                                 <div class="d-flex align-items-center gap-2 mt-1">

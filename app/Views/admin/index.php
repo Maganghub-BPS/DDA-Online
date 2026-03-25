@@ -13,6 +13,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="<?php echo base_url(); ?>aset/favicon.png">
 
     <!-- jQuery & jQuery UI (tetap dipertahankan untuk AJAX & plugin) -->
     <link rel="stylesheet" href="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.css" />
@@ -512,7 +514,7 @@
         <!-- ===== SIDEBAR ===== -->
         <aside id="sidebar">
             <div class="sidebar-header">
-                <img src="<?php echo base_url(); ?>upload/<?php echo $q_instansi->logo; ?>" alt="Logo">
+                <img src="<?php echo base_url(); ?>aset/favicon.png" alt="Logo">
                 <div>
                     <div class="brand-text">DDA Online</div>
                     <div class="brand-sub">Jateng Dalam Angka</div>

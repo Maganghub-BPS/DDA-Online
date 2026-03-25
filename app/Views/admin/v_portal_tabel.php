@@ -303,15 +303,45 @@ function get_dda_label_nested($col)
         text-align: center;
     }
 
-    .btn-back {
-        background: #333;
-        color: #fff;
-        padding: 5px 10px;
+    .btn-rounded-modern {
+        border-radius: 50px;
+        padding: 8px 24px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-back-modern {
+        background: #f8fafc;
+        color: #64748b;
         text-decoration: none;
-        font-size: 11px;
-        border-radius: 3px;
-        margin-bottom: 10px;
-        display: inline-block;
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn-back-modern:hover {
+        background: #fff;
+        color: #ff6d1f;
+        border-color: #ff6d1f;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(255, 109, 31, 0.1);
+        text-decoration: none;
+    }
+
+    .export-btn-modern {
+        background: #FF6D1F;
+        color: #fff;
+    }
+
+    .export-btn-modern:hover {
+        background: #e05e15;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(255, 109, 31, 0.25);
     }
 
     /* Progress Bar Styles */
@@ -399,10 +429,12 @@ function get_dda_label_nested($col)
         }
     }
     ?>
-    <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-back"><i class="bi bi-arrow-left"></i> KEMBALI</a>
+    <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-rounded-modern btn-back-modern mb-3">
+        <i class="bi bi-arrow-left"></i> KEMBALI
+    </a>
     <div class="float-end">
-        <button onclick="exportTableToExcel('dda-table', '<?php echo url_title($dda_title ?: 'tabel'); ?>')" class="btn btn-sm btn-success">
-            <i class="bi bi-file-earmark-excel"></i> Export Excel
+        <button onclick="exportTableToExcel('dda-table', '<?php echo url_title($dda_title ?: 'tabel'); ?>')" class="btn-rounded-modern export-btn-modern shadow-primary">
+            <i class="bi bi-file-earmark-excel"></i> EXPORT EXCEL
         </button>
     </div>
 
