@@ -5,62 +5,62 @@ Dokumen ini menjelaskan seluruh rangkaian pengembangan, pembaruan fitur, dan per
 ---
 
 ## 1. Ringkasan Sistem
-Sistem ini awalnya dirancang untuk mengelola tautan (link) tabel dari Google Sheets. Dalam pengembangan terbaru, sistem telah ditransformasi menjadi lebih mandiri dengan integrasi langsung ke **API Portal Data "Satu Data Jawa Tengah"**, penambahan fitur manajemen tabel massal (Bulk Update), dan peningkatan antarmuka pengguna (UI/UX).
+
+Sistem ini awalnya dirancang untuk mengelola tautan (link) tabel dari Google Sheets. Dalam pengembangan terbaru, sistem telah ditransformasi menjadi lebih mandiri dengan integrasi langsung ke **API Portal Data "Satu Data Jawa Tengah"**, penambahan fitur manajemen tabel massal (Bulk Update), serta perombakan total antarmuka pengguna (UI/UX) ke standar modern dan premium.
 
 ---
 
 ## 2. Fitur Utama yang Dikembangkan
 
 ### A. Integrasi API Portal Data (Satu Data Jawa Tengah)
-*   **Real-time Data Fetching**: Mengambil data terbaru langsung dari API Portal Data tanpa perlu input manual.
-*   **Multiple ID Integration**: Kemampuan untuk menggabungkan data dari beberapa ID Portal (UUID) ke dalam satu tampilan tabel tunggal di sistem DDA.
-*   **Dynamic Pivot/Header Analysis**: Sistem secara otomatis mendeteksi kolom dengan prefix yang sama untuk membuat **Multi-level Headers** (Header bertingkat) yang rapi, menyerupai layout Google Sheets DDA yang kompleks.
 
-### B. fitur Bulk Update Link Portal
-*   **Mass Update via CSV**: Admin dapat memperbarui ribuan link tabel DDA agar mengarah ke API Portal Data hanya dengan mengunggah satu file CSV mapping.
-*   **Preview & Validation System**: Sebelum data disimpan, sistem menampilkan *Preview* yang memvalidasi apakah judul tabel di CSV cocok dengan database. Admin dapat memperbaiki mapping secara manual melalui dropdown jika ada ketidaksesuaian judul.
-*   **Template Download**: Menyediakan template CSV yang siap digunakan oleh admin.
+- **Real-time Data Fetching**: Mengambil data terbaru langsung dari API Portal Data tanpa perlu input manual.
+- **Status Tracking API Sync**: Implementasi label status _"Sudah Sinkron dengan Portal Data Jateng"_ pada tabel yang telah terhubung, memberikan kepastian validitas data.
+- **Multiple ID Integration**: Kemampuan menggabungkan data dari beberapa ID Portal (UUID) ke dalam satu tampilan tabel tunggal di sistem DDA.
+- **Dynamic Pivot/Header Analysis**: Deteksi otomatis multi-level headers yang rapi, menyerupai layout Google Sheets yang kompleks namun dengan performa web yang lebih cepat.
 
-### C. Manajemen Master Tabel yang Lebih Cerdas
-*   **Year-Based Filtering**: Tabel sekarang difilter berdasarkan tahun login admin. Namun, tersedia filter tambahan untuk melihat tabel dari tahun lain tanpa harus logout/login ulang.
-*   **Advanced search**: Fitur pencarian tabel yang lebih responsif dan mencakup pencarian berdasarkan Judul atau OPD/Unit Kerja.
-*   **OPD & Bidang Grouping**: Pengelompokan tabel berdasarkan OPD dan Bidang (Tim) untuk memudahkan pengawasan progress pengisian data.
+### B. Fitur Bulk Update Link Portal
 
-### D. Peningkatan UI/UX & Visual
-*   **Download Progress Bar**: Penambahan indikator progress saat melakukan ekspor data ke Excel, memberikan feedback visual kepada pengguna agar tidak melakukan klik ganda.
-*   **Premium Table Styling**: Implementasi CSS modern (sticky headers, hover effects, shadow box) pada tampilan portal tabel agar tetap nyaman dibaca meskipun data sangat banyak.
-*   **Pagination-Aware Numbering**: Perbaikan pada forum diskusi dan list tabel agar penomoran baris tetap kontinu (berkelanjutan) meskipun berpindah halaman (pagination).
+- **Mass Update via CSV**: Pembaruan ribuan link tabel DDA secara skalabel hanya dengan mengunggah file CSV mapping.
+- **Preview & Validation System**: Halaman konfirmasi sebelum penyimpanan data, lengkap dengan fitur _manual mapping_ menggunakan pencarian cerdas (Select2) jika ada ketidaksesuaian judul.
+- **Panduan Terintegrasi**: Pembuatan dokumen teknis pembantu `L_Lap_Panduan Bulk Create.md` untuk memudahkan operasional administrator.
+
+### C. Modernisasi Dashboard & UI/UX (Premium Theme)
+
+- **Bootstrap 5.3.3 Migration**: Migrasi total komponen framework dari versi lama ke Bootstrap 5.3.3 untuk stabilitas dan responsivitas maksimal.
+- **Card-Based Layout**: Implementasi desain berbasis kartu yang bersih, memberikan kesan aplikasi modern dan terorganisir.
+- **Branding Orange System**: Standardisasi warna aksen utama `#FF6D1F` (Orange) pada seluruh elemen interaktif, tombol, sidebar, dan pagination untuk identitas brand yang konsisten.
+- **Modern Typography & Icons**: Implementasi font sistem premium (Inter/Roboto/Outfit) dan Bootstrap Icons yang memberikan kesan mewah dan futuristik.
 
 ---
 
 ## 3. Daftar File Baru & Modifikasi Penting
 
-| Nama File | Status | Fungsi Utama |
-| :--- | :--- | :--- |
-| `app/Controllers/Admin.php` | **Modified** | Penambahan logic API (`callApi`, `view_portal_tabel`), fitur Bulk Update (`preview_bulk_portal`, `bulk_portal_save`), dan filter tahun pada Master Tabel. |
-| `app/Views/admin/v_portal_tabel.php` | **New/Updated** | View utama untuk menampilkan data API. Berisi logic Nested Headers, Export Excel, dan Progress Bar. |
-| `app/Views/admin/v_preview_bulk.php` | **New** | Halaman konfirmasi Bulk Update. Memungkinkan admin memilih/mengkoreksi mapping tabel sebelum eksekusi database. |
-| `app/Views/admin/l_master_tabel.php` | **Modified** | Penambahan UI filter OPD, Bidang, dan Tahun, serta integrasi tombol Bulk Update. |
-| `app/Views/admin/login.php` | **Modified** | Perbaikan syntax CSS `@font-face` untuk memastikan tampilan login tetap konsisten di berbagai browser. |
-| `app/Views/admin/l_forum.php` | **Modified** | Implementasi perhitungan index baris agar nomor urut tidak mengulang dari 1 di setiap halaman. |
+| Nama File                            | Status       | Fungsi Utama                                                                 |
+| :----------------------------------- | :----------- | :--------------------------------------------------------------------------- |
+| `app/Controllers/Admin.php`          | **Modified** | Penanganan logic API, fitur Bulk Update, dan filter tahun pada Master Tabel. |
+| `app/Views/admin/v_portal_tabel.php` | **Updated**  | View utama data portal dengan UI Premium, Progress Bar, dan Export Excel.    |
+| `app/Views/admin/v_preview_bulk.php` | **New**      | UI Preview Bulk Update dengan validasi mapping dan checkbox selektif.        |
+| `app/Views/admin/l_master_tabel.php` | **Modified** | Layout Master Tabel berbasis BS5 dengan integrasi fitur pencarian real-time. |
+| `app/Views/admin/login.php`          | **Modified** | Redesain halaman login (Minimalist & Trend modern).                          |
+| `app/Views/admin/index.css`          | **Updated**  | Library gaya pusat (Design System) untuk warna, animasi, dan layout kartu.   |
+| `L_Lap_Panduan Bulk Create.md`       | **New**      | Panduan operasional langkah-demi-langkah fitur Bulk Update.                  |
 
 ---
 
 ## 4. Detail Teknis (Maintenance)
 
-1.  **Optimasi Library**: Menghapus ketergantungan pada `PhpSpreadsheet` yang berat untuk proses Bulk Import, dan menggantinya dengan Native PHP CSV Handling agar server tetap ringan saat memproses file besar.
-2.  **API Security**: Menggunakan *Bearer Token* yang terenkripsi untuk berkomunikasi dengan API Satu Data Jateng.
-3.  **Database Sync**: Penambahan tabel `t_api_data` untuk melakukan *caching* list judul dan ID dari API guna mempercepat proses pencarian dan mapping oleh admin.
-4.  **Error Handling**: Penambahan validasi pada setiap input upload file dan respon API untuk mencegah aplikasi *crash* jika API eksternal mengalami gangguan.
+1.  **Optimasi Library**: Penggunaan Native PHP CSV Handling untuk menggantikan library berat, memastikan server tetap ringan saat memproses ribuan baris data.
+2.  **Model Refactoring**: Migrasi sintaks database dari standar CI3 ke CI4 (Prepared Statements) untuk keamanan dan performa lebih baik.
+3.  **UI Consistency**: Penggunaan CSS Variables untuk manajemen warna bertema orange agar konsisten di seluruh modul.
+4.  **Error Handling**: Penambahan validasi pada respon API untuk mencegah aplikasi berhenti jika layanan Satu Data Jateng mengalami gangguan.
 
 ---
 
-## 5. Panduan Penggunaan Singkat untuk Laporan
+## 5. Rencana & Panduan Implementasi
 
-1.  **Update Massal**: Masuk ke menu Master Tabel > Klik `Bulk Update Portal` > Unggah CSV > Validasi di halaman Preview > Simpan.
-2.  **Melihat Data API**: Klik judul tabel di menu Portal Data atau Master Tabel (yang link-nya sudah diawali `admin/view_portal_tabel`). Data akan ditarik otomatis dari server Satu Data Jateng.
-3.  **Analisis Progress**: Gunakan dashboard atau filter pada Master Tabel untuk melihat OPD mana yang sudah/belum melakukan update link ke portal.
+1.  **Deployment**: Pastikan variabel `app.baseURL` di `.env` sudah diperbarui saat pindah ke server produksi atau menggunakan tunnel (localtunnel).
+2.  **Validasi Bulk**: Selalu gunakan fitur Preview untuk memastikan tidak ada tabel yang salah sasaran sebelum menekan tombol konfirmasi.
+3.  **Maintenance Tampilan**: Semua pembaruan UI di masa mendatang harus merujuk pada `index.css` agar tetap selaras dengan tema orange yang sudah ditetapkan.
 
 ---
-
-*Laporan ini disusun secara otomatis oleh **Antigravity AI** sebagai ringkasan teknis pengembangan sistem DDA Online periode Maret 2026.*
