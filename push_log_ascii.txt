@@ -1,0 +1,27 @@
+git : Pushing to https://github.com/MuhammadBay
+uNugroho/dda-online-ci4.git
+At line:1 char:1
++ git push origin main --verbose --porcelain > 
+push_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (P 
+   ushing to http...-online-ci4.git:String) [  
+  ], RemoteException
+    + FullyQualifiedErrorId : NativeCommandErr 
+   or
+ 
+error: failed to push some refs to 'https://git
+hub.com/MuhammadBayuNugroho/dda-online-ci4.git'
+To https://github.com/MuhammadBayuNugroho/dda-online-ci4.git
+!	refs/heads/main:refs/heads/main	[rejected] (fetch first)
+Done
+hint: Updates were rejected because the remote 
+contains work that you do not
+hint: have locally. This is usually caused by 
+another repository pushing to
+hint: the same ref. If you want to integrate 
+the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 
+'git push --help' for details.
