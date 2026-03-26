@@ -1737,37 +1737,31 @@ public function ambil_tahun_terakhir_dari_match()
 
 		// Support multiple IDs (comma separated)
 		$ids = explode(',', $id_api);
-		$combined_data = [];
+		$all_results = [];
 		
-		foreach ($ids as $id) {
-			$id = trim($id);
-			if (empty($id)) continue;
+		foreach ($ids as $id_p) {
+			$id_p = trim($id_p);
+			if (empty($id_p)) continue;
 
-			$url = "https://satudata.jatengprov.go.id/v1/data/{$id}";
+			$url = "https://satudata.jatengprov.go.id/v1/data/{$id_p}";
 			$res = $this->callApi2($url);
-
-			if (empty($combined_data)) {
-				$combined_data = $res;
-			} else if (isset($res['data'])) {
-				// Cek struktur data
-				if (isset($res['data'][0])) {
-					// Flat array
-					$combined_data['data'] = array_merge($combined_data['data'] ?? [], $res['data']);
-				} elseif (isset($res['data']['rows'])) {
-					// Nested rows
-					$combined_data['data']['rows'] = array_merge($combined_data['data']['rows'] ?? [], $res['data']['rows']);
-				}
+			
+			if ($res) {
+				// Cari Judul DDA asli untuk setiap ID agar konsisten
+				$dda_info = $this->db->query("SELECT judul_ind, judul_en FROM t_list_tabel WHERE link_tabel LIKE ? LIMIT 1", ['%' . $id_p . '%'])->getRow();
+				
+				$res['dda_title']    = $dda_info->judul_ind ?? '';
+				$res['dda_title_en'] = $dda_info->judul_en ?? '';
+				$res['id_api']       = $id_p;
+				
+				$all_results[] = $res;
 			}
 		}
 
-		// Cari Judul DDA asli dari database agar sinkron
-		$dda_info = $this->db->query("SELECT judul_ind, judul_en FROM t_list_tabel WHERE link_tabel LIKE ? LIMIT 1", ['%' . $ids[0] . '%'])->getRow();
-
-		$a['api_result']   = $combined_data;
-		$a['dda_title']    = $dda_info->judul_ind ?? '';
-		$a['dda_title_en'] = $dda_info->judul_en ?? '';
+		$a['api_results']  = $all_results;
 		$a['id_api']       = $id_api;
 		$a['page']         = "v_portal_tabel";
+
 
 		return view('admin/index', $a);
 	}

@@ -8,36 +8,12 @@
 
 $hasError = false;
 $errorMsg = '';
-$judul    = '';
-$rows     = [];
-$columns  = [];
 
-if (empty($api_result)) {
+if (empty($api_results)) {
     $hasError = true;
     $errorMsg = 'Tidak ada data yang diterima dari API.';
-} elseif (isset($api_result['error'])) {
-    $hasError = true;
-    $errorMsg = 'API Error: ' . $api_result['error'];
-} else {
-    $judul = $api_result['title'] ?? $api_result['nama'] ?? $api_result['data']['title'] ?? 'Tabel Data Portal';
-
-    if (isset($api_result['data']) && is_array($api_result['data'])) {
-        if (isset($api_result['data'][0]) && is_array($api_result['data'][0])) {
-            $rows = $api_result['data'];
-        } elseif (isset($api_result['data']['rows'])) {
-            $rows = $api_result['data']['rows'];
-        }
-    } elseif (isset($api_result[0]) && is_array($api_result[0])) {
-        $rows = $api_result;
-    }
-
-    if (!empty($rows)) {
-        $columns = array_keys($rows[0]);
-    } else {
-        $hasError = true;
-        $errorMsg = 'Data tidak ditemukan.';
-    }
 }
+
 
 // -------------------------------------------------------------------------
 // FUNGSI PINTAR UNTUK MENYUNSUN HEADER BERTINGKAT (AUTO-RECOGNITION)
@@ -433,10 +409,11 @@ function get_dda_label_nested($col)
         <i class="bi bi-arrow-left"></i> KEMBALI
     </a>
     <div class="float-end">
-        <button onclick="exportTableToExcel('dda-table', '<?php echo url_title($dda_title ?: 'tabel'); ?>')" class="btn-rounded-modern export-btn-modern shadow-primary">
-            <i class="bi bi-file-earmark-excel"></i> EXPORT EXCEL
+        <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
+            <i class="bi bi-file-earmark-excel"></i> EXPORT ALL TO EXCEL
         </button>
     </div>
+
 
     <script>
         function exportTableToExcel(tableID, filename = '') {
@@ -512,114 +489,170 @@ function get_dda_label_nested($col)
     <?php if ($hasError): ?>
         <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
     <?php else: ?>
+        <div id="dda-container-all">
+            <?php foreach ($api_results as $idx_res => $api_result): 
+                // Process each result independently
+                $portal_title = $api_result['title'] ?? $api_result['nama'] ?? $api_result['data']['title'] ?? 'Tabel Data Portal';
+                $dda_title = $api_result['dda_title'] ?? '';
+                $dda_title_en = $api_result['dda_title_en'] ?? '';
+                $rows = [];
+                $columns = [];
 
-        <!-- HEADER BAGIAN ATAS -->
-        <table class="header-table">
-            <tr>
-                <td class="label-box">
-                    <b>Tabel</b><br><i>Table</i>
-                </td>
-
-                <td class="title-box">
-                    <span class="title-id"><?php echo htmlspecialchars($dda_title ?: ($api_result['title'] ?? 'Tabel Data Portal')); ?></span>
-                    <span class="title-en"><?php echo htmlspecialchars($dda_title_en ?: ($api_result['title_en'] ?? '')); ?></span>
-                </td>
-            </tr>
-        </table>
-
-        <?php
-        $structure = parse_nested_headers($columns);
-        $has_group = false;
-        foreach ($structure as $item) {
-            if ($item['type'] === 'group') {
-                $has_group = true;
-                break;
-            }
-        }
-        ?>
-
-        <!-- TABEL DATA UTAMA -->
-        <table class="main-table" id="dda-table">
-            <thead>
-                <!-- BARIS HEADER 1: INDUK -->
-                <tr>
-                    <?php foreach ($structure as $item): ?>
-                        <?php if ($item['type'] === 'kab'): ?>
-                            <th rowspan="<?php echo $has_group ? 2 : 1; ?>" colspan="2"><?php echo $item['label']; ?><br><i><?php echo $item['label_en']; ?></i></th>
-                        <?php elseif ($item['type'] === 'single'): ?>
-                            <th rowspan="<?php echo $has_group ? 2 : 1; ?>"><?php echo $item['label']; ?><br><i><?php echo $item['label_en']; ?></i></th>
-                        <?php else: ?>
-                            <th colspan="<?php echo $item['colspan']; ?>"><?php echo $item['prefix']; ?><br><i></i></th>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                </tr>
-                <?php if ($has_group): ?>
-                    <!-- BARIS HEADER 2: ANAK -->
-                    <tr>
-                        <?php foreach ($structure as $item): ?>
-                            <?php if ($item['type'] === 'group'): ?>
-                                <?php foreach ($item['children'] as $child): ?>
-                                    <th><?php echo $child['label']; ?><br><i><?php echo $child['label_en']; ?></i></th>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-                    </tr>
-                <?php endif; ?>
-                <!-- BARIS PENOMORAN (1), (2), (3) ... -->
-                <tr class="num-row">
-                    <th colspan="2">(1)</th>
-                    <?php
-                    $col_count = 1;
-                    foreach ($columns as $idx => $col):
-                        if ($idx == 0) continue;
-                        $col_count++;
-                        echo '<th>(' . $col_count . ')</th>';
-                    endforeach;
-                    ?>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $lastKab = '';
-                $kabCount = 0;
-                foreach ($rows as $row):
-                    $currentKab = reset($row);
-                    $isNewKab = ($currentKab !== $lastKab);
-                    if ($isNewKab) {
-                        $lastKab = $currentKab;
-                        $kabCount++;
+                if (isset($api_result['data']) && is_array($api_result['data'])) {
+                    if (isset($api_result['data'][0]) && is_array($api_result['data'][0])) {
+                        $rows = $api_result['data'];
+                    } elseif (isset($api_result['data']['rows'])) {
+                        $rows = $api_result['data']['rows'];
                     }
-                ?>
-                    <tr class="<?php echo $isNewKab ? 'new-kab' : ''; ?>">
-                        <td class="num-col"><?php echo $isNewKab ? $kabCount : ''; ?></td>
-                        <td class="kab-col"><?php echo $isNewKab ? htmlspecialchars($currentKab) : ''; ?></td>
+                } elseif (isset($api_result[0]) && is_array($api_result[0])) {
+                    $rows = $api_result;
+                }
 
-                        <?php
-                        $first = true;
-                        foreach ($row as $key => $val):
-                            if ($first) {
-                                $first = false;
-                                continue;
-                            } // Skip first column (dimensi)
-                        ?>
-                            <td class="val-col">
-                                <?php echo htmlspecialchars($val); ?>
+                if (!empty($rows)) {
+                    $columns = array_keys($rows[0]);
+                } else {
+                    continue; // Skip if no rows
+                }
+
+                $structure = parse_nested_headers($columns);
+                $has_group = false;
+                foreach ($structure as $item) {
+                    if ($item['type'] === 'group') {
+                        $has_group = true;
+                        break;
+                    }
+                }
+            ?>
+                <?php if ($idx_res > 0): ?>
+                    <div style="margin: 60px 0; border-top: 2px dashed #ccc; position: relative;">
+                        <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 15px; color: #999; font-size: 11px; font-weight: bold; letter-spacing: 1px;">TABEL BERIKUTNYA / NEXT TABLE</span>
+                    </div>
+                <?php endif; ?>
+
+                <div class="table-wrapper">
+                    <!-- HEADER BAGIAN ATAS -->
+                    <table class="header-table">
+                        <tr>
+                            <td class="label-box" style="width: 100px;">
+                                <b>Tabel</b><br><i>Table</i>
                             </td>
-                        <?php endforeach; ?>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="<?php echo count($columns) + 1; ?>" style="border-top:1px solid #000"></td>
-                </tr>
-            </tfoot>
-        </table>
 
-        <div style="font-size: 11px; margin-top: 10px;">
-            <b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $id_api; ?>)
+                            <td class="title-box">
+                                <span class="title-id">
+                                    <?php 
+                                    if ($idx_res === 0) {
+                                        echo htmlspecialchars($dda_title ?: $portal_title); 
+                                    } else {
+                                        echo htmlspecialchars($portal_title);
+                                    }
+                                    ?>
+                                </span>
+
+                                <?php if ($idx_res > 0 && !empty($dda_title) && $dda_title !== $portal_title): ?>
+                                    <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">
+                                        (Ref: <?php echo htmlspecialchars($dda_title); ?>)
+                                    </span>
+                                <?php endif; ?>
+
+                                <span class="title-en">
+                                    <?php 
+                                    if ($idx_res === 0) {
+                                        echo htmlspecialchars($dda_title_en ?: ($api_result['title_en'] ?? ''));
+                                    } else {
+                                        echo htmlspecialchars($api_result['title_en'] ?? $dda_title_en ?? '');
+                                    }
+                                    ?>
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- TABEL DATA UTAMA -->
+                    <table class="main-table dda-table-item" id="dda-table-<?php echo $idx_res; ?>">
+                        <thead>
+                            <!-- BARIS HEADER 1: INDUK -->
+                            <tr>
+                                <?php foreach ($structure as $item): ?>
+                                    <?php if ($item['type'] === 'kab'): ?>
+                                        <th rowspan="<?php echo $has_group ? 2 : 1; ?>" colspan="2"><?php echo $item['label']; ?><br><i><?php echo $item['label_en']; ?></i></th>
+                                    <?php elseif ($item['type'] === 'single'): ?>
+                                        <th rowspan="<?php echo $has_group ? 2 : 1; ?>"><?php echo $item['label']; ?><br><i><?php echo $item['label_en']; ?></i></th>
+                                    <?php else: ?>
+                                        <th colspan="<?php echo $item['colspan']; ?>"><?php echo $item['prefix']; ?><br><i></i></th>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </tr>
+                            <?php if ($has_group): ?>
+                                <!-- BARIS HEADER 2: ANAK -->
+                                <tr>
+                                    <?php foreach ($structure as $item): ?>
+                                        <?php if ($item['type'] === 'group'): ?>
+                                            <?php foreach ($item['children'] as $child): ?>
+                                                <th><?php echo $child['label']; ?><br><i><?php echo $child['label_en']; ?></i></th>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php endif; ?>
+                            <!-- BARIS PENOMORAN (1), (2), (3) ... -->
+                            <tr class="num-row">
+                                <th colspan="2">(1)</th>
+                                <?php
+                                $col_count_n = 1;
+                                foreach ($columns as $idx_c => $col):
+                                    if ($idx_c == 0) continue;
+                                    $col_count_n++;
+                                    echo '<th>(' . $col_count_n . ')</th>';
+                                endforeach;
+                                ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $lastKab = '';
+                            $kabCount = 0;
+                            foreach ($rows as $row):
+                                $currentKab = reset($row);
+                                $isNewKab = ($currentKab !== $lastKab);
+                                if ($isNewKab) {
+                                    $lastKab = $currentKab;
+                                    $kabCount++;
+                                }
+                            ?>
+                                <tr class="<?php echo $isNewKab ? 'new-kab' : ''; ?>">
+                                    <td class="num-col"><?php echo $isNewKab ? $kabCount : ''; ?></td>
+                                    <td class="kab-col"><?php echo $isNewKab ? htmlspecialchars($currentKab) : ''; ?></td>
+
+                                    <?php
+                                    $first = true;
+                                    foreach ($row as $key => $val):
+                                        if ($first) {
+                                            $first = false;
+                                            continue;
+                                        } // Skip first column (dimensi)
+                                    ?>
+                                        <td class="val-col">
+                                            <?php echo htmlspecialchars($val); ?>
+                                        </td>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="<?php echo count($columns) + 1; ?>" style="border-top:1px solid #000"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div style="font-size: 11px; margin-top: 10px; opacity: 0.6;">
+                        <b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $api_result['id_api'] ?? ''; ?>)
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
     <?php endif; ?>
+
 
     <!-- Modal Progress Bar Export -->
     <div id="export-progress-container">
