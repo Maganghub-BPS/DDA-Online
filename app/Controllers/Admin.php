@@ -264,6 +264,37 @@ class Admin extends BaseController {
 		echo json_encode($klasifikasi);
 	}
 	
+	public function profil() {
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+		
+		$idu					= $this->session->get('admin_id');
+		$mau_ke					= $this->uri->segment(3);
+		
+		//ambil variabel Postingan
+		$idp					= addslashes($this->input->post('idp') ?? '');
+		$nama					= addslashes($this->input->post('nama') ?? '');
+		$nip					= addslashes($this->input->post('nip') ?? '');
+		$email					= addslashes($this->input->post('email') ?? '');
+		$username				= addslashes($this->input->post('username') ?? '');
+
+		if ($mau_ke == "act_edt") {
+            $this->db->query("UPDATE t_admin SET nama = '$nama', nip = '$nip', email = '$email', username = '$username' WHERE id = '$idp'");
+            // Sync session data
+            $this->session->set('admin_nama', $nama);
+            $this->session->set('admin_user', $username);
+            
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Profil berhasil diperbarui</div>");
+			return redirect()->to('admin/profil');
+		} else {
+			$a['datpil']	= $this->db->query("SELECT * FROM t_admin WHERE id = '$idu'")->getRow();
+			$a['page']		= "f_profil";
+		}
+		
+		return view('admin/index', $a);
+	}
+
 	public function passwod() {
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
@@ -887,7 +918,7 @@ public function master_tabel() {
     } 
     else if ($mau_ke == "act_add") {	
         $hariini = date('Y-m-d');
-        $this->db->query("INSERT INTO t_list_tabel VALUES (NULL, '$judul_ind', '$judul_en', '$link_tabel', '$link_sebelumnya','$id_unitkerja','$is_confirm','$catatan','$is_periksa','$catatan_periksa','$kondef')");
+        $this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, '$judul_ind', '$judul_en', '$link_tabel', '$link_sebelumnya','$id_unitkerja','$is_confirm','$catatan','$is_periksa','$catatan_periksa','$kondef', '$ta')");
         $this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil ditambahkan</div>");
         return redirect()->to('admin/master_tabel/');
     }
@@ -1074,7 +1105,7 @@ public function master_tabel() {
 		else if ($mau_ke == "act_edt") {
 				$id_unitkerja				= addslashes($this->input->post('id_unitkerja'));
 				$this->db->query("UPDATE m_master_tabel_usulan SET is_setujui ='1' where id='$idp'");
-				$this->db->query("INSERT INTO t_list_tabel VALUES (NULL, '$judul_ind', '$judul_en', '', '','$id_unitkerja','','','','','-')");
+				$this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, '$judul_ind', '$judul_en', '', '', '$id_unitkerja', '2', '-', '0', '-', '-', '$ta')");
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di konfirmasi</div>");
 				return redirect()->to('admin/master_tabel_opd/');
 		}
@@ -1377,8 +1408,6 @@ public function master_tabel() {
 			return ['error' => curl_error($ch)];
 		}
 
-		curl_close($ch);
-
 		// Debug dulu sebelum decode
 		// echo $response;
 
@@ -1405,15 +1434,13 @@ public function master_tabel() {
 
 		if ($response === false) {
 			$error_msg = curl_error($ch);
-			curl_close($ch);
-			return [
+				return [
 				'status' => false,
 				'message' => 'Curl error: ' . $error_msg,
 				'data' => []
 			];
 		}
 
-		curl_close($ch);
 
 		$json = json_decode($response, true);
 
@@ -1508,15 +1535,13 @@ public function master_tabel() {
 
 		if ($response === false) {
 			$error_msg = curl_error($ch);
-			curl_close($ch);
-			return [
+				return [
 				'status' => false,
 				'message' => 'Curl error: ' . $error_msg,
 				'data' => []
 			];
 		}
 
-		curl_close($ch);
 
 		$json = json_decode($response, true);
 
@@ -1664,9 +1689,9 @@ public function ambil_tahun_terakhir_dari_match()
     ini_set('max_execution_time', 0);
     set_time_limit(0);
 
-    $list = $this->db
+    $list = $this->db->table('t_tabel_match')
         ->select('id_api')
-        ->get('t_tabel_match')
+        ->get()
         ->getResultArray();
 
     $updated = 0;

@@ -1,18 +1,22 @@
 # Cara Running Sistem DDA Online (CodeIgniter 4)
 
-Panduan ini menjelaskan langkah-langkah untuk menjalankan sistem DDA Online, baik dari file `.rar` yang sudah jadi maupun dengan melakukan *cloning* dari repositori GitHub.
+Panduan ini menjelaskan langkah-langkah untuk menjalankan sistem DDA Online Versi Codeigneter Versi 4.7.0, baik dari file `.rar` yang sudah jadi maupun dengan melakukan _cloning_ dari repositori GitHub.
 
 ---
 
-## Prasyarat Sistem (Requirements)
+## Prasyarat Sistem (System Requirements)
+
 Sebelum memulai, pastikan perangkat Anda sudah terinstall:
+
 - **Laragon** (Sangat disarankan untuk memudahkan konfigurasi Apache/Nginx, PHP, dan MySQL).
 - **PHP 8.2** atau versi di atasnya.
 - **Composer** (Hanya diperlukan jika melakukan cloning dari GitHub).
 - **Git** (Hanya diperlukan jika melakukan cloning dari GitHub).
 
 ### Konfigurasi PHP & Server (Laragon):
+
 Pastikan pengaturan berikut sudah aktif (Klik kanan icon Laragon):
+
 1. **PHP Extensions:** (PHP -> Extensions)
    - `intl` (Wajib untuk CodeIgniter 4)
    - `mbstring`
@@ -27,6 +31,7 @@ Pastikan pengaturan berikut sudah aktif (Klik kanan icon Laragon):
 ---
 
 ## Opsi 1: Menjalankan dari File .rar (Full Folder)
+
 Gunakan cara ini jika Anda mendapatkan file `.rar` yang sudah berisi folder sistem lengkap dengan folder `vendor`.
 
 1. **Ekstrak File:**
@@ -46,13 +51,13 @@ Gunakan cara ini jika Anda mendapatkan file `.rar` yang sudah berisi folder sist
      ```env
      app.baseURL = 'http://localhost/dda-online-ci4/public/'
      ```
-     *(Sesuaikan nama folder `dda-online-ci4` jika Anda mengubahnya).*
+     _(Sesuaikan nama folder `dda-online-ci4` jika Anda mengubahnya)._
    - Sesuaikan konfigurasi database (jika Anda menggunakan user/password MySQL yang berbeda):
      ```env
      database.default.hostname = 127.0.0.1
      database.default.database = ddaonline
      database.default.username = root
-     database.default.password = 
+     database.default.password =
      ```
 
 4. **Akses Web:**
@@ -61,6 +66,7 @@ Gunakan cara ini jika Anda mendapatkan file `.rar` yang sudah berisi folder sist
 ---
 
 ## Opsi 2: Cloning dari GitHub
+
 Gunakan cara ini jika Anda ingin mengambil kode terbaru dari repositori GitHub.
 
 1. **Clone Repository:**
@@ -94,10 +100,12 @@ Gunakan cara ini jika Anda ingin mengambil kode terbaru dari repositori GitHub.
 ---
 
 ## Troubleshooting (Masalah Umum)
+
 - **Error 404 / File Not Found:** Pastikan Anda mengakses URL dengan tambahan `/public/` di belakangnya.
 - **Tips Laragon Virtual Host:** Jika Anda menaruh folder ini di `C:\laragon\www\dda-online-ci4`, Laragon akan otomatis membuatkan domain `http://dda-online-ci4.test`. Gunakan URL tersebut agar akses lebih rapi dan mirip dengan server produksi.
 - **White Screen / Error PHP:** Pastikan versi PHP Anda minimal 8.2 dan ekstensi `intl` sudah aktif.
 - **Database Connection Error:** Periksa kembali file `.env` dan pastikan nama database, username, dan password sudah benar.
 
 ---
-*Dibuat untuk sistem DDA Online - Muhammad Bayu Nugroho*
+
+_Dibuat untuk sistem DDA Online - Muhammad Bayu Nugroho_

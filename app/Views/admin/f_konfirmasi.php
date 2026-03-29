@@ -12,70 +12,53 @@
 
 ?>
 
-<div class="modal-dialog">
-
-    <div class="modal-content">
-
-
-
-    	<div class="modal-header">
-
-            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-
-            <h4 class="modal-title" id="myModalLabel">Data yang akan di konfirmasi</h4>
-
+<div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem; overflow: hidden;">
+        <div class="modal-header bg-gray-100 border-0 pt-4 px-4 pb-2">
+            <h5 class="modal-title fw-bold text-dark" id="myModalLabel">
+                <i class="bi bi-shield-check me-2 text-primary"></i>Konfirmasi Validasi Data
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
+        <div class="modal-body p-4">
+            <form action="<?php echo site_url('admin/dda/act_konfirmasi'); ?>" name="modal_popup" method="POST">
+                <input type="hidden" name="id" value="<?php echo $id; ?>" />
 
-
-        <div class="modal-body">
-
-        	<form action="<?php echo site_url('admin/dda/act_konfirmasi'); ?>" name="modal_popup" enctype="multipart/form-data" method="POST">
-
-        		
-
-                <div class="form-group" style="padding-bottom: 20px;">
-
-				<table width="100%" class="table-form">
-
-                	<!--<label for="Kegiatan Name">Uraian</label><br>-->
-
-                    <tr><td><input type="hidden" name="id"  class="form-control" value="<?php echo $id; ?>" /></td></tr>
-
-					<tr><td>Asal Data : </td><td><input type="text" name="unitkerja"  class="form-control" value="<?php echo $unitkerja_ind ; ?>"/><td></tr>
-
-     				<tr><td>Judul Tabel : </td><td><input type="text" name="judul_tabel"  class="form-control" value="<?php echo $judul_ind ; ?>"/></td></tr>
-
-					<tr><td>Catatan : </td><td><input type="text" name="catatan"  class="form-control" /></td></tr>
-
-				</table>
-
+                <div class="alert bg-primary-soft text-primary border-0 rounded-3 mb-4 d-flex align-items-center">
+                    <i class="bi bi-patch-check-fill fs-5 me-2"></i>
+                    <small>Data ini akan ditandai sebagai "Terverifikasi" dan siap dipublikasikan di Jawa Tengah Dalam Angka.</small>
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary ls-1 mb-1">Instansi Pengelola</label>
+                    <input type="text" class="form-control bg-light border-0 fw-bold py-2" value="<?php echo $unitkerja_ind; ?>" readonly style="border-radius: 0.6rem;">
+                </div>
 
+                <div class="mb-3">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary ls-1 mb-1">Judul Tabel</label>
+                    <textarea class="form-control bg-light border-0 fw-medium py-2" rows="2" readonly style="border-radius: 0.6rem;"><?php echo $judul_ind; ?></textarea>
+                </div>
 
-               
+                <div class="mb-2">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary ls-1 mb-1">Catatan Verifikator</label>
+                    <textarea name="catatan" class="form-control" rows="3" placeholder="Tambahkan catatan hasil verifikasi final..." style="border-radius: 0.6rem;"></textarea>
+                </div>
 
-	            <div class="modal-footer">
-
-	                <button class="btn btn-success" type="submit">
-
-	                    OK
-
-	                </button>
-
-	                <button type="reset" class="btn btn-danger"  data-dismiss="modal" aria-hidden="true">
-
-	               		Cancel
-
-	                </button>
-
-	            </div>
-
-            	</form>
-
-            </div>
-
+                <div class="modal-footer border-0 px-0 pb-0 pt-4">
+                    <button type="button" class="btn btn-link text-secondary mb-0 fw-bold" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 10px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                        <i class="bi bi-check2-all me-2"></i> Konfirmasi Valid
+                    </button>
+                </div>
+            </form>
         </div>
-
     </div>
+</div>
+
+<style>
+    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
+    .text-xxs { font-size: 0.7rem !important; }
+    .ls-1 { letter-spacing: 0.8px; }
+    .bg-gray-100 { background-color: #f8f9fa !important; }
+</style>

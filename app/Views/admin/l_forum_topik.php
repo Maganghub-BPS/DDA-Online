@@ -40,9 +40,12 @@ $nama_opd = $query_unitkerja ? $query_unitkerja->unitkerja_ind : 'Forum OPD';
 
 <div class="header-container mb-4">
     <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h4 class="fw-bold text-dark mb-1" style="letter-spacing: -0.04em;">Forum Diskusi</h4>
-            <p class="text-muted small mb-0"><i class="bi bi-building me-1"></i> <?php echo $nama_opd; ?></p>
+        <div class="d-flex align-items-center">
+            <a href="<?php echo base_url(); ?>index.php/admin/forum_diskusi" class="btn btn-sm btn-light border-0 me-3 shadow-none bg-light-subtle d-flex align-items-center justify-content-center" style="border-radius: 10px; width: 40px; height: 40px;"><i class="bi bi-arrow-left fs-5"></i></a>
+            <div>
+                <h4 class="fw-bold text-dark mb-1" style="letter-spacing: -0.04em;">Forum Diskusi</h4>
+                <p class="text-muted small mb-0"><i class="bi bi-building me-1"></i> <?php echo $nama_opd; ?></p>
+            </div>
         </div>
         <div class="d-flex gap-2">
             <div class="input-group search-container shadow-sm p-0" style="width: 280px; border-radius: 12px; overflow: hidden; background: #fff; border: 1px solid #eee;">

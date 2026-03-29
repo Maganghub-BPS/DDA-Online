@@ -29,12 +29,12 @@
     </div>
 
     <div class="card-body px-4 pt-0 pb-4">
-        <div class="bg-gray-50 border-radius-xl p-3 mb-4 border border-light">
+        <div class="bg-light-subtle border-radius-xl p-3 mb-4 border border-light shadow-sm">
             <form class="row g-3 align-items-end" method="GET" action="<?php echo base_url(); ?>index.php/admin/master_tabel">
                 <!-- Filter Bidang -->
                 <div class="col-md-3">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-1 ls-1">Bidang / Tim</label>
-                    <select name="filter_bidang" class="form-select form-select-sm border-0 shadow-sm border-radius-md py-2" onchange="this.form.submit()">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1"><i class="bi bi-diagram-2 me-1"></i>Bidang / Tim</label>
+                    <select name="filter_bidang" class="form-select border-radius-lg border-light shadow-none text-sm py-2" onchange="this.form.submit()">
                         <option value="all">-- Semua Bidang --</option>
                         <?php
                         if (isset($list_tim)) {
@@ -49,8 +49,8 @@
 
                 <!-- Filter OPD -->
                 <div class="col-md-4">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-1 ls-1">Instansi (OPD)</label>
-                    <select name="filter_opd" class="form-select form-select-sm border-0 shadow-sm border-radius-md py-2" onchange="this.form.submit()">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1"><i class="bi bi-building me-1"></i>Instansi (OPD)</label>
+                    <select name="filter_opd" class="form-select border-radius-lg border-light shadow-none text-sm py-2" onchange="this.form.submit()">
                         <option value="all">-- Semua OPD --</option>
                         <?php
                         if (isset($list_opd)) {
@@ -65,8 +65,8 @@
 
                 <!-- Filter Tahun -->
                 <div class="col-md-2">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-1 ls-1">Tahun</label>
-                    <select name="filter_tahun" class="form-select form-select-sm border-0 shadow-sm border-radius-md py-2" onchange="this.form.submit()">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1"><i class="bi bi-calendar3 me-1"></i>Tahun</label>
+                    <select name="filter_tahun" class="form-select border-radius-lg border-light shadow-none text-sm py-2" onchange="this.form.submit()">
                         <option value="all">Semua</option>
                         <?php
                         for ($i = 2020; $i <= (date('Y') + 1); $i++) {
@@ -80,12 +80,12 @@
                 <!-- Reset -->
                 <div class="col-md-3 text-end d-flex align-items-center justify-content-end gap-2">
                     <?php if ((isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all') || (isset($selected_tahun) && $selected_tahun != 'all')): ?>
-                        <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-link text-secondary text-xs mb-0 px-2 fw-bold">
-                            <i class="bi bi-x-circle me-1"></i> Reset
+                        <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-link text-secondary text-xs mb-0 px-2 fw-bold text-decoration-none">
+                            <i class="bi bi-x-circle me-1 text-danger"></i> Reset
                         </a>
                     <?php endif; ?>
-                    <button type="submit" class="btn btn-dark btn-sm border-radius-lg px-3 mb-0 shadow-none">
-                        <i class="bi bi-filter me-1"></i> Filter
+                    <button type="submit" class="btn btn-primary btn-sm border-radius-lg px-4 py-2 mb-0 shadow-sm fw-bold d-flex align-items-center" style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                        <i class="bi bi-filter me-2"></i> Filter
                     </button>
                 </div>
             </form>

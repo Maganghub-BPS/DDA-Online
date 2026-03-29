@@ -28,6 +28,7 @@
                                 <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Informasi Instansi</label>
                                 
                                 <div class="mb-3">
+                                    <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1">Nama Instansi</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-building text-primary-orange"></i></span>
                                         <input type="text" name="nama" required value="<?php echo $data->nama; ?>" 
@@ -36,6 +37,7 @@
                                 </div>
 
                                 <div class="mb-0">
+                                    <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1">Alamat Lengkap</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0 align-items-start pt-2"><i class="bi bi-geo-alt text-primary-orange"></i></span>
                                         <textarea name="alamat" required class="form-control border-0 py-2 ps-1 text-sm bg-white" 
@@ -49,6 +51,7 @@
                                 <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Profil Pimpinan & Aset</label>
                                 
                                 <div class="mb-2">
+                                    <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1">Nama Pimpinan / Kepala</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-person-badge text-primary-orange"></i></span>
                                         <input type="text" name="kepsek" required value="<?php echo $data->kepsek; ?>" 
@@ -57,6 +60,7 @@
                                 </div>
 
                                 <div class="mb-3">
+                                    <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1">NIP Pimpinan</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-upc-scan text-primary-orange"></i></span>
                                         <input type="text" name="nip_kepsek" required value="<?php echo $data->nip_kepsek; ?>" 

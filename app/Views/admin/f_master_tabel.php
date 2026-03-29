@@ -117,3 +117,62 @@ if ($mode == "edt" || $mode == "act_edt") {
         </div>
     </div>
 </div>
+
+<!-- Select2 CSS and JS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<style>
+    /* Custom adjustments for Select2 inside BS5 theme */
+    .select2-container--bootstrap-5 .select2-selection {
+        font-size: 0.95rem;
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        color: #212529;
+        line-height: normal;
+        padding-left: 0.75rem;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px 12px;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+        display: none;
+    }
+    .select2-dropdown {
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    .select2-search__field {
+        border-radius: 0.375rem !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+</style>
+
+<script>
+$(document).ready(function() {
+    // Initialize Select2 with Bootstrap 5 theme
+    $('#id_unitkerja').select2({
+        theme: 'bootstrap-5',
+        placeholder: "- Cari dan Pilih Instansi -",
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('.content-body'), // Ensures dropdown is positioned correctly
+        language: {
+            noResults: function() {
+                return "Instansi tidak ditemukan";
+            }
+        }
+    });
+});
+</script>

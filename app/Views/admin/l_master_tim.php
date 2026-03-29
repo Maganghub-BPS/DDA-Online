@@ -4,7 +4,7 @@
 <div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
     <div class="card-header pb-3 pt-3 px-4 bg-white border-0">
         <div class="row align-items-center g-3">
-            <div class="col-lg-7">
+            <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-3">
                     <div class="icon icon-shape bg-primary-orange shadow-primary text-center border-radius-md d-flex align-items-center justify-content-center me-1" style="width: 42px; height: 42px;">
                         <i class="bi bi-people-fill text-white fs-5"></i>
@@ -13,18 +13,20 @@
                         <h4 class="mb-0 font-weight-bolder text-dark">Master Tim</h4>
                         <p class="text-xs text-secondary mb-0">Kelola daftar anggota tim dan kode akses operasional</p>
                     </div>
-                    <button type="button" class="btn bg-primary-orange text-white btn-sm px-4 border-radius-lg mb-0 shadow-none ms-2" data-bs-toggle="modal" data-bs-target="#modalTambahTim">
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="d-flex align-items-center gap-2">
+                    <form method="post" action="<?php echo base_url(); ?>index.php/admin/master_tim/cari" onsubmit="return false;" class="flex-grow-1">
+                        <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
+                            <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="inputSearchTim" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari anggota/NIP..." style="box-shadow: none;">
+                        </div>
+                    </form>
+                    <button type="button" class="btn bg-primary-orange text-white btn-sm px-4 border-radius-lg mb-0 shadow-none white-space-nowrap" data-bs-toggle="modal" data-bs-target="#modalTambahTim" style="height: 40px; white-space: nowrap;">
                         <i class="bi bi-person-plus me-1"></i> Tambah Tim
                     </button>
                 </div>
-            </div>
-            <div class="col-lg-5">
-                <form method="post" action="<?php echo base_url(); ?>index.php/admin/master_tim/cari" onsubmit="return false;">
-                    <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
-                        <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="inputSearchTim" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari nama anggota atau NIP..." style="box-shadow: none;">
-                    </div>
-                </form>
             </div>
         </div>
     </div>

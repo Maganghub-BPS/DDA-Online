@@ -150,7 +150,7 @@ if (empty($data)) {
             $tabel_url = base_url() . $tabel_url;
         }
         ?>
-        <a href="<?php echo $tabel_url; ?>" target="_blank" class="text-decoration-none">
+        <a href="<?php echo $tabel_url; ?>" target="_blank" class="text-decoration-none tabel-judul">
             <?php echo htmlspecialchars($judul_bersih); ?>
         </a>
     </td>

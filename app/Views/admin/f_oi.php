@@ -27,61 +27,72 @@ if ($mode == "edt" || $mode == "act_edt") {
 }
 
 ?>
-<div class="navbar navbar-inverse">
-	<div class="container z0">
-		<div class="navbar-header">
-			<span class="navbar-brand" href="#"><?php echo $judul;?></span>
-		</div>
-	</div><!-- /.container -->
-</div><!-- /.navbar -->
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                <div class="d-flex align-items-center gap-3">
+                    <a href="javascript:history.back()" class="btn btn-sm btn-light border-0 shadow-none bg-light-subtle d-flex align-items-center justify-content-center" style="border-radius: 10px; width: 40px; height: 40px;"><i class="bi bi-arrow-left fs-5"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-box-arrow-right me-2 text-primary"></i><?php echo $judul; ?>
+                    </h5>
+                </div>
+            </div>
+            
+            <div class="card-body p-4">
+                <?php echo session()->getFlashdata("k"); ?>
+                <form action="<?php echo base_URL() ?>index.php/admin/oi/<?php echo $act; ?>" method="post" accept-charset="utf-8" enctype="multipart/form-data">
+                <input type="hidden" name="idp" value="<?php echo $idp; ?>">
 
-<?php echo session()->getFlashdata("k");?>	
-<div class="scroll">
-	<form action="<?php echo base_URL()?>index.php/admin/oi/<?php echo $act; ?>" method="post" accept-charset="utf-8" enctype="multipart/form-data">
-	
-	<input type="hidden" name="idp" value="<?php echo $idp; ?>">
-	
-	<div class="row-fluid well" style="overflow: hidden">
-	
-	<div class="col-lg-10">
-		<table width="100%" class="table-form">
-		
-		<tr>
-		<td width="20%">Keperluan</td>
-			<td>
-				 <div class="radio" required >
-						<label><input type="radio" required name="kepentingan_kel" id="kepentingan_kel" value="Sensus/Survei" <?php echo ($kepentingan_kel=='Sensus/Survei')?'checked':'' ?>>Sensus/Survei</label>
-						</div>
-						<div class="radio">
-						  <label><input type="radio" required name="kepentingan_kel" id="kepentingan_kel" value="Rapat di Luar Kantor" <?php echo ($kepentingan_kel=='Rapat di Luar Kantor')?'checked':'' ?>>Rapat di Luar Kantor</label>
-						</div>
-						<div class="radio">
-						  <label><input type="radio" required name="kepentingan_kel" id="kepentingan_kel" value="Besuk/Layat (Teman Kantor)" <?php echo ($kepentingan_kel=='Besuk/Layat (Teman Kantor)')?'checked':'' ?>>Besuk/Layat (Teman Kantor)</label>
-						</div> 
-						<div class="radio">
-						  <label><input type="radio" required name="kepentingan_kel" id="kepentingan_kel" value="Lainnya" <?php echo ($kepentingan_kel=='Lainnya')?'checked':'' ?>>Lainnya</label>
-						</div> 
-			</td>
-		</tr>
-		
-		<tr>
-			<td width="20%">Uraian</td>
-			<td><b><textarea name="kepentingan_uraian"  id="kepentingan_uraian" style="text-transform: uppercase" tabindex="6" required style="width: 400px; height: 90px" class="form-control"><?php echo $kepentingan_uraian; ?></textarea>
-			</td>
-		</tr>
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-secondary mb-3 ls-1 text-uppercase text-xxs">Keperluan Data Keluar Kantor</label>
+                    <div class="d-flex flex-column gap-2 bg-light p-3 rounded-4">
+                        <?php 
+                        $keperluans = ["Sensus/Survei", "Rapat di Luar Kantor", "Besuk/Layat (Teman Kantor)", "Lainnya"];
+                        foreach($keperluans as $kp): ?>
+                            <div class="form-check custom-radio">
+                                <input class="form-check-input" type="radio" name="kepentingan_kel" id="kp_<?php echo md5($kp); ?>" value="<?php echo $kp; ?>" <?php echo ($kepentingan_kel == $kp) ? 'checked' : ''; ?> required>
+                                <label class="form-check-label fw-medium ms-2" for="kp_<?php echo md5($kp); ?>">
+                                    <?php echo $kp; ?>
+                                </label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
 
-		<tr><td colspan="2">
-		<br><a href="javascript:history.back()" tabindex="11" class="btn btn-primary"><i class="icon icon-arrow-left icon-white"></i> Batal</a>
-		<button type="submit" class="btn btn-success" tabindex="10" ><i class="icon icon-folder-close icon-white"></i> Simpan</button>
-		
-		</td></tr>
-		</table>
-	</div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Uraian / Keterangan</label>
+                    <textarea name="kepentingan_uraian" id="kepentingan_uraian" class="form-control border-radius-lg p-3" rows="4" style="text-transform: uppercase" required placeholder="Jelaskan detail keperluan keluar kantor..."><?php echo $kepentingan_uraian; ?></textarea>
+                </div>
 
-	</div>
-	
-	</form>
-	</div>
+                <hr class="text-secondary opacity-10 my-4">
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="javascript:history.back()" class="btn btn-light border-0 shadow-none bg-light-subtle px-4 py-2" style="border-radius: 10px;">
+                        Batal
+                    </a>
+                    <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 10px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                        <i class="bi bi-save me-2"></i> Simpan Data
+                    </button>
+                </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .ls-1 { letter-spacing: 0.8px; }
+    .text-xxs { font-size: 0.75rem !important; }
+    .border-radius-2xl { border-radius: 1.25rem !important; }
+    .border-radius-lg { border-radius: 0.8rem !important; }
+    .custom-radio .form-check-input:checked {
+        background-color: #FF6D1F;
+        border-color: #FF6D1F;
+    }
+    .form-check-label { cursor: pointer; }
+</style>
 	
 
 

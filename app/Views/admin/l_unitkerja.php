@@ -4,21 +4,23 @@
 <div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
     <div class="card-header pb-3 pt-4 px-4 bg-white border-0">
         <div class="row align-items-center g-3">
-            <div class="col-lg-7">
+            <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-3">
                     <h4 class="mb-0 font-weight-bolder text-dark">Master OPD</h4>
-                    <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/add" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none">
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="d-flex align-items-center gap-2">
+                    <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" onsubmit="return false;" class="flex-grow-1">
+                        <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
+                            <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari OPD..." style="box-shadow: none;">
+                        </div>
+                    </form>
+                    <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/add" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none d-flex align-items-center" style="height: 40px; white-space: nowrap;">
                         <i class="bi bi-plus-circle me-1"></i> Tambah OPD
                     </a>
                 </div>
-            </div>
-            <div class="col-lg-5">
-                <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" onsubmit="return false;">
-                    <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
-                        <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Ketik nama atau kode OPD untuk mencari..." style="box-shadow: none;">
-                    </div>
-                </form>
             </div>
         </div>
     </div>
