@@ -54,5 +54,5 @@ Berikut adalah ringkasan progres pengembangan sistem **DDA Online (Jawa Tengah D
 
 Berikut adalah salah satu hasil modernisasi pada sistem:
 
-![Dashboard Page](https://drive.google.com/file/d/10gndF-kknRos2aScvkGY3DZyg8m4EZzY/view?usp=drive_link)
+https://drive.google.com/file/d/10gndF-kknRos2aScvkGY3DZyg8m4EZzY/view?usp=drive_link
 _Tampilan Halaman Dashboard baru dengan branding Orange dan desain Minimalis (Hasil pekerjaan 25 Maret)._
