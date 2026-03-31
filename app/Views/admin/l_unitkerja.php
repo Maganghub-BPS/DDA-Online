@@ -11,7 +11,7 @@
             </div>
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-2">
-                    <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" onsubmit="return false;" class="flex-grow-1">
+                    <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" class="flex-grow-1">
                         <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                             <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
                             <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari OPD..." style="box-shadow: none;">
@@ -85,7 +85,7 @@
         </div>
         
         <?php if(!empty($pagi)): ?>
-        <div class="mt-4">
+        <div class="mt-4 pagination-container">
             <?php echo $pagi; ?>
         </div>
         <?php endif; ?>
@@ -143,22 +143,42 @@
 
 <script type="text/javascript">
 $(document).ready(function () {
-    // Real-time Client-side Search (Automatic)
+    // AJAX Live Search with Debounce
+    var searchTimer;
     $("#inputSearchOPD").on("keyup", function() {
-        var value = $(this).val().toLowerCase();
-        $("#tableOPDBody tr").filter(function() {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-        });
+        var value = $(this).val();
+        clearTimeout(searchTimer);
         
-        // Show empty state
-        var visibleRows = $("#tableOPDBody tr:visible").length;
-        if (visibleRows === 0) {
-            if ($("#emptySearchState").length === 0) {
-                $("#tableOPDBody").append('<tr id="emptySearchState"><td colspan="6" class="text-center py-5 text-secondary font-weight-bold opacity-5"><i class="bi bi-search fs-2 d-block mb-2"></i>Tidak ada OPD yang cocok</td></tr>');
+        // Local Filter (for instant feedback on current viewport)
+        var lowerValue = value.toLowerCase();
+        $("#tableOPDBody tr").filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(lowerValue) > -1)
+        });
+
+        // AJAX Global Search (after 400ms delay)
+        searchTimer = setTimeout(function() {
+            if (value.length >= 2 || value.length == 0) {
+                // Show loading indicator in table
+                if (value.length > 0) {
+                    $(".pagination-container").hide(); 
+                }
+
+                $.ajax({
+                    url: "<?php echo base_URL(); ?>index.php/admin/master_opd/cari",
+                    type: "POST",
+                    data: { q: value },
+                    success: function(response) {
+                        $("#tableOPDBody").html(response);
+                        // Hide pagination if searching
+                        if (value.length > 0) {
+                            $(".pagination-container").hide();
+                        } else {
+                            location.reload(); // Reload to restore pagination and original data
+                        }
+                    }
+                });
             }
-        } else {
-            $("#emptySearchState").remove();
-        }
+        }, 400);
     });
 });
 </script>

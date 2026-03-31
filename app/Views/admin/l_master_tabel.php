@@ -18,7 +18,7 @@
                 </div>
             </div>
             <div class="col-lg-5">
-                <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari" onsubmit="return false;">
+                <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari">
                     <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                         <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
                         <input type="text" id="inputSearchTabel" class="form-control bg-transparent border-0 ps-0" name="q" placeholder="Ketik untuk mencari tabel..." style="box-shadow: none;">
@@ -175,7 +175,7 @@
         </div>
 
         <?php if (!empty($pagi)): ?>
-            <div class="mt-4">
+            <div class="mt-4 pagination-container">
                 <?php echo $pagi; ?>
             </div>
         <?php endif; ?>
@@ -325,22 +325,37 @@
 
 <script type="text/javascript">
     $(document).ready(function() {
-        // Real-time Client-side Search
+        // AJAX Live Search with Debounce
+        var searchTimer;
         $("#inputSearchTabel").on("keyup", function() {
-            var value = $(this).val().toLowerCase();
+            var value = $(this).val();
+            clearTimeout(searchTimer);
+            
+            // Local Filter (for instant feedback on current viewport)
+            var lowerValue = value.toLowerCase();
             $("#tableMasterBody tr").filter(function() {
-                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                $(this).toggle($(this).text().toLowerCase().indexOf(lowerValue) > -1)
             });
 
-            // Show empty state if no results
-            var visibleRows = $("#tableMasterBody tr:visible").length;
-            if (visibleRows === 0) {
-                if ($("#emptySearchState").length === 0) {
-                    $("#tableMasterBody").append('<tr id="emptySearchState"><td colspan="6" class="text-center py-5 text-secondary font-weight-bold opacity-5"><i class="bi bi-search fs-2 d-block mb-2"></i>Tidak ada data yang cocok dengan pencarian Anda</td></tr>');
+            // AJAX Global Search (after 450ms delay)
+            searchTimer = setTimeout(function() {
+                if (value.length >= 2 || value.length == 0) {
+                    $.ajax({
+                        url: "<?php echo base_URL(); ?>index.php/admin/master_tabel/cari",
+                        type: "POST",
+                        data: { q: value },
+                        success: function(response) {
+                            $("#tableMasterBody").html(response);
+                            // Hide pagination if searching
+                            if (value.length > 0) {
+                                $(".pagination-container").hide();
+                            } else {
+                                location.reload(); // Reload to restore pagination and original data
+                            }
+                        }
+                    });
                 }
-            } else {
-                $("#emptySearchState").remove();
-            }
+            }, 450);
         });
 
         $(".open_modal").click(function(e) {

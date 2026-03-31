@@ -54,9 +54,68 @@ abstract class BaseController extends Controller
                 $this->parent->$name = new $className();
             }
             public function library($name, $params = null) {
-                if (strtolower($name) === 'myphpmailer') {
+                $name = strtolower($name);
+                if ($name === 'myphpmailer') {
                     require_once APPPATH . 'Libraries/MyPHPMailer.php';
                     $this->parent->myphpmailer = new \MyPHPMailer();
+                } else if ($name === 'upload') {
+                    $this->parent->upload = new class($this->parent, $params) {
+                        private $parent;
+                        private $config;
+                        private $uploadData = [];
+                        private $errors = '';
+
+                        public function __construct($parent, $config) {
+                            $this->parent = $parent;
+                            $this->config = $config;
+                        }
+
+                        public function do_upload($field = 'userfile') {
+                            $request = \Config\Services::request();
+                            $file = $request->getFile($field);
+                            if (!$file || !$file->isValid()) {
+                                $this->errors = $file ? $file->getErrorString() : 'No file uploaded';
+                                return false;
+                            }
+
+                            $path = $this->config['upload_path'] ?? './upload';
+                            
+                            // Handle CI3 style relative path
+                            if (strpos($path, './') === 0) {
+                                $path = FCPATH . substr($path, 2);
+                            }
+
+                            $newName = $file->getRandomName();
+                            if (!empty($this->config['file_name'])) {
+                                $newName = $this->config['file_name'] . '.' . $file->getExtension();
+                            }
+
+                            if ($file->move($path, $newName)) {
+                                $this->uploadData = [
+                                    'file_name' => $file->getName(),
+                                    'file_type' => $file->getClientMimeType(),
+                                    'file_path' => $path,
+                                    'full_path' => $path . '/' . $file->getName(),
+                                    'raw_name'  => pathinfo($file->getName(), PATHINFO_FILENAME),
+                                    'orig_name' => $file->getClientName(),
+                                    'client_name' => $file->getClientName(),
+                                    'file_ext'  => '.' . $file->getExtension(),
+                                    'file_size' => $file->getSizeByUnit('kb'),
+                                    'is_image'  => strpos($file->getClientMimeType(), 'image') !== false,
+                                ];
+                                return true;
+                            }
+                            return false;
+                        }
+
+                        public function data($item = null) {
+                            return $item ? ($this->uploadData[$item] ?? null) : $this->uploadData;
+                        }
+
+                        public function display_errors() {
+                            return $this->errors;
+                        }
+                    };
                 }
             }
             public function helper($name) {

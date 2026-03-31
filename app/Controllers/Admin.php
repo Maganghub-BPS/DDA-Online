@@ -899,6 +899,10 @@ public function master_tabel() {
             ORDER BY l.id DESC
         ")->getResult();
 
+        if ($this->request->isAJAX()) {
+            return view('admin/l_master_tabel_partial', $a);
+        }
+
         $a['selected_opd']    = $filter_opd;
         $a['selected_bidang'] = $filter_bidang; 
         $a['selected_tahun']  = $filter_tahun;
@@ -1156,7 +1160,12 @@ public function master_tabel() {
 			return redirect()->to('admin/master_opd');
 		} else if ($mau_ke == "cari") {
 			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja WHERE unitkerja_ind LIKE '%$cari%' OR id_unitkerja LIKE '%$cari%' ORDER BY id_unitkerja DESC")->getResult();
-			$a['page']		= "l_unitkerja";
+			
+            if ($this->request->isAJAX()) {
+                return view('admin/l_unitkerja_partial', $a);
+            }
+            
+            $a['page']		= "l_unitkerja";
 		} else if ($mau_ke == "add") {
 			$a['page']		= "f_unitkerja";
 		} else if ($mau_ke == "edt") {
