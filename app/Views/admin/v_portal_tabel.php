@@ -16,24 +16,65 @@ if (empty($api_results)) {
 
 
 // -------------------------------------------------------------------------
-// FUNGSI PINTAR UNTUK MENYUNSUN HEADER BERTINGKAT (AUTO-RECOGNITION)
+// TEMPLATE CONFIGURATION (Hardcoded for specific res_id or Titles)
 // -------------------------------------------------------------------------
-function parse_nested_headers($columns)
+function get_table_template($res_id, $title, $columns)
+{
+    // Template matching by res_id or Keywords in Title
+    $title = strtolower($title);
+
+    // Example for Sertifikat BPN (Table 1.1.5 or res_id 4)
+    if ($res_id == 4 || stripos($title, 'sertifikat') !== false) {
+        return [
+            'type' => 'manual',
+            'groups' => [
+                ['label' => 'Sertifikat Diterbitkan', 'label_en' => 'Certificates Issued', 'colspan' => count($columns) - 1, 'start' => 1]
+            ]
+        ];
+    }
+
+    // Default: use Auto-Recognition
+    return ['type' => 'auto'];
+}
+
+function parse_nested_headers($columns, $res_id = 0, $title = '')
 {
     $header_structure = [];
     $raw_labels = [];
 
-    // 1. Dapatkan label bersih (Indo & English jika tersedia)
+    // 1. Dapatkan label bersih
     foreach ($columns as $idx => $col) {
         $raw_labels[$idx] = get_dda_label_nested($col);
     }
 
+    $template = get_table_template($res_id, $title, $columns);
+
+    if ($template['type'] === 'manual') {
+        // Implementation for manual templates (to be expanded)
+        // For now, let's stick to a hybrid: use auto but allow overrides
+    }
+
     $i = 0;
     while ($i < count($columns)) {
-        // Skip kolom pertama (biasanya Kabupaten/Kota atau Tahun)
+        // Identifikasi kolom khusus untuk styling header DDA
+        $lowC = strtolower($columns[$i]);
+        $isYear = (strpos($lowC, 'tahun') !== false || strpos($lowC, 'year') !== false);
+        $isKab = (strpos($lowC, 'kabupaten') !== false || strpos($lowC, 'kota') !== false || strpos($lowC, 'kab') !== false);
+
         if ($i === 0) {
             $header_structure[] = [
-                'type' => 'kab',
+                'type' => 'single',
+                'label' => $raw_labels[$i][0],
+                'label_en' => $raw_labels[$i][1],
+                'col_idx' => $i
+            ];
+            $i++;
+            continue;
+        }
+
+        if ($i === 1 && $isKab && $header_structure[0]['type'] === 'single') {
+            $header_structure[] = [
+                'type' => 'single',
                 'label' => $raw_labels[$i][0],
                 'label_en' => $raw_labels[$i][1],
                 'col_idx' => $i
@@ -49,12 +90,7 @@ function parse_nested_headers($columns)
         $parts = explode(' ', $label);
 
         // Prefix ditentukan dari 2 kata pertama jika cocok dengan kata kunci umum DDA
-        // Atau kata pertama saja
-        $prefix = (count($parts) > 1) ? ($parts[0] . ' ' . $parts[1]) : $parts[0];
-
-        // Cek apakah 2 kata pertama ini umum digunakan sebagai prefix grup
-        // Jika tidak, cek 1 kata saja
-        $keywords = ['kayu bulat', 'kayu olahan', 'luas areal', 'tenaga kerja', 'hasil hutan', 'jumlah izin'];
+        $keywords = ['kayu bulat', 'kayu olahan', 'luas areal', 'tenaga kerja', 'hasil hutan', 'jumlah izin', 'produksi', 'populasi', 'hak guna', 'hak pengelolaan', 'hak milik'];
         $found_prefix = '';
         foreach ($keywords as $kw) {
             if (stripos($label, $kw) === 0) {
@@ -64,7 +100,6 @@ function parse_nested_headers($columns)
         }
 
         if (empty($found_prefix) && count($parts) > 0) {
-            // Fallback: anggap kata pertama adalah prefix jika ada kolom lain yang sama
             $found_prefix = $parts[0];
         }
 
@@ -72,19 +107,15 @@ function parse_nested_headers($columns)
         $count = 1;
         $sub_labels = [];
         $sub_labels[] = [
-            'label' => trim(str_ireplace($found_prefix, '', $label)),
+            'label' => trim(str_ireplace($found_prefix, '', $label)) ?: $label,
             'label_en' => $label_en,
             'col_idx' => $i
         ];
 
         for ($j = $i + 1; $j < count($columns); $j++) {
             if (!empty($found_prefix) && stripos($raw_labels[$j][0], $found_prefix) === 0) {
-                // Pastikan bukan sekadar label yang sama persis (hindari grup jika isinya kosong semua)
                 $next_label = $raw_labels[$j][0];
                 $sub_candidate = trim(str_ireplace($found_prefix, '', $next_label));
-                
-                // Jika label anak ternyata kosong (karena sama dengan induk), ini per kolom yang sama
-                // Kita izinkan jika ada setidaknya 2 kolom yang share prefix tapi punya sisa (anak) yang berbeda
                 $count++;
                 $sub_labels[] = [
                     'label' => !empty($sub_candidate) ? $sub_candidate : $next_label,
@@ -96,18 +127,19 @@ function parse_nested_headers($columns)
             }
         }
 
-        // Cek apakah minimal salah satu anak punya label (tidak kosong setelah prefix dibuang)
-        $has_real_children = false;
+        // Jika ada "Hak Guna" atau sejenisnya, biasanya di DDA itu kolom mandiri atau grup khusus
+        // Jika dia grup tapi semua label anaknya sama, kita pecah saja
+        $is_valid_group = false;
         if ($count > 1) {
             foreach ($sub_labels as $sb) {
-                if (trim(str_ireplace($found_prefix, '', $raw_labels[$sb['col_idx']][0])) !== '') {
-                    $has_real_children = true;
+                if ($sb['label'] != $label) {
+                    $is_valid_group = true;
                     break;
                 }
             }
         }
 
-        if ($count > 1 && $has_real_children) {
+        if ($count > 1 && $is_valid_group) {
             $header_structure[] = [
                 'type' => 'group',
                 'prefix' => $found_prefix,
@@ -133,15 +165,64 @@ function get_dda_label_nested($col)
     $map = [
         'kabupaten' => ['Kabupaten/Kota', 'Regency/Municipality'],
         'kabupaten_kota' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kabkot' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kab_ko' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kab_kota' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kab' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kab_kot' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'nama_kabupaten' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'nama_kabupaten_kota' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kabupatenkota_data' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kabupaten_kota_data' => ['Kabupaten/Kota', 'Regency/Municipality'],
+        'kod_wil' => ['Kode Wilayah', 'Area Code'],
+        'kode_wil' => ['Kode Wilayah', 'Area Code'],
+        'kode_kab_kota' => ['Kode Wilayah', 'Area Code'],
+        'kode_wilayah' => ['Kode Wilayah', 'Area Code'],
+        'kode_bps' => ['Kode Wilayah', 'Area Code'],
+        'kode_kemendagri' => ['Kode Wilayah', 'Area Code'],
         'tahun_data' => ['Tahun', 'Year'],
         'tahun' => ['Tahun', 'Year'],
+        'pendapat' => ['Pendapatan', 'Income/Revenue'],
+        'pedapat' => ['Pendapatan', 'Income/Revenue'],
+        'pdpt' => ['Pendapatan', 'Income/Revenue'],
+        'pendapatan' => ['Pendapatan', 'Income/Revenue'],
+        'jmlh_kec' => ['Jumlah Kecamatan', 'Number of Sub-districts'],
+        'jml_kec' => ['Jumlah Kecamatan', 'Number of Sub-districts'],
+        'jumlah_kec' => ['Jumlah Kecamatan', 'Number of Sub-districts'],
+        'jmlh_kel' => ['Jumlah Desa/Kelurahan', 'Number of Villages'],
+        'jml_kel' => ['Jumlah Desa/Kelurahan', 'Number of Villages'],
+        'jumlah_kel' => ['Jumlah Desa/Kelurahan', 'Number of Villages'],
+        'jmlh_desa' => ['Jumlah Desa', 'Number of Villages'],
+        'jumlah_desa' => ['Jumlah Desa', 'Number of Villages'],
+        'jml_kelurahan' => ['Jumlah Kelurahan', 'Number of Villages'],
+        'jumlah_kelurahan' => ['Jumlah Kelurahan', 'Number of Villages'],
+        'jumlah' => ['Jumlah', 'Total'],
+        'jmlh' => ['Jumlah', 'Total'],
+        'hak_milik' => ['Hak Milik', 'Right of Ownership'],
+        'hak_guna_usaha' => ['Hak Guna Usaha', 'Right of Use'],
+        'hak_guna_bangunan' => ['Hak Guna Bangunan', 'Right to Build'],
+        'hak_pakai' => ['Hak Pakai', 'Use Right'],
+        'hak_pengelolaan' => ['Hak Pengelolaan', 'Right Management'],
+        'hak_wakaf' => ['Hak Wakaf', 'Endowments Rights'],
+        'islam' => ['Islam', 'Islam'],
+        'protestan' => ['Protestan', 'Protestant'],
+        'katolik' => ['Katolik', 'Catholic'],
+        'hindu' => ['Hindu', 'Hindu'],
+        'budha' => ['Budha', 'Buddha'],
+        'khonghucu' => ['Khonghucu', 'Confucianism'],
+        'lainnya' => ['Lainnya', 'Others'],
+        'puskesmas' => ['Puskesmas', 'Public Health Center'],
+        'rumah_sakit' => ['Rumah Sakit', 'Hospital'],
+        'sekolah' => ['Sekolah', 'School'],
+        'guru' => ['Guru', 'Teacher'],
+        'murid' => ['Murid', 'Pupil'],
     ];
     $key = strtolower(str_replace([' ', '_'], '_', $col));
     if (isset($map[$key])) return $map[$key];
 
     // Auto format
     $clean = ucwords(str_replace(['_', ' - '], [' ', ' '], $col));
-    
+
     // English mapping standar DDA
     $en_map = [
         'Kayu Bulat' => 'Logs',
@@ -156,7 +237,15 @@ function get_dda_label_nested($col)
         'Usaha'       => 'Establishment',
         'Tenaga Kerja' => 'Worker',
         'Hasil Hutan'  => 'Forest Product',
-        'Jumlah Izin'  => 'Number of Permits'
+        'Jumlah Izin'  => 'Number of Permits',
+        'Laki-laki'    => 'Male',
+        'Perempuan'   => 'Female',
+        'Sertifikat'   => 'Certificate',
+        'Kecamatan'    => 'Sub-district',
+        'Agama'        => 'Religion',
+        'Penduduk'     => 'Population',
+        'Kesehatan'    => 'Health',
+        'Pendidikan'   => 'Education',
     ];
     $en = '';
     foreach ($en_map as $id_word => $en_word) {
@@ -408,11 +497,92 @@ function get_dda_label_nested($col)
     <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-rounded-modern btn-back-modern mb-3">
         <i class="bi bi-arrow-left"></i> KEMBALI
     </a>
-    <div class="float-end">
+    <div class="float-end d-flex gap-2 align-items-center">
+        <?php
+        // Ambil semua tahun unik dari koleksi data untuk dropdown filter
+        $unique_years = [];
+        foreach ($api_results as $res) {
+            $rows_data = $res['data'] ?? [];
+            foreach ($rows_data as $rd) {
+                $y = $rd['tahun_data'] ?? $rd['tahun'] ?? null;
+                if ($y) $unique_years[] = $y;
+            }
+        }
+        $unique_years = array_unique($unique_years);
+        rsort($unique_years);
+        ?>
+        <?php if (!empty($unique_years)): ?>
+            <div class="filter-box-modern">
+                <i class="bi bi-funnel text-muted"></i>
+                <select id="year-filter" onchange="filterByYear(this.value)" class="form-select-modern">
+                    <option value="">Semua Tahun</option>
+                    <?php foreach ($unique_years as $yr): ?>
+                        <option value="<?php echo $yr; ?>">Tahun <?php echo $yr; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
+
         <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
             <i class="bi bi-file-earmark-excel"></i> EXPORT ALL TO EXCEL
         </button>
     </div>
+
+    <style>
+        .filter-box-modern {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 50px;
+            padding: 4px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-box-modern:hover {
+            border-color: #FF6D1F;
+        }
+
+        .form-select-modern {
+            border: none;
+            background: transparent;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #475569;
+            outline: none;
+            cursor: pointer;
+            padding-right: 5px;
+        }
+    </style>
+
+    <script>
+        function filterByYear(year) {
+            const tables = document.querySelectorAll('.table-wrapper');
+
+            tables.forEach(wrapper => {
+                const rows = wrapper.querySelectorAll('.main-table tbody tr');
+                let hasVisibleRow = false;
+
+                rows.forEach(row => {
+                    const rowYear = row.getAttribute('data-tahun');
+                    if (year === "" || rowYear === year) {
+                        row.style.display = "";
+                        hasVisibleRow = true;
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+
+                // Sembunyikan seluruh wrapper tabel (termasuk judulnya) jika tidak ada data tahun tersebut
+                if (hasVisibleRow) {
+                    wrapper.style.display = "";
+                } else {
+                    wrapper.style.display = "none";
+                }
+            });
+        }
+    </script>
 
 
     <script>
@@ -490,7 +660,7 @@ function get_dda_label_nested($col)
         <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
     <?php else: ?>
         <div id="dda-container-all">
-            <?php foreach ($api_results as $idx_res => $api_result): 
+            <?php foreach ($api_results as $idx_res => $api_result):
                 // Process each result independently
                 $portal_title = $api_result['title'] ?? $api_result['nama'] ?? $api_result['data']['title'] ?? 'Tabel Data Portal';
                 $dda_title = $api_result['dda_title'] ?? '';
@@ -509,12 +679,197 @@ function get_dda_label_nested($col)
                 }
 
                 if (!empty($rows)) {
+                    // Fitur: Sorting (Tahun Terbaru & Kode Wilayah Urut dari 3301)
+                    // Mapping Urutan Standar BPS Jawa Tengah (Cilacap No 1 s/d Kota Tegal No 35)
+                    $jatengOrder = [
+                        'cilacap' => 1,
+                        'banyumas' => 2,
+                        'purbalingga' => 3,
+                        'banjarnegara' => 4,
+                        'kebumen' => 5,
+                        'purworejo' => 6,
+                        'wonosobo' => 7,
+                        'magelang' => 8,
+                        'boyolali' => 9,
+                        'klaten' => 10,
+                        'sukoharjo' => 11,
+                        'wonogiri' => 12,
+                        'karanganyar' => 13,
+                        'sragen' => 14,
+                        'grobogan' => 15,
+                        'blora' => 16,
+                        'rembang' => 17,
+                        'pati' => 18,
+                        'kudus' => 19,
+                        'jepara' => 20,
+                        'demak' => 21,
+                        'semarang' => 22,
+                        'temanggung' => 23,
+                        'kendal' => 24,
+                        'batang' => 25,
+                        'pekalongan' => 26,
+                        'pemalang' => 27,
+                        'tegal' => 28,
+                        'brebes' => 29,
+                        'kota magelang' => 30,
+                        'kota surakarta' => 31,
+                        'kota salatiga' => 32,
+                        'kota semarang' => 33,
+                        'kota pekalongan' => 34,
+                        'kota tegal' => 35
+                    ];
+
+                    usort($rows, function ($a, $b) use ($jatengOrder) {
+                        // 1. Deteksi Kolom Tahun
+                        $yearKeys = ['tahun', 'tahun_data', 'tahun_kegiatan', 'year'];
+                        $yA = 0;
+                        $yB = 0;
+                        foreach ($yearKeys as $k) {
+                            if (isset($a[$k])) {
+                                $yA = (int)$a[$k];
+                                break;
+                            }
+                        }
+                        foreach ($yearKeys as $k) {
+                            if (isset($b[$k])) {
+                                $yB = (int)$b[$k];
+                                break;
+                            }
+                        }
+
+                        $cA = 0;
+                        $cB = 0;
+                        foreach ($a as $k => $v) {
+                            $lowK = strtolower($k);
+                            if (strpos($lowK, 'kode') !== false || strpos($lowK, 'kod') !== false || strpos($lowK, 'kd') !== false || strpos($lowK, 'bps') !== false) {
+                                $cA = (int)$v;
+                                break;
+                            }
+                        }
+                        foreach ($b as $k => $v) {
+                            $lowK = strtolower($k);
+                            if (strpos($lowK, 'kode') !== false || strpos($lowK, 'kod') !== false || strpos($lowK, 'kd') !== false || strpos($lowK, 'bps') !== false) {
+                                $cB = (int)$v;
+                                break;
+                            }
+                        }
+
+                        // 3. Deteksi Kolom Nama Wilayah
+                        $nameKeys = ['kabupaten', 'kabupaten_kota', 'nama_wilayah', 'wilayah', 'kab_kota'];
+                        $nA = '';
+                        $nB = '';
+                        foreach ($nameKeys as $k) {
+                            if (isset($a[$k])) {
+                                $nA = (string)$a[$k];
+                                break;
+                            }
+                        }
+                        foreach ($nameKeys as $k) {
+                            if (isset($b[$k])) {
+                                $nB = (string)$b[$k];
+                                break;
+                            }
+                        }
+
+                        // 3. Deteksi Kolom Nama Wilayah (Cari kolom yang mengandung kata kunci wilayah)
+                        $nA = '';
+                        $nB = '';
+                        $nameKeywords = ['kabupaten', 'kota', 'wilayah', 'kabkot'];
+
+                        foreach ($a as $key => $val) {
+                            $lowKey = strtolower($key);
+                            foreach ($nameKeywords as $kw) {
+                                if (strpos($lowKey, $kw) !== false) {
+                                    $nA = (string)$val;
+                                    break 2;
+                                }
+                            }
+                        }
+                        foreach ($b as $key => $val) {
+                            $lowKey = strtolower($key);
+                            foreach ($nameKeywords as $kw) {
+                                if (strpos($lowKey, $kw) !== false) {
+                                    $nB = (string)$val;
+                                    break 2;
+                                }
+                            }
+                        }
+
+                        // Fallback jika tidak ditemukan kolom spesifik (Coba kolom kedua jika kolom pertama adalah Tahun)
+                        if (empty($nA)) {
+                            $allVals = array_values($a);
+                            $nA = (count($allVals) > 1 && is_numeric($allVals[0])) ? (string)$allVals[1] : (string)$allVals[0];
+                        }
+                        if (empty($nB)) {
+                            $allVals = array_values($b);
+                            $nB = (count($allVals) > 1 && is_numeric($allVals[0])) ? (string)$allVals[1] : (string)$allVals[0];
+                        }
+
+                        // Urutkan Tahun (Descending - Terbaru di Atas)
+                        if ($yA != $yB) return $yB <=> $yA;
+
+                        // Urutkan Kode Wilayah (Jika ada dan bukan nol)
+                        if ($cA != 0 && $cB != 0 && $cA != $cB) {
+                            return $cA <=> $cB;
+                        }
+
+                        // JIKA KODE TIDAK ADA, Urutkan berdasarkan Nama sesuai Mapping jatengOrder
+                        // Identifikasi dulu apakah ini Kota atau Kabupaten
+                        $isKotaA = (stripos($nA, 'kota') !== false || stripos($nA, 'kodya') !== false || stripos($nA, 'madyia') !== false);
+                        $isKotaB = (stripos($nB, 'kota') !== false || stripos($nB, 'kodya') !== false || stripos($nB, 'madyia') !== false);
+
+                        // Bersihkan label dari imbuhan BPS/Portal
+                        $baseA = trim(strtolower(str_ireplace(['kab.', 'kabupaten', 'kota', 'kodya'], '', $nA)));
+                        $baseB = trim(strtolower(str_ireplace(['kab.', 'kabupaten', 'kota', 'kodya'], '', $nB)));
+
+                        // Deteksi Posisi dalam Mapping
+                        if ($isKotaA) {
+                            $posA = $jatengOrder['kota ' . $baseA] ?? ($jatengOrder[$baseA] ?? 99);
+                        } else {
+                            $posA = $jatengOrder[$baseA] ?? ($jatengOrder['kota ' . $baseA] ?? 99);
+                        }
+
+                        if ($isKotaB) {
+                            $posB = $jatengOrder['kota ' . $baseB] ?? ($jatengOrder[$baseB] ?? 99);
+                        } else {
+                            $posB = $jatengOrder[$baseB] ?? ($jatengOrder['kota ' . $baseB] ?? 99);
+                        }
+
+                        // Khusus untuk "Jawa Tengah" atau "Provinsi", kita taruh paling bawah (posisi 100)
+                        if (stripos($nA, 'jawa tengah') !== false || stripos($nA, 'provinsi') !== false) $posA = 100;
+                        if (stripos($nB, 'jawa tengah') !== false || stripos($nB, 'provinsi') !== false) $posB = 100;
+
+                        if ($posA != $posB) {
+                            return $posA <=> $posB;
+                        }
+
+                        return strcasecmp($baseA, $baseB);
+                    });
+
                     $columns = array_keys($rows[0]);
+
+                    // Reorder: Tahun first, then Kabupaten
+                    $thK = '';
+                    $kbK = '';
+                    foreach ($columns as $c) {
+                        $lc = strtolower($c);
+                        if (empty($thK) && (strpos($lc, 'tahun') !== false || strpos($lc, 'year') !== false)) $thK = $c;
+                        if (empty($kbK) && (strpos($lc, 'kabupaten') !== false || strpos($lc, 'kota') !== false || strpos($lc, 'kab') !== false)) $kbK = $c;
+                    }
+
+                    $newCols = [];
+                    if ($thK) $newCols[] = $thK;
+                    if ($kbK) $newCols[] = $kbK;
+                    foreach ($columns as $c) {
+                        if ($c !== $thK && $c !== $kbK) $newCols[] = $c;
+                    }
+                    $columns = $newCols;
                 } else {
                     continue; // Skip if no rows
                 }
 
-                $structure = parse_nested_headers($columns);
+                $res_id = $api_result['res_id'] ?? 0;
+                $structure = parse_nested_headers($columns, $res_id, $portal_title);
                 $has_group = false;
                 foreach ($structure as $item) {
                     if ($item['type'] === 'group') {
@@ -539,9 +894,9 @@ function get_dda_label_nested($col)
 
                             <td class="title-box">
                                 <span class="title-id">
-                                    <?php 
+                                    <?php
                                     if ($idx_res === 0) {
-                                        echo htmlspecialchars($dda_title ?: $portal_title); 
+                                        echo htmlspecialchars($dda_title ?: $portal_title);
                                     } else {
                                         echo htmlspecialchars($portal_title);
                                     }
@@ -555,7 +910,7 @@ function get_dda_label_nested($col)
                                 <?php endif; ?>
 
                                 <span class="title-en">
-                                    <?php 
+                                    <?php
                                     if ($idx_res === 0) {
                                         echo htmlspecialchars($dda_title_en ?: ($api_result['title_en'] ?? ''));
                                     } else {
@@ -573,9 +928,7 @@ function get_dda_label_nested($col)
                             <!-- BARIS HEADER 1: INDUK -->
                             <tr>
                                 <?php foreach ($structure as $item): ?>
-                                    <?php if ($item['type'] === 'kab'): ?>
-                                        <th rowspan="<?php echo $has_group ? 2 : 1; ?>" colspan="2"><?php echo $item['label']; ?><br><i><?php echo $item['label_en']; ?></i></th>
-                                    <?php elseif ($item['type'] === 'single'): ?>
+                                    <?php if ($item['type'] === 'single'): ?>
                                         <th rowspan="<?php echo $has_group ? 2 : 1; ?>"><?php echo $item['label']; ?><br><i><?php echo $item['label_en']; ?></i></th>
                                     <?php else: ?>
                                         <th colspan="<?php echo $item['colspan']; ?>"><?php echo $item['prefix']; ?><br><i></i></th>
@@ -596,11 +949,9 @@ function get_dda_label_nested($col)
                             <?php endif; ?>
                             <!-- BARIS PENOMORAN (1), (2), (3) ... -->
                             <tr class="num-row">
-                                <th colspan="2">(1)</th>
                                 <?php
-                                $col_count_n = 1;
+                                $col_count_n = 0;
                                 foreach ($columns as $idx_c => $col):
-                                    if ($idx_c == 0) continue;
                                     $col_count_n++;
                                     echo '<th>(' . $col_count_n . ')</th>';
                                 endforeach;
@@ -609,30 +960,215 @@ function get_dda_label_nested($col)
                         </thead>
                         <tbody>
                             <?php
-                            $lastKab = '';
                             $kabCount = 0;
-                            foreach ($rows as $row):
-                                $currentKab = reset($row);
-                                $isNewKab = ($currentKab !== $lastKab);
-                                if ($isNewKab) {
-                                    $lastKab = $currentKab;
-                                    $kabCount++;
-                                }
-                            ?>
-                                <tr class="<?php echo $isNewKab ? 'new-kab' : ''; ?>">
-                                    <td class="num-col"><?php echo $isNewKab ? $kabCount : ''; ?></td>
-                                    <td class="kab-col"><?php echo $isNewKab ? htmlspecialchars($currentKab) : ''; ?></td>
+                            // Cari Index Deteksi Kolom Kabupaten & Tahun
+                            $kabKey = '';
+                            $thKey = '';
+                            $blnKey = '';
+                            $codeKey = '';
+                            $codeCheckKeys = ['kode_bps', 'kode_kabupaten', 'kode_kabupaten_kota', 'kode_wilayah', 'kod_wil', 'kode_wil', 'kabupaten_kode', 'kab_id'];
 
+                            foreach ($columns as $c_key) {
+                                $lowC = strtolower($c_key);
+                                if (empty($kabKey) && strpos($lowC, 'kode') === false && (strpos($lowC, 'kabupaten') !== false || strpos($lowC, 'kota') !== false || strpos($lowC, 'wilayah') !== false || strpos($lowC, 'kabkot') !== false || strpos($lowC, 'kab') !== false)) {
+                                    $kabKey = $c_key;
+                                }
+                                if (empty($thKey) && (strpos($lowC, 'tahun') !== false || strpos($lowC, 'year') !== false)) {
+                                    $thKey = $c_key;
+                                }
+                                if (empty($blnKey) && (strpos($lowC, 'bulan') !== false || strpos($lowC, 'month') !== false || strpos($lowC, 'bln') !== false)) {
+                                    $blnKey = $c_key;
+                                }
+                                if (empty($codeKey) && (strpos($lowC, 'kode') !== false || strpos($lowC, 'kod') !== false || strpos($lowC, 'kd') !== false || strpos($lowC, 'bps') !== false)) {
+                                    $codeKey = $c_key;
+                                }
+                            }
+                            if (empty($kabKey)) $kabKey = $columns[0];
+
+                            // Pre-calculate Rowspans separately for Year, Month and Kabupaten
+                            $thRowspan = [];
+                            $lastTh = null;
+                            $thStartIndices = [];
+
+                            $blnRowspan = [];
+                            $lastThBln = null;
+                            $blnStartIndices = [];
+
+                            $kabRowspan = [];
+                            $lastThBlnKab = null;
+                            $kabStartIndices = [];
+
+                            foreach ($rows as $r_idx => $r) {
+                                $thVal = (string)($r[$thKey] ?? '');
+                                $blnVal = (string)($r[$blnKey] ?? '');
+                                $kabVal = (string)($r[$kabKey] ?? '');
+
+                                // Logic for Year
+                                if ($thVal !== $lastTh) {
+                                    $thRowspan[$r_idx] = 0;
+                                    $thStartIndices[count($thStartIndices)] = $r_idx;
+                                    $lastTh = $thVal;
+                                }
+                                $thRowspan[$thStartIndices[count($thStartIndices) - 1]]++;
+
+                                // Logic for Month (Nested within Year)
+                                $thBlnKey = $thVal . '||' . $blnVal;
+                                if ($thBlnKey !== $lastThBln) {
+                                    $blnRowspan[$r_idx] = 0;
+                                    $blnStartIndices[count($blnStartIndices)] = $r_idx;
+                                    $lastThBln = $thBlnKey;
+                                }
+                                $blnRowspan[$blnStartIndices[count($blnStartIndices) - 1]]++;
+
+                                // Logic for Kabupaten (Nested within Year and Month)
+                                $thBlnKabKey = $thVal . '||' . $blnVal . '||' . $kabVal;
+                                if ($thBlnKabKey !== $lastThBlnKab) {
+                                    $kabRowspan[$r_idx] = 0;
+                                    $kabStartIndices[count($kabStartIndices)] = $r_idx;
+                                    $lastThBlnKab = $thBlnKabKey;
+                                }
+                                $kabRowspan[$kabStartIndices[count($kabStartIndices) - 1]]++;
+                            }
+
+                            foreach ($rows as $r_idx => $row):
+                                $isFirstTh = isset($thRowspan[$r_idx]);
+                                $isFirstBln = isset($blnRowspan[$r_idx]);
+                                $isFirstKab = isset($kabRowspan[$r_idx]);
+                                if ($isFirstKab) $kabCount++;
+                                $rowYearValue = (string)($row[$thKey] ?? '');
+                            ?>
+                                <tr class="<?php echo $isFirstKab ? 'new-kab' : ''; ?>" data-tahun="<?php echo $rowYearValue; ?>">
                                     <?php
-                                    $first = true;
-                                    foreach ($row as $key => $val):
-                                        if ($first) {
-                                            $first = false;
+                                    foreach ($columns as $c_idx => $c_key):
+                                        $val = $row[$c_key] ?? '';
+
+                                        // Case 1: Kolom Tahun (Merge)
+                                        if ($c_key === $thKey) {
+                                            if ($isFirstTh) {
+                                                echo '<td class="val-col" rowspan="' . $thRowspan[$r_idx] . '"><b>' . htmlspecialchars($val) . '</b></td>';
+                                            }
                                             continue;
-                                        } // Skip first column (dimensi)
+                                        }
+
+                                        // Case 1.1: Kolom Bulan (Merge)
+                                        if ($blnKey && $c_key === $blnKey) {
+                                            if ($isFirstBln) {
+                                                echo '<td class="val-col" rowspan="' . $blnRowspan[$r_idx] . '">' . htmlspecialchars((string)$val) . '</td>';
+                                            }
+                                            continue;
+                                        }
+
+                                        // Case 2: Kolom Kabupaten (Merge)
+                                        if ($c_key === $kabKey) {
+                                            if ($isFirstKab) {
+                                                $kabDisplay = (string)$val;
+                                                $lowDisp = strtolower($kabDisplay);
+
+                                                // Jika tidak mengandung "kabupaten" atau "kota" sama sekali
+                                                if (strpos($lowDisp, 'kabupaten') === false && strpos($lowDisp, 'kota') === false) {
+                                                    $curCode = (int)($row[$codeKey] ?? 0);
+                                                    $last2 = $curCode % 100;
+
+                                                    if ($last2 >= 70 && $last2 <= 79) {
+                                                        $kabDisplay = 'Kota ' . $kabDisplay;
+                                                    } else if ($last2 > 0 && $last2 < 70) {
+                                                        $kabDisplay = 'Kabupaten ' . $kabDisplay;
+                                                    }
+                                                }
+
+                                                // Normalisasi Penamaan (Ganti Kab., Kodya, Madya menjadi Kabupaten/Kota lengkap)
+                                                // 1. Bersihkan prefix lama
+                                                $cleanName = trim(str_ireplace(['kabupaten', 'kota', 'kab.', 'kodya', 'madya', 'kabupatenkota_data'], '', $kabDisplay));
+                                                // 2. Pasang kembali sesuai tipe (Kota jika kodenya 7x atau mengandung kata kota asli)
+                                                // Deteksi Tipe Menggunakan Mapping Standar BPS Jawa Tengah
+                                                if (!isset($jatengOrder)) {
+                                                    $jatengOrder = [
+                                                        'cilacap' => 1,
+                                                        'banyumas' => 2,
+                                                        'purbalingga' => 3,
+                                                        'banjarnegara' => 4,
+                                                        'kebumen' => 5,
+                                                        'purworejo' => 6,
+                                                        'wonosobo' => 7,
+                                                        'magelang' => 8,
+                                                        'boyolali' => 9,
+                                                        'klaten' => 10,
+                                                        'sukoharjo' => 11,
+                                                        'wonogiri' => 12,
+                                                        'karanganyar' => 13,
+                                                        'sragen' => 14,
+                                                        'grobogan' => 15,
+                                                        'blora' => 16,
+                                                        'rembang' => 17,
+                                                        'pati' => 18,
+                                                        'kudus' => 19,
+                                                        'jepara' => 20,
+                                                        'demak' => 21,
+                                                        'semarang' => 22,
+                                                        'temanggung' => 23,
+                                                        'kendal' => 24,
+                                                        'batang' => 25,
+                                                        'pekalongan' => 26,
+                                                        'pemalang' => 27,
+                                                        'tegal' => 28,
+                                                        'brebes' => 29,
+                                                        'kota magelang' => 30,
+                                                        'kota surakarta' => 31,
+                                                        'kota salatiga' => 32,
+                                                        'kota semarang' => 33,
+                                                        'kota pekalongan' => 34,
+                                                        'kota tegal' => 35
+                                                    ];
+                                                }
+
+                                                $curCode = (int)($row[$codeKey] ?? 0);
+                                                $last2 = $curCode % 100;
+                                                $base = trim(strtolower(str_ireplace(['kab.', 'kabupaten', 'kota', 'kodya'], '', $kabDisplay)));
+                                                $actualPrefixKota = (strpos($lowDisp, 'kota') !== false || strpos($lowDisp, 'kodya') !== false || strpos($lowDisp, 'madya') !== false);
+
+                                                // Tentukan posisi/tipe
+                                                $pos = 0;
+                                                if ($last2 >= 70 && $last2 <= 79) $pos = 30; // Force Kota by Code
+                                                else if ($last2 > 0 && $last2 < 70) $pos = 1; // Force Kabupaten by Code
+                                                else if ($actualPrefixKota) $pos = $jatengOrder['kota ' . $base] ?? 30;
+                                                else $pos = $jatengOrder[$base] ?? ($jatengOrder['kota ' . $base] ?? 1);
+
+                                                $tipe = ($pos >= 30) ? 'Kota' : 'Kabupaten';
+
+                                                // Khusus Jawa Tengah / Provinsi (Biasanya kode 3300 atau nama Jawa Tengah)
+                                                if (($curCode == 3300 || ($last2 == 0 && $curCode != 0)) || stripos($cleanName, 'jawa tengah') !== false || stripos($cleanName, 'provinsi') !== false) {
+                                                    $kabDisplay = $cleanName;
+                                                } else {
+                                                    $kabDisplay = $tipe . ' ' . $cleanName;
+                                                }
+
+                                                // Konversi ke Title Case (Setiap awal kata huruf kapital)
+                                                $kabDisplay = ucwords(strtolower($kabDisplay));
+
+                                                echo '<td class="kab-col" rowspan="' . $kabRowspan[$r_idx] . '">' . htmlspecialchars($kabDisplay) . '</td>';
+                                            }
+                                            continue;
+                                        }
+
+                                        // Case 2.1: Kolom Kode Wilayah (Merge)
+                                        if ($codeKey && $c_key === $codeKey) {
+                                            if ($isFirstKab) {
+                                                echo '<td class="val-col" rowspan="' . $kabRowspan[$r_idx] . '">' . htmlspecialchars((string)$val) . '</td>';
+                                            }
+                                            continue;
+                                        }
+
+                                        // Case 3: Kolom Data Biasa
                                     ?>
                                         <td class="val-col">
-                                            <?php echo htmlspecialchars($val); ?>
+                                            <?php
+                                            $outVal = (string)$val;
+                                            // Jika isinya string (bukan angka murni) dan huruf kapital semua, ubah ke Title Case
+                                            if (!is_numeric($outVal) && $outVal === strtoupper($outVal)) {
+                                                $outVal = ucwords(strtolower($outVal));
+                                            }
+                                            echo htmlspecialchars($outVal);
+                                            ?>
                                         </td>
                                     <?php endforeach; ?>
                                 </tr>
@@ -640,13 +1176,14 @@ function get_dda_label_nested($col)
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="<?php echo count($columns) + 1; ?>" style="border-top:1px solid #000"></td>
+                                <td colspan="<?php echo count($columns); ?>" style="border-top:1px solid #000"></td>
                             </tr>
                         </tfoot>
                     </table>
 
-                    <div style="font-size: 11px; margin-top: 10px; opacity: 0.6;">
-                        <b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $api_result['id_api'] ?? ''; ?>)
+                    <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;">
+                        <div><b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $api_result['id_api'] ?? ''; ?>)</div>
+                        <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($api_result['unitkerja_ind'] ?? '-'); ?></i></div>
                     </div>
                 </div>
             <?php endforeach; ?>

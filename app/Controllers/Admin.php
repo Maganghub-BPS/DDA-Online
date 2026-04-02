@@ -1776,19 +1776,65 @@ public function ambil_tahun_terakhir_dari_match()
 		foreach ($ids as $id_p) {
 			$id_p = trim($id_p);
 			if (empty($id_p)) continue;
+            
+            $page = 1;
+            $all_rows = [];
+            $meta_info = null;
 
-			$url = "https://satudata.jatengprov.go.id/v1/data/{$id_p}";
-			$res = $this->callApi2($url);
-			
-			if ($res) {
-				// Cari Judul DDA asli untuk setiap ID agar konsisten
-				$dda_info = $this->db->query("SELECT judul_ind, judul_en FROM t_list_tabel WHERE link_tabel LIKE ? LIMIT 1", ['%' . $id_p . '%'])->getRow();
+            // Loop untuk penarikan SELURUH Halaman (Auto-Pagination)
+            do {
+                $url = "https://satudata.jatengprov.go.id/v1/data/{$id_p}?page={$page}&per-page=100";
+                $res = $this->callApi2($url);
+                
+                if ($res) {
+                    $rows = [];
+                    // Deteksi lokasi data (bisa di 'data' langsung atau di res itu sendiri)
+                    if (isset($res['data'])) {
+                        $rows = $res['data'];
+                    } else if (is_array($res) && isset($res[0])) {
+                        $rows = $res;
+                    }
+                    
+                    if (!empty($rows)) {
+                        $all_rows = array_merge($all_rows, $rows);
+                    }
+
+                    // Ambil meta info dari halaman pertama saja untuk judul dsb
+                    if ($page === 1) {
+                        $meta_info = $res;
+                    }
+
+                    // Cek apakah ada halaman berikutnya (berdasarkan metadata standard portal jateng)
+                    $total_pages = $res['pagination']['total_pages'] ?? $res['_meta']['pageCount'] ?? 1;
+                    if ($page >= $total_pages) {
+                        break; // Sudah di halaman terakhir
+                    }
+                    $page++;
+                } else {
+                    break; // Error atau data kosong
+                }
+            } while ($page <= 20); // Safety limit 20 halaman (2000 data) agar tidak infinity loop
+
+			if (!empty($all_rows)) {
+				// Cari Judul DDA asli dan Instansi Pengelola untuk setiap ID agar konsisten
+				$dda_info = $this->db->query("
+                    SELECT t.id, t.judul_ind, t.judul_en, u.unitkerja_ind, u.unitkerja_en 
+                    FROM t_list_tabel t 
+                    LEFT JOIN m_unitkerja u ON t.id_unitkerja = u.id_unitkerja
+                    WHERE t.link_tabel LIKE ? 
+                    LIMIT 1
+                ", ['%' . $id_p . '%'])->getRow();
 				
-				$res['dda_title']    = $dda_info->judul_ind ?? '';
-				$res['dda_title_en'] = $dda_info->judul_en ?? '';
-				$res['id_api']       = $id_p;
+                $final_res = $meta_info;
+                $final_res['data']           = $all_rows; 
+				$final_res['res_id']         = $dda_info->id ?? 0;
+				$final_res['dda_title']      = $dda_info->judul_ind ?? '';
+				$final_res['dda_title_en']   = $dda_info->judul_en ?? '';
+                $final_res['unitkerja_ind']  = $dda_info->unitkerja_ind ?? '-';
+                $final_res['unitkerja_en']   = $dda_info->unitkerja_en ?? '-';
+				$final_res['id_api']         = $id_p;
 				
-				$all_results[] = $res;
+				$all_results[] = $final_res;
 			}
 		}
 
