@@ -1245,7 +1245,6 @@ function get_dda_label_nested($col)
         </div>
     <?php endif; ?>
 
-
     <?php echo view('admin/parts/modal_config_tabel'); ?>
 
     <style>
@@ -1299,12 +1298,19 @@ function get_dda_label_nested($col)
 
         function pivotData(data, config) {
             const rowKey = config.pivot.row;
-            const colKey = config.pivot.col;
+            // Support single string or array of columns for category
+            let colKeys = config.pivot.col;
+            if (!Array.isArray(colKeys)) colKeys = [colKeys];
+            
             const valKey = config.pivot.val;
 
-            if (!rowKey || !colKey || !valKey || data.length === 0) return data;
+            if (!rowKey || colKeys.length === 0 || !valKey || data.length === 0) return data;
 
-            const categories = [...new Set(data.map(item => String(item[colKey] || 'N/A')))].sort();
+            // Generate combined categories (e.g., "Anggota Baru || Laki-laki")
+            const generateCatKey = (item) => colKeys.map(k => String(item[k] || 'N/A')).join(' || ');
+            
+            const categories = [...new Set(data.map(item => generateCatKey(item)))].sort();
+            
             const grouped = {};
             data.forEach(item => {
                 const groupVal = String(item[rowKey] || 'N/A');
@@ -1313,8 +1319,9 @@ function get_dda_label_nested($col)
                     categories.forEach(cat => grouped[groupVal][cat] = 0);
                     if (config.pivot.total_row) grouped[groupVal]['Jumlah'] = 0;
                 }
+                const catKey = generateCatKey(item);
                 const currentVal = parseFloat(item[valKey]) || 0;
-                grouped[groupVal][item[colKey] || 'N/A'] = currentVal;
+                grouped[groupVal][catKey] = (grouped[groupVal][catKey] || 0) + currentVal;
                 
                 if (config.pivot.total_row) {
                     grouped[groupVal]['Jumlah'] += currentVal;
@@ -1373,14 +1380,18 @@ function get_dda_label_nested($col)
             let finalCols = config.columns.filter(c => c.visible);
             
             if (config.pivot.enabled && config.pivot.col && config.pivot.row) {
-                const categories = [...new Set(rawData.map(item => String(item[config.pivot.col] || 'N/A')))].sort();
+                let colKeys = config.pivot.col;
+                if (!Array.isArray(colKeys)) colKeys = [colKeys];
+                
+                const generateCatKey = (item) => colKeys.map(k => String(item[k] || 'N/A')).join(' || ');
+                const categories = [...new Set(rawData.map(item => generateCatKey(item)))].sort();
+                
                 rawData = pivotData(rawData, config);
                 
-                const prefix = config.pivot.prefix ? (config.pivot.prefix + ' || ') : '';
-                const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en + ' || ') : '';
+                const prefix = config.pivot.prefix ? (config.pivot.prefix) : '';
+                const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en) : '';
                 
                 // --- RESOLVE MAPPINGS FOR PIVOT MODE ---
-                // 1. Column for Row Fixed (e.g. Kabupaten)
                 const rowMapping = config.pivot.mappings?.[config.pivot.row] || { label_id: config.pivot.row, label_en: '' };
                 finalCols = [
                     { key: config.pivot.row, label_id: rowMapping.label_id, label_en: rowMapping.label_en }
@@ -1388,10 +1399,15 @@ function get_dda_label_nested($col)
 
                 categories.forEach(cat => {
                     const mapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
+                    
+                    // Mix prefix with mapping results
+                    let final_id = (prefix ? (prefix.trim() + ' || ') : '') + (mapping.label_id || cat);
+                    let final_en = (prefix_en ? (prefix_en.trim() + ' || ') : '') + (mapping.label_en || '');
+                    
                     finalCols.push({
                         key: cat,
-                        label_id: prefix + (mapping.label_id || cat),
-                        label_en: prefix_en + (mapping.label_en || '')
+                        label_id: final_id,
+                        label_en: final_en
                     });
                 });
 
@@ -1400,8 +1416,8 @@ function get_dda_label_nested($col)
                     const totalMapping = config.pivot.mappings?.['Jumlah'] || { label_id: 'Jumlah', label_en: '' };
                     finalCols.push({ 
                         key: 'Jumlah', 
-                        label_id: prefix + (totalMapping.label_id || 'Jumlah'), 
-                        label_en: prefix_en + (totalMapping.label_en || '') 
+                        label_id: (prefix ? (prefix.trim() + ' || ') : '') + (totalMapping.label_id || 'Jumlah'), 
+                        label_en: (prefix_en ? (prefix_en.trim() + ' || ') : '') + (totalMapping.label_en || 'Total') 
                     });
                 }
             }
@@ -1520,6 +1536,12 @@ function get_dda_label_nested($col)
                 html += `<td style="border:1px solid #eee; padding:8px; text-align:center; width:40px; border-left:2px solid #FF6D1F;">${r_idx + 1}.</td>`;
                 finalCols.forEach(col => {
                     let val = row[col.key] ?? '-';
+                    const mapping = config.pivot.mappings?.[val];
+                    if (mapping) {
+                        const id = mapping.label_id || val;
+                        const en = mapping.label_en ? `/${mapping.label_en}` : '';
+                        val = `${id}${en}`;
+                    }
                     if (val === 0 || val === '0') val = '-';
                     const isFirstDataCol = (col.key === finalCols[0].key);
                     const tdStyle = `border:1px solid #eee; padding:8px; ${isFirstDataCol ? 'font-weight:bold;' : 'text-align:center;'}`;

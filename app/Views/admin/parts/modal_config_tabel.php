@@ -46,8 +46,14 @@
                                     <select id="pivot-row" class="form-select form-select-sm border-0 bg-light rounded-3"></select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="small fw-bold text-muted mb-1">Kategori Kolom</label>
-                                    <select id="pivot-col" class="form-select form-select-sm border-0 bg-light rounded-3"></select>
+                                    <label class="small fw-bold text-muted mb-1 d-block">Kategori Kolom (Hierarki)</label>
+                                    <div id="pivot-col-container" class="bg-light rounded-3 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;">
+                                        <!-- Checkboxes -->
+                                    </div>
+                                    <div id="selected-pivot-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
+                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Hierarki (Tarik untuk atur):</small>
+                                        <div id="pivot-order-list" class="d-flex flex-wrap gap-1"></div>
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="small fw-bold text-muted mb-1">Kolom Nilai</label>
@@ -105,7 +111,7 @@
             pivot: {
                 enabled: document.getElementById('pivot-toggle').checked,
                 row: document.getElementById('pivot-row').value,
-                col: document.getElementById('pivot-col').value,
+                col: Array.from(document.querySelectorAll('.pivot-order-item')).map(div => div.dataset.key),
                 val: document.getElementById('pivot-val').value,
                 total_row: document.getElementById('pivot-total-row').checked,
                 prefix: document.getElementById('pivot-prefix').value,
@@ -181,10 +187,9 @@
 
         new Sortable(container, { animation: 150, handle: '.cursor-move' });
 
-        // Restore Pivot Selects ( FIXED MAPPING )
+        // Restore Pivot Row & Val Selects
         const pivotMapFields = {
             'pivot-row': 'row',
-            'pivot-col': 'col',
             'pivot-val': 'val'
         };
 
@@ -196,6 +201,28 @@
                 const isSelected = currentTableConfig.pivot[fieldKey] === key ? 'selected' : '';
                 sel.innerHTML += `<option value="${key}" ${isSelected}>${key}</option>`;
             });
+        });
+
+        // Restore Pivot Column Checklist
+        const colContainer = document.getElementById('pivot-col-container');
+        colContainer.innerHTML = '';
+        baseKeys.forEach(key => {
+            const isChecked = Array.isArray(currentTableConfig.pivot.col) && currentTableConfig.pivot.col.includes(key) ? 'checked' : '';
+            const div = document.createElement('div');
+            div.className = 'form-check small mb-1';
+            div.innerHTML = `
+                <input class="form-check-input pivot-col-check" type="checkbox" value="${key}" id="chk-${key}" ${isChecked} onchange="refreshPivotOrderList()">
+                <label class="form-check-label fw-bold text-dark" for="chk-${key}" style="font-size:11px;">${key}</label>
+            `;
+            colContainer.appendChild(div);
+        });
+        
+        refreshPivotOrderList();
+        new Sortable(document.getElementById('pivot-order-list'), { 
+            animation: 100, 
+            onEnd: () => { 
+                updatePivotMappingUI(); 
+            } 
         });
 
         // Restore Switch & Values
@@ -216,33 +243,67 @@
                 document.getElementById('pivot-settings').style.display = this.checked ? 'block' : 'none';
                 if (this.checked) updatePivotMappingUI();
             });
-            document.getElementById('pivot-col').addEventListener('change', updatePivotMappingUI);
+            document.getElementById('pivot-row').addEventListener('change', updatePivotMappingUI);
+            document.getElementById('pivot-val').addEventListener('change', updatePivotMappingUI);
             toggle.dataset.hasListener = "true";
         }
 
         bootstrapModal.show();
     }
 
+    function refreshPivotOrderList() {
+        const checked = Array.from(document.querySelectorAll('.pivot-col-check:checked')).map(cb => cb.value);
+        const orderContainer = document.getElementById('selected-pivot-order');
+        const list = document.getElementById('pivot-order-list');
+        
+        // Preserve existing order if possible
+        const currentOrder = Array.from(document.querySelectorAll('.pivot-order-item')).map(d => d.dataset.key);
+        const finalOrder = currentOrder.filter(k => checked.includes(k));
+        checked.forEach(k => { if(!finalOrder.includes(k)) finalOrder.push(k); });
+
+        list.innerHTML = '';
+        if (finalOrder.length > 0) {
+            orderContainer.style.display = 'block';
+            finalOrder.forEach(key => {
+                const badge = document.createElement('div');
+                badge.className = 'pivot-order-item badge bg-primary cursor-move p-2';
+                badge.dataset.key = key;
+                badge.innerHTML = `<i class="bi bi-grip-vertical me-1"></i>${key}`;
+                list.appendChild(badge);
+            });
+        } else {
+            orderContainer.style.display = 'none';
+        }
+        updatePivotMappingUI();
+    }
+
     function updatePivotMappingUI() {
         const pivotRow = document.getElementById('pivot-row').value;
-        const pivotCol = document.getElementById('pivot-col').value;
+        const pivotCol = Array.from(document.querySelectorAll('.pivot-order-item')).map(div => div.dataset.key);
         const pivotVal = document.getElementById('pivot-val').value;
         const hasTotal = document.getElementById('pivot-total-row').checked;
         const mappingArea = document.getElementById('pivot-mapping-area');
         const mappingList = document.getElementById('pivot-mapping-list');
         
-        if (!pivotCol || !document.getElementById('pivot-toggle').checked) {
+        if (pivotCol.length === 0 || !document.getElementById('pivot-toggle').checked) {
             mappingArea.style.display = 'none';
             return;
         }
 
         const data = getRowsFromApiResult(rawApiResults[0]);
-        const categories = [...new Set(data.map(item => String(item[pivotCol] || 'N/A')))].sort();
+        // Support hierarchical categories
+        const generateCatKey = (item) => pivotCol.map(k => String(item[k] || 'N/A')).join(' || ');
+        const categories = [...new Set(data.map(item => generateCatKey(item)))].sort();
         
         // Buat daftar seluruh kolom yang akan muncul
         const allTargetCols = [];
-        if (pivotRow) allTargetCols.push({ key: pivotRow, type: 'Row Fixed' });
-        categories.forEach(cat => allTargetCols.push({ key: cat, type: 'Category' }));
+        if (pivotRow) {
+            allTargetCols.push({ key: pivotRow, type: 'Header: Fixed Row' });
+            // Tambahkan nilai unik dari kolom baris untuk mapping (misal: Januari -> January)
+            const rowValues = [...new Set(data.map(item => String(item[pivotRow] || 'N/A')))].sort();
+            rowValues.forEach(rv => allTargetCols.push({ key: rv, type: 'Row Value Mapping' }));
+        }
+        categories.forEach(cat => allTargetCols.push({ key: cat, type: 'Column Hierarchy' }));
         if (hasTotal) allTargetCols.push({ key: 'Jumlah', type: 'Total' });
 
         mappingArea.style.display = 'block';
