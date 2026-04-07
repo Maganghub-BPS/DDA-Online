@@ -1253,7 +1253,8 @@ function get_dda_label_nested($col)
         .sortable-ghost { opacity: 0.4; background: #e0f2fe !important; border: 2px dashed #0369a1 !important; }
         .grip-handle { cursor: grab; color: #cbd5e1; font-size: 1.2rem; }
         .grip-handle:active { cursor: grabbing; }
-        .dda-table-item th { border: 1px solid #fff !important; }
+        .dda-table-item th { border: 1px solid #fff !important; vertical-align: middle !important; }
+        .dda-table-item th i { display: block; font-weight: normal; font-size: 0.85em; margin-top: 2px; }
         .dda-table-item td { border: 1px solid #eee !important; }
     </style>
 
@@ -1483,6 +1484,7 @@ function get_dda_label_nested($col)
                     if (node.children.length > 0) {
                         headerRows[currentRow].push({
                             label: node.label,
+                            label_en: node.label_en,
                             colspan: node.colspan,
                             rowspan: 1
                         });
@@ -1516,7 +1518,7 @@ function get_dda_label_nested($col)
 
                 row.forEach(cell => {
                     const style = "border:1px solid #fff; padding:8px; text-align:center; vertical-align:middle; font-weight:bold;";
-                    const en = cell.label_en ? `<br><i style="font-weight:normal; font-size:0.85em;">${cell.label_en}</i> ` : '';
+                    const en = cell.label_en ? `<i>${cell.label_en}</i>` : '';
                     html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="${style}">${cell.label}${en}</th>`;
                 });
                 html += '</tr>';
