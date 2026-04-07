@@ -1769,73 +1769,119 @@ public function ambil_tahun_terakhir_dari_match()
 			return view('admin/index', $a);
 		}
 
-		// Support multiple IDs (comma separated)
-		$ids = explode(',', $id_api);
-		$all_results = [];
-		
-		foreach ($ids as $id_p) {
-			$id_p = trim($id_p);
-			if (empty($id_p)) continue;
-            
-            $page = 1;
-            $all_rows = [];
-            $meta_info = null;
+		// --- CACHING STRATEGY (DISABLED TEMPORARILY) ---
+		$cached_results = null;
 
-            // Loop untuk penarikan SELURUH Halaman (Auto-Pagination)
-            do {
-                $url = "https://satudata.jatengprov.go.id/v1/data/{$id_p}?page={$page}&per-page=100";
-                $res = $this->callApi2($url);
-                
-                if ($res) {
-                    $rows = [];
-                    // Deteksi lokasi data (bisa di 'data' langsung atau di res itu sendiri)
-                    if (isset($res['data'])) {
-                        $rows = $res['data'];
-                    } else if (is_array($res) && isset($res[0])) {
-                        $rows = $res;
-                    }
-                    
-                    if (!empty($rows)) {
-                        $all_rows = array_merge($all_rows, $rows);
-                    }
+		if ($cached_results !== null) {
+			$all_results = $cached_results;
+		} else {
+			// Support multiple IDs (comma separated)
+			$ids = explode(',', $id_api);
+			$all_results = [];
 
-                    // Ambil meta info dari halaman pertama saja untuk judul dsb
-                    if ($page === 1) {
-                        $meta_info = $res;
-                    }
+			foreach ($ids as $id_p) {
+				$id_p = trim($id_p);
+				if (empty($id_p)) continue;
 
-                    // Cek apakah ada halaman berikutnya (berdasarkan metadata standard portal jateng)
-                    $total_pages = $res['pagination']['total_pages'] ?? $res['_meta']['pageCount'] ?? 1;
-                    if ($page >= $total_pages) {
-                        break; // Sudah di halaman terakhir
-                    }
-                    $page++;
-                } else {
-                    break; // Error atau data kosong
-                }
-            } while ($page <= 20); // Safety limit 20 halaman (2000 data) agar tidak infinity loop
+				// --- CLEANING ID ---
+				// Jika ID mengandung tanda tanya '?' atau garis miring '/', 
+				// kita bersihkan untuk mengambil ID aslinya saja (UUID)
+				if (strpos($id_p, '?') !== false) {
+					$id_p = explode('?', $id_p)[0];
+				}
+				if (strpos($id_p, 'data/') !== false) {
+					$id_p = explode('data/', $id_p)[1];
+				}
+				$id_p = trim($id_p, '/ '); // Hapus slash di akhir jika ada
 
-			if (!empty($all_rows)) {
-				// Cari Judul DDA asli dan Instansi Pengelola untuk setiap ID agar konsisten
-				$dda_info = $this->db->query("
-                    SELECT t.id, t.judul_ind, t.judul_en, u.unitkerja_ind, u.unitkerja_en 
+				$page = 1;
+				$all_rows = [];
+				$meta_info = null;
+
+				// Loop untuk penarikan SELURUH Halaman (Auto-Pagination)
+				$first_row_ids = []; // Untuk deteksi duplikat antar halaman
+
+				do {
+					// Kita kirim parameter page (v1) DAN offset+limit (v3/CKAN) sekaligus agar kompatibel
+					$offset = ($page - 1) * 100;
+					$url = "https://satudata.jatengprov.go.id/v1/data/{$id_p}?page={$page}&per-page=100&offset={$offset}&limit=100";
+					$res = $this->callApi2($url);
+
+					if ($res && !isset($res['error'])) {
+						$rows = [];
+						if (isset($res['data'])) {
+							$rows = $res['data'];
+						} else if (is_array($res) && isset($res[0])) {
+							$rows = $res;
+						}
+
+						if (empty($rows)) {
+							break; // Data habis
+						}
+
+						// Proteksi Duplikat: Jika baris pertama sama dengan halaman sebelumnya, 
+						// berarti API tidak mendukung pagination via parameter yang dikirim.
+						$row_fingerprint = md5(json_encode($rows[0]));
+						if (in_array($row_fingerprint, $first_row_ids)) {
+							break; 
+						}
+						$first_row_ids[] = $row_fingerprint;
+
+						$all_rows = array_merge($all_rows, $rows);
+
+						if ($page === 1) {
+							$meta_info = $res;
+						}
+
+						// Kita tetap ambil total_pages jika ada sebagai referensi tambahan
+						$total_pages = $res['pagination']['total_pages'] 
+                                    ?? $res['_meta']['pageCount'] 
+                                    ?? $res['total_pages'] 
+                                    ?? $res['pages'] 
+                                    ?? $res['total_page']
+                                    ?? null;
+
+                        if ($total_pages !== null && $page >= $total_pages) {
+                            break; 
+                        }
+
+                        // Jika jumlah data kurang dari 100 (per-page), dipastikan ini halaman terakhir
+                        if (count($rows) < 100) {
+                            break;
+                        }
+
+						$page++;
+					} else {
+						break; // Error atau data kosong
+					}
+				} while ($page <= 200); 
+
+				if (!empty($all_rows)) {
+					// Cari Judul DDA asli dan Instansi Pengelola untuk setiap ID agar konsisten
+					$dda_info = $this->db->query("
+                    SELECT t.id, t.judul_ind, t.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en 
                     FROM t_list_tabel t 
                     LEFT JOIN m_unitkerja u ON t.id_unitkerja = u.id_unitkerja
                     WHERE t.link_tabel LIKE ? 
                     LIMIT 1
                 ", ['%' . $id_p . '%'])->getRow();
-				
-                $final_res = $meta_info;
-                $final_res['data']           = $all_rows; 
-				$final_res['res_id']         = $dda_info->id ?? 0;
-				$final_res['dda_title']      = $dda_info->judul_ind ?? '';
-				$final_res['dda_title_en']   = $dda_info->judul_en ?? '';
-                $final_res['unitkerja_ind']  = $dda_info->unitkerja_ind ?? '-';
-                $final_res['unitkerja_en']   = $dda_info->unitkerja_en ?? '-';
-				$final_res['id_api']         = $id_p;
-				
-				$all_results[] = $final_res;
+
+					$final_res = $meta_info;
+					$final_res['data']           = $all_rows;
+					$final_res['res_id']         = $dda_info->id ?? 0;
+					$final_res['dda_title']      = $dda_info->judul_ind ?? '';
+					$final_res['dda_title_en']   = $dda_info->judul_en ?? '';
+					$final_res['config_tabel']   = $dda_info->config_tabel ?? null;
+					$final_res['unitkerja_ind']  = $dda_info->unitkerja_ind ?? '-';
+					$final_res['unitkerja_en']   = $dda_info->unitkerja_en ?? '-';
+					$final_res['id_api']         = $id_p;
+
+					$all_results[] = $final_res;
+				}
 			}
+
+			// Simpan ke cache selama 3600 detik (1 jam) jika ada hasil
+			// Cache saving is disabled temporarily
 		}
 
 		$a['api_results']  = $all_results;
@@ -1949,4 +1995,22 @@ public function ambil_tahun_terakhir_dari_match()
 		return redirect()->to('admin/master_tabel')->with('k', '<div class="alert alert-success">Berhasil memperbarui ' . $count . ' tabel ke Portal Data.</div>');
 	}
 
+    public function simpan_config_tabel()
+    {
+        if ($this->request->isAJAX()) {
+            $id = $this->request->getPost('id');
+            $config = $this->request->getPost('config');
+
+            if (!$id || !$config) {
+                return $this->response->setJSON(['status' => 'error', 'message' => 'Data tidak lengkap']);
+            }
+
+            $update = $this->db->table('t_list_tabel')->where('id', $id)->update(['config_tabel' => $config]);
+
+            if ($update) {
+                return $this->response->setJSON(['status' => 'success', 'message' => 'Konfigurasi berhasil disimpan']);
+            }
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal simpan database']);
+        }
+    }
 }

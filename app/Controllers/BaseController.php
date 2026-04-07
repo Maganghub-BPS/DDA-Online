@@ -144,5 +144,12 @@ abstract class BaseController extends Controller
                 return isset($segments[$n-1]) ? $segments[$n-1] : null;
             }
         };
+
+        // --- GLOBAL DATA SHARING ---
+        // Fetch static config once per request
+        $instansi = $this->db->query("SELECT * FROM tr_instansi LIMIT 1")->getRow();
+        
+        // Share with all views globally
+        $GLOBALS['instansi_config'] = $instansi; 
     }
 }

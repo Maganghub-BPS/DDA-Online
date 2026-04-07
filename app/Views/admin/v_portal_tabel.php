@@ -87,15 +87,24 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
         $label_en = $raw_labels[$i][1];
 
         // Cari pola "Induk Anak" (Contoh: "Kayu Bulat Iuphhk Ha")
+        $found_prefix = '';
+        
+        // --- CUSTOM: Support for forced pivot headers via || separator ---
+        if (strpos($label, ' || ') !== false) {
+            $parts_p = explode(' || ', $label);
+            $found_prefix = $parts_p[0];
+        }
+
         $parts = explode(' ', $label);
 
         // Prefix ditentukan dari 2 kata pertama jika cocok dengan kata kunci umum DDA
         $keywords = ['kayu bulat', 'kayu olahan', 'luas areal', 'tenaga kerja', 'hasil hutan', 'jumlah izin', 'produksi', 'populasi', 'hak guna', 'hak pengelolaan', 'hak milik'];
-        $found_prefix = '';
-        foreach ($keywords as $kw) {
-            if (stripos($label, $kw) === 0) {
-                $found_prefix = ucwords($kw);
-                break;
+        if (empty($found_prefix)) {
+            foreach ($keywords as $kw) {
+                if (stripos($label, $kw) === 0) {
+                    $found_prefix = ucwords($kw);
+                    break;
+                }
             }
         }
 
@@ -106,16 +115,25 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
         // Cari seberapa banyak kolom yang punya prefix yang sama
         $count = 1;
         $sub_labels = [];
+        $clean_label = trim(str_ireplace([$found_prefix . ' || ', $found_prefix], ['', ''], $label)) ?: $label;
+        
         $sub_labels[] = [
-            'label' => trim(str_ireplace($found_prefix, '', $label)) ?: $label,
+            'label' => $clean_label,
             'label_en' => $label_en,
             'col_idx' => $i
         ];
 
         for ($j = $i + 1; $j < count($columns); $j++) {
-            if (!empty($found_prefix) && stripos($raw_labels[$j][0], $found_prefix) === 0) {
+            $next_full_label = $raw_labels[$j][0];
+            $is_match = false;
+            
+            // Check match via || or prefix
+            if (strpos($next_full_label, $found_prefix . ' || ') === 0) $is_match = true;
+            elseif (!empty($found_prefix) && stripos($next_full_label, $found_prefix) === 0) $is_match = true;
+            
+            if ($is_match) {
                 $next_label = $raw_labels[$j][0];
-                $sub_candidate = trim(str_ireplace($found_prefix, '', $next_label));
+                $sub_candidate = trim(str_ireplace([$found_prefix . ' || ', $found_prefix], ['', ''], $next_label));
                 $count++;
                 $sub_labels[] = [
                     'label' => !empty($sub_candidate) ? $sub_candidate : $next_label,
@@ -128,7 +146,7 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
         }
 
         // Jika ada "Hak Guna" atau sejenisnya, biasanya di DDA itu kolom mandiri atau grup khusus
-        // Jika dia grup tapi semua label anaknya sama, kita pecah saja
+        // Jika dia grup tapi semua label anaknya sama (hanya 1 anak), kita paksa JADI grup jika dia hasil PIVOT (ada separator ||)
         $is_valid_group = false;
         if ($count > 1) {
             foreach ($sub_labels as $sb) {
@@ -137,6 +155,8 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
                     break;
                 }
             }
+        } else if (strpos($label, ' || ') !== false) {
+            $is_valid_group = true; // Paksa grup untuk PIVO meskipun cuma 1 kategori (sesuai permintaan user gambarnya multilevel)
         }
 
         if ($count > 1 && $is_valid_group) {
@@ -370,15 +390,31 @@ function get_dda_label_nested($col)
 
     .btn-rounded-modern {
         border-radius: 50px;
-        padding: 8px 24px;
+        padding: 6px 18px;
+        /* Reduced from 8px 24px */
         font-weight: 600;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+        /* Slightly smaller from 0.85rem */
         transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
         border: none;
         display: inline-flex;
         align-items: center;
         gap: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Responsiveness for small screens */
+    @media (max-width: 576px) {
+        .btn-rounded-modern {
+            width: 100%;
+            justify-content: center;
+            padding: 10px 16px;
+        }
+
+        .filter-box-modern {
+            width: 100%;
+            justify-content: center;
+        }
     }
 
     .btn-back-modern {
@@ -480,6 +516,65 @@ function get_dda_label_nested($col)
         display: flex;
         justify-content: space-between;
     }
+
+    /* Config Modal Styles */
+    #configModal .modal-content {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+    }
+    #configModal .modal-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #eef2f7;
+        border-radius: 20px 20px 0 0;
+        padding: 20px 25px;
+    }
+    #configModal .nav-tabs {
+        border: none;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    #configModal .nav-link {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        color: #64748b;
+        font-weight: 600;
+        padding: 8px 20px;
+    }
+    #configModal .nav-link.active {
+        background: #FF6D1F;
+        color: #fff;
+        border-color: #FF6D1F;
+    }
+    .col-item {
+        background: #f8fafc;
+        padding: 12px 15px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.2s;
+    }
+    .col-item:hover {
+        border-color: #cbd5e1;
+        background: #fff;
+    }
+    .col-item input[type="text"] {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 12px;
+    }
+    .badge-pivot {
+        background: #e0f2fe;
+        color: #0369a1;
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+    }
 </style>
 
 <div class="dda-body">
@@ -494,38 +589,45 @@ function get_dda_label_nested($col)
         }
     }
     ?>
-    <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-rounded-modern btn-back-modern mb-3">
-        <i class="bi bi-arrow-left"></i> KEMBALI
-    </a>
-    <div class="float-end d-flex gap-2 align-items-center">
-        <?php
-        // Ambil semua tahun unik dari koleksi data untuk dropdown filter
-        $unique_years = [];
-        foreach ($api_results as $res) {
-            $rows_data = $res['data'] ?? [];
-            foreach ($rows_data as $rd) {
-                $y = $rd['tahun_data'] ?? $rd['tahun'] ?? null;
-                if ($y) $unique_years[] = $y;
-            }
-        }
-        $unique_years = array_unique($unique_years);
-        rsort($unique_years);
-        ?>
-        <?php if (!empty($unique_years)): ?>
-            <div class="filter-box-modern">
-                <i class="bi bi-funnel text-muted"></i>
-                <select id="year-filter" onchange="filterByYear(this.value)" class="form-select-modern">
-                    <option value="">Semua Tahun</option>
-                    <?php foreach ($unique_years as $yr): ?>
-                        <option value="<?php echo $yr; ?>">Tahun <?php echo $yr; ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        <?php endif; ?>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-rounded-modern btn-back-modern">
+            <i class="bi bi-arrow-left"></i> KEMBALI
+        </a>
 
-        <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
-            <i class="bi bi-file-earmark-excel"></i> EXPORT ALL TO EXCEL
-        </button>
+        <div class="d-flex flex-wrap gap-2 align-items-center justify-content-end flex-grow-1">
+            <?php
+            // Ambil semua tahun unik dari koleksi data untuk dropdown filter
+            $unique_years = [];
+            foreach ($api_results as $res) {
+                $rows_data = $res['data'] ?? [];
+                foreach ($rows_data as $rd) {
+                    $y = $rd['tahun_data'] ?? $rd['tahun'] ?? null;
+                    if ($y) $unique_years[] = $y;
+                }
+            }
+            $unique_years = array_unique($unique_years);
+            rsort($unique_years);
+            ?>
+            <?php if (!empty($unique_years)): ?>
+                <div class="filter-box-modern">
+                    <i class="bi bi-funnel text-muted"></i>
+                    <select id="year-filter" onchange="filterByYear(this.value)" class="form-select-modern">
+                        <option value="">Semua Tahun</option>
+                        <?php foreach ($unique_years as $yr): ?>
+                            <option value="<?php echo $yr; ?>">Tahun <?php echo $yr; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+
+            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm">
+                <i class="bi bi-gear-fill"></i> KONFIGURASI
+            </button>
+
+            <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
+                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">EXPORT EXCEL</span><span class="d-inline d-sm-none">EXPORT</span>
+            </button>
+        </div>
     </div>
 
     <style>
@@ -533,11 +635,14 @@ function get_dda_label_nested($col)
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 50px;
-            padding: 4px 15px;
+            padding: 2px 12px;
+            /* Reduced from 4px 15px */
             display: flex;
             align-items: center;
             gap: 8px;
             transition: all 0.3s ease;
+            height: 34px;
+            /* Reduced from 40px to match new button height */
         }
 
         .filter-box-modern:hover {
@@ -547,7 +652,8 @@ function get_dda_label_nested($col)
         .form-select-modern {
             border: none;
             background: transparent;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
+            /* Matched to buttons (from 0.85rem) */
             font-weight: 600;
             color: #475569;
             outline: none;
@@ -558,103 +664,52 @@ function get_dda_label_nested($col)
 
     <script>
         function filterByYear(year) {
+            currentSelectedYear = year; // Update global state
             const tables = document.querySelectorAll('.table-wrapper');
 
-            tables.forEach(wrapper => {
-                const rows = wrapper.querySelectorAll('.main-table tbody tr');
-                let hasVisibleRow = false;
-
-                rows.forEach(row => {
-                    const rowYear = row.getAttribute('data-tahun');
-                    if (year === "" || rowYear === year) {
-                        row.style.display = "";
-                        hasVisibleRow = true;
-                    } else {
-                        row.style.display = "none";
+            tables.forEach((wrapper, idx) => {
+                const customTable = wrapper.querySelector('.main-table');
+                // Gunakan config yang tersimpan (currentTableConfig) jika ada, 
+                // jika tidak ada, gunakan default (semua terlihat)
+                if (customTable && (currentTableConfig || customTable.innerHTML.includes('style='))) {
+                    let config = currentTableConfig;
+                    if (!config) {
+                        // Fallback jika belum ada config sama sekali
+                        const firstTable = rawApiResults[idx];
+                        const data = getRowsFromApiResult(firstTable);
+                        const keys = data.length > 0 ? Object.keys(data[0]) : [];
+                        config = {
+                            columns: keys.map(k => ({ key: k, label_id: k, label_en: '', visible: true })),
+                            pivot: { enabled: false },
+                            merge_datasets: false
+                        };
                     }
-                });
-
-                // Sembunyikan seluruh wrapper tabel (termasuk judulnya) jika tidak ada data tahun tersebut
-                if (hasVisibleRow) {
-                    wrapper.style.display = "";
+                    renderCustomTable(idx, config);
                 } else {
-                    wrapper.style.display = "none";
+                    const rows = wrapper.querySelectorAll('.main-table tbody tr');
+                    let hasVisibleRow = false;
+
+                    rows.forEach(row => {
+                        const rowYear = row.getAttribute('data-tahun');
+                        if (year === "" || rowYear === year) {
+                            row.style.display = "";
+                            hasVisibleRow = true;
+                        } else {
+                            row.style.display = "none";
+                        }
+                    });
+
+                    if (hasVisibleRow) {
+                        wrapper.style.display = "";
+                    } else {
+                        wrapper.style.display = "none";
+                    }
                 }
             });
         }
     </script>
 
-
-    <script>
-        function exportTableToExcel(tableID, filename = '') {
-            const container = document.getElementById('export-progress-container');
-            const fill = document.getElementById('export-progress-fill');
-            const statusText = document.getElementById('export-status-text');
-            const percentText = document.getElementById('export-percent-text');
-
-            // Reset and Show
-            container.style.display = 'block';
-            fill.style.width = '0%';
-            statusText.innerText = 'Menyiapkan data...';
-            percentText.innerText = '0%';
-
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.floor(Math.random() * 15) + 5;
-                if (progress >= 95) {
-                    clearInterval(interval);
-                    progress = 95;
-
-                    // Beri jeda sedikit agar user melihat progress 95%
-                    setTimeout(executeDownload, 500);
-                }
-                fill.style.width = progress + '%';
-                percentText.innerText = progress + '%';
-            }, 150);
-
-            function executeDownload() {
-                var dataType = 'application/vnd.ms-excel';
-                var tableSelect = document.querySelector("#" + tableID);
-                var filename_full = filename ? filename + '.xls' : 'excel_data.xls';
-
-                // Gunakan Blob dan ObjectURL agar lebih stabil untuk data besar
-                var blob = new Blob(['\ufeff', tableSelect.outerHTML], {
-                    type: dataType
-                });
-
-                if (navigator.msSaveOrOpenBlob) {
-                    navigator.msSaveOrOpenBlob(blob, filename_full);
-                } else {
-                    var downloadLink = document.createElement("a");
-                    var url = URL.createObjectURL(blob);
-                    downloadLink.href = url;
-                    downloadLink.download = filename_full;
-                    document.body.appendChild(downloadLink);
-                    downloadLink.click();
-                    document.body.removeChild(downloadLink);
-                    setTimeout(() => URL.revokeObjectURL(url), 100);
-                }
-
-                // Finish UI
-                fill.style.width = '100%';
-                percentText.innerText = '100%';
-                statusText.innerText = 'Selesai! File diunduh.';
-
-                // Hide after a delay
-                setTimeout(() => {
-                    container.style.opacity = '0';
-                    container.style.transform = 'translateY(20px)';
-                    container.style.transition = 'all 0.5s ease';
-                    setTimeout(() => {
-                        container.style.display = 'none';
-                        container.style.opacity = '1';
-                        container.style.transform = 'translateY(0)';
-                        container.style.transition = 'none';
-                    }, 500);
-                }, 2500);
-            }
-        }
-    </script>
+    <?php echo view('admin/parts/js_export_excel'); ?>
 
     <?php if ($hasError): ?>
         <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
@@ -721,7 +776,7 @@ function get_dda_label_nested($col)
 
                     usort($rows, function ($a, $b) use ($jatengOrder) {
                         // 1. Deteksi Kolom Tahun
-                        $yearKeys = ['tahun', 'tahun_data', 'tahun_kegiatan', 'year'];
+                        $yearKeys = ['tahun', 'tahun_data', 'tahun_kegiatan', 'year', 'periode', 'thn', 'tahun_anggaran', 'tahun_data'];
                         $yA = 0;
                         $yB = 0;
                         foreach ($yearKeys as $k) {
@@ -1191,19 +1246,304 @@ function get_dda_label_nested($col)
     <?php endif; ?>
 
 
-    <!-- Modal Progress Bar Export -->
-    <div id="export-progress-container">
-        <div class="export-header">
-            <div class="export-title">
-                <i class="bi bi-file-earmark-excel"></i> Export Excel
-            </div>
-        </div>
-        <div class="export-progress-bg">
-            <div id="export-progress-fill" class="export-progress-fill"></div>
-        </div>
-        <div class="export-status">
-            <span id="export-status-text">Memproses...</span>
-            <span id="export-percent-text">0%</span>
-        </div>
-    </div>
+    <?php echo view('admin/parts/modal_config_tabel'); ?>
+
+    <style>
+        .bg-orange { background-color: #FF6D1F !important; color: white !important; }
+        .bg-orange:hover { background-color: #e05e15 !important; }
+        .sortable-ghost { opacity: 0.4; background: #e0f2fe !important; border: 2px dashed #0369a1 !important; }
+        .grip-handle { cursor: grab; color: #cbd5e1; font-size: 1.2rem; }
+        .grip-handle:active { cursor: grabbing; }
+        .dda-table-item th { border: 1px solid #fff !important; }
+        .dda-table-item td { border: 1px solid #eee !important; }
+    </style>
+
+    <!-- Load SortableJS for Drag and Drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <script>
+        // Store raw data from PHP
+        let rawApiResults = <?php echo json_encode($api_results); ?>;
+        let currentSelectedYear = ""; // Global state untuk filter tahun
+        let currentTableConfig = null; 
+
+        // --- 1. AUTO-LOAD DARI DATABASE SAAT HALAMAN DIBUKA ---
+        window.addEventListener('DOMContentLoaded', (event) => {
+            rawApiResults.forEach((res, idx) => {
+                if (res.config_tabel) {
+                    try {
+                        const savedConfig = JSON.parse(res.config_tabel);
+                        if (idx === 0) currentTableConfig = savedConfig;
+                        renderCustomTable(idx, savedConfig);
+                    } catch(e) { console.error("Gagal load config:", e); }
+                }
+            });
+        });
+
+        function getRowsFromApiResult(apiResult) {
+            if (!apiResult) return [];
+            // Logika deteksi persis seperti PHP
+            if (apiResult.data && Array.isArray(apiResult.data)) {
+                if (apiResult.data[0] && typeof apiResult.data[0] === 'object') {
+                    return apiResult.data;
+                }
+            }
+            if (apiResult.data && apiResult.data.rows) {
+                return apiResult.data.rows;
+            }
+            if (Array.isArray(apiResult)) {
+                return apiResult;
+            }
+            return [];
+        }
+
+        function pivotData(data, config) {
+            const rowKey = config.pivot.row;
+            const colKey = config.pivot.col;
+            const valKey = config.pivot.val;
+
+            if (!rowKey || !colKey || !valKey || data.length === 0) return data;
+
+            const categories = [...new Set(data.map(item => String(item[colKey] || 'N/A')))].sort();
+            const grouped = {};
+            data.forEach(item => {
+                const groupVal = String(item[rowKey] || 'N/A');
+                if (!grouped[groupVal]) {
+                    grouped[groupVal] = { [rowKey]: groupVal };
+                    categories.forEach(cat => grouped[groupVal][cat] = 0);
+                    if (config.pivot.total_row) grouped[groupVal]['Jumlah'] = 0;
+                }
+                const currentVal = parseFloat(item[valKey]) || 0;
+                grouped[groupVal][item[colKey] || 'N/A'] = currentVal;
+                
+                if (config.pivot.total_row) {
+                    grouped[groupVal]['Jumlah'] += currentVal;
+                }
+            });
+            return Object.values(grouped);
+        }
+
+        function renderCustomTable(tableIdx, config, targetEl = null, limitRows = 0) {
+            const tableId = 'dda-table-' + tableIdx;
+            const tableEl = targetEl || document.getElementById(tableId);
+            if (!tableEl) return;
+            
+            let rawDataFull = [];
+            
+            // --- LOGIKA GABUNG DATASET (MERGE ALL IDS) ---
+            if (config.merge_datasets) {
+                // Sembunyikan wrapper tabel lain jika mode gabung aktif
+                const allWrappers = document.querySelectorAll('.table-wrapper');
+                allWrappers.forEach((w, i) => {
+                    if (i > 0) w.style.display = 'none';
+                });
+                
+                rawApiResults.forEach(res => {
+                    const rows = getRowsFromApiResult(res);
+                    // Prioritaskan res.judul (Database) dibanding name/label (API)
+                    const sourceName = res.judul || res.name || res.label || "Dataset " + (res.id_portal || "");
+                    rows.forEach(r => {
+                        let newRow = {...r}; // Copy row
+                        newRow['Nama Dataset'] = sourceName; // Suntikkan Virtual Column
+                        rawDataFull.push(newRow);
+                    });
+                });
+            } else {
+                rawDataFull = getRowsFromApiResult(rawApiResults[tableIdx]);
+                // Tampilkan kembali wrapper jika tidak mode gabung (reset)
+                const allWrappers = document.querySelectorAll('.table-wrapper');
+                allWrappers.forEach(w => w.style.display = '');
+            }
+
+            if (rawDataFull.length === 0) {
+                if(targetEl) targetEl.innerHTML = '<div class="alert alert-warning">Tidak ada data.</div>';
+                return;
+            }
+
+            // --- FILTER DATA BERDASARKAN TAHUN SEBELUM PROSES ---
+            let rawData = rawDataFull;
+            if (currentSelectedYear !== "") {
+                rawData = rawDataFull.filter(item => {
+                    const itemYear = String(item.tahun || item.tahun_data || item.year || "");
+                    return itemYear === currentSelectedYear;
+                });
+            }
+
+            // Gunakan kolom yang visible saja untuk rendering, kecuali Pivot Aktif
+            let finalCols = config.columns.filter(c => c.visible);
+            
+            if (config.pivot.enabled && config.pivot.col && config.pivot.row) {
+                const categories = [...new Set(rawData.map(item => String(item[config.pivot.col] || 'N/A')))].sort();
+                rawData = pivotData(rawData, config);
+                
+                const prefix = config.pivot.prefix ? (config.pivot.prefix + ' || ') : '';
+                const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en + ' || ') : '';
+                
+                // --- RESOLVE MAPPINGS FOR PIVOT MODE ---
+                // 1. Column for Row Fixed (e.g. Kabupaten)
+                const rowMapping = config.pivot.mappings?.[config.pivot.row] || { label_id: config.pivot.row, label_en: '' };
+                finalCols = [
+                    { key: config.pivot.row, label_id: rowMapping.label_id, label_en: rowMapping.label_en }
+                ];
+
+                categories.forEach(cat => {
+                    const mapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
+                    finalCols.push({
+                        key: cat,
+                        label_id: prefix + (mapping.label_id || cat),
+                        label_en: prefix_en + (mapping.label_en || '')
+                    });
+                });
+
+                // 3. Computed Total Column
+                if (config.pivot.total_row) {
+                    const totalMapping = config.pivot.mappings?.['Jumlah'] || { label_id: 'Jumlah', label_en: '' };
+                    finalCols.push({ 
+                        key: 'Jumlah', 
+                        label_id: prefix + (totalMapping.label_id || 'Jumlah'), 
+                        label_en: prefix_en + (totalMapping.label_en || '') 
+                    });
+                }
+            }
+
+            // --- A. PROSES HEADER MULTI-LEVEL (N-LEVEL TREE) ---
+            const parseHeaderTree = (columns) => {
+                const tree = [];
+                columns.forEach(col => {
+                    const idParts = (col.label_id || col.key).split(' || ');
+                    const enParts = (col.label_en || '').split(' || ');
+                    
+                    let currentNode = tree;
+                    idParts.forEach((part, depth) => {
+                        let existingNode = currentNode.find(node => node.label === part);
+                        if (!existingNode) {
+                            existingNode = { 
+                                label: part, 
+                                label_en: enParts[depth] || '', // Ambil EN sesuai tingkatannya
+                                children: [], 
+                                depth: depth, 
+                                key: col.key 
+                            };
+                            currentNode.push(existingNode);
+                        }
+                        currentNode = existingNode.children;
+                    });
+                });
+                return tree;
+            };
+
+            const headerTree = parseHeaderTree(finalCols);
+
+            // Hitung Max Depth untuk Rowspan
+            const getMaxDepth = (nodes) => {
+                let max = 0;
+                nodes.forEach(node => {
+                    if (node.children.length > 0) {
+                        max = Math.max(max, 1 + getMaxDepth(node.children));
+                    } else {
+                        max = Math.max(max, 1);
+                    }
+                });
+                return max;
+            };
+            const maxHeaderRows = getMaxDepth(headerTree);
+
+            // Hitung Colspan untuk setiap node
+            const calculateColspan = (node) => {
+                if (node.children.length === 0) return 1;
+                let sum = 0;
+                node.children.forEach(child => {
+                    sum += calculateColspan(child);
+                });
+                node.colspan = sum;
+                return sum;
+            };
+            headerTree.forEach(calculateColspan);
+
+            // Generate Baris HTML untuk Header
+            const headerRows = Array.from({ length: maxHeaderRows }, () => []);
+            const fillHeaderRows = (nodes, currentRow) => {
+                nodes.forEach(node => {
+                    if (node.children.length > 0) {
+                        headerRows[currentRow].push({
+                            label: node.label,
+                            colspan: node.colspan,
+                            rowspan: 1
+                        });
+                        fillHeaderRows(node.children, currentRow + 1);
+                    } else {
+                        // Leaf node: Spanning down to bottom if needed
+                        headerRows[currentRow].push({
+                            label: node.label,
+                            label_en: node.label_en,
+                            colspan: 1,
+                            rowspan: maxHeaderRows - currentRow
+                        });
+                    }
+                });
+            };
+            fillHeaderRows(headerTree, 0);
+
+            // --- B. BUILD HTML TABLE ---
+            const isPreview = (targetEl !== null);
+            const tableClass = isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item';
+            let html = `<table class="${tableClass}" style="width:100%; font-family:Arial, sans-serif; border-collapse: collapse; background:#fff; color:#333;">`;
+            
+            html += '<thead style="background:#FF6D1F; color:#fff;">';
+            
+            headerRows.forEach((row, rIdx) => {
+                html += '<tr>';
+                // Kolom nomor "No." hanya di baris pertama
+                if (rIdx === 0) {
+                    html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid #fff; padding:10px; width:40px; text-align:center;">No.</th>`;
+                }
+
+                row.forEach(cell => {
+                    const style = "border:1px solid #fff; padding:8px; text-align:center; vertical-align:middle; font-weight:bold;";
+                    const en = cell.label_en ? `<br><i style="font-weight:normal; font-size:0.85em;">${cell.label_en}</i> ` : '';
+                    html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="${style}">${cell.label}${en}</th>`;
+                });
+                html += '</tr>';
+            });
+
+            // Baris Penomoran Indeks (1), (2), (3)
+            html += '<tr style="background:#f9a066; color:#000; font-size:10px;">';
+            finalCols.forEach((c, idx) => {
+                html += `<th style="border:1px solid #fff; text-align:center; padding:2px;">(${idx + 1})</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            const displayData = limitRows > 0 ? rawData.slice(0, limitRows) : rawData;
+            displayData.forEach((row, r_idx) => {
+                const rowStyle = (r_idx % 2 === 0) ? 'background:#fff;' : 'background:#fff4eb;';
+                html += `<tr style="${rowStyle}">`;
+                html += `<td style="border:1px solid #eee; padding:8px; text-align:center; width:40px; border-left:2px solid #FF6D1F;">${r_idx + 1}.</td>`;
+                finalCols.forEach(col => {
+                    let val = row[col.key] ?? '-';
+                    if (val === 0 || val === '0') val = '-';
+                    const isFirstDataCol = (col.key === finalCols[0].key);
+                    const tdStyle = `border:1px solid #eee; padding:8px; ${isFirstDataCol ? 'font-weight:bold;' : 'text-align:center;'}`;
+                    html += `<td style="${tdStyle}">${val}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+
+            let sourceInfoHtml = '';
+            if (config.merge_datasets) {
+                sourceInfoHtml = '<div class="mt-3 p-3 bg-light border-start border-4 border-primary rounded shadow-sm">';
+                sourceInfoHtml += '<h6 class="fw-bold mb-2 text-primary" style="font-size:12px;"><i class="bi bi-info-circle me-1"></i> Daftar Sumber Data (Dataset):</h6>';
+                sourceInfoHtml += '<ol class="mb-0" style="font-size:11px; padding-left: 1.5rem;">';
+                rawApiResults.forEach(res => {
+                    // Prioritaskan res.judul (Database) dibanding name/label (API)
+                    const sourceName = res.judul || res.name || res.label || "Dataset " + (res.id_portal || "");
+                    sourceInfoHtml += `<li class="mb-1 fw-bold">${sourceName} (ID: ${res.id_portal || '-'})</li>`;
+                });
+                sourceInfoHtml += '</ol></div>';
+            }
+
+            tableEl.innerHTML = html + sourceInfoHtml;
+        }
+    </script>
+    <div style="display:none;"><?= csrf_field() ?></div>
 </div>

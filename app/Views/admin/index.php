@@ -21,11 +21,13 @@
     <script src="<?php echo base_url(); ?>aset/js/jquery.min.js"></script>
     <script src="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.js"></script>
 
-    <!-- Chart Libraries -->
-    <script src="<?php echo base_url(); ?>aset/js/highcharts.js"></script>
-    <script src="<?php echo base_url(); ?>aset/js/highcharts-3d.js"></script>
-    <script src="<?php echo base_url(); ?>aset/js/exporting.js"></script>
-    <script src="<?php echo base_url(); ?>aset/js/solid-gauge.js"></script>
+    <!-- Chart Libraries - Conditional Load (Hanya di Dashboard) -->
+    <?php if ($page == 'd_amain' || $page == 'dashboard'): ?>
+        <script src="<?php echo base_url(); ?>aset/js/highcharts.js"></script>
+        <script src="<?php echo base_url(); ?>aset/js/highcharts-3d.js"></script>
+        <script src="<?php echo base_url(); ?>aset/js/exporting.js"></script>
+        <script src="<?php echo base_url(); ?>aset/js/solid-gauge.js"></script>
+    <?php endif; ?>
 
     <!-- Bootstrap 5 JS Bundle (includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -472,8 +474,7 @@
 
 <body>
     <?php
-    $db = \Config\Database::connect();
-    $q_instansi = $db->query("SELECT * FROM tr_instansi LIMIT 1")->getRow();
+    $q_instansi = $GLOBALS['instansi_config'] ?? null;
     $level = session()->get('admin_level');
     $user = session()->get('admin_user');
     $nama = session()->get('admin_nama');
