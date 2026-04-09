@@ -27,9 +27,25 @@
                             <!-- Kolom di-inject JS -->
                         </div>
                         <hr>
-                        <div class="form-check form-switch bg-light p-3 rounded-3">
-                            <input class="form-check-input ms-0 me-2" type="checkbox" id="merge-datasets">
-                            <label class="form-check-label fw-bold small" for="merge-datasets">Gabungkan Seluruh Dataset Portal</label>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="merge-datasets">
+                                    <label class="form-check-label fw-bold small" for="merge-datasets">Gabungkan Dataset</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="show-total-col">
+                                    <label class="form-check-label fw-bold small" for="show-total-col">Total Horizontal (Tabel Dasar)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="group-by-region">
+                                    <label class="form-check-label fw-bold small" for="group-by-region">Grup Wilayah (Kab/Kota)</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -42,22 +58,34 @@
                         <div id="pivot-settings" style="display:none" class="p-2">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="small fw-bold text-muted mb-1">Baris Tetap</label>
-                                    <select id="pivot-row" class="form-select form-select-sm border-0 bg-light rounded-3"></select>
+                                    <label class="small fw-bold text-muted mb-1">Baris Tetap (Hierarki)</label>
+                                    <div id="pivot-row-container" class="bg-light rounded-3 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;">
+                                        <!-- Checkboxes -->
+                                    </div>
+                                    <div id="selected-pivot-row-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
+                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Baris (Tarik untuk atur):</small>
+                                        <div id="pivot-row-order-list" class="d-flex flex-wrap gap-1"></div>
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="small fw-bold text-muted mb-1 d-block">Kategori Kolom (Hierarki)</label>
                                     <div id="pivot-col-container" class="bg-light rounded-3 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;">
                                         <!-- Checkboxes -->
                                     </div>
-                                    <div id="selected-pivot-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
-                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Hierarki (Tarik untuk atur):</small>
-                                        <div id="pivot-order-list" class="d-flex flex-wrap gap-1"></div>
+                                    <div id="selected-pivot-col-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
+                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Kolom (Tarik untuk atur):</small>
+                                        <div id="pivot-col-order-list" class="d-flex flex-wrap gap-1"></div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="small fw-bold text-muted mb-1">Kolom Nilai</label>
-                                    <select id="pivot-val" class="form-select form-select-sm border-0 bg-light rounded-3"></select>
+                                    <label class="small fw-bold text-muted mb-1">Kolom Nilai (Metrics)</label>
+                                    <div id="pivot-val-container" class="bg-light rounded-3 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;">
+                                        <!-- Checkboxes -->
+                                    </div>
+                                    <div id="selected-pivot-val-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
+                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Nilai (Tarik untuk atur):</small>
+                                        <div id="pivot-val-order-list" class="d-flex flex-wrap gap-1"></div>
+                                    </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="small fw-bold text-muted mb-1">Induk Header (ID)</label>
@@ -68,9 +96,13 @@
                                     <input type="text" id="pivot-prefix-en" class="form-control form-control-sm border-0 bg-light rounded-3" placeholder="Example: Production || ">
                                 </div>
                             </div>
-                            <div class="form-check form-switch mt-3 mb-4">
+                            <div class="form-check form-switch mt-3 mb-2">
                                 <input class="form-check-input" type="checkbox" id="pivot-total-row" checked>
-                                <label class="form-check-label small fw-bold" for="pivot-total-row">Hitung Total Baris Otomatis (Jumlah)</label>
+                                <label class="form-check-label small fw-bold" for="pivot-total-row">Hitung Total Horizontal (Baris)</label>
+                            </div>
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" id="pivot-total-col" checked>
+                                <label class="form-check-label small fw-bold" for="pivot-total-col">Hitung Total Vertikal (Kolom - Jawa Tengah)</label>
                             </div>
                             
                             <!-- Mapping Area -->
@@ -110,15 +142,18 @@
             columns: [],
             pivot: {
                 enabled: document.getElementById('pivot-toggle').checked,
-                row: document.getElementById('pivot-row').value,
-                col: Array.from(document.querySelectorAll('.pivot-order-item')).map(div => div.dataset.key),
-                val: document.getElementById('pivot-val').value,
+                row: Array.from(document.querySelectorAll('.pivot-row-order-item')).map(div => div.dataset.key),
+                col: Array.from(document.querySelectorAll('.pivot-col-order-item')).map(div => div.dataset.key),
+                val: Array.from(document.querySelectorAll('.pivot-val-order-item')).map(div => div.dataset.key), 
                 total_row: document.getElementById('pivot-total-row').checked,
+                total_col: document.getElementById('pivot-total-col').checked,
                 prefix: document.getElementById('pivot-prefix').value,
                 prefix_en: document.getElementById('pivot-prefix-en').value,
                 mappings: {}
             },
-            merge_datasets: document.getElementById('merge-datasets')?.checked || false
+            merge_datasets: document.getElementById('merge-datasets')?.checked || false,
+            show_total_col: document.getElementById('show-total-col')?.checked || false,
+            group_by_region: document.getElementById('group-by-region')?.checked || false
         };
 
         document.querySelectorAll('.pivot-map-id').forEach((input, idx) => {
@@ -134,10 +169,21 @@
                 key: item.dataset.key,
                 label_id: item.querySelector('.label-id').value,
                 label_en: item.querySelector('.label-en').value,
-                visible: item.querySelector('.visibility-check').checked
+                visible: item.querySelector('.visibility-check').checked,
+                format: item.querySelector('.col-format').value || 'number'
             });
         });
         return config;
+    }
+
+    function formatNumber(num, type = 'number') {
+        if (isNaN(num)) return num;
+        switch(type) {
+            case 'decimal': return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            case 'percent': return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+            case 'currency': return 'Rp ' + num.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            default: return num.toLocaleString('id-ID');
+        }
     }
 
     function openConfigModal() {
@@ -155,16 +201,26 @@
         // AMBIL CONFIG YANG ADA ATAU DEFAULT (STATEFUL)
         if (!currentTableConfig) {
             currentTableConfig = {
-                columns: baseKeys.map(k => ({ key: k, label_id: k, label_en: '', visible: true })),
-                pivot: { enabled: false, row: '', col: '', val: '', total_row: true, prefix: '', prefix_en: '', mappings: {} },
-                merge_datasets: false
+                columns: baseKeys.map(k => ({ key: k, label_id: k, label_en: '', visible: true, format: 'number' })),
+                pivot: { enabled: false, row: [], col: [], val: [], total_row: true, total_col: true, prefix: '', prefix_en: '', mappings: {} },
+                merge_datasets: false,
+                show_total_col: false,
+                group_by_region: true
             };
         }
         
-        // Pastikan objek pivot ada (untuk config lama yang mungkin belum punya pivot)
+        // MIGRASI/NORMALISASI CONFIG LAMA
         if (!currentTableConfig.pivot) {
-            currentTableConfig.pivot = { enabled: false, row: '', col: '', val: '', total_row: true, prefix: '', prefix_en: '', mappings: {} };
+            currentTableConfig.pivot = { enabled: false, row: [], col: [], val: [], total_row: true, total_col: true, prefix: '', prefix_en: '', mappings: {} };
         }
+        ['row', 'col', 'val'].forEach(t => {
+            if (currentTableConfig.pivot[t] && !Array.isArray(currentTableConfig.pivot[t])) {
+                currentTableConfig.pivot[t] = [currentTableConfig.pivot[t]];
+            } else if (!currentTableConfig.pivot[t]) {
+                currentTableConfig.pivot[t] = [];
+            }
+        });
+        if (currentTableConfig.pivot.total_col === undefined) currentTableConfig.pivot.total_col = true;
 
         // Render Kolom
         currentTableConfig.columns.forEach(col => {
@@ -176,7 +232,15 @@
                 <input class="form-check-input visibility-check ms-0" type="checkbox" ${col.visible ? 'checked' : ''}>
                 <div class="flex-grow-1">
                     <div class="row g-2 align-items-center">
-                        <div class="col-12"><small class="font-monospace fw-bold text-primary">${col.key}</small></div>
+                        <div class="col-12 d-flex justify-content-between align-items-center">
+                            <small class="font-monospace fw-bold text-primary">${col.key}</small>
+                            <select class="form-select form-select-sm col-format border-0 bg-white py-0 pe-4" style="width:auto; font-size:9px;">
+                                <option value="number" ${col.format === 'number' ? 'selected' : ''}>Angka</option>
+                                <option value="decimal" ${col.format === 'decimal' ? 'selected' : ''}>Desimal (0,00)</option>
+                                <option value="percent" ${col.format === 'percent' ? 'selected' : ''}>Persentase (%)</option>
+                                <option value="currency" ${col.format === 'currency' ? 'selected' : ''}>Mata Uang (Rp)</option>
+                            </select>
+                        </div>
                         <div class="col-6"><input type="text" class="form-control form-control-sm label-id border-0 shadow-sm" value="${col.label_id}" placeholder="Label ID"></div>
                         <div class="col-6"><input type="text" class="form-control form-control-sm label-en border-0 shadow-sm" value="${col.label_en}" placeholder="Label EN"></div>
                     </div>
@@ -187,42 +251,26 @@
 
         new Sortable(container, { animation: 150, handle: '.cursor-move' });
 
-        // Restore Pivot Row & Val Selects
-        const pivotMapFields = {
-            'pivot-row': 'row',
-            'pivot-val': 'val'
-        };
-
-        Object.keys(pivotMapFields).forEach(id => {
-            const sel = document.getElementById(id);
-            const fieldKey = pivotMapFields[id];
-            sel.innerHTML = '<option value="">-- Pilih --</option>';
+        // Restore Pivot Checklists (Row, Col, Val)
+        ['row', 'col', 'val'].forEach(type => {
+            const container = document.getElementById(`pivot-${type}-container`);
+            container.innerHTML = '';
             baseKeys.forEach(key => {
-                const isSelected = currentTableConfig.pivot[fieldKey] === key ? 'selected' : '';
-                sel.innerHTML += `<option value="${key}" ${isSelected}>${key}</option>`;
+                const isChecked = Array.isArray(currentTableConfig.pivot[type]) && currentTableConfig.pivot[type].includes(key) ? 'checked' : '';
+                const div = document.createElement('div');
+                div.className = 'form-check small mb-1';
+                div.innerHTML = `
+                    <input class="form-check-input pivot-${type}-check" type="checkbox" value="${key}" id="chk-${type}-${key}" ${isChecked} onchange="refreshPivotOrderList('${type}')">
+                    <label class="form-check-label fw-bold text-dark" for="chk-${type}-${key}" style="font-size:11px;">${key}</label>
+                `;
+                container.appendChild(div);
             });
-        });
 
-        // Restore Pivot Column Checklist
-        const colContainer = document.getElementById('pivot-col-container');
-        colContainer.innerHTML = '';
-        baseKeys.forEach(key => {
-            const isChecked = Array.isArray(currentTableConfig.pivot.col) && currentTableConfig.pivot.col.includes(key) ? 'checked' : '';
-            const div = document.createElement('div');
-            div.className = 'form-check small mb-1';
-            div.innerHTML = `
-                <input class="form-check-input pivot-col-check" type="checkbox" value="${key}" id="chk-${key}" ${isChecked} onchange="refreshPivotOrderList()">
-                <label class="form-check-label fw-bold text-dark" for="chk-${key}" style="font-size:11px;">${key}</label>
-            `;
-            colContainer.appendChild(div);
-        });
-        
-        refreshPivotOrderList();
-        new Sortable(document.getElementById('pivot-order-list'), { 
-            animation: 100, 
-            onEnd: () => { 
-                updatePivotMappingUI(); 
-            } 
+            refreshPivotOrderList(type);
+            new Sortable(document.getElementById(`pivot-${type}-order-list`), { 
+                animation: 100, 
+                onEnd: () => { updatePivotMappingUI(); } 
+            });
         });
 
         // Restore Switch & Values
@@ -230,8 +278,11 @@
         document.getElementById('pivot-settings').style.display = currentTableConfig.pivot.enabled ? 'block' : 'none';
         document.getElementById('pivot-prefix').value = currentTableConfig.pivot.prefix || '';
         document.getElementById('pivot-prefix-en').value = currentTableConfig.pivot.prefix_en || '';
-        document.getElementById('pivot-total-row').checked = currentTableConfig.pivot.total_row;
+        document.getElementById('pivot-total-row').checked = currentTableConfig.pivot.total_row !== false;
+        document.getElementById('pivot-total-col').checked = currentTableConfig.pivot.total_col !== false;
         document.getElementById('merge-datasets').checked = currentTableConfig.merge_datasets;
+        document.getElementById('show-total-col').checked = currentTableConfig.show_total_col || false;
+        document.getElementById('group-by-region').checked = currentTableConfig.group_by_region !== false;
 
         if (currentTableConfig.pivot.enabled && currentTableConfig.pivot.col) {
             updatePivotMappingUI();
@@ -243,21 +294,26 @@
                 document.getElementById('pivot-settings').style.display = this.checked ? 'block' : 'none';
                 if (this.checked) updatePivotMappingUI();
             });
-            document.getElementById('pivot-row').addEventListener('change', updatePivotMappingUI);
-            document.getElementById('pivot-val').addEventListener('change', updatePivotMappingUI);
+            // Remove redundant listeners as lists are refreshed
+            document.getElementById('pivot-total-row').addEventListener('change', updatePivotMappingUI);
+            document.getElementById('pivot-total-col').addEventListener('change', updatePivotMappingUI);
             toggle.dataset.hasListener = "true";
         }
 
         bootstrapModal.show();
     }
 
-    function refreshPivotOrderList() {
-        const checked = Array.from(document.querySelectorAll('.pivot-col-check:checked')).map(cb => cb.value);
-        const orderContainer = document.getElementById('selected-pivot-order');
-        const list = document.getElementById('pivot-order-list');
+    function refreshPivotOrderList(type = 'col') {
+        const checked = Array.from(document.querySelectorAll(`.pivot-${type}-check:checked`)).map(cb => cb.value);
+        const orderContainer = document.getElementById(`selected-pivot-${type}-order`);
+        const list = document.getElementById(`pivot-${type}-order-list`);
         
-        // Preserve existing order if possible
-        const currentOrder = Array.from(document.querySelectorAll('.pivot-order-item')).map(d => d.dataset.key);
+        // Use saved order if current UI list is empty (first time opening modal)
+        let currentOrder = Array.from(document.querySelectorAll(`.pivot-${type}-order-item`)).map(d => d.dataset.key);
+        if (currentOrder.length === 0 && currentTableConfig?.pivot?.[type]) {
+            currentOrder = currentTableConfig.pivot[type];
+        }
+        
         const finalOrder = currentOrder.filter(k => checked.includes(k));
         checked.forEach(k => { if(!finalOrder.includes(k)) finalOrder.push(k); });
 
@@ -266,7 +322,7 @@
             orderContainer.style.display = 'block';
             finalOrder.forEach(key => {
                 const badge = document.createElement('div');
-                badge.className = 'pivot-order-item badge bg-primary cursor-move p-2';
+                badge.className = `pivot-${type}-order-item badge bg-primary cursor-move p-2`;
                 badge.dataset.key = key;
                 badge.innerHTML = `<i class="bi bi-grip-vertical me-1"></i>${key}`;
                 list.appendChild(badge);
@@ -278,33 +334,52 @@
     }
 
     function updatePivotMappingUI() {
-        const pivotRow = document.getElementById('pivot-row').value;
-        const pivotCol = Array.from(document.querySelectorAll('.pivot-order-item')).map(div => div.dataset.key);
-        const pivotVal = document.getElementById('pivot-val').value;
-        const hasTotal = document.getElementById('pivot-total-row').checked;
+        const pivotRow = Array.from(document.querySelectorAll('.pivot-row-order-item')).map(div => div.dataset.key);
+        const pivotCol = Array.from(document.querySelectorAll('.pivot-col-order-item')).map(div => div.dataset.key);
+        const pivotVal = Array.from(document.querySelectorAll('.pivot-val-order-item')).map(div => div.dataset.key);
+        const hasTotalRow = document.getElementById('pivot-total-row').checked;
+        const hasTotalCol = document.getElementById('pivot-total-col').checked;
         const mappingArea = document.getElementById('pivot-mapping-area');
         const mappingList = document.getElementById('pivot-mapping-list');
         
-        if (pivotCol.length === 0 || !document.getElementById('pivot-toggle').checked) {
+        if ((pivotCol.length === 0 && pivotRow.length === 0) || !document.getElementById('pivot-toggle').checked) {
             mappingArea.style.display = 'none';
             return;
         }
 
         const data = getRowsFromApiResult(rawApiResults[0]);
-        // Support hierarchical categories
+        const allTargetKeys = new Set();
+        const allTargetCols = [];
+
+        const addKey = (key, type) => {
+            if (!key || allTargetKeys.has(key)) return;
+            allTargetKeys.add(key);
+            allTargetCols.push({ key, type });
+        };
+
+        // 1. Baris Tetap (Row headers)
+        pivotRow.forEach(rk => {
+            addKey(rk, 'Nama Baris: ' + rk);
+            const rowValues = [...new Set(data.map(item => String(item[rk] || 'N/A')))].sort();
+            rowValues.forEach(rv => addKey(rv, 'Isi Baris: ' + rk));
+        });
+
+        // 2. Kategori Kolom (Col headers)
+        pivotCol.forEach(ck => {
+            const colValues = [...new Set(data.map(item => String(item[ck] || 'N/A')))].sort();
+            colValues.forEach(cv => addKey(cv, 'Isi Kolom: ' + ck));
+        });
+        
         const generateCatKey = (item) => pivotCol.map(k => String(item[k] || 'N/A')).join(' || ');
         const categories = [...new Set(data.map(item => generateCatKey(item)))].sort();
-        
-        // Buat daftar seluruh kolom yang akan muncul
-        const allTargetCols = [];
-        if (pivotRow) {
-            allTargetCols.push({ key: pivotRow, type: 'Header: Fixed Row' });
-            // Tambahkan nilai unik dari kolom baris untuk mapping (misal: Januari -> January)
-            const rowValues = [...new Set(data.map(item => String(item[pivotRow] || 'N/A')))].sort();
-            rowValues.forEach(rv => allTargetCols.push({ key: rv, type: 'Row Value Mapping' }));
-        }
-        categories.forEach(cat => allTargetCols.push({ key: cat, type: 'Column Hierarchy' }));
-        if (hasTotal) allTargetCols.push({ key: 'Jumlah', type: 'Total' });
+        categories.forEach(cat => addKey(cat, 'Gabungan Kolom (Hierarki)'));
+
+        // 3. Kolom Nilai (Metrics)
+        pivotVal.forEach(vk => addKey(vk, 'Metric / Nilai'));
+
+        // 4. Totals
+        if (hasTotalRow) addKey('Jumlah', 'Total Horizontal');
+        if (hasTotalCol) addKey('Jawa Tengah', 'Total Vertikal');
 
         mappingArea.style.display = 'block';
         mappingList.innerHTML = '';
@@ -334,42 +409,56 @@
     }
 
     function applyConfiguration() {
-        currentTableConfig = getConfigFromModal();
+        const config = getConfigFromModal();
+        currentTableConfig = config;
         renderCustomTable(0, currentTableConfig);
         
-        const firstRes = rawApiResults[0];
-        const idDatabase = firstRes.res_id || firstRes.id;
+        // Simpan ke SEMUA ID yang ada di hasil saat ini agar sinkron
+        const idsToUpdate = rawApiResults.map(res => res.res_id || res.id).filter(id => id && id !== 0);
 
-        if (idDatabase) {
+        if (idsToUpdate.length > 0) {
             const btn = document.querySelector('button[onclick="applyConfiguration()"]');
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...';
             btn.disabled = true;
 
-            const formData = new FormData();
-            formData.append('id', idDatabase);
-            formData.append('config', JSON.stringify(currentTableConfig));
+            const updatePromises = idsToUpdate.map(idDatabase => {
+                const formData = new FormData();
+                formData.append('id', idDatabase);
+                formData.append('config', JSON.stringify(currentTableConfig));
+                
+                const csrfInput = document.querySelector('input[name="<?= csrf_token() ?>"]');
+                if (csrfInput) formData.append('<?= csrf_token() ?>', csrfInput.value);
 
-            const csrfToken = document.querySelector('input[name="<?= csrf_token() ?>"]')?.value;
-            if (csrfToken) formData.append('<?= csrf_token() ?>', csrfToken);
+                return fetch('<?= site_url('admin/simpan_config_tabel') ?>', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(response => response.json());
+            });
 
-            fetch('<?= site_url('admin/simpan_config_tabel') ?>', {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
+            Promise.all(updatePromises)
+            .then(results => {
+                const allSuccess = results.every(r => r.status === 'success');
+                if (allSuccess) {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
                     if(modal) modal.hide();
-                } else alert("❌ " + data.message);
-                btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Terapkan & Simpan';
+                } else {
+                    const errors = results.filter(r => r.status !== 'success').map(r => r.message || 'Unknown error').join(', ');
+                    alert("⚠️ Beberapa gagal disimpan: " + errors);
+                }
+                btn.innerHTML = originalHTML;
                 btn.disabled = false;
             })
             .catch(err => {
                 console.error(err);
+                alert("❌ Terjadi kesalahan jaringan saat menyimpan konfigurasi.");
+                btn.innerHTML = originalHTML;
                 btn.disabled = false;
             });
+        } else {
+             const modal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
+             if(modal) modal.hide();
         }
     }
 

@@ -11,7 +11,11 @@ $errorMsg = '';
 
 if (empty($api_results)) {
     $hasError = true;
-    $errorMsg = 'Tidak ada data yang diterima dari API.';
+    if (!empty($api_errors)) {
+        $errorMsg = implode('<br>', $api_errors);
+    } else {
+        $errorMsg = 'Tidak ada data yang diterima dari API.';
+    }
 }
 
 
@@ -88,7 +92,7 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
 
         // Cari pola "Induk Anak" (Contoh: "Kayu Bulat Iuphhk Ha")
         $found_prefix = '';
-        
+
         // --- CUSTOM: Support for forced pivot headers via || separator ---
         if (strpos($label, ' || ') !== false) {
             $parts_p = explode(' || ', $label);
@@ -116,7 +120,7 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
         $count = 1;
         $sub_labels = [];
         $clean_label = trim(str_ireplace([$found_prefix . ' || ', $found_prefix], ['', ''], $label)) ?: $label;
-        
+
         $sub_labels[] = [
             'label' => $clean_label,
             'label_en' => $label_en,
@@ -126,11 +130,11 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
         for ($j = $i + 1; $j < count($columns); $j++) {
             $next_full_label = $raw_labels[$j][0];
             $is_match = false;
-            
+
             // Check match via || or prefix
             if (strpos($next_full_label, $found_prefix . ' || ') === 0) $is_match = true;
             elseif (!empty($found_prefix) && stripos($next_full_label, $found_prefix) === 0) $is_match = true;
-            
+
             if ($is_match) {
                 $next_label = $raw_labels[$j][0];
                 $sub_candidate = trim(str_ireplace([$found_prefix . ' || ', $found_prefix], ['', ''], $next_label));
@@ -200,8 +204,8 @@ function get_dda_label_nested($col)
         'kode_wilayah' => ['Kode Wilayah', 'Area Code'],
         'kode_bps' => ['Kode Wilayah', 'Area Code'],
         'kode_kemendagri' => ['Kode Wilayah', 'Area Code'],
-        'tahun_data' => ['Tahun', 'Year'],
-        'tahun' => ['Tahun', 'Year'],
+        'tahun_data' => ['Akhir Tahun', 'End of Year'],
+        'tahun' => ['Akhir Tahun', 'End of Year'],
         'pendapat' => ['Pendapatan', 'Income/Revenue'],
         'pedapat' => ['Pendapatan', 'Income/Revenue'],
         'pdpt' => ['Pendapatan', 'Income/Revenue'],
@@ -236,6 +240,10 @@ function get_dda_label_nested($col)
         'sekolah' => ['Sekolah', 'School'],
         'guru' => ['Guru', 'Teacher'],
         'murid' => ['Murid', 'Pupil'],
+        // Parity with Image 2 mapping
+        'negara_km' => ['Negara', 'State'],
+        'provinsi_km' => ['Provinsi', 'Province'],
+        'kab_kota_km' => ['Kabupaten/Kota', 'Regency/Municipality'],
     ];
     $key = strtolower(str_replace([' ', '_'], '_', $col));
     if (isset($map[$key])) return $map[$key];
@@ -286,6 +294,17 @@ function get_dda_label_nested($col)
         font-family: 'Arial', sans-serif;
         color: #000;
         line-height: 1.2;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        display: block;
+        box-sizing: border-box;
+    }
+
+    /* Force parent containers in the layout to stay within screen width */
+    #content, .main-content, .content-body {
+        overflow-x: hidden !important;
+        max-width: 100% !important;
     }
 
     /* Header Sections */
@@ -342,7 +361,7 @@ function get_dda_label_nested($col)
     .main-table thead th {
         border: 1px solid #000;
         padding: 8px 4px;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: bold;
         text-align: center;
         vertical-align: middle;
@@ -360,8 +379,42 @@ function get_dda_label_nested($col)
         border-left: 1px solid #000;
         border-right: 1px solid #000;
         padding: 6px 8px;
-        font-size: 11px;
+        font-size: 12px;
         vertical-align: top;
+    }
+
+    .table-responsive-dda {
+        width: 100%;
+        max-width: 100%; /* Penting: Batasi lebar maksimal */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 25px;
+        background: #fff;
+        border: 1px solid #f1f5f9; /* Bingkai halus */
+        border-radius: 12px;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.02); /* Sedikit kedalaman */
+    }
+
+    /* Scrollbar style yang lebih terlihat */
+    .table-responsive-dda::-webkit-scrollbar {
+        height: 8px;
+    }
+    .table-responsive-dda::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
+    }
+    .table-responsive-dda::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+    }
+    .table-responsive-dda::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Agar tabel tidak "penyek" saat kolom banyak */
+    .table-responsive-dda table {
+        min-width: 100%;
+        width: max-content !important;
     }
 
     .main-table tbody tr.new-kab td {
@@ -370,6 +423,8 @@ function get_dda_label_nested($col)
 
     .main-table tfoot td {
         border-top: 2px solid #000;
+        font-size: 12px;
+        font-weight: bold;
     }
 
     .num-col {
@@ -521,19 +576,22 @@ function get_dda_label_nested($col)
     #configModal .modal-content {
         border-radius: 20px;
         border: none;
-        box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
     }
+
     #configModal .modal-header {
         background: #f8fafc;
         border-bottom: 1px solid #eef2f7;
         border-radius: 20px 20px 0 0;
         padding: 20px 25px;
     }
+
     #configModal .nav-tabs {
         border: none;
         gap: 10px;
         margin-bottom: 20px;
     }
+
     #configModal .nav-link {
         border: 1px solid #e2e8f0;
         border-radius: 12px;
@@ -541,11 +599,13 @@ function get_dda_label_nested($col)
         font-weight: 600;
         padding: 8px 20px;
     }
+
     #configModal .nav-link.active {
         background: #FF6D1F;
         color: #fff;
         border-color: #FF6D1F;
     }
+
     .col-item {
         background: #f8fafc;
         padding: 12px 15px;
@@ -557,16 +617,19 @@ function get_dda_label_nested($col)
         gap: 15px;
         transition: all 0.2s;
     }
+
     .col-item:hover {
         border-color: #cbd5e1;
         background: #fff;
     }
+
     .col-item input[type="text"] {
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         padding: 4px 10px;
         font-size: 12px;
     }
+
     .badge-pivot {
         background: #e0f2fe;
         color: #0369a1;
@@ -589,12 +652,14 @@ function get_dda_label_nested($col)
         }
     }
     ?>
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-rounded-modern btn-back-modern">
-            <i class="bi bi-arrow-left"></i> KEMBALI
-        </a>
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col-12 col-md-auto">
+            <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-rounded-modern btn-back-modern w-100 w-md-auto">
+                <i class="bi bi-arrow-left"></i> KEMBALI
+            </a>
+        </div>
 
-        <div class="d-flex flex-wrap gap-2 align-items-center justify-content-end flex-grow-1">
+        <div class="col-12 col-md d-flex flex-wrap gap-2 align-items-center justify-content-md-end">
             <?php
             // Ambil semua tahun unik dari koleksi data untuk dropdown filter
             $unique_years = [];
@@ -609,14 +674,23 @@ function get_dda_label_nested($col)
             rsort($unique_years);
             ?>
             <?php if (!empty($unique_years)): ?>
-                <div class="filter-box-modern">
-                    <i class="bi bi-funnel text-muted"></i>
-                    <select id="year-filter" onchange="filterByYear(this.value)" class="form-select-modern">
-                        <option value="">Semua Tahun</option>
-                        <?php foreach ($unique_years as $yr): ?>
-                            <option value="<?php echo $yr; ?>">Tahun <?php echo $yr; ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="dropdown">
+                    <button class="btn-rounded-modern btn-back-modern shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <i class="bi bi-calendar-event me-1"></i> <span id="year-filter-label">Tahun</span>
+                    </button>
+                    <div class="dropdown-menu p-3 shadow-lg border-0" style="border-radius: 1rem; min-width: 200px;">
+                        <h6 class="dropdown-header px-0 mb-2">Pilih Tahun</h6>
+                        <div id="year-checklist-container">
+                            <?php foreach ($unique_years as $yr): ?>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input year-filter-check" type="checkbox" value="<?php echo $yr; ?>" id="yr-<?php echo $yr; ?>" onchange="filterByYear()">
+                                    <label class="form-check-label small fw-bold" for="yr-<?php echo $yr; ?>">Tahun <?php echo $yr; ?></label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <hr class="my-2">
+                        <button type="button" onclick="resetYearFilter()" class="btn btn-sm btn-link text-muted p-0 text-decoration-none small">Reset</button>
+                    </div>
                 </div>
             <?php endif; ?>
 
@@ -663,24 +737,34 @@ function get_dda_label_nested($col)
     </style>
 
     <script>
-        function filterByYear(year) {
-            currentSelectedYear = year; // Update global state
-            const tables = document.querySelectorAll('.table-wrapper');
+        function filterByYear() {
+            const checkedYears = Array.from(document.querySelectorAll('.year-filter-check:checked')).map(cb => cb.value);
+            currentSelectedYears = checkedYears; // Update global state
 
+            const label = document.getElementById('year-filter-label');
+            if (checkedYears.length === 0) label.innerText = "Tahun";
+            else if (checkedYears.length === 1) label.innerText = "Tahun " + checkedYears[0];
+            else label.innerText = checkedYears.length + " Tahun";
+
+            const tables = document.querySelectorAll('.table-wrapper');
             tables.forEach((wrapper, idx) => {
                 const customTable = wrapper.querySelector('.main-table');
-                // Gunakan config yang tersimpan (currentTableConfig) jika ada, 
-                // jika tidak ada, gunakan default (semua terlihat)
                 if (customTable && (currentTableConfig || customTable.innerHTML.includes('style='))) {
                     let config = currentTableConfig;
                     if (!config) {
-                        // Fallback jika belum ada config sama sekali
                         const firstTable = rawApiResults[idx];
                         const data = getRowsFromApiResult(firstTable);
                         const keys = data.length > 0 ? Object.keys(data[0]) : [];
                         config = {
-                            columns: keys.map(k => ({ key: k, label_id: k, label_en: '', visible: true })),
-                            pivot: { enabled: false },
+                            columns: keys.map(k => ({
+                                key: k,
+                                label_id: k,
+                                label_en: '',
+                                visible: true
+                            })),
+                            pivot: {
+                                enabled: false
+                            },
                             merge_datasets: false
                         };
                     }
@@ -688,24 +772,23 @@ function get_dda_label_nested($col)
                 } else {
                     const rows = wrapper.querySelectorAll('.main-table tbody tr');
                     let hasVisibleRow = false;
-
                     rows.forEach(row => {
                         const rowYear = row.getAttribute('data-tahun');
-                        if (year === "" || rowYear === year) {
+                        if (checkedYears.length === 0 || checkedYears.includes(rowYear)) {
                             row.style.display = "";
                             hasVisibleRow = true;
                         } else {
                             row.style.display = "none";
                         }
                     });
-
-                    if (hasVisibleRow) {
-                        wrapper.style.display = "";
-                    } else {
-                        wrapper.style.display = "none";
-                    }
+                    wrapper.style.display = hasVisibleRow ? "" : "none";
                 }
             });
+        }
+
+        function resetYearFilter() {
+            document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = false);
+            filterByYear();
         }
     </script>
 
@@ -714,7 +797,7 @@ function get_dda_label_nested($col)
     <?php if ($hasError): ?>
         <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
     <?php else: ?>
-        <div id="dda-container-all">
+        <div id="dda-container-all" style="padding: 20px;">
             <?php foreach ($api_results as $idx_res => $api_result):
                 // Process each result independently
                 $portal_title = $api_result['title'] ?? $api_result['nama'] ?? $api_result['data']['title'] ?? 'Tabel Data Portal';
@@ -775,23 +858,7 @@ function get_dda_label_nested($col)
                     ];
 
                     usort($rows, function ($a, $b) use ($jatengOrder) {
-                        // 1. Deteksi Kolom Tahun
-                        $yearKeys = ['tahun', 'tahun_data', 'tahun_kegiatan', 'year', 'periode', 'thn', 'tahun_anggaran', 'tahun_data'];
-                        $yA = 0;
-                        $yB = 0;
-                        foreach ($yearKeys as $k) {
-                            if (isset($a[$k])) {
-                                $yA = (int)$a[$k];
-                                break;
-                            }
-                        }
-                        foreach ($yearKeys as $k) {
-                            if (isset($b[$k])) {
-                                $yB = (int)$b[$k];
-                                break;
-                            }
-                        }
-
+                        // 1. Deteksi Kolom Kode Wilayah
                         $cA = 0;
                         $cB = 0;
                         foreach ($a as $k => $v) {
@@ -809,7 +876,7 @@ function get_dda_label_nested($col)
                             }
                         }
 
-                        // 3. Deteksi Kolom Nama Wilayah
+                        // 2. Deteksi Kolom Nama Wilayah
                         $nameKeys = ['kabupaten', 'kabupaten_kota', 'nama_wilayah', 'wilayah', 'kab_kota'];
                         $nA = '';
                         $nB = '';
@@ -819,86 +886,45 @@ function get_dda_label_nested($col)
                                 break;
                             }
                         }
-                        foreach ($nameKeys as $k) {
+                        foreach ($b as $k) {
                             if (isset($b[$k])) {
                                 $nB = (string)$b[$k];
                                 break;
                             }
                         }
 
-                        // 3. Deteksi Kolom Nama Wilayah (Cari kolom yang mengandung kata kunci wilayah)
-                        $nA = '';
-                        $nB = '';
-                        $nameKeywords = ['kabupaten', 'kota', 'wilayah', 'kabkot'];
-
-                        foreach ($a as $key => $val) {
-                            $lowKey = strtolower($key);
-                            foreach ($nameKeywords as $kw) {
-                                if (strpos($lowKey, $kw) !== false) {
-                                    $nA = (string)$val;
-                                    break 2;
-                                }
+                        // 3. Deteksi Kolom Tahun
+                        $yearKeys = ['tahun', 'tahun_data', 'tahun_kegiatan', 'year', 'periode', 'thn', 'tahun_anggaran'];
+                        $yA = 0;
+                        $yB = 0;
+                        foreach ($yearKeys as $k) {
+                            if (isset($a[$k])) {
+                                $yA = (int)$a[$k];
+                                break;
                             }
                         }
-                        foreach ($b as $key => $val) {
-                            $lowKey = strtolower($key);
-                            foreach ($nameKeywords as $kw) {
-                                if (strpos($lowKey, $kw) !== false) {
-                                    $nB = (string)$val;
-                                    break 2;
-                                }
+                        foreach ($yearKeys as $k) {
+                            if (isset($b[$k])) {
+                                $yB = (int)$b[$k];
+                                break;
                             }
                         }
 
-                        // Fallback jika tidak ditemukan kolom spesifik (Coba kolom kedua jika kolom pertama adalah Tahun)
-                        if (empty($nA)) {
-                            $allVals = array_values($a);
-                            $nA = (count($allVals) > 1 && is_numeric($allVals[0])) ? (string)$allVals[1] : (string)$allVals[0];
-                        }
-                        if (empty($nB)) {
-                            $allVals = array_values($b);
-                            $nB = (count($allVals) > 1 && is_numeric($allVals[0])) ? (string)$allVals[1] : (string)$allVals[0];
-                        }
+                        // URUTAN PRIORITAS 1: Kode Wilayah / Nama Kabupaten
+                        if ($cA != 0 && $cB != 0 && $cA != $cB) return $cA <=> $cB;
 
-                        // Urutkan Tahun (Descending - Terbaru di Atas)
-                        if ($yA != $yB) return $yB <=> $yA;
-
-                        // Urutkan Kode Wilayah (Jika ada dan bukan nol)
-                        if ($cA != 0 && $cB != 0 && $cA != $cB) {
-                            return $cA <=> $cB;
-                        }
-
-                        // JIKA KODE TIDAK ADA, Urutkan berdasarkan Nama sesuai Mapping jatengOrder
-                        // Identifikasi dulu apakah ini Kota atau Kabupaten
-                        $isKotaA = (stripos($nA, 'kota') !== false || stripos($nA, 'kodya') !== false || stripos($nA, 'madyia') !== false);
-                        $isKotaB = (stripos($nB, 'kota') !== false || stripos($nB, 'kodya') !== false || stripos($nB, 'madyia') !== false);
-
-                        // Bersihkan label dari imbuhan BPS/Portal
+                        // Fallback mapping order
                         $baseA = trim(strtolower(str_ireplace(['kab.', 'kabupaten', 'kota', 'kodya'], '', $nA)));
                         $baseB = trim(strtolower(str_ireplace(['kab.', 'kabupaten', 'kota', 'kodya'], '', $nB)));
+                        $posA = $jatengOrder[$baseA] ?? 99;
+                        $posB = $jatengOrder[$baseB] ?? 99;
+                        if ($posA != $posB) return $posA <=> $posB;
 
-                        // Deteksi Posisi dalam Mapping
-                        if ($isKotaA) {
-                            $posA = $jatengOrder['kota ' . $baseA] ?? ($jatengOrder[$baseA] ?? 99);
-                        } else {
-                            $posA = $jatengOrder[$baseA] ?? ($jatengOrder['kota ' . $baseA] ?? 99);
-                        }
+                        // URUTAN PRIORITAS 2: Tahun (Terbaru di atas / atau sesuai gambar 2023-2025)
+                        // Gambar menunjukkan urutan menaik (2023, 2024, 2025)
+                        if ($yA != $yB) return $yA <=> $yB;
 
-                        if ($isKotaB) {
-                            $posB = $jatengOrder['kota ' . $baseB] ?? ($jatengOrder[$baseB] ?? 99);
-                        } else {
-                            $posB = $jatengOrder[$baseB] ?? ($jatengOrder['kota ' . $baseB] ?? 99);
-                        }
-
-                        // Khusus untuk "Jawa Tengah" atau "Provinsi", kita taruh paling bawah (posisi 100)
-                        if (stripos($nA, 'jawa tengah') !== false || stripos($nA, 'provinsi') !== false) $posA = 100;
-                        if (stripos($nB, 'jawa tengah') !== false || stripos($nB, 'provinsi') !== false) $posB = 100;
-
-                        if ($posA != $posB) {
-                            return $posA <=> $posB;
-                        }
-
-                        return strcasecmp($baseA, $baseB);
+                        return 0;
                     });
 
                     $columns = array_keys($rows[0]);
@@ -913,8 +939,8 @@ function get_dda_label_nested($col)
                     }
 
                     $newCols = [];
-                    if ($thK) $newCols[] = $thK;
                     if ($kbK) $newCols[] = $kbK;
+                    if ($thK) $newCols[] = $thK;
                     foreach ($columns as $c) {
                         if ($c !== $thK && $c !== $kbK) $newCols[] = $c;
                     }
@@ -935,7 +961,7 @@ function get_dda_label_nested($col)
             ?>
                 <?php if ($idx_res > 0): ?>
                     <div style="margin: 60px 0; border-top: 2px dashed #ccc; position: relative;">
-                        <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 15px; color: #999; font-size: 11px; font-weight: bold; letter-spacing: 1px;">TABEL BERIKUTNYA / NEXT TABLE</span>
+                        <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 15px; color: #999; font-size: 12px; font-weight: bold; letter-spacing: 1px;">TABEL BERIKUTNYA / NEXT TABLE</span>
                     </div>
                 <?php endif; ?>
 
@@ -959,7 +985,7 @@ function get_dda_label_nested($col)
                                 </span>
 
                                 <?php if ($idx_res > 0 && !empty($dda_title) && $dda_title !== $portal_title): ?>
-                                    <span style="font-size: 11px; color: #666; display: block; margin-top: 2px;">
+                                    <span style="font-size: 12px; color: #666; display: block; margin-top: 2px;">
                                         (Ref: <?php echo htmlspecialchars($dda_title); ?>)
                                     </span>
                                 <?php endif; ?>
@@ -978,8 +1004,9 @@ function get_dda_label_nested($col)
                     </table>
 
                     <!-- TABEL DATA UTAMA -->
-                    <table class="main-table dda-table-item" id="dda-table-<?php echo $idx_res; ?>">
-                        <thead>
+                    <div class="table-responsive-dda">
+                        <table class="main-table dda-table-item" id="dda-table-<?php echo $idx_res; ?>">
+                        <thead style="background: #FF6D1F; color: #fff;">
                             <!-- BARIS HEADER 1: INDUK -->
                             <tr>
                                 <?php foreach ($structure as $item): ?>
@@ -1003,7 +1030,7 @@ function get_dda_label_nested($col)
                                 </tr>
                             <?php endif; ?>
                             <!-- BARIS PENOMORAN (1), (2), (3) ... -->
-                            <tr class="num-row">
+                            <tr class="num-row" style="background:#f9a066; color:#000;">
                                 <?php
                                 $col_count_n = 0;
                                 foreach ($columns as $idx_c => $col):
@@ -1040,191 +1067,15 @@ function get_dda_label_nested($col)
                             }
                             if (empty($kabKey)) $kabKey = $columns[0];
 
-                            // Pre-calculate Rowspans separately for Year, Month and Kabupaten
-                            $thRowspan = [];
-                            $lastTh = null;
-                            $thStartIndices = [];
-
-                            $blnRowspan = [];
-                            $lastThBln = null;
-                            $blnStartIndices = [];
-
-                            $kabRowspan = [];
-                            $lastThBlnKab = null;
-                            $kabStartIndices = [];
-
-                            foreach ($rows as $r_idx => $r) {
-                                $thVal = (string)($r[$thKey] ?? '');
-                                $blnVal = (string)($r[$blnKey] ?? '');
-                                $kabVal = (string)($r[$kabKey] ?? '');
-
-                                // Logic for Year
-                                if ($thVal !== $lastTh) {
-                                    $thRowspan[$r_idx] = 0;
-                                    $thStartIndices[count($thStartIndices)] = $r_idx;
-                                    $lastTh = $thVal;
-                                }
-                                $thRowspan[$thStartIndices[count($thStartIndices) - 1]]++;
-
-                                // Logic for Month (Nested within Year)
-                                $thBlnKey = $thVal . '||' . $blnVal;
-                                if ($thBlnKey !== $lastThBln) {
-                                    $blnRowspan[$r_idx] = 0;
-                                    $blnStartIndices[count($blnStartIndices)] = $r_idx;
-                                    $lastThBln = $thBlnKey;
-                                }
-                                $blnRowspan[$blnStartIndices[count($blnStartIndices) - 1]]++;
-
-                                // Logic for Kabupaten (Nested within Year and Month)
-                                $thBlnKabKey = $thVal . '||' . $blnVal . '||' . $kabVal;
-                                if ($thBlnKabKey !== $lastThBlnKab) {
-                                    $kabRowspan[$r_idx] = 0;
-                                    $kabStartIndices[count($kabStartIndices)] = $r_idx;
-                                    $lastThBlnKab = $thBlnKabKey;
-                                }
-                                $kabRowspan[$kabStartIndices[count($kabStartIndices) - 1]]++;
-                            }
-
                             foreach ($rows as $r_idx => $row):
-                                $isFirstTh = isset($thRowspan[$r_idx]);
-                                $isFirstBln = isset($blnRowspan[$r_idx]);
-                                $isFirstKab = isset($kabRowspan[$r_idx]);
-                                if ($isFirstKab) $kabCount++;
                                 $rowYearValue = (string)($row[$thKey] ?? '');
                             ?>
-                                <tr class="<?php echo $isFirstKab ? 'new-kab' : ''; ?>" data-tahun="<?php echo $rowYearValue; ?>">
+                                <tr data-tahun="<?php echo $rowYearValue; ?>">
                                     <?php
                                     foreach ($columns as $c_idx => $c_key):
                                         $val = $row[$c_key] ?? '';
-
-                                        // Case 1: Kolom Tahun (Merge)
-                                        if ($c_key === $thKey) {
-                                            if ($isFirstTh) {
-                                                echo '<td class="val-col" rowspan="' . $thRowspan[$r_idx] . '"><b>' . htmlspecialchars($val) . '</b></td>';
-                                            }
-                                            continue;
-                                        }
-
-                                        // Case 1.1: Kolom Bulan (Merge)
-                                        if ($blnKey && $c_key === $blnKey) {
-                                            if ($isFirstBln) {
-                                                echo '<td class="val-col" rowspan="' . $blnRowspan[$r_idx] . '">' . htmlspecialchars((string)$val) . '</td>';
-                                            }
-                                            continue;
-                                        }
-
-                                        // Case 2: Kolom Kabupaten (Merge)
-                                        if ($c_key === $kabKey) {
-                                            if ($isFirstKab) {
-                                                $kabDisplay = (string)$val;
-                                                $lowDisp = strtolower($kabDisplay);
-
-                                                // Jika tidak mengandung "kabupaten" atau "kota" sama sekali
-                                                if (strpos($lowDisp, 'kabupaten') === false && strpos($lowDisp, 'kota') === false) {
-                                                    $curCode = (int)($row[$codeKey] ?? 0);
-                                                    $last2 = $curCode % 100;
-
-                                                    if ($last2 >= 70 && $last2 <= 79) {
-                                                        $kabDisplay = 'Kota ' . $kabDisplay;
-                                                    } else if ($last2 > 0 && $last2 < 70) {
-                                                        $kabDisplay = 'Kabupaten ' . $kabDisplay;
-                                                    }
-                                                }
-
-                                                // Normalisasi Penamaan (Ganti Kab., Kodya, Madya menjadi Kabupaten/Kota lengkap)
-                                                // 1. Bersihkan prefix lama
-                                                $cleanName = trim(str_ireplace(['kabupaten', 'kota', 'kab.', 'kodya', 'madya', 'kabupatenkota_data'], '', $kabDisplay));
-                                                // 2. Pasang kembali sesuai tipe (Kota jika kodenya 7x atau mengandung kata kota asli)
-                                                // Deteksi Tipe Menggunakan Mapping Standar BPS Jawa Tengah
-                                                if (!isset($jatengOrder)) {
-                                                    $jatengOrder = [
-                                                        'cilacap' => 1,
-                                                        'banyumas' => 2,
-                                                        'purbalingga' => 3,
-                                                        'banjarnegara' => 4,
-                                                        'kebumen' => 5,
-                                                        'purworejo' => 6,
-                                                        'wonosobo' => 7,
-                                                        'magelang' => 8,
-                                                        'boyolali' => 9,
-                                                        'klaten' => 10,
-                                                        'sukoharjo' => 11,
-                                                        'wonogiri' => 12,
-                                                        'karanganyar' => 13,
-                                                        'sragen' => 14,
-                                                        'grobogan' => 15,
-                                                        'blora' => 16,
-                                                        'rembang' => 17,
-                                                        'pati' => 18,
-                                                        'kudus' => 19,
-                                                        'jepara' => 20,
-                                                        'demak' => 21,
-                                                        'semarang' => 22,
-                                                        'temanggung' => 23,
-                                                        'kendal' => 24,
-                                                        'batang' => 25,
-                                                        'pekalongan' => 26,
-                                                        'pemalang' => 27,
-                                                        'tegal' => 28,
-                                                        'brebes' => 29,
-                                                        'kota magelang' => 30,
-                                                        'kota surakarta' => 31,
-                                                        'kota salatiga' => 32,
-                                                        'kota semarang' => 33,
-                                                        'kota pekalongan' => 34,
-                                                        'kota tegal' => 35
-                                                    ];
-                                                }
-
-                                                $curCode = (int)($row[$codeKey] ?? 0);
-                                                $last2 = $curCode % 100;
-                                                $base = trim(strtolower(str_ireplace(['kab.', 'kabupaten', 'kota', 'kodya'], '', $kabDisplay)));
-                                                $actualPrefixKota = (strpos($lowDisp, 'kota') !== false || strpos($lowDisp, 'kodya') !== false || strpos($lowDisp, 'madya') !== false);
-
-                                                // Tentukan posisi/tipe
-                                                $pos = 0;
-                                                if ($last2 >= 70 && $last2 <= 79) $pos = 30; // Force Kota by Code
-                                                else if ($last2 > 0 && $last2 < 70) $pos = 1; // Force Kabupaten by Code
-                                                else if ($actualPrefixKota) $pos = $jatengOrder['kota ' . $base] ?? 30;
-                                                else $pos = $jatengOrder[$base] ?? ($jatengOrder['kota ' . $base] ?? 1);
-
-                                                $tipe = ($pos >= 30) ? 'Kota' : 'Kabupaten';
-
-                                                // Khusus Jawa Tengah / Provinsi (Biasanya kode 3300 atau nama Jawa Tengah)
-                                                if (($curCode == 3300 || ($last2 == 0 && $curCode != 0)) || stripos($cleanName, 'jawa tengah') !== false || stripos($cleanName, 'provinsi') !== false) {
-                                                    $kabDisplay = $cleanName;
-                                                } else {
-                                                    $kabDisplay = $tipe . ' ' . $cleanName;
-                                                }
-
-                                                // Konversi ke Title Case (Setiap awal kata huruf kapital)
-                                                $kabDisplay = ucwords(strtolower($kabDisplay));
-
-                                                echo '<td class="kab-col" rowspan="' . $kabRowspan[$r_idx] . '">' . htmlspecialchars($kabDisplay) . '</td>';
-                                            }
-                                            continue;
-                                        }
-
-                                        // Case 2.1: Kolom Kode Wilayah (Merge)
-                                        if ($codeKey && $c_key === $codeKey) {
-                                            if ($isFirstKab) {
-                                                echo '<td class="val-col" rowspan="' . $kabRowspan[$r_idx] . '">' . htmlspecialchars((string)$val) . '</td>';
-                                            }
-                                            continue;
-                                        }
-
-                                        // Case 3: Kolom Data Biasa
                                     ?>
-                                        <td class="val-col">
-                                            <?php
-                                            $outVal = (string)$val;
-                                            // Jika isinya string (bukan angka murni) dan huruf kapital semua, ubah ke Title Case
-                                            if (!is_numeric($outVal) && $outVal === strtoupper($outVal)) {
-                                                $outVal = ucwords(strtolower($outVal));
-                                            }
-                                            echo htmlspecialchars($outVal);
-                                            ?>
-                                        </td>
+                                        <td class="val-col"><?php echo htmlspecialchars((string)$val); ?></td>
                                     <?php endforeach; ?>
                                 </tr>
                             <?php endforeach; ?>
@@ -1235,6 +1086,7 @@ function get_dda_label_nested($col)
                             </tr>
                         </tfoot>
                     </table>
+                    </div>
 
                     <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;">
                         <div><b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $api_result['id_api'] ?? ''; ?>)</div>
@@ -1248,25 +1100,147 @@ function get_dda_label_nested($col)
     <?php echo view('admin/parts/modal_config_tabel'); ?>
 
     <style>
-        .bg-orange { background-color: #FF6D1F !important; color: white !important; }
-        .bg-orange:hover { background-color: #e05e15 !important; }
-        .sortable-ghost { opacity: 0.4; background: #e0f2fe !important; border: 2px dashed #0369a1 !important; }
-        .grip-handle { cursor: grab; color: #cbd5e1; font-size: 1.2rem; }
-        .grip-handle:active { cursor: grabbing; }
-        .dda-table-item th { border: 1px solid #fff !important; vertical-align: middle !important; }
-        .dda-table-item th i { display: block; font-weight: normal; font-size: 0.85em; margin-top: 2px; }
-        .dda-table-item td { border: 1px solid #eee !important; }
+        .bg-orange {
+            background-color: #FF6D1F !important;
+            color: white !important;
+        }
+
+        .bg-orange:hover {
+            background-color: #e05e15 !important;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #e0f2fe !important;
+            border: 2px dashed #0369a1 !important;
+        }
+
+        .grip-handle {
+            cursor: grab;
+            color: #cbd5e1;
+            font-size: 1.2rem;
+        }
+
+        .grip-handle:active {
+            cursor: grabbing;
+        }
+
+        .dda-table-item th {
+            border: 1px solid #fff !important;
+            vertical-align: middle !important;
+        }
+
+        .dda-table-item th i {
+            display: block;
+            font-weight: normal;
+            font-size: 0.85em;
+            margin-top: 2px;
+        }
+
+        .dda-table-item td {
+            border: 1px solid #eee !important;
+        }
     </style>
 
     <!-- Load SortableJS for Drag and Drop -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-
     <script>
+        const BPS_REGIONAL_MAP = {
+            "3301": "Cilacap",
+            "3302": "Banyumas",
+            "3303": "Purbalingga",
+            "3304": "Banjarnegara",
+            "3305": "Kebumen",
+            "3306": "Purworejo",
+            "3307": "Wonosobo",
+            "3308": "Magelang",
+            "3309": "Boyolali",
+            "3310": "Klaten",
+            "3311": "Sukoharjo",
+            "3312": "Wonogiri",
+            "3313": "Karanganyar",
+            "3314": "Sragen",
+            "3315": "Grobogan",
+            "3316": "Blora",
+            "3317": "Rembang",
+            "3318": "Pati",
+            "3319": "Kudus",
+            "3320": "Jepara",
+            "3321": "Demak",
+            "3322": "Semarang",
+            "3323": "Temanggung",
+            "3324": "Kendal",
+            "3325": "Batang",
+            "3326": "Pekalongan",
+            "3327": "Pemalang",
+            "3328": "Tegal",
+            "3329": "Brebes",
+            "3371": "Kota Magelang",
+            "3372": "Kota Surakarta",
+            "3373": "Kota Salatiga",
+            "3374": "Kota Semarang",
+            "3375": "Kota Pekalongan",
+            "3376": "Kota Tegal"
+        };
+
+        function getNormalizedRegencyName(item) {
+            const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah'];
+            const kodeKey = Object.keys(item).find(k => {
+                const lowerK = k.toLowerCase();
+                return keywords.some(key => lowerK.includes(key));
+            });
+
+            if (kodeKey) {
+                let raw = String(item[kodeKey] || '').trim();
+                let cleanCode = "";
+                if (raw.includes('.')) {
+                    let parts = raw.split('.');
+                    let prov = parts[0];
+                    let kab = parts[1] || "";
+                    if (kab.length === 1) kab = '0' + kab;
+                    cleanCode = prov + kab;
+                } else {
+                    cleanCode = raw;
+                }
+                const found = BPS_REGIONAL_MAP[cleanCode.substring(0, 4)];
+                if (found) return found;
+            }
+            
+            // --- TANPA KODE = TANPA NORMALISASI ---
+            // Kita matikan fallback nama untuk mencegah penggabungan salah 
+            // pada daerah dengan nama kembar (Magelang, Tegal, dll) jika tanpa kode.
+            
+            return null;
+        }
+
         // Store raw data from PHP
         let rawApiResults = <?php echo json_encode($api_results); ?>;
-        let currentSelectedYear = ""; // Global state untuk filter tahun
-        let currentTableConfig = null; 
+        let currentSelectedYears = []; // Global state multi-tahun
+        let currentTableConfig = null;
 
+        function formatVal(val, formatType = 'number') {
+            if (val === '-' || val === null || val === undefined) return '-';
+            const num = parseFloat(String(val).replace(',', '.')) || 0;
+            if (isNaN(num)) return val;
+            switch (formatType) {
+                case 'decimal':
+                    return num.toLocaleString('id-ID', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                case 'percent':
+                    return num.toLocaleString('id-ID', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) + '%';
+                case 'currency':
+                    return 'Rp' + num.toLocaleString('id-ID', {
+                        minimumFractionDigits: 0
+                    });
+                default:
+                    return num.toLocaleString('id-ID');
+            }
+        }
         // --- 1. AUTO-LOAD DARI DATABASE SAAT HALAMAN DIBUKA ---
         window.addEventListener('DOMContentLoaded', (event) => {
             rawApiResults.forEach((res, idx) => {
@@ -1275,7 +1249,9 @@ function get_dda_label_nested($col)
                         const savedConfig = JSON.parse(res.config_tabel);
                         if (idx === 0) currentTableConfig = savedConfig;
                         renderCustomTable(idx, savedConfig);
-                    } catch(e) { console.error("Gagal load config:", e); }
+                    } catch (e) {
+                        console.error("Gagal load config:", e);
+                    }
                 }
             });
         });
@@ -1298,35 +1274,50 @@ function get_dda_label_nested($col)
         }
 
         function pivotData(data, config) {
-            const rowKey = config.pivot.row;
-            // Support single string or array of columns for category
-            let colKeys = config.pivot.col;
-            if (!Array.isArray(colKeys)) colKeys = [colKeys];
-            
-            const valKey = config.pivot.val;
+            const rowKeys = config.pivot.row || [];
+            const colKeys = config.pivot.col || [];
+            const valKeys = config.pivot.val || [];
 
-            if (!rowKey || colKeys.length === 0 || !valKey || data.length === 0) return data;
+            if (rowKeys.length === 0 || colKeys.length === 0 || valKeys.length === 0 || data.length === 0) return data;
 
-            // Generate combined categories (e.g., "Anggota Baru || Laki-laki")
-            const generateCatKey = (item) => colKeys.map(k => String(item[k] || 'N/A')).join(' || ');
-            
-            const categories = [...new Set(data.map(item => generateCatKey(item)))].sort();
-            
+            // --- Pre-Normalization: Samakan nama wilayah berdasarkan kode BPS agar tahun bisa berjajar ---
+            const normalizedData = data.map(item => {
+                const newItem = {
+                    ...item
+                };
+                const bakuName = getNormalizedRegencyName(newItem);
+                if (bakuName) {
+                    // Cari kolom yang berisi nama wilayah asli dari API
+                    const possibleNameKeys = Object.keys(newItem).filter(k => k.toLowerCase().includes('wilayah') || k.toLowerCase().includes('kab') || k.toLowerCase().includes('kot'));
+                    possibleNameKeys.forEach(nk => newItem[nk] = bakuName);
+                }
+                return newItem;
+            });
+
+            const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A')).join(' || ');
+            const categories = [...new Set(normalizedData.map(item => generateKey(item, colKeys)))].sort();
+
             const grouped = {};
-            data.forEach(item => {
-                const groupVal = String(item[rowKey] || 'N/A');
-                if (!grouped[groupVal]) {
-                    grouped[groupVal] = { [rowKey]: groupVal };
-                    categories.forEach(cat => grouped[groupVal][cat] = 0);
-                    if (config.pivot.total_row) grouped[groupVal]['Jumlah'] = 0;
+            normalizedData.forEach(item => {
+                const groupKey = generateKey(item, rowKeys);
+                if (!grouped[groupKey]) {
+                    grouped[groupKey] = {};
+                    rowKeys.forEach(rk => grouped[groupKey][rk] = item[rk]); // Preserve row values
+                    categories.forEach(cat => {
+                        valKeys.forEach(vk => {
+                            grouped[groupKey][cat + ' || ' + vk] = 0;
+                        });
+                    });
+                    if (config.pivot.total_row) grouped[groupKey]['Jumlah'] = 0;
                 }
-                const catKey = generateCatKey(item);
-                const currentVal = parseFloat(item[valKey]) || 0;
-                grouped[groupVal][catKey] = (grouped[groupVal][catKey] || 0) + currentVal;
-                
-                if (config.pivot.total_row) {
-                    grouped[groupVal]['Jumlah'] += currentVal;
-                }
+
+                const catKey = generateKey(item, colKeys);
+                valKeys.forEach(vk => {
+                    const currentVal = parseFloat(item[vk]) || 0;
+                    const finalKey = catKey + ' || ' + vk;
+                    grouped[groupKey][finalKey] = (grouped[groupKey][finalKey] || 0) + currentVal;
+                    if (config.pivot.total_row) grouped[groupKey]['Jumlah'] += currentVal;
+                });
             });
             return Object.values(grouped);
         }
@@ -1335,150 +1326,152 @@ function get_dda_label_nested($col)
             const tableId = 'dda-table-' + tableIdx;
             const tableEl = targetEl || document.getElementById(tableId);
             if (!tableEl) return;
-            
+
             let rawDataFull = [];
-            
-            // --- LOGIKA GABUNG DATASET (MERGE ALL IDS) ---
+            const isPreview = (targetEl !== null);
+
             if (config.merge_datasets) {
-                // Sembunyikan wrapper tabel lain jika mode gabung aktif
                 const allWrappers = document.querySelectorAll('.table-wrapper');
                 allWrappers.forEach((w, i) => {
-                    if (i > 0) w.style.display = 'none';
+                    if (!isPreview && i > 0) w.style.display = 'none';
                 });
-                
                 rawApiResults.forEach(res => {
                     const rows = getRowsFromApiResult(res);
-                    // Prioritaskan res.judul (Database) dibanding name/label (API)
                     const sourceName = res.judul || res.name || res.label || "Dataset " + (res.id_portal || "");
                     rows.forEach(r => {
-                        let newRow = {...r}; // Copy row
-                        newRow['Nama Dataset'] = sourceName; // Suntikkan Virtual Column
+                        let newRow = {
+                            ...r
+                        };
+                        newRow['Nama Dataset'] = sourceName;
                         rawDataFull.push(newRow);
                     });
                 });
             } else {
                 rawDataFull = getRowsFromApiResult(rawApiResults[tableIdx]);
-                // Tampilkan kembali wrapper jika tidak mode gabung (reset)
-                const allWrappers = document.querySelectorAll('.table-wrapper');
-                allWrappers.forEach(w => w.style.display = '');
-            }
-
-            if (rawDataFull.length === 0) {
-                if(targetEl) targetEl.innerHTML = '<div class="alert alert-warning">Tidak ada data.</div>';
-                return;
-            }
-
-            // --- FILTER DATA BERDASARKAN TAHUN SEBELUM PROSES ---
-            let rawData = rawDataFull;
-            if (currentSelectedYear !== "") {
-                rawData = rawDataFull.filter(item => {
-                    const itemYear = String(item.tahun || item.tahun_data || item.year || "");
-                    return itemYear === currentSelectedYear;
-                });
-            }
-
-            // Gunakan kolom yang visible saja untuk rendering, kecuali Pivot Aktif
-            let finalCols = config.columns.filter(c => c.visible);
-            
-            if (config.pivot.enabled && config.pivot.col && config.pivot.row) {
-                let colKeys = config.pivot.col;
-                if (!Array.isArray(colKeys)) colKeys = [colKeys];
-                
-                const generateCatKey = (item) => colKeys.map(k => String(item[k] || 'N/A')).join(' || ');
-                const categories = [...new Set(rawData.map(item => generateCatKey(item)))].sort();
-                
-                rawData = pivotData(rawData, config);
-                
-                const prefix = config.pivot.prefix ? (config.pivot.prefix) : '';
-                const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en) : '';
-                
-                // --- RESOLVE MAPPINGS FOR PIVOT MODE ---
-                const rowMapping = config.pivot.mappings?.[config.pivot.row] || { label_id: config.pivot.row, label_en: '' };
-                finalCols = [
-                    { key: config.pivot.row, label_id: rowMapping.label_id, label_en: rowMapping.label_en }
-                ];
-
-                categories.forEach(cat => {
-                    const mapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
-                    
-                    // Mix prefix with mapping results
-                    let final_id = (prefix ? (prefix.trim() + ' || ') : '') + (mapping.label_id || cat);
-                    let final_en = (prefix_en ? (prefix_en.trim() + ' || ') : '') + (mapping.label_en || '');
-                    
-                    finalCols.push({
-                        key: cat,
-                        label_id: final_id,
-                        label_en: final_en
-                    });
-                });
-
-                // 3. Computed Total Column
-                if (config.pivot.total_row) {
-                    const totalMapping = config.pivot.mappings?.['Jumlah'] || { label_id: 'Jumlah', label_en: '' };
-                    finalCols.push({ 
-                        key: 'Jumlah', 
-                        label_id: (prefix ? (prefix.trim() + ' || ') : '') + (totalMapping.label_id || 'Jumlah'), 
-                        label_en: (prefix_en ? (prefix_en.trim() + ' || ') : '') + (totalMapping.label_en || 'Total') 
-                    });
+                if (!isPreview) {
+                    const allWrappers = document.querySelectorAll('.table-wrapper');
+                    allWrappers.forEach(w => w.style.display = '');
                 }
             }
 
-            // --- A. PROSES HEADER MULTI-LEVEL (N-LEVEL TREE) ---
+            if (rawDataFull.length === 0) {
+                if (targetEl) targetEl.innerHTML = '<div class="alert alert-warning">Tidak ada data.</div>';
+                return;
+            }
+
+            let rawData = rawDataFull;
+            if (currentSelectedYears.length > 0) {
+                rawData = rawDataFull.filter(item => {
+                    const itemYear = String(item.tahun || item.tahun_data || item.year || "");
+                    return currentSelectedYears.includes(itemYear);
+                });
+            }
+
+            let finalCols = [];
+            if (config.pivot.enabled && config.pivot.row?.length > 0 && config.pivot.col?.length > 0 && config.pivot.val?.length > 0) {
+                const rowKeys = config.pivot.row;
+                const colKeys = config.pivot.col;
+                const valKeys = config.pivot.val;
+
+                const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A')).join(' || ');
+                const categories = [...new Set(rawData.map(item => generateKey(item, colKeys)))].sort();
+
+                rawData = pivotData(rawData, config);
+
+                rowKeys.forEach(rk => {
+                    const mapping = config.pivot.mappings?.[rk] || {
+                        label_id: rk,
+                        label_en: ''
+                    };
+                    finalCols.push({
+                        key: rk,
+                        label_id: mapping.label_id,
+                        label_en: mapping.label_en,
+                        isRow: true
+                    });
+                });
+
+                categories.forEach(cat => {
+                    valKeys.forEach(vk => {
+                        const catMapping = config.pivot.mappings?.[cat] || {
+                            label_id: cat,
+                            label_en: ''
+                        };
+                        const valMapping = config.pivot.mappings?.[vk] || {
+                            label_id: vk,
+                            label_en: ''
+                        };
+                        const prefix = config.pivot.prefix ? (config.pivot.prefix.trim() + ' || ') : '';
+                        const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en.trim() + ' || ') : '';
+
+                        // If only one metric, don't show it in the header hierarchy
+                        let labelID = prefix + catMapping.label_id;
+                        let labelEN = prefix_en + (catMapping.label_en || '');
+                        if (valKeys.length > 1) {
+                            labelID += ' || ' + valMapping.label_id;
+                            labelEN += ' || ' + (valMapping.label_en || '');
+                        }
+
+                        finalCols.push({
+                            key: cat + ' || ' + vk,
+                            label_id: labelID,
+                            label_en: labelEN,
+                            format: config.columns.find(c => c.key === vk)?.format || 'number'
+                        });
+                    });
+                });
+
+                if (config.pivot.total_row) {
+                    finalCols.push({
+                        key: 'Jumlah',
+                        label_id: 'Jumlah',
+                        label_en: 'Total',
+                        format: 'number'
+                    });
+                }
+            } else {
+                finalCols = config.columns.filter(c => c.visible);
+            }
+
+            // --- HEADER TREE ---
             const parseHeaderTree = (columns) => {
                 const tree = [];
                 columns.forEach(col => {
                     const idParts = (col.label_id || col.key).split(' || ');
                     const enParts = (col.label_en || '').split(' || ');
-                    
                     let currentNode = tree;
                     idParts.forEach((part, depth) => {
-                        let existingNode = currentNode.find(node => node.label === part);
-                        if (!existingNode) {
-                            existingNode = { 
-                                label: part, 
-                                label_en: enParts[depth] || '', // Ambil EN sesuai tingkatannya
-                                children: [], 
-                                depth: depth, 
-                                key: col.key 
+                        let node = currentNode.find(n => n.label === part);
+                        if (!node) {
+                            node = {
+                                label: part,
+                                label_en: enParts[depth] || '',
+                                children: [],
+                                depth: depth,
+                                key: col.key
                             };
-                            currentNode.push(existingNode);
+                            currentNode.push(node);
                         }
-                        currentNode = existingNode.children;
+                        currentNode = node.children;
                     });
                 });
                 return tree;
             };
 
             const headerTree = parseHeaderTree(finalCols);
-
-            // Hitung Max Depth untuk Rowspan
-            const getMaxDepth = (nodes) => {
-                let max = 0;
-                nodes.forEach(node => {
-                    if (node.children.length > 0) {
-                        max = Math.max(max, 1 + getMaxDepth(node.children));
-                    } else {
-                        max = Math.max(max, 1);
-                    }
-                });
-                return max;
-            };
+            const getMaxDepth = (nodes) => Math.max(0, ...nodes.map(n => n.children.length > 0 ? 1 + getMaxDepth(n.children) : 1));
             const maxHeaderRows = getMaxDepth(headerTree);
 
-            // Hitung Colspan untuk setiap node
             const calculateColspan = (node) => {
                 if (node.children.length === 0) return 1;
-                let sum = 0;
-                node.children.forEach(child => {
-                    sum += calculateColspan(child);
-                });
-                node.colspan = sum;
-                return sum;
+                node.colspan = node.children.reduce((sum, child) => sum + calculateColspan(child), 0);
+                return node.colspan;
             };
             headerTree.forEach(calculateColspan);
 
-            // Generate Baris HTML untuk Header
-            const headerRows = Array.from({ length: maxHeaderRows }, () => []);
+            const headerRows = Array.from({
+                length: maxHeaderRows
+            }, () => []);
             const fillHeaderRows = (nodes, currentRow) => {
                 nodes.forEach(node => {
                     if (node.children.length > 0) {
@@ -1490,7 +1483,6 @@ function get_dda_label_nested($col)
                         });
                         fillHeaderRows(node.children, currentRow + 1);
                     } else {
-                        // Leaf node: Spanning down to bottom if needed
                         headerRows[currentRow].push({
                             label: node.label,
                             label_en: node.label_en,
@@ -1502,71 +1494,176 @@ function get_dda_label_nested($col)
             };
             fillHeaderRows(headerTree, 0);
 
-            // --- B. BUILD HTML TABLE ---
-            const isPreview = (targetEl !== null);
-            const tableClass = isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item';
-            let html = `<table class="${tableClass}" style="width:100%; font-family:Arial, sans-serif; border-collapse: collapse; background:#fff; color:#333;">`;
-            
+            // --- PRE-CALCULATE ROWSPAN ---
+            const rowspanMap = {};
+            const lastRowValues = {};
+            const startIndices = {};
+            const rowHeaderCols = finalCols.filter(c => c.isRow);
+
+            rawData.forEach((row, r_idx) => {
+                let path = "";
+                rowHeaderCols.forEach((col, c_idx) => {
+                    path += (c_idx > 0 ? "||" : "") + String(row[col.key] || '');
+                    if (!lastRowValues[col.key] || lastRowValues[col.key] !== path) {
+                        rowspanMap[col.key + '-' + r_idx] = 0;
+                        startIndices[col.key] = r_idx;
+                        lastRowValues[col.key] = path;
+                    }
+                    rowspanMap[col.key + '-' + startIndices[col.key]]++;
+                });
+            });
+
+            // --- RENDER ---
+            // Cek apakah dataset sudah memiliki kolom "Jumlah" (dari API) yang sedang tampil agar tidak duplikat
+            const hasVisibleApiTotal = config.columns.some(c => (c.visible !== false) && (c.key.toLowerCase().includes('jumlah') || c.key.toLowerCase().includes('total')));
+            const showTotal = (config.show_total_col || (config.pivot && config.pivot.enabled && config.pivot.total_row)) && !hasVisibleApiTotal;
+
+            let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#fff;">`;
             html += '<thead style="background:#FF6D1F; color:#fff;">';
-            
             headerRows.forEach((row, rIdx) => {
                 html += '<tr>';
-                // Kolom nomor "No." hanya di baris pertama
-                if (rIdx === 0) {
-                    html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid #fff; padding:10px; width:40px; text-align:center;">No.</th>`;
-                }
-
+                if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid #fff; width:40px;">No.</th>`;
                 row.forEach(cell => {
-                    const style = "border:1px solid #fff; padding:8px; text-align:center; vertical-align:middle; font-weight:bold;";
-                    const en = cell.label_en ? `<i>${cell.label_en}</i>` : '';
-                    html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="${style}">${cell.label}${en}</th>`;
+                    html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid #fff; padding:8px; text-align:center;">${cell.label}${cell.label_en ? `<br><i>${cell.label_en}</i>` : ''}</th>`;
                 });
+                if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid #fff;">Jumlah<br><i>Total</i></th>`;
                 html += '</tr>';
             });
-
-            // Baris Penomoran Indeks (1), (2), (3)
             html += '<tr style="background:#f9a066; color:#000; font-size:10px;">';
-            finalCols.forEach((c, idx) => {
-                html += `<th style="border:1px solid #fff; text-align:center; padding:2px;">(${idx + 1})</th>`;
-            });
+            finalCols.forEach((c, idx) => html += `<th style="border:1px solid #fff; text-align:center;">(${idx + 1})</th>`);
+            if (showTotal) html += `<th style="border:1px solid #fff; text-align:center;">(${finalCols.length + 1})</th>`;
             html += '</tr></thead><tbody>';
 
+            let lastTipe = null;
+            let sectionIdx = 0;
             const displayData = limitRows > 0 ? rawData.slice(0, limitRows) : rawData;
+            const verticalTotals = {};
+            finalCols.forEach(col => verticalTotals[col.key] = 0);
+
             displayData.forEach((row, r_idx) => {
-                const rowStyle = (r_idx % 2 === 0) ? 'background:#fff;' : 'background:#fff4eb;';
-                html += `<tr style="${rowStyle}">`;
-                html += `<td style="border:1px solid #eee; padding:8px; text-align:center; width:40px; border-left:2px solid #FF6D1F;">${r_idx + 1}.</td>`;
-                finalCols.forEach(col => {
-                    let val = row[col.key] ?? '-';
-                    const mapping = config.pivot.mappings?.[val];
-                    if (mapping) {
-                        const id = mapping.label_id || val;
-                        const en = mapping.label_en ? `/${mapping.label_en}` : '';
-                        val = `${id}${en}`;
-                    }
-                    if (val === 0 || val === '0') val = '-';
-                    const isFirstDataCol = (col.key === finalCols[0].key);
-                    const tdStyle = `border:1px solid #eee; padding:8px; ${isFirstDataCol ? 'font-weight:bold;' : 'text-align:center;'}`;
-                    html += `<td style="${tdStyle}">${val}</td>`;
+                const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah'];
+                const kodeKey = Object.keys(row).find(k => {
+                    const lowerK = k.toLowerCase();
+                    return keywords.some(key => lowerK.includes(key));
                 });
+
+                let curCode = 0;
+                let normalizedNameFromCode = null;
+                if (kodeKey) {
+                    const rawVal = String(row[kodeKey] || '').replace(/\./g, '');
+                    const fullCode = rawVal.substring(0, 4);
+                    curCode = parseInt(fullCode || 0) % 100;
+                    normalizedNameFromCode = BPS_REGIONAL_MAP[fullCode];
+                }
+
+                const isKotaRow = (curCode >= 71 && curCode <= 79);
+                
+                // Jika tidak ada kode, grup label kosongkan agar tidak muncul header grouping
+                const tipeLabel = (!kodeKey || curCode === 0) ? null : (isKotaRow ? 'Kota / Municipality' : 'Kabupaten / Regency');
+
+                // Sectioning if enabled AND we have a valid type
+                if (config.group_by_region && tipeLabel && tipeLabel !== lastTipe) {
+                    html += `<tr style="background:#fff1e6; font-weight:bold; color:#000;">`;
+                    html += `<td colspan="${finalCols.length + 2}" style="padding:10px 15px; border:1px solid #eee; border-left:2px solid #FF6D1F;">${tipeLabel}</td>`;
+                    html += `</tr>`;
+                    lastTipe = tipeLabel;
+                    sectionIdx = 0;
+                }
+                sectionIdx++;
+
+                html += `<tr style="${r_idx % 2 === 0 ? '' : 'background:#fff4eb;'}">`;
+
+                // Gunakan rowspan yang sama dengan kolom utama (Kabupaten) untuk nomor urut
+                const firstRowCol = rowHeaderCols[0]?.key;
+                const noRowspan = firstRowCol ? rowspanMap[firstRowCol + '-' + r_idx] : 1;
+
+                if (noRowspan !== 0) {
+                    html += `<td ${noRowspan > 1 ? `rowspan="${noRowspan}"` : ''} style="border:1px solid #eee; text-align:center; border-left:2px solid #FF6D1F; vertical-align:top; padding-top:8px;">${config.group_by_region ? sectionIdx : r_idx + 1}.</td>`;
+                }
+
+                let rowSum = 0;
+                finalCols.forEach((col, c_idx) => {
+                    const rsValue = rowspanMap[col.key + '-' + r_idx];
+                    if (rsValue === 0) return; // Swallowing this cell as it's part of a rowspan
+
+                    let rawVal = row[col.key] ?? 0;
+                    let num = parseFloat(String(rawVal).replace(',', '.')) || 0;
+                    // Deteksi apakah nilai tersebut sebenarnya adalah angka murni
+                    let isNumeric = !isNaN(parseFloat(String(rawVal))) && isFinite(String(rawVal).replace(',', '.'));
+
+                    // Deteksi metadata atau kolom yang sudah merupakan total dari API (biar tidak double count)
+                    const isTotalInLabel = col.label_id.toLowerCase().includes('jumlah') || col.label_id.toLowerCase().includes('total');
+                    const isMetadata = col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year') || isTotalInLabel;
+
+                    if (isNumeric && !isMetadata) {
+                        rowSum += num;
+                        verticalTotals[col.key] += num;
+                    }
+
+                    let displayVal = rawVal;
+                    if (col.isRow) {
+                        // Coba ambil nama baku berdasarkan kode BPS jika tersedia
+                        const bakuName = getNormalizedRegencyName(row);
+
+                        displayVal = String(rawVal).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+                        // Jika kolom ini adalah kolom Kabupaten/Kota (biasanya c_idx === 0)
+                        if (c_idx === 0) {
+                            if (bakuName) {
+                                displayVal = bakuName;
+                            }
+
+                            // Tambahkan prefix "Kabupaten/Kota" HANYA jika grouping dimatikan
+                            if (!config.group_by_region && !displayVal.includes('Kabupaten') && !displayVal.includes('Kota') && !displayVal.includes('Provinsi')) {
+                                displayVal = (isKotaRow ? 'Kota ' : 'Kabupaten ') + displayVal;
+                            }
+                        }
+
+                        const mapping = config.pivot.mappings?.[rawVal];
+                        if (mapping) displayVal = mapping.label_id || displayVal;
+                    } else {
+                        // Jika numeric, format angkanya. Jika teks, tampilkan apa adanya (agar Bulan tidak jadi 0)
+                        displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal;
+                    }
+
+                    const tdStyle = `border:1px solid #eee; padding:8px; ${col.isRow ? 'font-weight:bold;' : 'text-align:center;'}`;
+                    html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="${tdStyle}">${displayVal}</td>`;
+                });
+
+                if (showTotal) {
+                    const rowSumMapping = config.pivot.mappings?.['Jumlah'] || {
+                        label_id: 'Jumlah',
+                        label_en: 'Total'
+                    };
+                    html += `<td style="border:1px solid #eee; text-align:center; font-weight:bold; background:#fffafa;">${formatVal(rowSum, 'number')}</td>`;
+                }
                 html += '</tr>';
             });
-            html += '</tbody></table>';
 
-            let sourceInfoHtml = '';
-            if (config.merge_datasets) {
-                sourceInfoHtml = '<div class="mt-3 p-3 bg-light border-start border-4 border-primary rounded shadow-sm">';
-                sourceInfoHtml += '<h6 class="fw-bold mb-2 text-primary" style="font-size:12px;"><i class="bi bi-info-circle me-1"></i> Daftar Sumber Data (Dataset):</h6>';
-                sourceInfoHtml += '<ol class="mb-0" style="font-size:11px; padding-left: 1.5rem;">';
-                rawApiResults.forEach(res => {
-                    // Prioritaskan res.judul (Database) dibanding name/label (API)
-                    const sourceName = res.judul || res.name || res.label || "Dataset " + (res.id_portal || "");
-                    sourceInfoHtml += `<li class="mb-1 fw-bold">${sourceName} (ID: ${res.id_portal || '-'})</li>`;
+            if (config.pivot.total_col) {
+                const jtMapping = config.pivot.mappings?.['Jawa Tengah'] || {
+                    label_id: 'Jawa Tengah',
+                    label_en: 'Central Java'
+                };
+                html += `<tr style="background: #FF6D1F; color: #fff; font-weight: bold;">`;
+                html += `<td colspan="2" style="padding:10px; border:1px solid #fff;">${jtMapping.label_id}${jtMapping.label_en ? `<br><i>${jtMapping.label_en}</i>` : ''}</td>`;
+                let grandTotal = 0;
+                finalCols.forEach((col, c_idx) => {
+                    if (c_idx === 0) return;
+                    const isMetadata = col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year');
+                    if (isMetadata) html += `<td style="border:1px solid #fff;"></td>`;
+                    else {
+                        const sum = verticalTotals[col.key];
+                        grandTotal += sum;
+                        html += `<td style="border:1px solid #fff; text-align:center;">${formatVal(sum, col.format || 'number')}</td>`;
+                    }
                 });
-                sourceInfoHtml += '</ol></div>';
+                if (showTotal) html += `<th style="border:1px solid #fff; text-align:center;">${formatVal(grandTotal, 'number')}</th>`;
+                html += '</tr>';
             }
 
-            tableEl.innerHTML = html + sourceInfoHtml;
+            html += '</tbody></table>';
+            tableEl.innerHTML = html;
         }
     </script>
     <div style="display:none;"><?= csrf_field() ?></div>
