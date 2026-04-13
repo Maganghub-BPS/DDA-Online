@@ -15,52 +15,68 @@ Sistem ini awalnya dirancang untuk mengelola tautan (link) tabel dari Google She
 ### A. Integrasi API Portal Data (Satu Data Jawa Tengah)
 
 - **Real-time Data Fetching**: Mengambil data terbaru langsung dari API Portal Data tanpa perlu input manual.
-- **Status Tracking API Sync**: Implementasi label status _"Sudah Sinkron dengan Portal Data Jateng"_ pada tabel yang telah terhubung, memberikan kepastian validitas data.
-- **Multiple ID Integration**: Kemampuan menggabungkan data dari beberapa ID Portal (UUID) ke dalam satu tampilan tabel tunggal di sistem DDA.
-- **Dynamic Pivot/Header Analysis**: Deteksi otomatis multi-level headers yang rapi, menyerupai layout Google Sheets yang kompleks namun dengan performa web yang lebih cepat.
+- **Status Tracking API Sync**: Implementasi label status _"Sudah Sinkron dengan Portal Data Jateng"_ pada tabel yang telah terhubung.
+- **Multiple ID Integration**: Kemampuan menggabungkan data dari beberapa ID Portal (UUID) ke dalam satu tampilan tabel tunggal.
+- **Dynamic Pivot Analysis**: Deteksi otomatis multi-level headers yang rapi dan performa loading data yang optimal.
 
-### B. Fitur Bulk Update Link Portal
+### B. Mesin Konfigurasi Pivot Tabel (Dynamic Pivot Engine)
 
-- **Mass Update via CSV**: Pembaruan ribuan link tabel DDA secara skalabel hanya dengan mengunggah file CSV mapping.
-- **Preview & Validation System**: Halaman konfirmasi sebelum penyimpanan data, lengkap dengan fitur _manual mapping_ menggunakan pencarian cerdas (Select2) jika ada ketidaksesuaian judul.
-- **Panduan Terintegrasi**: Pembuatan dokumen teknis pembantu `L_Lap_Panduan Bulk Create.md` untuk memudahkan operasional administrator.
+- **Drag-and-Drop Dimensioning**: Fleksibilitas penuh bagi pengguna untuk mengatur dimensi (Metrik, Wilayah, Tahun) ke posisi baris atau kolom hanya dengan seret-lepas.
+- **Mode "Metrics as Rows"**: Kemampuan mentransformasi data horizontal menjadi format vertikal (Portrait) secara instan, sesuai standar publikasi BPS.
+- **Persistent State**: Seluruh preferensi layout, filter, dan label kustom disimpan secara otomatis ke database (`tabel_config`) agar konsisten bagi semua pengguna.
 
-### C. Modernisasi Dashboard & UI/UX (Premium Theme)
+### C. Standarisasi & Normalisasi Data Wilayah
 
-- **Bootstrap 5.3.3 Migration**: Migrasi total komponen framework dari versi lama ke Bootstrap 5.3.3 untuk stabilitas dan responsivitas maksimal.
-- **Card-Based Layout**: Implementasi desain berbasis kartu yang bersih, memberikan kesan aplikasi modern dan terorganisir.
-- **Branding Orange System**: Standardisasi warna aksen utama `#FF6D1F` (Orange) pada seluruh elemen interaktif, tombol, sidebar, dan pagination untuk identitas brand yang konsisten.
-- **Modern Typography & Icons**: Implementasi font sistem premium (Inter/Roboto/Outfit) dan Bootstrap Icons yang memberikan kesan mewah dan futuristik.
+- **Automated Mapping (BPS Standard)**: Mengonversi data wilayah yang tidak seragam dari API menjadi format standar BPS Jawa Tengah (Kode BPS).
+- **Fixed Geographical Sorting**: Menjamin urutan baris kabupaten/kota selalu mengikuti standar geografis resmi (3301 - 3376 / dari Cilacap hingga Kota Semarang).
+- **Data Integrity**: Sistem secara cerdas mendeteksi dan mengabaikan baris "Total" dari sumber luar untuk digantikan dengan kalkulasi internal (Total Jawa Tengah) yang lebih akurat.
+
+### D. Manajemen Tabel Bilingual & Header Kompleks
+
+- **Bilingual Interface**: Dukungan label Bahasa Indonesia dan Bahasa Inggris untuk judul kolom, metrik, dan rincian data.
+- **Auto-Leveling Header**: Kalkulasi otomatis `rowspan` dan `colspan` untuk header bertingkat, menghilangkan kebutuhan koding manual.
+- **Interactive Formatting**: Penomoran otomatis (Auto Numbering), kontrol simbol desimal, dan pengaturan tampilan metrik.
+
+### E. Fitur Bulk Update Link Portal
+
+- **Mass Update via CSV**: Pembaruan ribuan link tabel DDA secara skalabel menggunakan file CSV mapping.
+- **Preview & Validation**: Halaman konfirmasi sebelum penyimpanan data dengan fitur _manual mapping_ (Select2) jika judul tidak sesuai.
+
+### F. Modernisasi UI/UX (Premium Theme)
+
+- **Bootstrap 5.3.3 Migration**: Migrasi total komponen framework untuk stabilitas dan responsivitas maksimal.
+- **Orange System Branding**: Standardisasi warna aksen utama `#FF6D1F` (Orange) pada seluruh elemen interaktif untuk identitas brand yang konsisten.
+- **Card-Based & Minimalist Design**: Implementasi layout berbasis kartu yang bersih, modern, dan informatif.
 
 ---
 
 ## 3. Daftar File Baru & Modifikasi Penting
 
-| Nama File                            | Status       | Fungsi Utama                                                                 |
-| :----------------------------------- | :----------- | :--------------------------------------------------------------------------- |
-| `app/Controllers/Admin.php`          | **Modified** | Penanganan logic API, fitur Bulk Update, dan filter tahun pada Master Tabel. |
-| `app/Views/admin/v_portal_tabel.php` | **Updated**  | View utama data portal dengan UI Premium, Progress Bar, dan Export Excel.    |
-| `app/Views/admin/v_preview_bulk.php` | **New**      | UI Preview Bulk Update dengan validasi mapping dan checkbox selektif.        |
-| `app/Views/admin/l_master_tabel.php` | **Modified** | Layout Master Tabel berbasis BS5 dengan integrasi fitur pencarian real-time. |
-| `app/Views/admin/login.php`          | **Modified** | Redesain halaman login (Minimalist & Trend modern).                          |
-| `app/Views/admin/index.css`          | **Updated**  | Library gaya pusat (Design System) untuk warna, animasi, dan layout kartu.   |
-| `L_Lap_Panduan Bulk Create.md`       | **New**      | Panduan operasional langkah-demi-langkah fitur Bulk Update.                  |
+| Nama File                                      | Status       | Fungsi Utama                                                                 |
+| :--------------------------------------------- | :----------- | :--------------------------------------------------------------------------- |
+| `app/Controllers/Admin.php`                    | **Modified** | Penanganan logic API, fitur Bulk Update, dan pengelolaan konfigurasi tabel.  |
+| `app/Views/admin/v_portal_tabel.php`           | **Updated**  | Mesin render utama untuk tabel dinamis, pivot, dan kalkulasi otomatis.       |
+| `app/Views/admin/parts/modal_config_tabel.php` | **New**      | Interface konfigurasi pivot, filter tahun, dan pemetaan wilayah (Modal).     |
+| `app/Views/admin/v_preview_bulk.php`           | **New**      | UI Preview Bulk Update dengan validasi mapping dan checkbox selektif.        |
+| `app/Views/admin/l_master_tabel.php`           | **Modified** | Layout Master Tabel berbasis BS5 dengan integrasi fitur pencarian real-time. |
+| `app/Views/admin/login.php`                    | **Modified** | Redesain halaman login dengan gaya minimalis dan modern.                     |
+| `app/Views/admin/index.css`                    | **Updated**  | Design System terpusat untuk warna, animasi, dan layout kartu.               |
 
 ---
 
 ## 4. Detail Teknis (Maintenance)
 
-1.  **Optimasi Library**: Penggunaan Native PHP CSV Handling untuk menggantikan library berat, memastikan server tetap ringan saat memproses ribuan baris data.
-2.  **Model Refactoring**: Migrasi sintaks database dari standar CI3 ke CI4 (Prepared Statements) untuk keamanan dan performa lebih baik.
-3.  **UI Consistency**: Penggunaan CSS Variables untuk manajemen warna bertema orange agar konsisten di seluruh modul.
-4.  **Error Handling**: Penambahan validasi pada respon API untuk mencegah aplikasi berhenti jika layanan Satu Data Jateng mengalami gangguan.
+1.  **Optimasi Library**: Penggunaan Native PHP CSV Handling untuk performa ringan saat memproses ribuan baris data.
+2.  **Model Refactoring**: Migrasi ke CI4 Prepared Statements untuk keamanan (Anti SQL Injection) dan performa.
+3.  **UI Consistency**: Penggunaan CSS Variables untuk manajemen warna bertema orange secara konsisten.
+4.  **Error Handling**: Validasi response API yang kuat untuk mencegah sistem _down_ jika layanan eksternal bermasalah.
 
 ---
 
 ## 5. Rencana & Panduan Implementasi
 
-1.  **Deployment**: Pastikan variabel `app.baseURL` di `.env` sudah diperbarui saat pindah ke server produksi atau menggunakan tunnel (localtunnel).
-2.  **Validasi Bulk**: Selalu gunakan fitur Preview untuk memastikan tidak ada tabel yang salah sasaran sebelum menekan tombol konfirmasi.
-3.  **Maintenance Tampilan**: Semua pembaruan UI di masa mendatang harus merujuk pada `index.css` agar tetap selaras dengan tema orange yang sudah ditetapkan.
+1.  **Deployment**: Pastikan variabel `app.baseURL` di `.env` sudah diperbarui saat pindah ke server produksi.
+2.  **Validasi Bulk**: Selalu gunakan fitur Preview untuk memastikan keakuratan mapping tabel sebelum sinkronisasi.
+3.  **Maintenance Tampilan**: Semua pembaruan UI harus merujuk pada `index.css` untuk menjaga konsistensi tema.
 
 ---

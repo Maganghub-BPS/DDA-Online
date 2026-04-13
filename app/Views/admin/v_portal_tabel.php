@@ -1183,36 +1183,74 @@ function get_dda_label_nested($col)
             "3376": "Kota Tegal"
         };
 
-        function getNormalizedRegencyName(item) {
+        const REGENCY_NAME_MAP = {};
+        const CITY_NAME_MAP = {};
+        Object.entries(BPS_REGIONAL_MAP).forEach(([code, name]) => {
+            const clean = name.replace(/^Kota\s+/i, '').toLowerCase();
+            if (parseInt(code) >= 3371) {
+                CITY_NAME_MAP[clean] = code;
+            } else {
+                REGENCY_NAME_MAP[clean] = code;
+            }
+        });
+
+        function getBpsCode(item) {
+            // 1. Coba cari berdasarkan kolom kode eksplisit
             const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah'];
-            const kodeKey = Object.keys(item).find(k => {
-                const lowerK = k.toLowerCase();
-                return keywords.some(key => lowerK.includes(key));
-            });
+            const kodeKey = Object.keys(item).find(k => keywords.some(key => k.toLowerCase().includes(key)));
 
             if (kodeKey) {
                 let raw = String(item[kodeKey] || '').trim();
-                let cleanCode = "";
+                let cleanCode = raw.replace(/\./g, '');
+                if (cleanCode.length > 4) cleanCode = cleanCode.substring(0, 4);
+
                 if (raw.includes('.')) {
                     let parts = raw.split('.');
-                    let prov = parts[0];
-                    let kab = parts[1] || "";
-                    if (kab.length === 1) kab = '0' + kab;
-                    cleanCode = prov + kab;
-                } else {
-                    cleanCode = raw;
+                    if (parts.length >= 2) {
+                        let prov = parts[0];
+                        let kab = parts[1] || "";
+                        let tryExact = prov + kab;
+                        if (BPS_REGIONAL_MAP[tryExact]) return tryExact;
+                        if (kab.length === 1) {
+                             if (BPS_REGIONAL_MAP[prov+kab+'0']) return prov+kab+'0';
+                             if (BPS_REGIONAL_MAP[prov+'0'+kab]) return prov+'0'+kab;
+                        }
+                    }
                 }
-                const found = BPS_REGIONAL_MAP[cleanCode.substring(0, 4)];
-                if (found) return found;
+                
+                if (BPS_REGIONAL_MAP[cleanCode]) return cleanCode;
+                let match = raw.match(/\d{4}/);
+                if (match && BPS_REGIONAL_MAP[match[0]]) return match[0];
             }
+
+            // 2. Jika tidak ada kode, coba cari berdasarkan kolom Nama Wilayah dan petakan ke kode BPS
+            const nameKeywords = ['wilayah', 'kab', 'kot', 'nama', 'label', 'unit'];
+            const nameKey = Object.keys(item).find(k => nameKeywords.some(kw => k.toLowerCase().includes(kw)));
             
-            // --- TANPA KODE = TANPA NORMALISASI ---
-            // Kita matikan fallback nama untuk mencegah penggabungan salah 
-            // pada daerah dengan nama kembar (Magelang, Tegal, dll) jika tanpa kode.
-            
-            return null;
+            if (nameKey) {
+                const rawName = String(item[nameKey] || '').toLowerCase();
+                const isKota = rawName.includes('kota') || rawName.includes('city');
+                const isKab = rawName.includes('kab.') || rawName.includes('kabupaten') || rawName.includes('regency');
+                
+                const clean = rawName.replace(/^kab\.\s+|^kabupaten\s+|^kota\s+/i, '').trim();
+
+                if (isKota) return CITY_NAME_MAP[clean] || '9999';
+                if (isKab) return REGENCY_NAME_MAP[clean] || '9999';
+                
+                // Tanpa prefix? Cek Kabupaten dulu, lalu Kota sebagai fallback
+                return REGENCY_NAME_MAP[clean] || CITY_NAME_MAP[clean] || '9999';
+            }
+
+            return '9999';
         }
 
+        function getNormalizedRegencyName(item) {
+            const code = getBpsCode(item);
+            if (code !== '9999') {
+                return BPS_REGIONAL_MAP[code];
+            }
+            return null;
+        }
         // Store raw data from PHP
         let rawApiResults = <?php echo json_encode($api_results); ?>;
         let currentSelectedYears = []; // Global state multi-tahun
@@ -1237,9 +1275,27 @@ function get_dda_label_nested($col)
                     return 'Rp' + num.toLocaleString('id-ID', {
                         minimumFractionDigits: 0
                     });
+                case 'ribuan':
+                    return Math.round(num / 1000).toLocaleString('id-ID');
+                case 'jutaan':
+                    return Math.round(num / 1000000).toLocaleString('id-ID');
                 default:
                     return num.toLocaleString('id-ID');
             }
+        }
+
+        function sortArrayWithOrder(arr, order) {
+            if (!order || !Array.isArray(order) || order.length === 0) {
+                return arr.sort((a, b) => String(a).localeCompare(String(b)));
+            }
+            return arr.sort((a, b) => {
+                let idxA = order.indexOf(a);
+                let idxB = order.indexOf(b);
+                if (idxA === -1) idxA = 999;
+                if (idxB === -1) idxB = 999;
+                if (idxA === idxB) return String(a).localeCompare(String(b));
+                return idxA - idxB;
+            });
         }
         // --- 1. AUTO-LOAD DARI DATABASE SAAT HALAMAN DIBUKA ---
         window.addEventListener('DOMContentLoaded', (event) => {
@@ -1278,16 +1334,21 @@ function get_dda_label_nested($col)
             const colKeys = config.pivot.col || [];
             const valKeys = config.pivot.val || [];
 
-            if (rowKeys.length === 0 || colKeys.length === 0 || valKeys.length === 0 || data.length === 0) return data;
+            if (data.length === 0) return data;
+            
+            // BACKWARD COMPATIBILITY: Jika bukan mode portrait, wajib ada rowKeys seperti dulu
+            if (!config.pivot.metrics_as_row) {
+                if (rowKeys.length === 0 || colKeys.length === 0 || valKeys.length === 0) return data;
+            } else {
+                // Mode Portrait minimal butuh kolom kategori (tahun) dan metrik nilai
+                if (colKeys.length === 0 || valKeys.length === 0) return data;
+            }
 
             // --- Pre-Normalization: Samakan nama wilayah berdasarkan kode BPS agar tahun bisa berjajar ---
             const normalizedData = data.map(item => {
-                const newItem = {
-                    ...item
-                };
+                const newItem = { ...item };
                 const bakuName = getNormalizedRegencyName(newItem);
                 if (bakuName) {
-                    // Cari kolom yang berisi nama wilayah asli dari API
                     const possibleNameKeys = Object.keys(newItem).filter(k => k.toLowerCase().includes('wilayah') || k.toLowerCase().includes('kab') || k.toLowerCase().includes('kot'));
                     possibleNameKeys.forEach(nk => newItem[nk] = bakuName);
                 }
@@ -1295,14 +1356,44 @@ function get_dda_label_nested($col)
             });
 
             const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A')).join(' || ');
-            const categories = [...new Set(normalizedData.map(item => generateKey(item, colKeys)))].sort();
+            let categories = [...new Set(normalizedData.map(item => generateKey(item, colKeys)))];
+            sortArrayWithOrder(categories, config.pivot.mapping_order);
 
+            if (config.pivot.metrics_as_row) {
+                // Dimensi: Metrics as Rows, Categories as Columns
+                const results = [];
+                valKeys.forEach(vk => {
+                    const row = {
+                        'Uraian': vk,
+                        'isMetricRow': true,
+                        'originalKey': vk
+                    };
+                    categories.forEach(cat => {
+                        const cellData = normalizedData.filter(item => generateKey(item, colKeys) === cat);
+                        const sum = cellData.reduce((acc, item) => acc + (parseFloat(item[vk]) || 0), 0);
+                        row[cat] = sum;
+                    });
+                    
+                    if (config.pivot.total_row) {
+                        row['Jumlah'] = categories.reduce((acc, cat) => acc + (row[cat] || 0), 0);
+                    }
+                    results.push(row);
+                });
+                return results;
+            }
+
+            // Standard Pivot (Rows remain as Row Dimensions)
             const grouped = {};
             normalizedData.forEach(item => {
                 const groupKey = generateKey(item, rowKeys);
                 if (!grouped[groupKey]) {
                     grouped[groupKey] = {};
                     rowKeys.forEach(rk => grouped[groupKey][rk] = item[rk]); // Preserve row values
+                    
+                    // CRITICAL: Cari dan simpan kode wilayah agar sorting BPS tetap jalan setelah pivot
+                    const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah'];
+                    const kodeKey = Object.keys(item).find(k => keywords.some(key => k.toLowerCase().includes(key)));
+                    if (kodeKey) grouped[groupKey][kodeKey] = item[kodeKey];
                     categories.forEach(cat => {
                         valKeys.forEach(vk => {
                             grouped[groupKey][cat + ' || ' + vk] = 0;
@@ -1319,7 +1410,21 @@ function get_dda_label_nested($col)
                     if (config.pivot.total_row) grouped[groupKey]['Jumlah'] += currentVal;
                 });
             });
-            return Object.values(grouped);
+            const finalArray = Object.values(grouped);
+            
+            // SORT BY BPS CODE (Cilacap 3301 first)
+            finalArray.sort((a, b) => {
+                const codeA = getBpsCode(a);
+                const codeB = getBpsCode(b);
+                if (codeA !== codeB) return codeA.localeCompare(codeB);
+                
+                // Fallback ke nama jika kode sama/tidak ada
+                const nameA = a[rowKeys[0]] || '';
+                const nameB = b[rowKeys[0]] || '';
+                return String(nameA).localeCompare(String(nameB));
+            });
+            
+            return finalArray;
         }
 
         function renderCustomTable(tableIdx, config, targetEl = null, limitRows = 0) {
@@ -1359,6 +1464,14 @@ function get_dda_label_nested($col)
                 return;
             }
 
+            // AUTO-SORT BY BPS CODE BEFORE RENDER
+            rawDataFull.sort((a, b) => {
+                const codeA = getBpsCode(a);
+                const codeB = getBpsCode(b);
+                if (codeA !== codeB) return codeA.localeCompare(codeB);
+                return String(a.kab_ko || '').localeCompare(String(b.kab_ko || ''));
+            });
+
             let rawData = rawDataFull;
             if (currentSelectedYears.length > 0) {
                 rawData = rawDataFull.filter(item => {
@@ -1368,58 +1481,95 @@ function get_dda_label_nested($col)
             }
 
             let finalCols = [];
-            if (config.pivot.enabled && config.pivot.row?.length > 0 && config.pivot.col?.length > 0 && config.pivot.val?.length > 0) {
-                const rowKeys = config.pivot.row;
+            
+            // Validasi kelayakan pivot (Backward Compatibility)
+            let isPivotReady = config.pivot.enabled && config.pivot.col?.length > 0 && config.pivot.val?.length > 0;
+            if (isPivotReady && !config.pivot.metrics_as_row && config.pivot.row?.length === 0) {
+                isPivotReady = false; // Pivot standar wajib ada Baris Tetap
+            }
+
+            if (isPivotReady) {
+                const rowKeys = config.pivot.row || [];
                 const colKeys = config.pivot.col;
                 const valKeys = config.pivot.val;
 
                 const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A')).join(' || ');
-                const categories = [...new Set(rawData.map(item => generateKey(item, colKeys)))].sort();
+                let categories = [...new Set(rawData.map(item => generateKey(item, colKeys)))];
+                sortArrayWithOrder(categories, config.pivot.mapping_order);
+                
+                // Also sort valKeys and rowKeys if they are in mapping_order
+                sortArrayWithOrder(valKeys, config.pivot.mapping_order);
+                sortArrayWithOrder(rowKeys, config.pivot.mapping_order);
 
                 rawData = pivotData(rawData, config);
 
-                rowKeys.forEach(rk => {
-                    const mapping = config.pivot.mappings?.[rk] || {
-                        label_id: rk,
-                        label_en: ''
-                    };
+                if (config.pivot.metrics_as_row) {
+                    // 1. Kolom Utama "Uraian"
                     finalCols.push({
-                        key: rk,
-                        label_id: mapping.label_id,
-                        label_en: mapping.label_en,
+                        key: 'Uraian',
+                        label_id: 'Uraian',
+                        label_en: 'Description',
                         isRow: true
                     });
-                });
 
-                categories.forEach(cat => {
-                    valKeys.forEach(vk => {
-                        const catMapping = config.pivot.mappings?.[cat] || {
-                            label_id: cat,
-                            label_en: ''
-                        };
-                        const valMapping = config.pivot.mappings?.[vk] || {
-                            label_id: vk,
-                            label_en: ''
-                        };
+                    // 2. Kolom-kolom Kategori (Tahun)
+                    categories.forEach(cat => {
+                        const mapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
                         const prefix = config.pivot.prefix ? (config.pivot.prefix.trim() + ' || ') : '';
                         const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en.trim() + ' || ') : '';
 
-                        // If only one metric, don't show it in the header hierarchy
-                        let labelID = prefix + catMapping.label_id;
-                        let labelEN = prefix_en + (catMapping.label_en || '');
-                        if (valKeys.length > 1) {
-                            labelID += ' || ' + valMapping.label_id;
-                            labelEN += ' || ' + (valMapping.label_en || '');
-                        }
-
                         finalCols.push({
-                            key: cat + ' || ' + vk,
-                            label_id: labelID,
-                            label_en: labelEN,
-                            format: config.columns.find(c => c.key === vk)?.format || 'number'
+                            key: cat,
+                            label_id: prefix + mapping.label_id,
+                            label_en: prefix_en + mapping.label_en,
+                            format: 'number' // Metrics are rows, so format is fixed or handled dynamically
                         });
                     });
-                });
+                } else {
+                    // Logic Standard (Metric in Columns)
+                    rowKeys.forEach(rk => {
+                        const mapping = config.pivot.mappings?.[rk] || { label_id: rk, label_en: '' };
+                        finalCols.push({
+                            key: rk,
+                            label_id: mapping.label_id,
+                            label_en: mapping.label_en,
+                            isRow: true
+                        });
+                    });
+
+                    const renderCols = () => {
+                        const loops = config.pivot.metric_first ? [valKeys, categories] : [categories, valKeys];
+                        loops[0].forEach(outer => {
+                            loops[1].forEach(inner => {
+                                const cat = config.pivot.metric_first ? inner : outer;
+                                const vk = config.pivot.metric_first ? outer : inner;
+
+                                const catMapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
+                                const valMapping = config.pivot.mappings?.[vk] || { label_id: vk, label_en: '' };
+                                const prefix = config.pivot.prefix ? (config.pivot.prefix.trim() + ' || ') : '';
+                                const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en.trim() + ' || ') : '';
+
+                                let labelID, labelEN;
+                                if (config.pivot.metric_first) {
+                                    labelID = prefix + valMapping.label_id + (categories.length > 0 ? ' || ' + catMapping.label_id : '');
+                                    labelEN = prefix_en + (valMapping.label_en || '') + (categories.length > 0 ? ' || ' + (catMapping.label_en || '') : '');
+                                } else {
+                                    labelID = prefix + catMapping.label_id + (valKeys.length > 1 ? ' || ' + valMapping.label_id : '');
+                                    labelEN = prefix_en + (catMapping.label_en || '') + (valKeys.length > 1 ? ' || ' + (valMapping.label_en || '') : '');
+                                }
+
+                                finalCols.push({
+                                    key: cat + ' || ' + vk,
+                                    label_id: labelID,
+                                    label_en: labelEN,
+                                    format: config.columns.find(c => c.key === vk)?.format || 'number',
+                                    hidden: config.pivot.only_total || false
+                                });
+                            });
+                        });
+                    };
+                    renderCols();
+                }
 
                 if (config.pivot.total_row) {
                     finalCols.push({
@@ -1436,7 +1586,7 @@ function get_dda_label_nested($col)
             // --- HEADER TREE ---
             const parseHeaderTree = (columns) => {
                 const tree = [];
-                columns.forEach(col => {
+                columns.filter(c => !c.hidden).forEach(col => {
                     const idParts = (col.label_id || col.key).split(' || ');
                     const enParts = (col.label_en || '').split(' || ');
                     let currentNode = tree;
@@ -1514,8 +1664,8 @@ function get_dda_label_nested($col)
             });
 
             // --- RENDER ---
-            // Cek apakah dataset sudah memiliki kolom "Jumlah" (dari API) yang sedang tampil agar tidak duplikat
-            const hasVisibleApiTotal = config.columns.some(c => (c.visible !== false) && (c.key.toLowerCase().includes('jumlah') || c.key.toLowerCase().includes('total')));
+            // Cek apakah tabel sudah memiliki kolom "Jumlah" (baik dari API atau mapping pivot) agar tidak muncul ganda
+            const hasVisibleApiTotal = finalCols.some(c => !c.hidden && !c.isRow && (c.label_id.toLowerCase().includes('jumlah') || c.label_id.toLowerCase().includes('total')));
             const showTotal = (config.show_total_col || (config.pivot && config.pivot.enabled && config.pivot.total_row)) && !hasVisibleApiTotal;
 
             let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#fff;">`;
@@ -1526,12 +1676,12 @@ function get_dda_label_nested($col)
                 row.forEach(cell => {
                     html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid #fff; padding:8px; text-align:center;">${cell.label}${cell.label_en ? `<br><i>${cell.label_en}</i>` : ''}</th>`;
                 });
-                if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid #fff;">Jumlah<br><i>Total</i></th>`;
+                if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid #fff; ${config.pivot.only_total ? 'background:#FF6D1F;' : ''}">Jumlah<br><i>Total</i></th>`;
                 html += '</tr>';
             });
             html += '<tr style="background:#f9a066; color:#000; font-size:10px;">';
-            finalCols.forEach((c, idx) => html += `<th style="border:1px solid #fff; text-align:center;">(${idx + 1})</th>`);
-            if (showTotal) html += `<th style="border:1px solid #fff; text-align:center;">(${finalCols.length + 1})</th>`;
+            finalCols.filter(c => !c.hidden).forEach((c, idx) => html += `<th style="border:1px solid #fff; text-align:center;">(${idx + 1})</th>`);
+            if (showTotal) html += `<th style="border:1px solid #fff; text-align:center;">(${finalCols.filter(c => !c.hidden).length + 1})</th>`;
             html += '</tr></thead><tbody>';
 
             let lastTipe = null;
@@ -1541,25 +1691,12 @@ function get_dda_label_nested($col)
             finalCols.forEach(col => verticalTotals[col.key] = 0);
 
             displayData.forEach((row, r_idx) => {
-                const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah'];
-                const kodeKey = Object.keys(row).find(k => {
-                    const lowerK = k.toLowerCase();
-                    return keywords.some(key => lowerK.includes(key));
-                });
-
-                let curCode = 0;
-                let normalizedNameFromCode = null;
-                if (kodeKey) {
-                    const rawVal = String(row[kodeKey] || '').replace(/\./g, '');
-                    const fullCode = rawVal.substring(0, 4);
-                    curCode = parseInt(fullCode || 0) % 100;
-                    normalizedNameFromCode = BPS_REGIONAL_MAP[fullCode];
-                }
-
-                const isKotaRow = (curCode >= 71 && curCode <= 79);
+                const fullCode = getBpsCode(row);
+                const curCodeInt = parseInt(fullCode);
+                const isKotaRow = (curCodeInt >= 3371 && curCodeInt <= 3376);
                 
-                // Jika tidak ada kode, grup label kosongkan agar tidak muncul header grouping
-                const tipeLabel = (!kodeKey || curCode === 0) ? null : (isKotaRow ? 'Kota / Municipality' : 'Kabupaten / Regency');
+                // Tipe label ditentukan jika kodenya valid (bukan 9999)
+                const tipeLabel = (fullCode === '9999') ? null : (isKotaRow ? 'Kota / Municipality' : 'Kabupaten / Regency');
 
                 // Sectioning if enabled AND we have a valid type
                 if (config.group_by_region && tipeLabel && tipeLabel !== lastTipe) {
@@ -1591,13 +1728,17 @@ function get_dda_label_nested($col)
                     // Deteksi apakah nilai tersebut sebenarnya adalah angka murni
                     let isNumeric = !isNaN(parseFloat(String(rawVal))) && isFinite(String(rawVal).replace(',', '.'));
 
-                    // Deteksi metadata atau kolom yang sudah merupakan total dari API (biar tidak double count)
                     const isTotalInLabel = col.label_id.toLowerCase().includes('jumlah') || col.label_id.toLowerCase().includes('total');
-                    const isMetadata = col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year') || isTotalInLabel;
+                    const isTahunCol = col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year');
 
-                    if (isNumeric && !isMetadata) {
-                        rowSum += num;
+                    if (isNumeric && !col.isRow && !isTahunCol) {
+                        // Selalu jumlahkan secara vertikal untuk semua kolom angka (termasuk kolom "Jumlah" dari API)
                         verticalTotals[col.key] += num;
+                        
+                        // Hitung jumlah horizontal hanya jika kolom tersebut bukan kolom "Jumlah/Total" bawaan API
+                        if (!isTotalInLabel) {
+                            rowSum += num;
+                        }
                     }
 
                     let displayVal = rawVal;
@@ -1608,7 +1749,7 @@ function get_dda_label_nested($col)
                         displayVal = String(rawVal).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
                         // Jika kolom ini adalah kolom Kabupaten/Kota (biasanya c_idx === 0)
-                        if (c_idx === 0) {
+                        if (c_idx === 0 && !config.pivot.metrics_as_row) {
                             if (bakuName) {
                                 displayVal = bakuName;
                             }
@@ -1619,12 +1760,20 @@ function get_dda_label_nested($col)
                             }
                         }
 
-                        const mapping = config.pivot.mappings?.[rawVal];
+                        // Mapping khusus untuk Uraian (jika metrics_as_row aktif)
+                        let mappingKey = rawVal;
+                        if (config.pivot.metrics_as_row && col.key === 'Uraian' && row.originalKey) {
+                            mappingKey = row.originalKey;
+                        }
+
+                        const mapping = config.pivot.mappings?.[mappingKey];
                         if (mapping) displayVal = mapping.label_id || displayVal;
                     } else {
                         // Jika numeric, format angkanya. Jika teks, tampilkan apa adanya (agar Bulan tidak jadi 0)
                         displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal;
                     }
+
+                    if (col.hidden) return;
 
                     const tdStyle = `border:1px solid #eee; padding:8px; ${col.isRow ? 'font-weight:bold;' : 'text-align:center;'}`;
                     html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="${tdStyle}">${displayVal}</td>`;
@@ -1649,12 +1798,17 @@ function get_dda_label_nested($col)
                 html += `<td colspan="2" style="padding:10px; border:1px solid #fff;">${jtMapping.label_id}${jtMapping.label_en ? `<br><i>${jtMapping.label_en}</i>` : ''}</td>`;
                 let grandTotal = 0;
                 finalCols.forEach((col, c_idx) => {
-                    if (c_idx === 0) return;
+                    if (c_idx === 0 || col.hidden) return;
                     const isMetadata = col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year');
                     if (isMetadata) html += `<td style="border:1px solid #fff;"></td>`;
                     else {
                         const sum = verticalTotals[col.key];
-                        grandTotal += sum;
+                        // Hindari double counting pada grand total (pojok kanan bawah) 
+                        // Jika kolom ini adalah kolom "Jumlah" dari API, jangan tambahkan ke grand total
+                        const isTotalInLabel = col.label_id.toLowerCase().includes('jumlah') || col.label_id.toLowerCase().includes('total');
+                        if (!isTotalInLabel) {
+                            grandTotal += sum;
+                        }
                         html += `<td style="border:1px solid #fff; text-align:center;">${formatVal(sum, col.format || 'number')}</td>`;
                     }
                 });

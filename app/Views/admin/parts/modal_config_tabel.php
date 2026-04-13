@@ -3,7 +3,12 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem;">
             <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-sliders me-2 text-primary"></i> KONFIGURASI TABEL</h5>
+                <div class="d-flex align-items-center gap-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0"><i class="bi bi-sliders me-2 text-primary"></i> KONFIGURASI TABEL</h5>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" onclick="toggleGuide()" style="font-size: 10px;">
+                        <i class="bi bi-question-circle me-1"></i> PANDUAN PENGGUNA
+                    </button>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             
@@ -16,6 +21,19 @@
                         <button class="nav-link w-100 fw-bold py-2 rounded-3" data-bs-toggle="tab" data-bs-target="#pivot-pane">Pivot Mode</button>
                     </li>
                 </ul>
+
+                <div id="guide-section" class="mb-4 bg-info bg-opacity-10 p-3 rounded-4 border border-info border-opacity-25" style="display:none">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="fw-bold text-info mb-0"><i class="bi bi-lightbulb-fill me-2"></i> Panduan Singkat</h6>
+                        <button type="button" class="btn-close btn-close-sm" onclick="toggleGuide()" style="font-size:10px"></button>
+                    </div>
+                    <ul class="small text-dark mb-0 ps-3">
+                        <li class="mb-1"><b>Kolom & Label:</b> Gunakan ikon <i class="bi bi-grip-vertical"></i> untuk merubah urutan kolom. Gunakan <b>||</b> untuk membuat grouping header otomatis.</li>
+                        <li class="mb-1"><b>Pivot Mode:</b> Aktifkan untuk memutar data. Pilih "Baris Tetap" (misal: Wilayah) dan "Kategori Kolom" (misal: Tahun).</li>
+                        <li class="mb-1"><b>Mapping (New):</b> Sekarang Anda bisa <b>menarik & menjatuhkan (drag-drop)</b> item di area "Sesuaikan Hasil Putar" untuk mengatur urutan baris/kolom secara manual sesuai keinginan Anda.</li>
+                        <li><b>Terapkan:</b> Klik tombol "Terapkan & Simpan" untuk memperbarui tampilan tabel di halaman utama.</li>
+                    </ul>
+                </div>
 
                 <div class="tab-content border rounded-4 bg-white p-3 shadow-sm" style="min-height: 400px;">
                     <!-- TAB 1: KOLOM & LABEL -->
@@ -96,13 +114,25 @@
                                     <input type="text" id="pivot-prefix-en" class="form-control form-control-sm border-0 bg-light rounded-3" placeholder="Example: Production || ">
                                 </div>
                             </div>
-                            <div class="form-check form-switch mt-3 mb-2">
-                                <input class="form-check-input" type="checkbox" id="pivot-total-row" checked>
+                            <div class="form-check form-switch mt-3 mb-1">
+                                <input class="form-check-input" type="checkbox" id="pivot-total-row" onchange="document.getElementById('pivot-only-total-wrapper').style.display = this.checked ? 'block' : 'none'" checked>
                                 <label class="form-check-label small fw-bold" for="pivot-total-row">Hitung Total Horizontal (Baris)</label>
                             </div>
-                            <div class="form-check form-switch mb-4">
+                            <div class="form-check form-switch mb-2 ms-4" id="pivot-only-total-wrapper">
+                                <input class="form-check-input" type="checkbox" id="pivot-only-total">
+                                <label class="form-check-label small text-muted" for="pivot-only-total">Sembunyikan Rincian (Hanya Tampilkan Total)</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" id="pivot-total-col" checked>
                                 <label class="form-check-label small fw-bold" for="pivot-total-col">Hitung Total Vertikal (Kolom - Jawa Tengah)</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="pivot-metric-first">
+                                <label class="form-check-label small fw-bold text-primary" for="pivot-metric-first"><i class="bi bi-diagram-3-fill me-1"></i> Prioritas Metrik (Metrik &raquo; Tahun)</label>
+                            </div>
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" id="pivot-metrics-as-row">
+                                <label class="form-check-label small fw-bold text-success" for="pivot-metrics-as-row"><i class="bi bi-layout-text-sidebar-reverse me-1"></i> Jadikan Metrik sebagai Baris (Portrait Mode)</label>
                             </div>
                             
                             <!-- Mapping Area -->
@@ -146,7 +176,10 @@
                 col: Array.from(document.querySelectorAll('.pivot-col-order-item')).map(div => div.dataset.key),
                 val: Array.from(document.querySelectorAll('.pivot-val-order-item')).map(div => div.dataset.key), 
                 total_row: document.getElementById('pivot-total-row').checked,
+                only_total: document.getElementById('pivot-only-total').checked,
                 total_col: document.getElementById('pivot-total-col').checked,
+                metric_first: document.getElementById('pivot-metric-first').checked,
+                metrics_as_row: document.getElementById('pivot-metrics-as-row').checked,
                 prefix: document.getElementById('pivot-prefix').value,
                 prefix_en: document.getElementById('pivot-prefix-en').value,
                 mappings: {}
@@ -163,6 +196,9 @@
                 label_en: document.querySelectorAll('.pivot-map-en')[idx].value || ''
             };
         });
+        
+        // Capture Mapping Order
+        config.pivot.mapping_order = Array.from(document.querySelectorAll('.mapping-item')).map(div => div.dataset.key);
 
         colItems.forEach(item => {
             config.columns.push({
@@ -176,15 +212,6 @@
         return config;
     }
 
-    function formatNumber(num, type = 'number') {
-        if (isNaN(num)) return num;
-        switch(type) {
-            case 'decimal': return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            case 'percent': return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
-            case 'currency': return 'Rp ' + num.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            default: return num.toLocaleString('id-ID');
-        }
-    }
 
     function openConfigModal() {
         const modalEl = document.getElementById('configModal');
@@ -239,6 +266,8 @@
                                 <option value="decimal" ${col.format === 'decimal' ? 'selected' : ''}>Desimal (0,00)</option>
                                 <option value="percent" ${col.format === 'percent' ? 'selected' : ''}>Persentase (%)</option>
                                 <option value="currency" ${col.format === 'currency' ? 'selected' : ''}>Mata Uang (Rp)</option>
+                                <option value="ribuan" ${col.format === 'ribuan' ? 'selected' : ''}>Ribuan (Val / 1.000)</option>
+                                <option value="jutaan" ${col.format === 'jutaan' ? 'selected' : ''}>Jutaan (Val / 1.000.000)</option>
                             </select>
                         </div>
                         <div class="col-6"><input type="text" class="form-control form-control-sm label-id border-0 shadow-sm" value="${col.label_id}" placeholder="Label ID"></div>
@@ -279,7 +308,11 @@
         document.getElementById('pivot-prefix').value = currentTableConfig.pivot.prefix || '';
         document.getElementById('pivot-prefix-en').value = currentTableConfig.pivot.prefix_en || '';
         document.getElementById('pivot-total-row').checked = currentTableConfig.pivot.total_row !== false;
+        document.getElementById('pivot-only-total').checked = currentTableConfig.pivot.only_total || false;
+        document.getElementById('pivot-only-total-wrapper').style.display = document.getElementById('pivot-total-row').checked ? 'block' : 'none';
         document.getElementById('pivot-total-col').checked = currentTableConfig.pivot.total_col !== false;
+        document.getElementById('pivot-metric-first').checked = currentTableConfig.pivot.metric_first || false;
+        document.getElementById('pivot-metrics-as-row').checked = currentTableConfig.pivot.metrics_as_row || false;
         document.getElementById('merge-datasets').checked = currentTableConfig.merge_datasets;
         document.getElementById('show-total-col').checked = currentTableConfig.show_total_col || false;
         document.getElementById('group-by-region').checked = currentTableConfig.group_by_region !== false;
@@ -294,13 +327,29 @@
                 document.getElementById('pivot-settings').style.display = this.checked ? 'block' : 'none';
                 if (this.checked) updatePivotMappingUI();
             });
-            // Remove redundant listeners as lists are refreshed
             document.getElementById('pivot-total-row').addEventListener('change', updatePivotMappingUI);
             document.getElementById('pivot-total-col').addEventListener('change', updatePivotMappingUI);
+            document.getElementById('pivot-metrics-as-row').addEventListener('change', updatePivotMappingUI);
             toggle.dataset.hasListener = "true";
         }
 
+        // Initialize Sortable for Mapping List
+        const mappingList = document.getElementById('pivot-mapping-list');
+        if (mappingList && !mappingList.dataset.sortableInitialized) {
+            new Sortable(mappingList, { 
+                animation: 150, 
+                handle: '.cursor-move',
+                ghostClass: 'sortable-ghost'
+            });
+            mappingList.dataset.sortableInitialized = "true";
+        }
+
         bootstrapModal.show();
+    }
+    
+    function toggleGuide() {
+        const guide = document.getElementById('guide-section');
+        guide.style.display = (guide.style.display === 'none') ? 'block' : 'none';
     }
 
     function refreshPivotOrderList(type = 'col') {
@@ -381,16 +430,32 @@
         if (hasTotalRow) addKey('Jumlah', 'Total Horizontal');
         if (hasTotalCol) addKey('Jawa Tengah', 'Total Vertikal');
 
+        // Apply saved order if exists
+        if (currentTableConfig?.pivot?.mapping_order) {
+            const savedOrder = currentTableConfig.pivot.mapping_order;
+            allTargetCols.sort((a, b) => {
+                let idxA = savedOrder.indexOf(a.key);
+                let idxB = savedOrder.indexOf(b.key);
+                if (idxA === -1) idxA = 999;
+                if (idxB === -1) idxB = 999;
+                return idxA - idxB;
+            });
+        }
+
         mappingArea.style.display = 'block';
         mappingList.innerHTML = '';
         
         allTargetCols.forEach(col => {
             let saved = currentTableConfig?.pivot?.mappings?.[col.key] || { label_id: col.key, label_en: '' };
             const div = document.createElement('div');
-            div.className = 'mb-3 pb-3 border-bottom border-white';
+            div.className = 'mapping-item mb-3 pb-3 border-bottom border-white';
+            div.dataset.key = col.key;
             div.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="small fw-bold text-muted font-monospace">Key: ${col.key}</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-grip-vertical text-muted cursor-move" style="font-size: 16px;"></i>
+                        <span class="small fw-bold text-muted font-monospace">Key: ${col.key}</span>
+                    </div>
                     <span class="badge bg-white text-primary border" style="font-size:9px">${col.type}</span>
                 </div>
                 <div class="row g-2">
