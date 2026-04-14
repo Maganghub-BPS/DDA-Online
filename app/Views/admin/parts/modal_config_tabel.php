@@ -52,10 +52,20 @@
                                     <label class="form-check-label fw-bold small" for="merge-datasets">Gabungkan Dataset</label>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100">
-                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="show-total-col">
-                                    <label class="form-check-label fw-bold small" for="show-total-col">Total Horizontal (Tabel Dasar)</label>
+                            <div class="col-md-8">
+                                <div class="row g-2">
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check form-switch bg-light p-3 rounded-3">
+                                            <input class="form-check-input" type="checkbox" id="config_show_group_total">
+                                            <label class="form-check-label fw-bold small" for="config_show_group_total">Jumlah per Kelompok Kolom</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check form-switch bg-light p-3 rounded-3">
+                                            <input class="form-check-input" type="checkbox" id="config_show_total_col">
+                                            <label class="form-check-label fw-bold small" for="config_show_total_col">Tampilkan Total (Baris JT)</label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -184,9 +194,10 @@
                 prefix_en: document.getElementById('pivot-prefix-en').value,
                 mappings: {}
             },
-            merge_datasets: document.getElementById('merge-datasets')?.checked || false,
-            show_total_col: document.getElementById('show-total-col')?.checked || false,
-            group_by_region: document.getElementById('group-by-region')?.checked || false
+            merge_datasets: document.getElementById('merge-datasets').checked,
+            show_total_col: document.getElementById('config_show_total_col').checked,
+            show_group_total: document.getElementById('config_show_group_total').checked,
+            group_by_region: document.getElementById('group-by-region').checked
         };
 
         document.querySelectorAll('.pivot-map-id').forEach((input, idx) => {
@@ -232,6 +243,7 @@
                 pivot: { enabled: false, row: [], col: [], val: [], total_row: true, total_col: true, prefix: '', prefix_en: '', mappings: {} },
                 merge_datasets: false,
                 show_total_col: false,
+                show_group_total: false,
                 group_by_region: true
             };
         }
@@ -314,7 +326,8 @@
         document.getElementById('pivot-metric-first').checked = currentTableConfig.pivot.metric_first || false;
         document.getElementById('pivot-metrics-as-row').checked = currentTableConfig.pivot.metrics_as_row || false;
         document.getElementById('merge-datasets').checked = currentTableConfig.merge_datasets;
-        document.getElementById('show-total-col').checked = currentTableConfig.show_total_col || false;
+        document.getElementById('config_show_total_col').checked = currentTableConfig.show_total_col || false;
+        document.getElementById('config_show_group_total').checked = currentTableConfig.show_group_total || false;
         document.getElementById('group-by-region').checked = currentTableConfig.group_by_region !== false;
 
         if (currentTableConfig.pivot.enabled && currentTableConfig.pivot.col) {
