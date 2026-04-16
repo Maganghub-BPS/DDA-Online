@@ -60,7 +60,6 @@
             right: -10vw;
             z-index: 0;
             filter: blur(60px);
-            will-change: transform;
         }
 
         body::after {
@@ -73,7 +72,6 @@
             left: -10vw;
             z-index: 0;
             filter: blur(50px);
-            will-change: transform;
         }
 
         .login-wrapper {
@@ -122,12 +120,9 @@
             border-radius: 20px;
             padding: 24px 32px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease;
-            will-change: transform;
         }
 
         .login-card:hover {
-            transform: translateY(-2px);
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
 
@@ -171,7 +166,6 @@
             border-left: none;
             padding: 10px 14px;
             font-size: 0.95rem;
-            transition: all 0.2s ease;
             z-index: 0 !important;
         }
 
@@ -185,7 +179,6 @@
             padding: 10px 14px;
             display: flex;
             align-items: center;
-            transition: all 0.2s ease;
         }
 
         .password-toggle:hover {
@@ -225,12 +218,10 @@
             font-weight: 600;
             border-radius: 12px;
             width: 100%;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0 4px 15px rgba(255, 109, 31, 0.3);
         }
 
         .btn-login:hover {
-            transform: scale(1.02);
             box-shadow: 0 6px 20px rgba(255, 109, 31, 0.4);
             color: #fff;
         }
@@ -246,21 +237,7 @@
             font-size: 0.78rem;
         }
 
-        /* Alert animation */
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
         .alert {
-            animation: fadeInDown 0.5s ease;
             border-radius: 12px;
             border: none;
             font-size: 0.9rem;
@@ -365,11 +342,7 @@
             var alertEl = document.getElementById('alert');
             if (alertEl) {
                 setTimeout(function() {
-                    alertEl.style.transition = 'opacity 0.8s ease';
-                    alertEl.style.opacity = '0';
-                    setTimeout(function() {
-                        alertEl.remove();
-                    }, 800);
+                    alertEl.remove();
                 }, 5000);
             }
 
