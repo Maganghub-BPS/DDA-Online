@@ -652,6 +652,8 @@ class Admin extends BaseController
 		return view('admin/index', $a);
 	}
 
+
+
 	public function forum_diskusi()
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {

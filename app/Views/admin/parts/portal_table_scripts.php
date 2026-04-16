@@ -170,23 +170,78 @@
                 const possibleNameKeys = Object.keys(newItem).filter(k => k.toLowerCase().includes('wilayah') || k.toLowerCase().includes('kab') || k.toLowerCase().includes('kot'));
                 possibleNameKeys.forEach(nk => newItem[nk] = bakuName);
             }
+            
+            // --- NEW: Aggressive Mapping for Merging ---
+            rowKeys.forEach(rk => {
+                const val = String(newItem[rk] || '').trim();
+                const mapping = config.pivot.mappings?.[val];
+                if (mapping) newItem[rk] = mapping.label_id;
+            });
+            colKeys.forEach(ck => {
+                const val = String(newItem[ck] || '').trim();
+                const mapping = config.pivot.mappings?.[val];
+                if (mapping) newItem[ck] = mapping.label_id;
+            });
+            // ------------------------------------------
+
             return newItem;
         });
-        const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A')).join(' || ');
+        const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A').trim()).join(' || ');
         let categories = [...new Set(normalizedData.map(item => generateKey(item, colKeys)))];
         sortArrayWithOrder(categories, config.pivot.mapping_order);
         if (config.pivot.metrics_as_row) {
             const results = [];
-            valKeys.forEach(vk => {
-                const row = { 'Uraian': vk, 'isMetricRow': true, 'originalKey': vk };
-                categories.forEach(cat => {
-                    const cellData = normalizedData.filter(item => generateKey(item, colKeys) === cat);
-                    const sum = cellData.reduce((acc, item) => acc + (parseFloat(item[vk]) || 0), 0);
-                    row[cat] = sum;
+            // Jika ada rowKeys, kita kelompokkan metrik di bawah setiap grup tersebut
+            if (rowKeys.length > 0) {
+                const groups = [...new Set(normalizedData.map(item => generateKey(item, rowKeys)))];
+                groups.forEach(groupKey => {
+                    valKeys.forEach(vk => {
+                        const metricLabel = config.pivot.mappings?.[vk]?.label_id || vk;
+                        const metricParts = metricLabel.split(/\s*\|\|\s*/);
+                        
+                        // Gunakan bagian pertama metrik sebagai bagian dari hierarki baris pertama
+                        const combinedKey = groupKey + ' || ' + metricParts[0];
+                        const row = { 'Uraian': combinedKey, 'isMetricRow': true, 'originalKey': vk };
+                        
+                        const groupItems = normalizedData.filter(item => generateKey(item, rowKeys) === groupKey);
+                        if (groupItems.length > 0) {
+                            rowKeys.forEach((rk, rkIdx) => {
+                                if (rkIdx === 0) {
+                                    row[rk] = combinedKey;
+                                } else {
+                                    // Jika metrik memiliki bagian tambahan (misal: Satuan), masukkan ke kolom baris berikutnya
+                                    if (metricParts[rkIdx]) {
+                                        row[rk] = metricParts[rkIdx];
+                                    } else {
+                                        row[rk] = groupItems[0][rk];
+                                    }
+                                }
+                            });
+                        }
+
+                        categories.forEach(cat => {
+                            const cellData = groupItems.filter(item => generateKey(item, colKeys) === cat);
+                            // Agregasi: Sum (Default)
+                            const sum = cellData.reduce((acc, item) => acc + (parseFloat(item[vk]) || 0), 0);
+                            row[cat] = sum;
+                        });
+                        if (config.pivot.total_row) row['Jumlah'] = categories.reduce((acc, cat) => acc + (row[cat] || 0), 0);
+                        results.push(row);
+                    });
                 });
-                if (config.pivot.total_row) row['Jumlah'] = categories.reduce((acc, cat) => acc + (row[cat] || 0), 0);
-                results.push(row);
-            });
+            } else {
+                // Perilaku asli jika tidak ada rowKeys
+                valKeys.forEach(vk => {
+                    const row = { 'Uraian': vk, 'isMetricRow': true, 'originalKey': vk };
+                    categories.forEach(cat => {
+                        const cellData = normalizedData.filter(item => generateKey(item, colKeys) === cat);
+                        const sum = cellData.reduce((acc, item) => acc + (parseFloat(item[vk]) || 0), 0);
+                        row[cat] = sum;
+                    });
+                    if (config.pivot.total_row) row['Jumlah'] = categories.reduce((acc, cat) => acc + (row[cat] || 0), 0);
+                    results.push(row);
+                });
+            }
             return results;
         }
         const grouped = {};
@@ -210,13 +265,25 @@
             });
         });
         const finalArray = Object.values(grouped);
+        const order = config.pivot.mapping_order || [];
         finalArray.sort((a, b) => {
             const codeA = getBpsCode(a);
             const codeB = getBpsCode(b);
-            if (codeA !== codeB) return codeA.localeCompare(codeB);
-            const nameA = a[rowKeys[0]] || '';
-            const nameB = b[rowKeys[0]] || '';
-            return String(nameA).localeCompare(String(nameB));
+
+            // Prioritas 1: Standar BPS (Khusus Wilayah)
+            if (codeA !== codeB && codeA !== '9999' && codeB !== '9999') return codeA.localeCompare(codeB);
+
+            // Prioritas 2: Urutan Kustom (Drag & Drop)
+            const nameA = String(a[rowKeys[0]] || '');
+            const nameB = String(b[rowKeys[0]] || '');
+            let idxA = order.indexOf(nameA);
+            let idxB = order.indexOf(nameB);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+
+            // Prioritas 3: Abjad (Fallback)
+            return nameA.localeCompare(nameB);
         });
         return finalArray;
     }
@@ -273,7 +340,14 @@
             sortArrayWithOrder(rowKeys, config.pivot.mapping_order);
             rawData = pivotData(rawData, config);
             if (config.pivot.metrics_as_row) {
-                finalCols.push({ key: 'Uraian', label_id: 'Uraian', label_en: 'Description', isRow: true });
+                if (rowKeys.length > 0) {
+                    rowKeys.forEach(rk => {
+                        const colConfig = config.columns.find(c => c.key === rk) || { key: rk, label_id: rk, label_en: '' };
+                        finalCols.push({ ...colConfig, isRow: true });
+                    });
+                } else {
+                    finalCols.push({ key: 'Uraian', label_id: 'Uraian', label_en: 'Description', isRow: true });
+                }
                 categories.forEach(cat => {
                     const mapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
                     const prefix = config.pivot.prefix ? (config.pivot.prefix.trim() + ' || ') : '';
@@ -518,12 +592,13 @@
                         const mapping = config.pivot.mappings?.[mappingKey] || config.pivot.mappings?.[rawVal];
                         if (mapping) {
                             displayVal = mapping.label_id || displayVal;
-                            // Menangani indentasi jika ada hierarki ||
-                            const parts = displayVal.split(/\s*\|\|\s*/);
-                            if (parts.length > 1) {
-                                const indent = (parts.length - 1) * 20;
-                                displayVal = `<span style="padding-left:${indent}px">${parts[parts.length - 1]}</span>`;
-                            }
+                        }
+                        
+                        // Menangani indentasi/pembersihan jika ada hierarki || (Pindahkan ke luar mapping agar kena ke hasil pivot otomatis)
+                        const parts = displayVal.split(/\s*\|\|\s*/);
+                        if (parts.length > 1) {
+                            const indent = (parts.length - 1) * 20;
+                            displayVal = `<span style="padding-left:${indent}px">${parts[parts.length - 1]}</span>`;
                         }
                     } else displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal;
                 if (col.hidden) return;

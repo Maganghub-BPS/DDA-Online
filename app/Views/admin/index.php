@@ -582,6 +582,7 @@
                             <i class="bi bi-diagram-3"></i>
                             <span class="link-text">Master Tim</span>
                         </a>
+
                     <?php endif; ?>
                 <?php endif; ?>
 
@@ -675,6 +676,10 @@
 
                 <!-- Content Body -->
                 <div class="content-body">
+                    <?php if (session()->getFlashdata('k')): ?>
+                        <?= session()->getFlashdata('k') ?>
+                    <?php endif; ?>
+
                     <?php echo view('admin/' . $page); ?>
                 </div>
             </div>

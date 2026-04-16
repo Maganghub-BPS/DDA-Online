@@ -45,20 +45,22 @@
                 radial-gradient(at 50% 50%, rgba(255, 255, 255, 1) 0px, transparent 80%);
             position: relative;
             overflow: hidden;
+            text-rendering: optimizeSpeed;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Trendier Abstract Blobs */
+        /* Optimized Abstract Blobs - Static for performance */
         body::before {
             content: '';
             position: absolute;
             width: 70vw;
             height: 70vw;
-            background: radial-gradient(circle, rgba(255, 109, 31, 0.06) 0%, rgba(255, 109, 31, 0) 70%);
+            background: radial-gradient(circle, rgba(255, 109, 31, 0.05) 0%, rgba(255, 109, 31, 0) 70%);
             top: -20vh;
             right: -10vw;
             z-index: 0;
-            filter: blur(80px);
-            animation: moveBlob 25s infinite alternate ease-in-out;
+            filter: blur(60px);
+            will-change: transform;
         }
 
         body::after {
@@ -66,17 +68,12 @@
             position: absolute;
             width: 60vw;
             height: 60vw;
-            background: radial-gradient(circle, rgba(255, 158, 102, 0.04) 0%, rgba(255, 158, 102, 0) 70%);
+            background: radial-gradient(circle, rgba(255, 158, 102, 0.03) 0%, rgba(255, 158, 102, 0) 70%);
             bottom: -15vh;
             left: -10vw;
             z-index: 0;
-            filter: blur(60px);
-            animation: moveBlob 30s infinite alternate-reverse ease-in-out;
-        }
-
-        @keyframes moveBlob {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            100% { transform: translate(50px, 30px) rotate(10deg); }
+            filter: blur(50px);
+            will-change: transform;
         }
 
         .login-wrapper {
@@ -119,18 +116,19 @@
 
         .login-card {
             background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 20px;
             padding: 24px 32px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease;
+            will-change: transform;
         }
 
         .login-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
 
         .login-card h5 {
