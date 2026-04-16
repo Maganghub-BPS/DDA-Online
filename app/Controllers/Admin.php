@@ -108,13 +108,13 @@ class Admin extends BaseController
 		$mau_ke					= $this->uri->segment(3);
 
 		//ambil variabel Postingan
-		$idp					= addslashes($this->input->post('idp'));
-		$nama					= addslashes($this->input->post('nama'));
-		$alamat					= addslashes($this->input->post('alamat'));
-		$kepsek					= addslashes($this->input->post('kepsek'));
-		$nip_kepsek				= addslashes($this->input->post('nip_kepsek'));
+		$idp					= $this->input->post('idp');
+		$nama					= $this->input->post('nama');
+		$alamat					= $this->input->post('alamat');
+		$kepsek					= $this->input->post('kepsek');
+		$nip_kepsek				= $this->input->post('nip_kepsek');
 
-		$cari					= addslashes($this->input->post('q'));
+		$cari					= $this->input->post('q');
 
 		//upload config 
 		$config['upload_path'] 		= './upload';
@@ -129,9 +129,9 @@ class Admin extends BaseController
 			if ($this->upload->do_upload('logo')) {
 				$up_data	 	= $this->upload->data();
 
-				$this->db->query("UPDATE tr_instansi SET nama = '$nama', alamat = '$alamat', kepsek = '$kepsek', nip_kepsek = '$nip_kepsek', logo = '" . $up_data['file_name'] . "' WHERE id = '$idp'");
+				$this->db->query("UPDATE tr_instansi SET nama = ?, alamat = ?, kepsek = ?, nip_kepsek = ?, logo = ? WHERE id = ?", [$nama, $alamat, $kepsek, $nip_kepsek, $up_data['file_name'], $idp]);
 			} else {
-				$this->db->query("UPDATE tr_instansi SET nama = '$nama', alamat = '$alamat', kepsek = '$kepsek', nip_kepsek = '$nip_kepsek' WHERE id = '$idp'");
+				$this->db->query("UPDATE tr_instansi SET nama = ?, alamat = ?, kepsek = ?, nip_kepsek = ? WHERE id = ?", [$nama, $alamat, $kepsek, $nip_kepsek, $idp]);
 			}
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated</div>");
@@ -166,34 +166,34 @@ class Admin extends BaseController
 		$mau_ke					= $this->uri->segment(3);
 		$idu					= $this->uri->segment(4);
 
-		$cari					= addslashes($this->input->post('q'));
+		$cari					= $this->input->post('q');
 
 		//ambil variabel Postingan
-		$idp					= addslashes($this->input->post('idp'));
-		$username				= addslashes($this->input->post('username'));
-		$password				= md5(addslashes($this->input->post('password')));
-		$nama					= addslashes($this->input->post('nama'));
-		$nip					= addslashes($this->input->post('nip'));
-		$level					= addslashes($this->input->post('level'));
-		$unitkerja				= addslashes($this->input->post('unitkerja'));
-		$email					= addslashes($this->input->post('email'));
-		$cari					= addslashes($this->input->post('q'));
+		$idp					= $this->input->post('idp');
+		$username				= $this->input->post('username');
+		$password				= md5($this->input->post('password'));
+		$nama					= $this->input->post('nama');
+		$nip					= $this->input->post('nip');
+		$level					= $this->input->post('level');
+		$unitkerja				= $this->input->post('unitkerja');
+		$email					= $this->input->post('email');
+		$cari					= $this->input->post('q');
 
 
 		if ($mau_ke == "del") {
-			$this->db->query("DELETE FROM t_admin WHERE id = '$idu'");
+			$this->db->query("DELETE FROM t_admin WHERE id = ?", [$idu]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/manage_admin');
 		} else if ($mau_ke == "cari") {
-			$a['data']		= $this->db->query("SELECT * FROM t_admin WHERE nama LIKE '%$cari%' ORDER BY id DESC")->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM t_admin WHERE nama LIKE ? ORDER BY id DESC", ['%' . $cari . '%'])->getResult();
 			$a['page']		= "l_manage_admin";
 		} else if ($mau_ke == "add") {
 			$a['page']		= "f_manage_admin";
 		} else if ($mau_ke == "edt") {
-			$a['datpil']	= $this->db->query("SELECT * FROM t_admin WHERE id = '$idu'")->getRow();
+			$a['datpil']	= $this->db->query("SELECT * FROM t_admin WHERE id = ?", [$idu])->getRow();
 			$a['page']		= "f_manage_admin";
 		} else if ($mau_ke == "act_add") {
-			$cek_user_exist = $this->db->query("SELECT username FROM t_admin WHERE username = '$username'")->getNumRows();
+			$cek_user_exist = $this->db->query("SELECT username FROM t_admin WHERE username = ?", [$username])->getNumRows();
 
 			if (strlen($username) < 3) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Username minimal 4 huruf</div>");
@@ -202,17 +202,17 @@ class Admin extends BaseController
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Username telah dipakai. Ganti yang lain..!</div>");
 				return redirect()->to('admin/manage_admin');
 			} else {
-				$this->db->query("INSERT INTO t_admin (username, password, nama, nip, level, id_unitkerja, email) VALUES ('$username', '$password', '$nama', '$nip', '$level', '$unitkerja', '$email')");
+				$this->db->query("INSERT INTO t_admin (username, password, nama, nip, level, id_unitkerja, email) VALUES (?, ?, ?, ?, ?, ?, ?)", [$username, $password, $nama, $nip, $level, $unitkerja, $email]);
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			}
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			return redirect()->to('admin/manage_admin');
 		} else if ($mau_ke == "act_edt") {
-			if ($password = md5("-")) {
-				$this->db->query("UPDATE t_admin SET username = '$username', nama = '$nama', nip = '$nip', level = '$level', email='$email',id_unitkerja='$unitkerja' WHERE id = '$idp'");
+			if ($password == md5("-")) {
+				$this->db->query("UPDATE t_admin SET username = ?, nama = ?, nip = ?, level = ?, email=?, id_unitkerja=? WHERE id = ?", [$username, $nama, $nip, $level, $email, $unitkerja, $idp]);
 			} else {
-				$this->db->query("UPDATE t_admin SET username = '$username', password = '$password', nama = '$nama', nip = '$nip', level = '$level', email='$email',id_unitkerja='$unitkerja' WHERE id = '$idp'");
+				$this->db->query("UPDATE t_admin SET username = ?, password = ?, nama = ?, nip = ?, level = ?, email=?, id_unitkerja=? WHERE id = ?", [$username, $password, $nama, $nip, $level, $email, $unitkerja, $idp]);
 			}
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
@@ -229,7 +229,7 @@ class Admin extends BaseController
 	{
 		$kode 				= $this->input->post('kode', TRUE);
 
-		$data 				=  $this->db->query("SELECT id, kode, nama FROM ref_klasifikasi WHERE kode LIKE '%$kode%' ORDER BY id ASC")->getResult();
+		$data 				=  $this->db->query("SELECT id, kode, nama FROM ref_klasifikasi WHERE kode LIKE ? ORDER BY id ASC", ['%' . $kode . '%'])->getResult();
 
 		$klasifikasi 		=  array();
 		foreach ($data as $d) {
@@ -247,7 +247,7 @@ class Admin extends BaseController
 	{
 		$kode 				= $this->input->post('kpd_yth', TRUE);
 
-		$data 				=  $this->db->query("SELECT * FROM m_bidang WHERE nama_bidang LIKE '%$kode%' ORDER BY id_bidang ASC")->getResult();
+		$data 				=  $this->db->query("SELECT * FROM m_bidang WHERE nama_bidang LIKE ? ORDER BY id_bidang ASC", ['%' . $kode . '%'])->getResult();
 
 		$klasifikasi 		=  array();
 		foreach ($data as $d) {
@@ -264,7 +264,7 @@ class Admin extends BaseController
 	{
 		$kode 				= $this->input->post('dari', TRUE);
 
-		$data 				=  $this->db->query("SELECT dari FROM t_surat_masuk WHERE dari LIKE '%$kode%' GROUP BY dari")->getResult();
+		$data 				=  $this->db->query("SELECT dari FROM t_surat_masuk WHERE dari LIKE ? GROUP BY dari", ['%' . $kode . '%'])->getResult();
 
 		$klasifikasi 		=  array();
 		foreach ($data as $d) {
@@ -284,14 +284,14 @@ class Admin extends BaseController
 		$mau_ke					= $this->uri->segment(3);
 
 		//ambil variabel Postingan
-		$idp					= addslashes($this->input->post('idp') ?? '');
-		$nama					= addslashes($this->input->post('nama') ?? '');
-		$nip					= addslashes($this->input->post('nip') ?? '');
-		$email					= addslashes($this->input->post('email') ?? '');
-		$username				= addslashes($this->input->post('username') ?? '');
+		$idp					= $this->input->post('idp') ?? '';
+		$nama					= $this->input->post('nama') ?? '';
+		$nip					= $this->input->post('nip') ?? '';
+		$email					= $this->input->post('email') ?? '';
+		$username				= $this->input->post('username') ?? '';
 
 		if ($mau_ke == "act_edt") {
-			$this->db->query("UPDATE t_admin SET nama = '$nama', nip = '$nip', email = '$email', username = '$username' WHERE id = '$idp'");
+			$this->db->query("UPDATE t_admin SET nama = ?, nip = ?, email = ?, username = ? WHERE id = ?", [$nama, $nip, $email, $username, $idp]);
 			// Sync session data
 			$this->session->set('admin_nama', $nama);
 			$this->session->set('admin_user', $username);
@@ -299,7 +299,7 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Profil berhasil diperbarui</div>");
 			return redirect()->to('admin/profil');
 		} else {
-			$a['datpil']	= $this->db->query("SELECT * FROM t_admin WHERE id = '$idu'")->getRow();
+			$a['datpil']	= $this->db->query("SELECT * FROM t_admin WHERE id = ?", [$idu])->getRow();
 			$a['page']		= "f_profil";
 		}
 
@@ -321,7 +321,7 @@ class Admin extends BaseController
 		$p3				= md5($this->input->post('p3'));
 
 		if ($ke == "simpan") {
-			$cek_password_lama	= $this->db->query("SELECT password FROM t_admin WHERE id = $id_user")->getRow();
+			$cek_password_lama	= $this->db->query("SELECT password FROM t_admin WHERE id = ?", [$id_user])->getRow();
 			//echo 
 
 			if ($cek_password_lama->password != $p1) {
@@ -331,7 +331,7 @@ class Admin extends BaseController
 				$this->session->setFlashdata('k_passwod', '<div id="alert" class="alert alert-error">Password Baru 1 dan 2 tidak cocok</div>');
 				return redirect()->to('admin/passwod');
 			} else {
-				$this->db->query("UPDATE t_admin SET password = '$p3' WHERE id = " . $id_user . "");
+				$this->db->query("UPDATE t_admin SET password = ? WHERE id = ?", [$p3, $id_user]);
 				$this->session->setFlashdata('k_passwod', '<div id="alert" class="alert alert-success">Password berhasil diperbaharui</div>');
 				return redirect()->to('admin/passwod');
 			}
@@ -354,7 +354,7 @@ class Admin extends BaseController
 		$ta 	= $this->input->post('ta');
 		$p 		= md5($this->input->post('p'));
 
-		$q_cek	= $this->db->query("SELECT * FROM t_admin WHERE username = '" . $u . "' AND password = '" . $p . "'");
+		$q_cek	= $this->db->query("SELECT * FROM t_admin WHERE username = ? AND password = ?", [$u, $p]);
 		$j_cek	= $q_cek->getNumRows();
 		$d_cek	= $q_cek->getRow();
 
@@ -416,11 +416,9 @@ class Admin extends BaseController
 		$mau_ke					= $this->uri->segment(3);
 		$idu					= $this->uri->segment(4);
 
-		$cari					= addslashes($this->input->post('q'));
-
 		//ambil variabel post
-		$id_kontrak_konfirm		= addslashes($this->input->post('id_kontrak'));
-		$cari					= addslashes($this->input->post('q'));
+		$id_kontrak_konfirm		= $this->input->post('id_kontrak');
+		$cari					= $this->input->post('q');
 
 		if ($mau_ke == "edt") {
 			$id_edit 		  = $this->input->get('konfirmasi_id');
@@ -429,10 +427,10 @@ class Admin extends BaseController
 				//window.alert('<?php echo $id_edit; ?>');
 			</script>
 		<?php
-			$a['datpil']	= $this->db->query("select * from t_kontrak where id_kontrak='$id_edit'")->getRow();
+			$a['datpil']	= $this->db->query("select * from t_kontrak where id_kontrak=?", [$id_edit])->getRow();
 			$a['page']		= "f_konfirmasi";
 		} else if ($mau_ke == "act_edt") {
-			$this->db->query("update t_kontrak set flag_konfirm='1' where id_kontrak='$id_kontrak_konfirm'");
+			$this->db->query("update t_kontrak set flag_konfirm='1' where id_kontrak=?", [$id_kontrak_konfirm]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data sudah dikonfirmasi selesai</div>");
 			return redirect()->to('admin/oi/');
 		} else {
@@ -475,16 +473,16 @@ class Admin extends BaseController
 
 		//ambil variabel post
 
-		$idp					= addslashes($this->input->post('idp'));
-		$nip					= addslashes($this->input->post('nip'));
-		//$tgl					= addslashes($this->input->post('tgl'));
-		//$jam_keluar			= addslashes($this->input->post('jam_keluar'));
-		//$jam_masuk			= addslashes($this->input->post('jam_masuk'));
-		$status					= addslashes($this->input->post('status'));
-		$kepentingan_kel		= addslashes($this->input->post('kepentingan_kel'));
-		$kepentingan_uraian		= addslashes($this->input->post('kepentingan_uraian'));
+		$idp					= $this->input->post('idp');
+		$nip					= $this->input->post('nip');
+		//$tgl					= $this->input->post('tgl');
+		//$jam_keluar			= $this->input->post('jam_keluar');
+		//$jam_masuk			= $this->input->post('jam_masuk');
+		$status					= $this->input->post('status');
+		$kepentingan_kel		= $this->input->post('kepentingan_kel');
+		$kepentingan_uraian		= $this->input->post('kepentingan_uraian');
 
-		$cari					= addslashes($this->input->post('q'));
+		$cari					= $this->input->post('q');
 		$nippegawai = $this->session->get('admin_nip');
 
 		//upload config 
@@ -503,11 +501,11 @@ class Admin extends BaseController
 				//window.alert('<?php echo $id_delete; ?>');
 			</script>
 		<?php
-			$a['datpil']	= $this->db->query("select * from t_oi where id='$id_delete'")->getRow();
+			$a['datpil']	= $this->db->query("select * from t_oi where id=?", [$id_delete])->getRow();
 			$a['page']		= "f_del";
 		} else if ($mau_ke == "act_del") {
-			$id_oi = addslashes($this->input->post('id'));
-			$this->db->query("DELETE FROM t_oi WHERE id = '$id_oi'");
+			$id_oi = $this->input->post('id');
+			$this->db->query("DELETE FROM t_oi WHERE id = ?", [$id_oi]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/oi/');
 		} else if ($mau_ke == "in") {
@@ -517,13 +515,13 @@ class Admin extends BaseController
 				//window.alert('<?php echo $id_in; ?>');
 			</script>
 		<?php
-			$a['datpil']	= $this->db->query("select * from t_oi where id='$id_in'")->getRow();
+			$a['datpil']	= $this->db->query("select * from t_oi where id=?", [$id_in])->getRow();
 			$a['page']		= "f_in";
 		} else if ($mau_ke == "act_in") {
-			$id_oi = addslashes($this->input->post('id'));
+			$id_oi = $this->input->post('id');
 			date_default_timezone_set("Asia/Jakarta");
 			$tanggal_in = date("H:i");
-			$this->db->query("UPDATE t_oi SET jam_masuk='$tanggal_in' where id='$id_oi'");
+			$this->db->query("UPDATE t_oi SET jam_masuk=? where id=?", [$tanggal_in, $id_oi]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/oi/');
 		} else if ($mau_ke == "konfirmasi") {
@@ -533,14 +531,14 @@ class Admin extends BaseController
 				//window.alert('<?php echo $id_konfirmasi; ?>');
 			</script>
 		<?php
-			$a['datpil']	= $this->db->query("select l.id, l.judul_ind, l.judul_en, l.id_unitkerja, m.unitkerja_ind from t_list_tabel l left join m_unitkerja m on l.id_unitkerja=m.id_unitkerja where l.id='$id_konfirmasi'")->getRow();
+			$a['datpil']	= $this->db->query("select l.id, l.judul_ind, l.judul_en, l.id_unitkerja, m.unitkerja_ind from t_list_tabel l left join m_unitkerja m on l.id_unitkerja=m.id_unitkerja where l.id=?", [$id_konfirmasi])->getRow();
 			$a['page']		= "f_konfirmasi";
 		} else if ($mau_ke == "act_konfirmasi") {
-			$id_data = addslashes($this->input->post('id'));
-			$catatan = addslashes($this->input->post('catatan'));
+			$id_data = $this->input->post('id');
+			$catatan = $this->input->post('catatan');
 
 			//$confirmed_by=$this->session->get('admin_nama');
-			$this->db->query("UPDATE t_list_tabel SET is_confirm='1', catatan ='$catatan' where id='$id_data'");
+			$this->db->query("UPDATE t_list_tabel SET is_confirm='1', catatan =? where id=?", [$catatan, $id_data]);
 			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data has been updated</div>');
 		} else if ($mau_ke == "periksa") {
 			$id_konfirmasi = $this->input->get('konfirmasi_id');;
@@ -549,32 +547,32 @@ class Admin extends BaseController
 				//window.alert('<?php echo $id_konfirmasi; ?>');
 			</script>
 		<?php
-			$a['datpil']	= $this->db->query("select l.id, l.judul_ind, l.judul_en, l.id_unitkerja, m.unitkerja_ind from t_list_tabel l left join m_unitkerja m on l.id_unitkerja=m.id_unitkerja where l.id='$id_konfirmasi'")->getRow();
+			$a['datpil']	= $this->db->query("select l.id, l.judul_ind, l.judul_en, l.id_unitkerja, m.unitkerja_ind from t_list_tabel l left join m_unitkerja m on l.id_unitkerja=m.id_unitkerja where l.id=?", [$id_konfirmasi])->getRow();
 			$a['page']		= "f_periksa";
 		} else if ($mau_ke == "act_periksa") {
-			$id_data = addslashes($this->input->post('id'));
-			$catatan_periksa = addslashes($this->input->post('catatan_periksa'));
+			$id_data = $this->input->post('id');
+			$catatan_periksa = $this->input->post('catatan_periksa');
 
 			//$confirmed_by=$this->session->get('admin_nama');
-			$this->db->query("UPDATE t_list_tabel SET is_confirm='1',catatan='$catatan_periksa' where id='$id_data'");
+			$this->db->query("UPDATE t_list_tabel SET is_confirm='1',catatan=? where id=?", [$catatan_periksa, $id_data]);
 			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data has been updated</div>');
 		} else if ($mau_ke == "cari") {
 
-			$a['data']		= $this->db->query("SELECT * from t_oi where keterangan_uraian  LIKE '%$cari%'")->getResult();
+			$a['data']		= $this->db->query("SELECT * from t_oi where keterangan_uraian LIKE ?", ['%' . $cari . '%'])->getResult();
 			$a['page']		= "l_oi";
 		} else if ($mau_ke == "add") {
 
 			$a['page']		= "f_oi";
 		} else if ($mau_ke == "edt") {
 
-			$a['datpil']	= $this->db->query("SELECT * from t_oi WHERE id = '$idu'")->getRow();
+			$a['datpil']	= $this->db->query("SELECT * from t_oi WHERE id = ?", [$idu])->getRow();
 			$a['page']		= "f_oi";
 		} else if ($mau_ke == "act_add") {
 			$hariini = date('Y-m-d');
 			date_default_timezone_set("Asia/Jakarta");
 			$waktusekarang = date("H:i");
 
-			$this->db->query("INSERT INTO t_oi VALUES (NULL, '$nippegawai', '$hariini', '$waktusekarang','','T','$kepentingan_kel','$kepentingan_uraian','','','')");
+			$this->db->query("INSERT INTO t_oi VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$nippegawai, $hariini, $waktusekarang, '', 'T', $kepentingan_kel, $kepentingan_uraian, '', '', '']);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			return redirect()->to('admin/dda');
 		} else if ($mau_ke == "act_edt") {
@@ -583,31 +581,31 @@ class Admin extends BaseController
 				//window.alert('<?php echo $idu; ?>');
 			</script>
 		<?php
-			$this->db->query("UPDATE t_oi SET kepentingan_kel ='$kepentingan_kel', kepentingan_uraian= '$kepentingan_uraian' where id='$idp'");
+			$this->db->query("UPDATE t_oi SET kepentingan_kel = ?, kepentingan_uraian = ? where id = ?", [$kepentingan_kel, $kepentingan_uraian, $idp]);
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated</div>");
 			return redirect()->to('admin/dda/');
 		} else if ($mau_ke == "kondef") {
 			$id_tabel = $this->input->get('id');
-			$a['datpil']	= $this->db->query("SELECT * from t_list_tabel WHERE id = '$id_tabel'")->getRow();
+			$a['datpil']	= $this->db->query("SELECT * from t_list_tabel WHERE id = ?", [$id_tabel])->getRow();
 			$a['page']		= "f_kondef";
 		} else if ($mau_ke == "kondef_update") {
-			$idp					= addslashes($this->input->post('idp'));
-			$kondef					= addslashes($this->input->post('kondef'));
-			$a['datpil']			= $this->db->query("update t_list_tabel set kondef='$kondef' WHERE id = '$idp'");
+			$idp					= $this->input->post('idp');
+			$kondef					= $this->input->post('kondef');
+			$a['datpil']			= $this->db->query("update t_list_tabel set kondef=? WHERE id = ?", [$kondef, $idp]);
 			return redirect()->to('admin/dda/');
 		} else if ($mau_ke == "view_tabel") {
 			$id_unitkerja = $this->input->get('id');
-			$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja='$id_unitkerja' and tahun='$ta' ")->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and tahun=? ", [$id_unitkerja, $ta])->getResult();
 			$a['page']		= "l_dda";
 		} else if ($mau_ke == "periksa_tabel") {
 			$id_unitkerja = $this->input->get('id');
 			$level = $this->session->get('admin_level');
 			if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja='$id_unitkerja' and tahun='$ta' LIMIT $awal, $akhir ")->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and tahun=? LIMIT $awal, $akhir ", [$id_unitkerja, $ta])->getResult();
 				$a['page']		= "l_dda_periksa";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja='$id_unitkerja' and is_confirm='1' and tahun='$ta' LIMIT $awal, $akhir ")->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and is_confirm='1' and tahun=? LIMIT $awal, $akhir ", [$id_unitkerja, $ta])->getResult();
 				$a['page']		= "l_dda_periksa";
 			}
 		} else {
@@ -630,21 +628,21 @@ class Admin extends BaseController
 
 				$level = $this->session->get('admin_level');
 				if ($level == 'Admin' || $level == 'Super Admin') {
-					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja order by unitkerja_ind LIMIT $awal, $akhir")->getResult();
+					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja order by unitkerja_ind LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 					//$a['datadiperiksa'] = $this->db->query("SELECT * FROM m_unitkerja LIMIT $awal, $akhir")->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
 					$user_level = $this->session->get('admin_level');
 					if ($user_level == 'lo') {
-						$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where user_wali='$user_wali'")->getResult();
+						$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where user_wali=?", [$user_wali])->getResult();
 					} else if ($user_level == 'spv') {
-						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv='$user_wali'")->getResult();
+						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv=?", [$user_wali])->getResult();
 					}
 				}
 
 				$a['page']		= "l_dda_admin";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja='$unitkerjalogin' and tahun='$ta' ")->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and tahun=? ", [$unitkerjalogin, $ta])->getResult();
 				$a['page']		= "l_dda";
 			}
 		}
@@ -689,27 +687,27 @@ class Admin extends BaseController
 		if ($mau_ke == 'view_topik') {
 			$id_unitkerja = $this->input->get('id');
 			if ($unitkerjalogin == 'bps' || $this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja='$id_unitkerja' LIMIT $awal, $akhir ")->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$id_unitkerja, (int)$awal, (int)$akhir])->getResult();
 				$a['page']		= "l_forum_topik";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja='$unitkerjalogin' LIMIT $awal, $akhir ")->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
 				$a['page']		= "l_forum_topik";
 			}
 		} else if ($mau_ke == 'add_topik') {
 			$a['page']		= "f_tambah_topik";
 		} else if ($mau_ke == 'act_add_topik') {
 			$hariini = date('Y-m-d');
-			$nama_topik					= addslashes($this->input->post('nama_topik'));
-			$id_unitkerja				= addslashes($this->input->post('id_unitkerja'));
+			$nama_topik					= $this->input->post('nama_topik');
+			$id_unitkerja				= $this->input->post('id_unitkerja');
 			$user_id					= $this->session->get('admin_user');
 			//$id_unitkerjatopik			= $this->input->get('id');
-			$dataemail					= $this->db->query("select * from t_admin where id_unitkerja='$id_unitkerja'")->getRow();
+			$dataemail					= $this->db->query("select * from t_admin where id_unitkerja=?", [$id_unitkerja])->getRow();
 			$emailtopik					= $dataemail->email;
 			$namatopik					= $dataemail->nama;
 
-			$data_lo				= $this->db->query("select * from m_unitkerja where id_unitkerja='$id_unitkerja'")->getRow();
+			$data_lo				= $this->db->query("select * from m_unitkerja where id_unitkerja=?", [$id_unitkerja])->getRow();
 			$lo						= $data_lo->user_wali;
-			$dataemail_lo			= $this->db->query("select * from t_admin where username='$lo'")->getRow();
+			$dataemail_lo			= $this->db->query("select * from t_admin where username=?", [$lo])->getRow();
 			$email_lo				= $dataemail_lo->email;
 
 			//Setting Email
@@ -724,7 +722,7 @@ class Admin extends BaseController
 			$mail->SetFrom('ipds3300@bps.go.id', 'Bidang IPDS BPS. Prov Jawa Tengah');
 			$mail->Subject    = "Forum Diskusi Jawa Tengah Dalam Angka";
 
-			$this->db->query("INSERT INTO m_forumtopic VALUES (NULL, '$id_unitkerja','$nama_topik','$user_id','$hariini')");
+			$this->db->query("INSERT INTO m_forumtopic VALUES (NULL, ?, ?, ?, ?)", [$id_unitkerja, $nama_topik, $user_id, $hariini]);
 
 			try {
 				$mail->Body      = $nama_topik . " telah ditambahkan";
@@ -740,20 +738,20 @@ class Admin extends BaseController
 		} else if ($mau_ke == 'view_comment') {
 			$id_unitkerja 				= $this->input->get('id_unitkerja');
 			$id_topik					= $this->input->get('id_topik');
-			$a['data']					= $this->db->query("SELECT * FROM forumcomment where id_topik='$id_topik' LIMIT $awal, $akhir ")->getResult();
+			$a['data']					= $this->db->query("SELECT * FROM forumcomment where id_topik=? LIMIT ?, ?", [$id_topik, (int)$awal, (int)$akhir])->getResult();
 			$a['page']					= "l_forum_komen";
 		} else if ($mau_ke == 'add_comment') {
 			$hariini = date('Y-m-d');
-			$comment					= addslashes($this->input->post('comment'));
-			$id_topik					= addslashes($this->input->post('id_topik'));
-			$id_unitkerja 				= addslashes($this->input->post('id_unitkerja'));
-			$dataemail					= $this->db->query("select * from t_admin where id_unitkerja='$id_unitkerja'")->getRow();
+			$comment					= $this->input->post('comment');
+			$id_topik					= $this->input->post('id_topik');
+			$id_unitkerja 				= $this->input->post('id_unitkerja');
+			$dataemail					= $this->db->query("select * from t_admin where id_unitkerja=?", [$id_unitkerja])->getRow();
 			$emailcomment				= $dataemail->email;
 			$namacomment				= $dataemail->nama;
 
-			$data_lo				= $this->db->query("select * from m_unitkerja where id_unitkerja='$id_unitkerja'")->getRow();
+			$data_lo				= $this->db->query("select * from m_unitkerja where id_unitkerja=?", [$id_unitkerja])->getRow();
 			$lo						= $data_lo->user_wali;
-			$dataemail_lo			= $this->db->query("select * from t_admin where username='$lo'")->getRow();
+			$dataemail_lo			= $this->db->query("select * from t_admin where username=?", [$lo])->getRow();
 			$email_lo				= $dataemail_lo->email;
 
 			$user_id					= $this->session->get('admin_user');
@@ -770,7 +768,7 @@ class Admin extends BaseController
 			$mail->SetFrom('ipds3300@bps.go.id', 'Bidang IPDS BPS. Prov Jawa Tengah');
 			$mail->Subject    = "Forum Diskusi Jawa Tengah Dalam Angka";
 
-			$this->db->query("INSERT INTO forumcomment VALUES (NULL,'$id_topik','$comment','$user_id','$hariini')");
+			$this->db->query("INSERT INTO forumcomment VALUES (NULL, ?, ?, ?, ?)", [$id_topik, $comment, $user_id, $hariini]);
 
 			try {
 				$mail->Body      			= $comment . " telah ditambahkan";
@@ -786,23 +784,23 @@ class Admin extends BaseController
 			if ($unitkerjalogin == 'bps') {
 				$level = $this->session->get('admin_level');
 				if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT $awal, $akhir")->getResult();
+					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
 					$user_level = $this->session->get('admin_level');
 					if ($user_level == 'lo') {
-						$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where user_wali='$user_wali'")->getResult();
+						$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where user_wali=?", [$user_wali])->getResult();
 					} else if ($user_level == 'spv') {
-						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv='$user_wali'")->getResult();
+						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv=?", [$user_wali])->getResult();
 					}
 				}
 				$a['page']		= "l_forum";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja='$unitkerjalogin' LIMIT $awal, $akhir ")->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
 				$a['page']		= "l_forum";
 			}
 			if ($this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT $awal, $akhir")->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 				$a['page']		= "l_forum";
 			}
 		}
@@ -824,12 +822,12 @@ class Admin extends BaseController
 		$mau_ke = $this->uri->segment(3);
 		$idu    = $this->uri->segment(4);
 
-		$idp             = addslashes($this->input->post('idp'));
-		$judul_ind       = addslashes($this->input->post('judul_ind'));
-		$judul_en        = addslashes($this->input->post('judul_en'));
-		$link_tabel      = addslashes($this->input->post('link_tabel'));
-		$link_sebelumnya = addslashes($this->input->post('link_sebelumnya'));
-		$id_unitkerja    = addslashes($this->input->post('id_unitkerja'));
+		$idp             = $this->input->post('idp');
+		$judul_ind       = $this->input->post('judul_ind');
+		$judul_en        = $this->input->post('judul_en');
+		$link_tabel      = $this->input->post('link_tabel');
+		$link_sebelumnya = $this->input->post('link_sebelumnya');
+		$id_unitkerja    = $this->input->post('id_unitkerja');
 
 		$is_confirm      = '2';
 		$catatan         = '-';
@@ -840,11 +838,11 @@ class Admin extends BaseController
 
 		if ($mau_ke == "del") {
 			$id_delete   = $this->input->get('delete_id');
-			$a['datpil'] = $this->db->query("select * from t_list_tabel where id='$id_delete'")->getRow();
+			$a['datpil'] = $this->db->query("select * from t_list_tabel where id=?", [$id_delete])->getRow();
 			$a['page']   = "f_del_master";
 		} else if ($mau_ke == "act_del") {
-			$id_oi = addslashes($this->input->post('id'));
-			$this->db->query("DELETE FROM t_list_tabel WHERE id = '$id_oi'");
+			$id_oi = $this->input->post('id');
+			$this->db->query("DELETE FROM t_list_tabel WHERE id = ?", [$id_oi]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/master_tabel/');
 		} else if ($mau_ke == "cari") {
@@ -852,21 +850,33 @@ class Admin extends BaseController
 			$filter_bidang = $this->session->get('sess_f_bidang') ?? 'all';
 			$filter_tahun  = $this->session->get('sess_f_tahun') ?? 'all';
 
-			$where_tahun = ($filter_tahun != 'all') ? "l.tahun = '$filter_tahun'" : "1=1";
-			$cari = addslashes($this->request->getPost('q'));
+			$where_tahun = ($filter_tahun != 'all') ? "l.tahun = ?" : "1=1";
+			$cari = $this->request->getPost('q');
+
+			$params = [];
+			if ($filter_tahun != 'all') $params[] = $filter_tahun;
 
 			$where_filters = "WHERE $where_tahun";
-			if ($filter_opd != 'all') $where_filters .= " AND l.id_unitkerja = '$filter_opd' ";
-			if ($filter_bidang != 'all') $where_filters .= " AND u.user_wali = '$filter_bidang' ";
+			if ($filter_opd != 'all') {
+				$where_filters .= " AND l.id_unitkerja = ? ";
+				$params[] = $filter_opd;
+			}
+			if ($filter_bidang != 'all') {
+				$where_filters .= " AND u.user_wali = ? ";
+				$params[] = $filter_bidang;
+			}
+
+			$params[] = '%' . $cari . '%';
+			$params[] = '%' . $cari . '%';
 
 			$a['data'] = $this->db->query("
             SELECT l.*, u.unitkerja_ind, u.user_wali 
             FROM t_list_tabel l 
             LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja 
             $where_filters 
-            AND (l.judul_ind LIKE '%$cari%' OR u.unitkerja_ind LIKE '%$cari%')
+            AND (l.judul_ind LIKE ? OR u.unitkerja_ind LIKE ?)
             ORDER BY l.id DESC
-        ")->getResult();
+        ", $params)->getResult();
 
 			if ($this->request->isAJAX()) {
 				return view('admin/l_master_tabel_partial', $a);
@@ -884,15 +894,15 @@ class Admin extends BaseController
 		} else if ($mau_ke == "add") {
 			$a['page'] = "f_master_tabel";
 		} else if ($mau_ke == "edt") {
-			$a['datpil'] = $this->db->query("SELECT * from t_list_tabel WHERE id = '$idu'")->getRow();
+			$a['datpil'] = $this->db->query("SELECT * from t_list_tabel WHERE id = ?", [$idu])->getRow();
 			$a['page']   = "f_master_tabel";
 		} else if ($mau_ke == "act_add") {
 			$hariini = date('Y-m-d');
-			$this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, '$judul_ind', '$judul_en', '$link_tabel', '$link_sebelumnya','$id_unitkerja','$is_confirm','$catatan','$is_periksa','$catatan_periksa','$kondef', '$ta')");
+			$this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, $link_tabel, $link_sebelumnya, $id_unitkerja, $is_confirm, $catatan, $is_periksa, $catatan_periksa, $kondef, $ta]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil ditambahkan</div>");
 			return redirect()->to('admin/master_tabel/');
 		} else if ($mau_ke == "act_edt") {
-			$this->db->query("UPDATE t_list_tabel SET judul_ind ='$judul_ind', judul_en= '$judul_en', link_tabel = '$link_tabel', link_sebelumnya = '$link_sebelumnya', id_unitkerja='$id_unitkerja' where id='$idp'");
+			$this->db->query("UPDATE t_list_tabel SET judul_ind =?, judul_en= ?, link_tabel = ?, link_sebelumnya = ?, id_unitkerja=? where id=?", [$judul_ind, $judul_en, $link_tabel, $link_sebelumnya, $id_unitkerja, $idp]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di update</div>");
 			return redirect()->to('admin/master_tabel/');
 		} else {
@@ -933,19 +943,23 @@ class Admin extends BaseController
 			$sql_base  = "FROM t_list_tabel l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja";
 			$sql_where = "WHERE 1=1";
 
+			$params_count = [];
 			if ($filter_tahun != 'all') {
-				$sql_where .= " AND l.tahun = '$filter_tahun'";
+				$sql_where .= " AND l.tahun = ?";
+				$params_count[] = $filter_tahun;
 			}
 
 			if ($filter_opd != 'all') {
-				$sql_where .= " AND l.id_unitkerja = '$filter_opd'";
+				$sql_where .= " AND l.id_unitkerja = ?";
+				$params_count[] = $filter_opd;
 			}
 
 			if ($filter_bidang != 'all') {
-				$sql_where .= " AND u.user_wali = '$filter_bidang'";
+				$sql_where .= " AND u.user_wali = ?";
+				$params_count[] = $filter_bidang;
 			}
 
-			$total_row = $this->db->query("SELECT l.id $sql_base $sql_where")->getNumRows();
+			$total_row = $this->db->query("SELECT l.id $sql_base $sql_where", $params_count)->getNumRows();
 			$per_page  = 20;
 
 			$awal = $this->uri->segment(4);
@@ -956,13 +970,17 @@ class Admin extends BaseController
 
 			$a['pagi'] = _page($total_row, $per_page, 4, base_url() . "admin/master_tabel/p");
 
+			$params_data = $params_count;
+			$params_data[] = (int)$awal;
+			$params_data[] = (int)$per_page;
+
 			$a['data'] = $this->db->query("
             SELECT l.*, u.unitkerja_ind, u.user_wali 
             $sql_base 
             $sql_where 
             ORDER BY l.id DESC 
-            LIMIT $awal, $per_page
-        ")->getResult();
+            LIMIT ?, ?
+        ", $params_data)->getResult();
 
 			$a['page'] = "l_master_tabel";
 		}
@@ -1010,17 +1028,17 @@ class Admin extends BaseController
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
 		$idu					= $this->uri->segment(4);
-		$cari					= addslashes($this->input->post('q') ?? '');
+		$cari					= $this->input->post('q') ?? '';
 
 		//ambil variabel post
-		$idp					= addslashes($this->input->post('idp'));
-		$judul_ind				= addslashes($this->input->post('judul_ind'));
-		$judul_en				= addslashes($this->input->post('judul_en'));
+		$idp					= $this->input->post('idp');
+		$judul_ind				= $this->input->post('judul_ind');
+		$judul_en				= $this->input->post('judul_en');
 		$unitkerja				= $this->session->get('admin_unitkerja');
 		$addby					= $this->session->get('admin_user');
 		$is_setujui				= '0';
 
-		$cari					= addslashes($this->input->post('q'));
+		$cari					= $this->input->post('q');
 
 		//upload config 
 		$config['upload_path'] 		= './upload/tabel_usulan/';
@@ -1040,23 +1058,23 @@ class Admin extends BaseController
 				//window.alert('<?php echo $id_delete; ?>');
 			</script>
 <?php
-			$a['datpil']	= $this->db->query("select * from m_master_tabel_usulan where id='$id_delete'")->getRow();
+			$a['datpil']	= $this->db->query("select * from m_master_tabel_usulan where id=?", [$id_delete])->getRow();
 			$a['page']		= "f_del_master";
 		} else if ($mau_ke == "act_del") {
-			$id = addslashes($this->input->post('id'));
-			$this->db->query("DELETE FROM m_master_tabel_usulan WHERE id = '$id'");
+			$id = $this->input->post('id');
+			$this->db->query("DELETE FROM m_master_tabel_usulan WHERE id = ?", [$id]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "cari") {
 
-			$a['data']		= $this->db->query("SELECT * from t_list_tabel where keterangan_uraian  LIKE '%$cari%' and tahun='$ta'")->getResult();
+			$a['data']		= $this->db->query("SELECT * from t_list_tabel where keterangan_uraian LIKE ? and tahun=?", ['%' . $cari . '%', $ta])->getResult();
 			$a['page']		= "l_master_tabel";
 		} else if ($mau_ke == "add") {
 
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "edt") {
 
-			$a['datpil']	= $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = '$idu'")->getRow();
+			$a['datpil']	= $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = ?", [$idu])->getRow();
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "act_add") {
 			$hariini = date('Y-m-d');
@@ -1064,18 +1082,18 @@ class Admin extends BaseController
 			$waktusekarang = date("H:i");
 			if ($this->upload->do_upload('file_tabel')) {
 				$up_data	 	= $this->upload->data();
-				$this->db->query("INSERT INTO m_master_tabel_usulan VALUES (NULL, '$judul_ind', '$judul_en', '" . $up_data['file_name'] . "','$is_setujui', '$unitkerja', '$addby')");
+				$this->db->query("INSERT INTO m_master_tabel_usulan VALUES (NULL, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, $up_data['file_name'], $is_setujui, $unitkerja, $addby]);
 			}
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel berhasil ditambahkan</div>");
 			return redirect()->to('admin/');
 		} else if ($mau_ke == "act_edt") {
-			$id_unitkerja				= addslashes($this->input->post('id_unitkerja'));
-			$this->db->query("UPDATE m_master_tabel_usulan SET is_setujui ='1' where id='$idp'");
-			$this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, '$judul_ind', '$judul_en', '', '', '$id_unitkerja', '2', '-', '0', '-', '-', '$ta')");
+			$id_unitkerja				= $this->input->post('id_unitkerja');
+			$this->db->query("UPDATE m_master_tabel_usulan SET is_setujui ='1' where id=?", [$idp]);
+			$this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, '', '', $id_unitkerja, '2', '-', '0', '-', '-', $ta]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di konfirmasi</div>");
 			return redirect()->to('admin/master_tabel_opd/');
 		} else {
-			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja LIMIT $awal, $akhir ")->getResult();
+			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 			$a['page']		= "l_master_tabel_opd";
 		}
 		return view('admin/index', $a);
@@ -1104,23 +1122,23 @@ class Admin extends BaseController
 		$mau_ke					= $this->uri->segment(3);
 		$idu					= $this->uri->segment(4);
 
-		$cari					= addslashes($this->input->post('q'));
+		$cari					= $this->input->post('q');
 
 		//ambil variabel Postingan
-		$idp			= addslashes($this->input->post('idp'));
-		$id_unitkerja	= addslashes($this->input->post('id_unitkerja'));
-		$unitkerja_ind	= addslashes($this->input->post('unitkerja_ind'));
-		$unitkerja_en	= addslashes($this->input->post('unitkerja_en'));
-		$user_wali		= addslashes($this->input->post('user_wali'));
-		$user_spv		= addslashes($this->input->post('user_spv'));
+		$idp			= $this->input->post('idp');
+		$id_unitkerja	= $this->input->post('id_unitkerja');
+		$unitkerja_ind	= $this->input->post('unitkerja_ind');
+		$unitkerja_en	= $this->input->post('unitkerja_en');
+		$user_wali		= $this->input->post('user_wali');
+		$user_spv		= $this->input->post('user_spv');
 
 
 		if ($mau_ke == "del") {
-			$this->db->query("DELETE FROM m_unitkerja WHERE id_unitkerja = '$idu'");
+			$this->db->query("DELETE FROM m_unitkerja WHERE id_unitkerja = ?", [$idu]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/master_opd');
 		} else if ($mau_ke == "cari") {
-			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja WHERE unitkerja_ind LIKE '%$cari%' OR id_unitkerja LIKE '%$cari%' ORDER BY id_unitkerja DESC")->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja WHERE unitkerja_ind LIKE ? OR id_unitkerja LIKE ? ORDER BY id_unitkerja DESC", ['%' . $cari . '%', '%' . $cari . '%'])->getResult();
 
 			if ($this->request->isAJAX()) {
 				return view('admin/l_unitkerja_partial', $a);
@@ -1130,10 +1148,10 @@ class Admin extends BaseController
 		} else if ($mau_ke == "add") {
 			$a['page']		= "f_unitkerja";
 		} else if ($mau_ke == "edt") {
-			$a['datpil']	= $this->db->query("SELECT * FROM m_unitkerja WHERE id_unitkerja = '$idu'")->getRow();
+			$a['datpil']	= $this->db->query("SELECT * FROM m_unitkerja WHERE id_unitkerja = ?", [$idu])->getRow();
 			$a['page']		= "f_unitkerja";
 		} else if ($mau_ke == "act_add") {
-			$cek_user_exist = $this->db->query("SELECT id_unitkerja FROM m_unitkerja WHERE id_unitkerja = '$id_unitkerja'")->getNumRows();
+			$cek_user_exist = $this->db->query("SELECT id_unitkerja FROM m_unitkerja WHERE id_unitkerja = ?", [$id_unitkerja])->getNumRows();
 
 			if (strlen($id_unitkerja) < 3) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Unitkerja minimal 4 huruf</div>");
@@ -1142,7 +1160,7 @@ class Admin extends BaseController
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">OPD telah ditambahkan. Ganti yang lain..!</div>");
 				return redirect()->to('admin/master_opd');
 			} else {
-				$this->db->query("INSERT INTO m_unitkerja VALUES ('$id_unitkerja', '$unitkerja_ind', '$unitkerja_en', '$user_wali', '$user_spv')");
+				$this->db->query("INSERT INTO m_unitkerja VALUES (?, ?, ?, ?, ?)", [$id_unitkerja, $unitkerja_ind, $unitkerja_en, $user_wali, $user_spv]);
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			}
 
@@ -1150,13 +1168,13 @@ class Admin extends BaseController
 			return redirect()->to('admin/master_opd');
 		} else if ($mau_ke == "act_edt") {
 
-			$this->db->query("UPDATE m_unitkerja SET id_unitkerja = '$id_unitkerja', unitkerja_ind = '$unitkerja_ind', unitkerja_en = '$unitkerja_en', user_wali = '$user_wali', user_spv = '$user_spv' WHERE id_unitkerja = '$idp'");
+			$this->db->query("UPDATE m_unitkerja SET id_unitkerja = ?, unitkerja_ind = ?, unitkerja_en = ?, user_wali = ?, user_spv = ? WHERE id_unitkerja = ?", [$id_unitkerja, $unitkerja_ind, $unitkerja_en, $user_wali, $user_spv, $idp]);
 
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/master_opd');
 		} else {
-			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT $awal, $akhir ")->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 			$a['page']		= "l_unitkerja";
 		}
 
@@ -1214,10 +1232,10 @@ class Admin extends BaseController
             SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
             SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
         FROM m_unitkerja m 
-        LEFT JOIN t_list_tabel t ON m.id_unitkerja = t.id_unitkerja AND t.tahun = '$ta'
+        LEFT JOIN t_list_tabel t ON m.id_unitkerja = t.id_unitkerja AND t.tahun = ?
         GROUP BY m.id_unitkerja 
         ORDER BY m.unitkerja_ind ASC
-    ")->getResult();
+    ", [$ta])->getResult();
 
 		echo "<table border='1'>";
 		echo "<tr>
@@ -1259,11 +1277,11 @@ class Admin extends BaseController
                 SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
                 SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
             FROM m_unitkerja u
-            LEFT JOIN t_list_tabel t ON u.id_unitkerja = t.id_unitkerja AND t.tahun = '$ta'
+            LEFT JOIN t_list_tabel t ON u.id_unitkerja = t.id_unitkerja AND t.tahun = ?
             WHERE u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
             GROUP BY u.user_wali 
             ORDER BY u.user_wali ASC
-        ")->getResult();
+        ", [$ta])->getResult();
 
 		echo "<table border='1'>";
 		echo "<tr>
@@ -1303,39 +1321,39 @@ class Admin extends BaseController
 
 		$mau_ke         = $this->uri->segment(3);
 		$idu            = $this->uri->segment(4);
-		$cari           = addslashes($this->input->post('q'));
+		$cari           = $this->input->post('q');
 
-		$idp            = addslashes($this->input->post('idp'));
-		$nama           = addslashes($this->input->post('nama'));
-		$nip            = addslashes($this->input->post('nip'));
-		$username       = addslashes($this->input->post('username'));
-		$password       = md5(addslashes($this->input->post('password')));
+		$idp            = $this->input->post('idp');
+		$nama           = $this->input->post('nama');
+		$nip            = $this->input->post('nip');
+		$username       = $this->input->post('username');
+		$password       = md5($this->input->post('password'));
 
 		$level          = "lo";
 		$unitkerja      = "bps";
 
 		if ($mau_ke == "del") {
-			$this->db->query("DELETE FROM t_admin WHERE id = '$idu'");
+			$this->db->query("DELETE FROM t_admin WHERE id = ?", [$idu]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data Tim berhasil dihapus</div>");
 			return redirect()->to('admin/master_tim');
 		} else if ($mau_ke == "cari") {
 
-			$a['data']      = $this->db->query("SELECT * FROM t_admin WHERE level = 'lo' AND (nama LIKE '%$cari%' OR username LIKE '%$cari%') ORDER BY username ASC")->getResult();
+			$a['data']      = $this->db->query("SELECT * FROM t_admin WHERE level = 'lo' AND (nama LIKE ? OR username LIKE ?) ORDER BY username ASC", ['%' . $cari . '%', '%' . $cari . '%'])->getResult();
 			$a['page']      = "l_master_tim";
 		} else if ($mau_ke == "act_add") {
-			$cek = $this->db->query("SELECT * FROM t_admin WHERE username='$username'")->getNumRows();
+			$cek = $this->db->query("SELECT * FROM t_admin WHERE username=?", [$username])->getNumRows();
 
 			if ($cek > 0) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Tim (Username) sudah digunakan!</div>");
 				return redirect()->to('admin/master_tim');
 			} else {
-				$this->db->query("INSERT INTO t_admin (username, password, nama, nip, level, id_unitkerja, email) VALUES ('$username', '$password', '$nama', '$nip', '$level', '$unitkerja', '-')");
+				$this->db->query("INSERT INTO t_admin (username, password, nama, nip, level, id_unitkerja, email) VALUES (?, ?, ?, ?, ?, ?, ?)", [$username, $password, $nama, $nip, $level, $unitkerja, '-']);
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tim Baru berhasil ditambahkan</div>");
 				return redirect()->to('admin/master_tim');
 			}
 		} else {
 
-			$a['data']      = $this->db->query("SELECT * FROM t_admin WHERE level = 'lo' ORDER BY username ASC LIMIT $awal, $akhir ")->getResult();
+			$a['data']      = $this->db->query("SELECT * FROM t_admin WHERE level = 'lo' ORDER BY username ASC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 			$a['page']      = "l_master_tim";
 		}
 
