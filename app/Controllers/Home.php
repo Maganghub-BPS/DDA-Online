@@ -3,113 +3,29 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Models\M_frontend;
 
 class Home extends BaseController
 {
-    /**
-     * Helper method to generate standard table SELECT expression
-     * Supports dynamic period placeholder replacement [PERIODE]
-     */
-    private function getBaseTableSelect(): string
+    protected M_frontend $frontendModel;
+
+    public function __construct()
     {
-        return "
-            t.id,
-            t.id_tabel,
-            t.tahun,
-            t.no_tabel,
-            t.periode_id,
-            t.periode_en,
-            t.link_tabel,
-            t.link_sebelumnya,
-            t.config_tabel,
-            t.is_confirm,
-            m.id_unitkerja,
-            m.kondef,
-            CONCAT(
-                CASE 
-                    WHEN t.no_tabel IS NOT NULL AND TRIM(t.no_tabel) != '' 
-                    THEN CONCAT('Tabel ', TRIM(t.no_tabel), ' ')
-                    ELSE '' 
-                END,
-                CASE 
-                    WHEN m.judul_ind LIKE '%[PERIODE]%' 
-                    THEN REPLACE(m.judul_ind, '[PERIODE]', COALESCE(TRIM(t.periode_id), ''))
-                    ELSE CONCAT(
-                        m.judul_ind,
-                        CASE 
-                            WHEN t.periode_id IS NOT NULL AND TRIM(t.periode_id) != '' 
-                            THEN CONCAT(', ', TRIM(t.periode_id))
-                            ELSE '' 
-                        END
-                    )
-                END
-            ) AS judul_ind,
-            CASE 
-                WHEN m.judul_en IS NOT NULL AND TRIM(m.judul_en) != '' 
-                THEN CONCAT(
-                    CASE 
-                        WHEN t.no_tabel IS NOT NULL AND TRIM(t.no_tabel) != '' 
-                        THEN CONCAT('Table ', TRIM(t.no_tabel), ' ')
-                        ELSE '' 
-                    END,
-                    CASE 
-                        WHEN m.judul_en LIKE '%[PERIODE]%' 
-                        THEN REPLACE(m.judul_en, '[PERIODE]', COALESCE(TRIM(t.periode_en), COALESCE(TRIM(t.periode_id), '')))
-                        ELSE CONCAT(
-                            TRIM(m.judul_en),
-                            CASE 
-                                WHEN t.periode_en IS NOT NULL AND TRIM(t.periode_en) != '' 
-                                THEN CONCAT(', ', TRIM(t.periode_en))
-                                WHEN t.periode_id IS NOT NULL AND TRIM(t.periode_id) != ''
-                                THEN CONCAT(', ', TRIM(t.periode_id))
-                                ELSE '' 
-                            END
-                        )
-                    END
-                )
-                ELSE '' 
-            END AS judul_en,
-            m.judul_ind AS raw_judul_ind,
-            m_unitkerja.unitkerja_ind,
-            m_unitkerja.unitkerja_en
-        ";
+        $this->frontendModel = new M_frontend();
     }
 
     public function index()
     {
-        $db = \Config\Database::connect();
-        
-        // Get recent or popular tables from m_list_tabel + t_tahun_tabel with complete title (no_tabel, judul, and periode)
-        $builder = $db->table('t_tahun_tabel t');
-        $builder->select($this->getBaseTableSelect(), false);
-        $builder->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner');
-        $builder->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
-        $builder->orderBy('t.id', 'DESC');
-        $builder->limit(15);
-        $recent_tables = $builder->get()->getResult();
-
-        // Get Top OPDs (Organisasi Perangkat Daerah)
-        $units_builder = $db->table('t_tahun_tabel t');
-        $units_builder->select('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, COUNT(t.id) as total_tabel');
-        $units_builder->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner');
-        $units_builder->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
-        $units_builder->where('m_unitkerja.unitkerja_ind IS NOT NULL');
-        $units_builder->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind');
-        $units_builder->orderBy('m_unitkerja.unitkerja_ind', 'ASC');
-        $opd_list = $units_builder->get()->getResult();
-
-        // Get dynamic stats for hero section
-        $total_tabel = $db->table('t_tahun_tabel t')
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->countAllResults();
-        $total_opd = $db->table('m_unitkerja')->countAllResults();
+        $recent_tables = $this->frontendModel->getRecentTables(15);
+        $opd_list = $this->frontendModel->getTopOpdList();
+        $stats = $this->frontendModel->getPortalStats();
 
         $data = [
             'title' => 'Portal Data Statistik',
             'recent_tables' => $recent_tables,
             'opd_list' => $opd_list,
-            'total_tabel' => $total_tabel,
-            'total_opd' => $total_opd,
+            'total_tabel' => $stats['total_tabel'],
+            'total_opd' => $stats['total_opd'],
             'page' => 'frontend/home'
         ];
 
@@ -118,73 +34,21 @@ class Home extends BaseController
 
     public function search()
     {
-        $db = \Config\Database::connect();
         $q = $this->request->getGet('q');
         $unit = $this->request->getGet('unit');
-        
-        // Fetch unique unit_kerja for sidebar filter
-        $units_builder = $db->table('t_tahun_tabel t');
-        $units_builder->select('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, COUNT(t.id) as total');
-        $units_builder->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner');
-        $units_builder->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
-        $units_builder->where('m_unitkerja.unitkerja_ind IS NOT NULL');
-        $units_builder->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind');
-        $units_builder->orderBy('m_unitkerja.unitkerja_ind', 'ASC');
-        $unique_units = $units_builder->get()->getResult();
-
-        $builder = $db->table('t_tahun_tabel t');
-        $builder->select($this->getBaseTableSelect(), false);
-        $builder->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner');
-        $builder->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
-        
         $opd_search = $this->request->getGet('opd_search');
         $tahun = $this->request->getGet('tahun');
-
-        // Filter by keyword (searches table title, table number, or period)
-        if (!empty($q)) {
-            $q_clean = trim(preg_replace('/\s+/', ' ', $q));
-            // Normalize "nomor 4.1" or "no. 4.1" or "no 4.1" or "tabel 4.1" to "4.1"
-            $q_normalized = preg_replace('/^(nomor|no\.?|tabel)\s+/i', '', $q_clean);
-            
-            $tokens = explode(' ', $q_normalized);
-            $builder->groupStart();
-            foreach ($tokens as $token) {
-                $token = trim($token);
-                if (!empty($token)) {
-                    $builder->groupStart();
-                    $builder->like('m.judul_ind', $token);
-                    $builder->orLike('m.judul_en', $token);
-                    $builder->orLike('t.no_tabel', $token);
-                    $builder->orLike('t.periode_id', $token);
-                    $builder->orLike('t.periode_en', $token);
-                    $builder->groupEnd();
-                }
-            }
-            $builder->groupEnd();
-        }
-        
-        if (!empty($unit)) {
-            $builder->where('m.id_unitkerja', $unit);
-        }
-
-        if (!empty($opd_search)) {
-            $builder->like('m_unitkerja.unitkerja_ind', $opd_search);
-        }
-        
-        if (!empty($tahun)) {
-            $builder->where('t.tahun', $tahun);
-        }
-        
-        $builder->orderBy('t.id', 'DESC');
-
-        // Pagination Logic
         $page = max(1, (int)($this->request->getVar('page') ?? 1));
         $perPage = 12;
-        $total = $builder->countAllResults(false);
-        $builder->limit($perPage, ($page - 1) * $perPage);
-        
-        $results = $builder->get()->getResult();
-        $pager = \Config\Services::pager();
+
+        $unique_units = $this->frontendModel->getUniqueUnits();
+
+        $searchData = $this->frontendModel->searchTables([
+            'q' => $q,
+            'unit' => $unit,
+            'opd_search' => $opd_search,
+            'tahun' => $tahun
+        ], $page, $perPage);
 
         $data = [
             'title' => 'Eksplorasi Data DDA',
@@ -193,11 +57,11 @@ class Home extends BaseController
             'opd_search' => $opd_search,
             'tahun' => $tahun,
             'unique_units' => $unique_units,
-            'results' => $results,
-            'pager' => $pager,
+            'results' => $searchData['results'],
+            'pager' => \Config\Services::pager(),
             'page_num' => $page,
             'per_page' => $perPage,
-            'total_rows' => $total,
+            'total_rows' => $searchData['total'],
             'page' => 'frontend/search'
         ];
         return view('frontend/layout', $data);
@@ -235,15 +99,10 @@ class Home extends BaseController
             return redirect()->to('/');
         }
 
-        $db = \Config\Database::connect();
         $ids = explode(',', $id_api);
 
-        // Map id_api ke id_api_new dari t_tabel_match jika ada
-        $match_rows = $db->table('t_tabel_match')
-            ->select('id_api, id_api_new')
-            ->whereIn('id_api', $ids)
-            ->get()
-            ->getResultArray();
+        // Map id_api ke id_api_new dari t_tabel_match via Model
+        $match_rows = $this->frontendModel->getMatchMapping($ids);
             
         $new_ids = [];
         foreach ($ids as $id) {
@@ -268,6 +127,7 @@ class Home extends BaseController
 
         $all_results = [];
         $api_error_msgs = [];
+        $force_refresh = (bool)($this->request->getGet('refresh') ?? false);
 
         foreach ($ids as $id_p) {
             $id_p = trim($id_p);
@@ -283,89 +143,82 @@ class Home extends BaseController
             }
             $id_p = trim($id_p, '/ ');
 
-            $page = 1;
-            $all_rows = [];
-            $meta_info = null;
-            $first_row_ids = [];
+            // 1. Cek apakah respons API sudah tersimpan di Cache CI4
+            $cache_key = 'satudata_api_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $id_p);
+            $cached_payload = !$force_refresh ? cache($cache_key) : null;
 
-            do {
-                $url = "https://satudata.jatengprov.go.id/api/v1/data/{$id_p}?peruntukan=DDA";
-                $res = $this->callApi2($url);
+            if (!empty($cached_payload) && is_array($cached_payload) && isset($cached_payload['data'])) {
+                $all_rows = $cached_payload['data'];
+                $meta_info = $cached_payload['meta'] ?? null;
+            } else {
+                $page = 1;
+                $all_rows = [];
+                $meta_info = null;
+                $first_row_ids = [];
 
-                if ($res && !isset($res['error'])) {
-                    $rows = [];
-                    if (isset($res['data'])) {
-                        $rows = $res['data'];
-                    } else if (is_array($res) && isset($res[0])) {
-                        $rows = $res;
-                    }
+                do {
+                    $url = "https://satudata.jatengprov.go.id/api/v1/data/{$id_p}?peruntukan=DDA";
+                    $res = $this->callApi2($url);
 
-                    if (empty($rows)) {
+                    if ($res && !isset($res['error'])) {
+                        $rows = [];
+                        if (isset($res['data'])) {
+                            $rows = $res['data'];
+                        } else if (is_array($res) && isset($res[0])) {
+                            $rows = $res;
+                        }
+
+                        if (empty($rows)) {
+                            break;
+                        }
+
+                        $row_fingerprint = md5(json_encode($rows[0]));
+                        if (in_array($row_fingerprint, $first_row_ids)) {
+                            break;
+                        }
+                        $first_row_ids[] = $row_fingerprint;
+
+                        $all_rows = array_merge($all_rows, $rows);
+
+                        if ($page === 1) {
+                            $meta_info = $res;
+                        }
+
+                        $total_pages = $res['pagination']['total_pages']
+                            ?? $res['_meta']['pageCount']
+                            ?? $res['total_pages']
+                            ?? $res['pages']
+                            ?? null;
+
+                        if ($total_pages !== null && $page >= $total_pages) {
+                            break;
+                        }
+
+                        if (count($rows) < 100) {
+                            break;
+                        }
+                        $page++;
+                    } else {
+                        if (isset($res['error'])) {
+                            $api_error_msgs[] = "ID [{$id_p}]: " . $res['error'];
+                        }
                         break;
                     }
+                } while ($page <= 200);
 
-                    $row_fingerprint = md5(json_encode($rows[0]));
-                    if (in_array($row_fingerprint, $first_row_ids)) {
-                        break;
-                    }
-                    $first_row_ids[] = $row_fingerprint;
-
-                    $all_rows = array_merge($all_rows, $rows);
-
-                    if ($page === 1) {
-                        $meta_info = $res;
-                    }
-
-                    $total_pages = $res['pagination']['total_pages']
-                        ?? $res['_meta']['pageCount']
-                        ?? $res['total_pages']
-                        ?? $res['pages']
-                        ?? null;
-
-                    if ($total_pages !== null && $page >= $total_pages) {
-                        break;
-                    }
-
-                    if (count($rows) < 100) {
-                        break;
-                    }
-                    $page++;
-                } else {
-                    if (isset($res['error'])) {
-                        $api_error_msgs[] = "ID [{$id_p}]: " . $res['error'];
-                    }
-                    break;
+                // Simpan ke Cache CI4 selama 2 jam (7200 detik) jika data berhasil diambil
+                if (!empty($all_rows)) {
+                    cache()->save($cache_key, [
+                        'data' => $all_rows,
+                        'meta' => $meta_info,
+                        'cached_at' => time()
+                    ], 7200);
                 }
-            } while ($page <= 200);
-
-            // Fetch table metadata to render title and breadcrumbs
-            $select_sql = $this->getBaseTableSelect();
-            $dda_info = null;
-
-            if (!empty($table_id) && is_numeric($table_id)) {
-                $dda_info = $db->query("
-                    SELECT 
-                        {$select_sql}
-                    FROM t_tahun_tabel t 
-                    JOIN m_list_tabel m ON t.id_tabel = m.id
-                    LEFT JOIN m_unitkerja ON m.id_unitkerja = m_unitkerja.id_unitkerja
-                    WHERE t.id = ?
-                    LIMIT 1
-                ", [(int)$table_id])->getRow();
             }
 
-            if (!$dda_info) {
-                $dda_info = $db->query("
-                    SELECT 
-                        {$select_sql}
-                    FROM t_tahun_tabel t 
-                    JOIN m_list_tabel m ON t.id_tabel = m.id
-                    LEFT JOIN m_unitkerja ON m.id_unitkerja = m_unitkerja.id_unitkerja
-                    WHERE t.link_tabel REGEXP ?
-                    ORDER BY t.tahun DESC, t.id DESC
-                    LIMIT 1
-                ", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
-            }
+            // Fetch table metadata via Model
+            $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
+            $dda_info = $this->frontendModel->getTableMetadata($parsed_table_id, $id_p);
 
             $final_res = $meta_info ?? [];
             $final_res['data']           = $all_rows;
@@ -399,19 +252,8 @@ class Home extends BaseController
             return redirect()->to('/');
         }
 
-        $db = \Config\Database::connect();
-        $query = $db->table('t_tahun_tabel t')
-            ->select($this->getBaseTableSelect(), false)
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
-
-        if (!empty($table_id) && is_numeric($table_id)) {
-            $query->where('t.id', (int)$table_id);
-        } else {
-            $query->where('t.link_tabel', $url);
-        }
-
-        $dda_info = $query->orderBy('t.tahun', 'DESC')->orderBy('t.id', 'DESC')->get()->getRow();
+        $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
+        $dda_info = $this->frontendModel->getSheetMetadata($parsed_table_id, $url);
 
         if (empty($url) && $dda_info) {
             $url = $dda_info->link_tabel;
@@ -429,23 +271,8 @@ class Home extends BaseController
 
     public function instansi()
     {
-        $db = \Config\Database::connect();
-        
         $q = $this->request->getGet('q');
-
-        $units_builder = $db->table('t_tahun_tabel t');
-        $units_builder->select('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, COUNT(t.id) as total_tabel');
-        $units_builder->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner');
-        $units_builder->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
-        $units_builder->where('m_unitkerja.unitkerja_ind IS NOT NULL');
-        
-        if (!empty($q)) {
-            $units_builder->like('m_unitkerja.unitkerja_ind', $q);
-        }
-
-        $units_builder->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind');
-        $units_builder->orderBy('total_tabel', 'DESC');
-        $opd_list = $units_builder->get()->getResult();
+        $opd_list = $this->frontendModel->getInstansiList($q);
 
         $data = [
             'title' => 'Jelajah Instansi',

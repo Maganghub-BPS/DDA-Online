@@ -2703,7 +2703,7 @@ class Admin extends BaseController
 		}
 
 		// Ambil variabel post: prefix bab dan tahun aktif
-		$prefix = trim($this->input->post('prefix'));
+		$prefix = trim((string)($this->input->post('prefix') ?? ''));
 		$tahun = $this->session->get("admin_ta") ?: date("Y");
 
 		// Validasi: prefix tidak boleh kosong
@@ -2725,7 +2725,7 @@ class Admin extends BaseController
 
 		// Ambil semua tabel yang memiliki prefix tersebut pada tahun aktif,
 		// diurutkan secara hirarki numerik agar urutan asli tetap terjaga
-		$tables = $this->db->query("SELECT id, no_tabel, id_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, id_tabel ASC", [$tahun, $prefix . '%'])->getResult();
+		$tables = $this->db->query("SELECT id, no_tabel, id_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY CAST(SUBSTRING_INDEX(no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0.0'), '.', 4), '.', -1) AS UNSIGNED) ASC, id_tabel ASC", [$tahun, $prefix . '%'])->getResult();
 		
 		if (empty($tables)) {
 			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ditemukan tabel berawalan $prefix pada tahun $tahun.</div>");
@@ -2740,7 +2740,7 @@ class Admin extends BaseController
 		foreach ($tables as $t) {
 			// Jika tabel kolaborasi (memiliki id_tabel master yang sama dengan sebelumnya),
 			// berikan nomor kembar yang sama persis
-			if ($last_id_tabel !== null && $t->id_tabel === $last_id_tabel) {
+			if ($last_id_tabel !== null && (int)$t->id_tabel === (int)$last_id_tabel) {
 				$new_no = $prefix . ($current_num - 1);
 			} else {
 				// Jika tabel independen/baru, gunakan nomor berikutnya
