@@ -1827,6 +1827,77 @@ class Admin extends BaseController
 		$this->db->table('t_tahun_tabel')->where('id', $id)->update($data);
 		return redirect()->back();
 	}
+
+	/**
+	 * AJAX endpoint to toggle publish status of a table to the public frontend
+	 */
+	public function act_toggle_publish()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON([
+				'status' => 'error',
+				'message' => 'Sesi login telah berakhir. Silakan login kembali.'
+			])->setStatusCode(401);
+		}
+
+		// Keamanan RBAC: Hanya akun Admin dan Super Admin yang berwenang mempublikasikan tabel ke publik
+		$user_level = strtolower(trim($this->session->get('admin_level') ?? ''));
+		if (!in_array($user_level, ['admin', 'super admin', 'superadmin'])) {
+			return $this->response->setJSON([
+				'status' => 'error',
+				'message' => 'Akses ditolak! Hanya Admin dan Super Admin yang berwenang mengubah status publikasi tabel.'
+			])->setStatusCode(403);
+		}
+
+		$id = (int)$this->request->getPost('id');
+		$is_publish = (int)$this->request->getPost('is_publish');
+
+		if ($id <= 0 || !in_array($is_publish, [0, 1])) {
+			return $this->response->setJSON([
+				'status' => 'error',
+				'message' => 'Parameter tidak valid.'
+			])->setStatusCode(400);
+		}
+
+		// Ambil info tabel
+		$tabel = $this->db->table('t_tahun_tabel t')
+			->select('t.id, t.no_tabel, t.link_tabel, m.judul_ind')
+			->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
+			->where('t.id', $id)
+			->get()
+			->getRow();
+
+		if (!$tabel) {
+			return $this->response->setJSON([
+				'status' => 'error',
+				'message' => 'Data tabel tidak ditemukan.'
+			])->setStatusCode(404);
+		}
+
+		// Validasi: jika ingin publish (1), pastikan link_tabel tidak kosong
+		if ($is_publish === 1 && empty(trim($tabel->link_tabel ?? ''))) {
+			return $this->response->setJSON([
+				'status' => 'error',
+				'message' => 'Tabel belum memiliki tautan data (link kosong). Silakan lengkapi link terlebih dahulu sebelum mempublish.'
+			])->setStatusCode(422);
+		}
+
+		$this->db->table('t_tahun_tabel')
+			->where('id', $id)
+			->update(['is_publish' => $is_publish]);
+
+		$judul_singkat = !empty($tabel->no_tabel) ? 'Tabel ' . trim($tabel->no_tabel) : mb_strimwidth($tabel->judul_ind, 0, 30, '...');
+
+		return $this->response->setJSON([
+			'status' => 'success',
+			'id' => $id,
+			'is_publish' => $is_publish,
+			'message' => $is_publish === 1 
+				? "{$judul_singkat} berhasil dipublish ke frontend!" 
+				: "{$judul_singkat} ditarik dari frontend (Draft)."
+		]);
+	}
+
 	public function export_excel_instansi()
 	{
 		error_reporting(0);

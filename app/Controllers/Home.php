@@ -222,6 +222,12 @@ class Home extends BaseController
             $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
             $dda_info = $this->frontendModel->getTableMetadata($parsed_table_id, $id_p);
 
+            // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
+            $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
+            if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
+                return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
+            }
+
             $final_res = $meta_info ?? [];
             $final_res['data']           = $all_rows;
             $final_res['res_id']         = $dda_info->id ?? 0;
@@ -256,6 +262,12 @@ class Home extends BaseController
 
         $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
         $dda_info = $this->frontendModel->getSheetMetadata($parsed_table_id, $url);
+
+        // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
+        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
+        if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
+            return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
+        }
 
         if (empty($url) && $dda_info) {
             $url = $dda_info->link_tabel;

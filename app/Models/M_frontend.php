@@ -26,6 +26,7 @@ class M_frontend extends Model
             t.link_sebelumnya,
             t.config_tabel,
             t.is_confirm,
+            t.is_publish,
             m.id_unitkerja,
             m.kondef,
             CONCAT(
@@ -87,6 +88,7 @@ class M_frontend extends Model
             ->select($this->getBaseTableSelect(), false)
             ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
             ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
+            ->where('t.is_publish', 1)
             ->orderBy('t.id', 'DESC')
             ->limit($limit)
             ->get()
@@ -103,6 +105,7 @@ class M_frontend extends Model
             ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
             ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
             ->where('m_unitkerja.unitkerja_ind IS NOT NULL')
+            ->where('t.is_publish', 1)
             ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind')
             ->orderBy('m_unitkerja.unitkerja_ind', 'ASC')
             ->get()
@@ -116,6 +119,7 @@ class M_frontend extends Model
     {
         $total_tabel = $this->db->table('t_tahun_tabel t')
             ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
+            ->where('t.is_publish', 1)
             ->countAllResults();
         $total_opd = $this->db->table('m_unitkerja')->countAllResults();
 
@@ -135,6 +139,7 @@ class M_frontend extends Model
             ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
             ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
             ->where('m_unitkerja.unitkerja_ind IS NOT NULL')
+            ->where('t.is_publish', 1)
             ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind')
             ->orderBy('m_unitkerja.unitkerja_ind', 'ASC')
             ->get()
@@ -166,7 +171,8 @@ class M_frontend extends Model
         $builder = $this->db->table('t_tahun_tabel t')
             ->select($this->getBaseTableSelect(), false)
             ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
+            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
+            ->where('t.is_publish', 1);
 
         $q = $filters['q'] ?? '';
         $unit = $filters['unit'] ?? '';
@@ -295,7 +301,8 @@ class M_frontend extends Model
             ->select('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, COUNT(t.id) as total_tabel')
             ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
             ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
-            ->where('m_unitkerja.unitkerja_ind IS NOT NULL');
+            ->where('m_unitkerja.unitkerja_ind IS NOT NULL')
+            ->where('t.is_publish', 1);
 
         if (!empty($q)) {
             $builder->like('m_unitkerja.unitkerja_ind', $q);
