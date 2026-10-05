@@ -955,8 +955,13 @@
                         <i class="fa-regular fa-calendar-days"></i>
                         <select name="tahun" id="select-tahun">
                             <option value="">Semua Tahun</option>
-                            <?php foreach([2026, 2025] as $y): ?>
-                                <option value="<?= $y ?>" <?= (isset($_GET['tahun']) && $_GET['tahun'] == $y) ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php 
+                            $years_list = !empty($available_years) ? $available_years : [2026, 2025];
+                            foreach ($years_list as $y): 
+                            ?>
+                                <option value="<?= htmlspecialchars($y) ?>" <?= ((isset($tahun) && (string)$tahun === (string)$y) || (!empty($_GET['tahun']) && (string)$_GET['tahun'] === (string)$y)) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($y) ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>

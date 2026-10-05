@@ -142,7 +142,24 @@ class M_frontend extends Model
     }
 
     /**
+     * Ambil daftar tahun unik yang tersedia di t_tahun_tabel untuk filter dropdown
+     */
+    public function getAvailableYears(): array
+    {
+        $rows = $this->db->table('t_tahun_tabel')
+            ->select('DISTINCT(tahun) as tahun')
+            ->where('tahun IS NOT NULL')
+            ->where("tahun != ''")
+            ->orderBy('tahun', 'DESC')
+            ->get()
+            ->getResultArray();
+
+        return array_column($rows, 'tahun');
+    }
+
+    /**
      * Pencarian tabel dengan filter keyword, unit, nama OPD, dan tahun beserta paginasi
+
      */
     public function searchTables(array $filters, int $page = 1, int $perPage = 12): array
     {

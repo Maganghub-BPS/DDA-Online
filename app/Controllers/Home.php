@@ -42,6 +42,7 @@ class Home extends BaseController
         $perPage = 12;
 
         $unique_units = $this->frontendModel->getUniqueUnits();
+        $available_years = $this->frontendModel->getAvailableYears();
 
         $searchData = $this->frontendModel->searchTables([
             'q' => $q,
@@ -57,6 +58,7 @@ class Home extends BaseController
             'opd_search' => $opd_search,
             'tahun' => $tahun,
             'unique_units' => $unique_units,
+            'available_years' => $available_years,
             'results' => $searchData['results'],
             'pager' => \Config\Services::pager(),
             'page_num' => $page,
