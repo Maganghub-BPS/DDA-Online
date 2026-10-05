@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" fill="none">
+    <ellipse cx="100" cy="165" rx="60" ry="12" fill="#E2E8F0"/>
+    <g transform="translate(40, 50)">
+        <!-- Box back -->
+        <polygon points="20,40 60,15 100,40 60,65" fill="#CBD5E1"/>
+        <polygon points="60,15 100,40 100,90 60,65" fill="#94A3B8"/>
+        <!-- Box interior -->
+        <polygon points="20,40 60,65 100,40 60,15" fill="#E2E8F0"/>
+        <!-- Box body -->
+        <polygon points="20,40 60,65 60,115 20,90" fill="#3B82F6" opacity="0.85"/>
+        <polygon points="60,65 100,40 100,90 60,115" fill="#1D4ED8" opacity="0.95"/>
+        <!-- Flap left -->
+        <polygon points="20,40 60,65 40,80 0,55" fill="#60A5FA" opacity="0.9"/>
+        <!-- Flap right -->
+        <polygon points="60,65 100,40 120,55 80,80" fill="#2563EB" opacity="0.9"/>
+        <!-- Tape / Details -->
+        <path d="M55,67 L65,62 L65,115 L55,117 Z" fill="#F59E0B" opacity="0.9"/>
+        <!-- Floating search / magnifying glass -->
+        <circle cx="95" cy="20" r="14" stroke="#F97316" stroke-width="4" fill="#FFF7ED"/>
+        <line x1="105" y1="30" x2="118" y2="43" stroke="#F97316" stroke-width="4" stroke-linecap="round"/>
+        <!-- Sparkles -->
+        <path d="M15,25 Q18,25 18,22 Q18,25 21,25 Q18,25 18,28 Q18,25 15,25 Z" fill="#FBBF24"/>
+        <path d="M105,75 Q108,75 108,72 Q108,75 111,75 Q108,75 108,78 Q108,75 105,75 Z" fill="#FBBF24"/>
+    </g>
+</svg>

@@ -53,8 +53,6 @@
     </div>
 </div>
 
-<?php echo session()->getFlashdata("k");?>  
-
 <div class="card border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -74,7 +72,7 @@
                     } else {
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
-                            $judul_bersih = preg_replace("/\r|\n/", " ", $b->judul_ind);
+                            $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, $b->periode_id ?? $b->periode ?? ""));
                             $is_portal = (stripos($b->link_tabel, 'portal') !== false || 
                                           stripos($b->link_tabel, 'satudata') !== false || 
                                           (isset($b->id_api) && !empty($b->id_api)));
@@ -225,11 +223,7 @@
 </div>
 
 <!-- Modal Verifikasi -->
-<div class="modal fade" id="ModalKonfirmasi" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" id="isiModalKonfirmasi">
-        <!-- Remote Content Load -->
-    </div>
-</div>
+<div class="modal fade" id="ModalKonfirmasi" tabindex="-1" aria-hidden="true"></div>
 
 <script type="text/javascript">
 $(document).ready(function() {
@@ -264,22 +258,31 @@ $(document).ready(function() {
         $('#id_tabel_modal').val(this.dataset.id);
         $('#judul_tabel_modal').val(this.dataset.judul);
         $('#asal_data_modal').val(this.dataset.unit);
-        var myModal = new bootstrap.Modal(document.getElementById('ModalIsiData'));
+        var modalEl = document.getElementById('ModalIsiData');
+        var myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         myModal.show();
     });
 
     $(document).on('click', '.konfirmasi_modal', function(e) {
+        e.preventDefault();
         var m = $(this).attr("id");
+        var modalEl = document.getElementById('ModalKonfirmasi');
         $.ajax({
             url: "<?php echo site_url('admin/dda/periksa'); ?>",
             type: "GET",
-            data : {konfirmasi_id: m,},
+            data : {konfirmasi_id: m},
             success: function (ajaxData){
-                $("#isiModalKonfirmasi").html(ajaxData);
-                var myModal = new bootstrap.Modal(document.getElementById('ModalKonfirmasi'));
+                $(modalEl).html(ajaxData);
+                var myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
                 myModal.show();
             }
         });
+    });
+
+    $('#ModalKonfirmasi').on('hidden.bs.modal', function () {
+        $(this).empty();
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css({ overflow: '', paddingRight: '' });
     });
 });
 </script>

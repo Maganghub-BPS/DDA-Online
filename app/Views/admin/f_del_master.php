@@ -1,11 +1,15 @@
 <?php
+/**
+ * PARTIAL VIEW: MODAL KONFIRMASI HAPUS (f_del_master.php)
+ * Dimuat secara asinkron (AJAX) ke dalam container #ModalDelete saat tombol hapus diklik.
+ * Bersifat reusable (dapat digunakan kembali) untuk:
+ * 1. Hapus Master Tabel: mengirim POST ke master_tabel/act_del/
+ * 2. Tolak/Hapus Usulan OPD: mengirim POST ke master_tabel_opd/act_del/ (diatur melalui variabel $act_url)
+ */
 
-	$id						= $datpil->id;
-
-	$judul_ind		= $datpil->judul_ind;
-
-	$judul_en		= $datpil->judul_en;
-
+$id         = $datpil->id;
+$judul_ind  = $datpil->judul_ind;
+$judul_en   = $datpil->judul_en;
 ?>
 
 <div class="modal-dialog modal-dialog-centered">
@@ -18,7 +22,8 @@
         </div>
 
         <div class="modal-body p-4">
-            <form action="<?php echo base_URL()?>index.php/admin/master_tabel/act_del/" name="modal_popup" method="POST">
+            <!-- Form Aksi Hapus: Action URL fleksibel mendukung custom endpoint dari controller -->
+            <form action="<?php echo !empty($act_url) ? $act_url : base_url('index.php/admin/master_tabel/act_del/'); ?>" name="modal_popup" method="POST">
                 <input type="hidden" name="id" value="<?php echo $id; ?>" />
 
                 <div class="alert bg-gray-50 border-0 rounded-4 mb-4 d-flex align-items-center">

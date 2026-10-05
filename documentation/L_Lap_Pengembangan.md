@@ -47,6 +47,13 @@ Sistem ini awalnya dirancang untuk mengelola tautan (link) tabel dari Google She
 - **Bootstrap 5.3.3 Migration**: Migrasi total komponen framework untuk stabilitas dan responsivitas maksimal.
 - **Orange System Branding**: Standardisasi warna aksen utama `#FF6D1F` (Orange) pada seluruh elemen interaktif untuk identitas brand yang konsisten.
 - **Card-Based & Minimalist Design**: Implementasi layout berbasis kartu yang bersih, modern, dan informatif.
+- **Stacked Progress Visualization**: Inovasi pada Laporan Rekap dengan progres bar bertumpuk (Stacked) untuk membedakan porsi data "Sudah Validasi" (Hijau) dan "Sudah Diisi" (Kuning) secara visual.
+
+### G. Keamanan Sistem & Modernisasi Database
+
+- **SQL Injection Prevention**: Refaktorisasi total query database pada `Admin.php` menggunakan *Parameterized Queries* (Parameter Binding) untuk menutup celah keamanan SQL Injection.
+- **Legacy Cleanup**: Penghapusan fungsi sanitasi manual yang usang seperti `addslashes()` dan penggantiannya dengan standar database driver CI4 yang lebih aman.
+- **Code Optimization**: Pembersihan fitur-fitur yang tidak lagi digunakan (seperti fitur *Import SQL*) untuk merampingkan codebase dan mengurangi titik serangan (attack surface).
 
 ---
 
@@ -61,15 +68,17 @@ Sistem ini awalnya dirancang untuk mengelola tautan (link) tabel dari Google She
 | `app/Views/admin/l_master_tabel.php`           | **Modified** | Layout Master Tabel berbasis BS5 dengan integrasi fitur pencarian real-time. |
 | `app/Views/admin/login.php`                    | **Modified** | Redesain halaman login dengan gaya minimalis dan modern.                     |
 | `app/Views/admin/index.css`                    | **Updated**  | Design System terpusat untuk warna, animasi, dan layout kartu.               |
+| `app/Views/admin/view_report.php`             | **Updated**  | Implementasi stacked progress bar dan label persentase ganda yang informatif. |
 
 ---
 
 ## 4. Detail Teknis (Maintenance)
 
 1.  **Optimasi Library**: Penggunaan Native PHP CSV Handling untuk performa ringan saat memproses ribuan baris data.
-2.  **Model Refactoring**: Migrasi ke CI4 Prepared Statements untuk keamanan (Anti SQL Injection) dan performa.
+2.  **Database Modernization**: Migrasi menyeluruh ke CI4 *Query Builder* dan *Prepared Statements* untuk menjamin integritas dan keamanan data.
 3.  **UI Consistency**: Penggunaan CSS Variables untuk manajemen warna bertema orange secara konsisten.
 4.  **Error Handling**: Validasi response API yang kuat untuk mencegah sistem _down_ jika layanan eksternal bermasalah.
+5.  **Clean Code**: Struktur Controller `Admin.php` telah dirapikan dengan menghapus sisa-sisa kode *legacy* dan parameter yang tidak diperlukan.
 
 ---
 

@@ -138,7 +138,7 @@ if (empty($data)) {
 } else {
     $no = 1;
     foreach ($data as $b) {
-        $judul_bersih = preg_replace("/\r|\n/", " ", $b->judul_ind);
+        $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, $b->periode_id ?? $b->periode ?? ""));
 ?>
 <tr class="tabel-row">
     <td class="text-center tabel-row-number fw-semi-bold text-muted"><?php echo $no++; ?></td>

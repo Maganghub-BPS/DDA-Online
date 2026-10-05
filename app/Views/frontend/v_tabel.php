@@ -1,11 +1,9 @@
 <?php
+
 /**
- * VIEW: PORTAL DATA VIEWER TABEL DINAMIS (v_portal_tabel.php)
- * Didesain khusus menyerupai 100% tata letak dokumen fisik buku publikasi DDA BPS:
- * 1. Smart Multilevel Header: Pengelompokan header bertingkat otomatis atau via delimiter '||'.
- * 2. Bilingual Formatting: Judul, subjudul, dan header kolom dwibahasa (Indonesia - Inggris).
- * 3. Integrasi Open Data: Membaca struktur JSON/API portal data secara dinamis.
- * 4. Kompatibilitas Cetak & Ekspor: Menyediakan tombol cetak ramah printer dan ekspor Excel.
+ * View Portal Tabel - Versi Persis Dokumen Fisik DDA
+ * Didesain ulang untuk kemiripan 100% dengan layout cetak
+ * Ditambahkan Fitur: Smart Multilevel Header (Auto-Grouping)
  */
 
 $hasError = false;
@@ -24,7 +22,6 @@ if (empty($api_results)) {
 // -------------------------------------------------------------------------
 // TEMPLATE CONFIGURATION (Hardcoded for specific res_id or Titles)
 // -------------------------------------------------------------------------
-if (!function_exists('get_table_template')) {
 function get_table_template($res_id, $title, $columns)
 {
     // Template matching by res_id or Keywords in Title
@@ -43,9 +40,7 @@ function get_table_template($res_id, $title, $columns)
     // Default: use Auto-Recognition
     return ['type' => 'auto'];
 }
-}
 
-if (!function_exists('parse_nested_headers')) {
 function parse_nested_headers($columns, $res_id = 0, $title = '')
 {
     $header_structure = [];
@@ -188,9 +183,7 @@ function parse_nested_headers($columns, $res_id = 0, $title = '')
     }
     return $header_structure;
 }
-}
 
-if (!function_exists('get_dda_label_nested')) {
 function get_dda_label_nested($col)
 {
     $map = [
@@ -292,21 +285,23 @@ function get_dda_label_nested($col)
 
     return [$clean, $en];
 }
-}
 ?>
 
 <style>
     .dda-body {
         background: #fff;
-        padding: 20px;
-        font-family: 'Arial', sans-serif;
-        color: #000;
-        line-height: 1.2;
+        padding: 24px clamp(20px, 2.5vw, 36px) 36px;
+        font-family: 'Inter', "Inter Fallback", sans-serif;
+        color: #0f172a;
+        line-height: 1.5;
         width: 100%;
-        max-width: 100%;
+        margin: 0 0 40px 0;
         overflow-x: hidden;
         display: block;
         box-sizing: border-box;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
     }
 
     /* Force parent containers in the layout to stay within screen width */
@@ -325,57 +320,25 @@ function get_dda_label_nested($col)
     .header-table td {
         padding: 8px;
         border-bottom: 2px solid #000;
-        vertical-align: middle;
+        vertical-align: bottom;
     }
 
     .label-box {
-        width: 1%;
-        white-space: nowrap;
+        width: 15%;
         text-align: center;
         border-right: 1px solid #000;
-        vertical-align: middle !important;
-        padding: 8px 20px 8px 12px !important;
     }
 
-    .label-box-content {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-    }
-
-    .label-text {
-        display: inline-block;
-        vertical-align: middle;
-        text-align: left;
-        line-height: 1.25;
-    }
-
-    .label-text b {
-        font-size: 13.5px;
-        font-weight: 700;
-        color: #000;
-    }
-
-    .label-text i {
-        font-size: 12.5px;
-        color: #333;
-    }
-
-    .label-number {
-        display: inline-block;
-        vertical-align: middle;
-        font-weight: 700;
-        font-size: 15px;
-        color: #000;
-        letter-spacing: 0.3px;
+    .index-box {
+        width: 10%;
+        font-weight: bold;
+        font-size: 16px;
         text-align: center;
     }
 
     .title-box {
         text-align: left;
         padding-left: 20px !important;
-        vertical-align: middle !important;
     }
 
     .title-id {
@@ -405,13 +368,16 @@ function get_dda_label_nested($col)
         font-weight: bold;
         text-align: center;
         vertical-align: middle;
+        background: var(--bps-orange, #F26522); /* Orange Header like Image 4 */
+        color: white;
     }
 
     .main-table thead tr.num-row th {
         font-weight: normal;
         padding: 2px;
-        background: #fff;
+        background: #e05e15; /* Darker orange for num-row */
         font-size: 10px;
+        color: white;
     }
 
     .main-table tbody td {
@@ -427,17 +393,28 @@ function get_dda_label_nested($col)
         width: 100%;
         max-width: 100%; /* Penting: Batasi lebar maksimal */
         overflow-x: auto;
+        overflow-y: visible;
         -webkit-overflow-scrolling: touch;
         margin-bottom: 25px;
         background: #fff;
         border: 1px solid #f1f5f9; /* Bingkai halus */
         border-radius: 12px;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.02); /* Sedikit kedalaman */
+    }
+    
+    .table-responsive-dda thead {
+        position: static !important;
+        box-shadow: none !important;
+    }
+    
+    .table-responsive-dda thead th {
+        position: static !important;
+        background-clip: border-box;
     }
 
     /* Scrollbar style yang lebih terlihat */
     .table-responsive-dda::-webkit-scrollbar {
         height: 8px;
+        width: 8px;
     }
     .table-responsive-dda::-webkit-scrollbar-track {
         background: #f1f5f9;
@@ -521,10 +498,10 @@ function get_dda_label_nested($col)
 
     .btn-back-modern:hover {
         background: #fff;
-        color: #ff6d1f;
-        border-color: #ff6d1f;
+        color: #475569;
+        border-color: #cbd5e1;
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(255, 109, 31, 0.1);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
         text-decoration: none;
     }
 
@@ -680,69 +657,353 @@ function get_dda_label_nested($col)
     }
 </style>
 
-<div class="dda-body">
-    <?php
-    $fallback_url = base_url() . 'admin/dda';
-    $back_url = $fallback_url;
-    if (isset($_SERVER['HTTP_REFERER'])) {
-        $referer = $_SERVER['HTTP_REFERER'];
-        // Jika referer bukan halaman tabel portal ini sendiri, simpan sebagai back URL
-        if (strpos($referer, 'view_portal_tabel') === false && strpos($referer, base_url()) !== false) {
-            $back_url = $referer;
+    <style>
+        .header-modern-v2 {
+            background: #ffffff; 
+            padding: 12px 0 16px; 
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+        }
+
+        .table-top-bar {
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: nowrap;
+        }
+
+        .table-breadcrumb-nav {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .table-breadcrumb-nav .breadcrumb {
+            font-size: 0.88rem;
+            font-weight: 500;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap !important;
+            gap: 6px;
+            line-height: 1.5;
+        }
+        .table-breadcrumb-nav .breadcrumb-item {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .table-breadcrumb-nav .breadcrumb-item a {
+            color: #0275d8;
+            text-decoration: none;
+            transition: color 0.2s;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .table-breadcrumb-nav .breadcrumb-item a:hover {
+            color: #01447e;
+            text-decoration: underline;
+        }
+        .table-breadcrumb-nav .breadcrumb-item.active {
+            color: #475569;
+            max-width: clamp(180px, 32vw, 360px) !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            display: inline-block;
+            vertical-align: middle;
+            font-weight: 600;
+            flex-shrink: 1;
+        }
+
+        .title-area-row {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            width: 100%;
+            padding: 4px 4px 2px 4px;
+        }
+
+        .tabel-label-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 2px 6px 2px 2px;
+            flex-shrink: 0;
+        }
+        .tabel-label-box .tabel-ind {
+            font-weight: 800; 
+            font-size: 0.85rem; 
+            border-bottom: 2px solid #0f172a; 
+            padding-bottom: 2px; 
+            margin-bottom: 2px;
+            line-height: 1.1;
+            color: #0f172a;
+            text-align: center;
+            letter-spacing: -0.2px;
+        }
+        .tabel-label-box .tabel-en {
+            font-style: italic; 
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748b;
+            line-height: 1.1;
+            text-align: center;
+        }
+        .tabel-label-box .tabel-number {
+            font-size: 1.5rem; 
+            font-weight: 800; 
+            line-height: 1;
+            color: #0d2c4d;
+            letter-spacing: -0.4px;
+            display: flex;
+            align-items: center;
+        }
+
+        .title-details-col {
+            flex: 1;
+            min-width: 0;
+            border-left: 2px solid #cbd5e1;
+            padding-left: 24px;
+        }
+
+        .table-opd-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(21, 70, 121, 0.08);
+            color: var(--bps-blue, #154679);
+            border: 1px solid rgba(21, 70, 121, 0.16);
+            border-radius: 6px;
+            padding: 2px 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            max-width: 100%;
+            word-break: break-word;
+        }
+
+        .table-main-title {
+            font-size: clamp(1.05rem, 1.35vw, 1.25rem);
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.4;
+            margin: 0 0 5px 0;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            letter-spacing: -0.2px;
+        }
+
+        .table-sub-title {
+            font-size: clamp(0.82rem, 1.05vw, 0.9rem);
+            font-style: italic;
+            font-weight: 500;
+            color: #64748b;
+            line-height: 1.42;
+            margin: 0;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        @media (max-width: 767.98px) {
+            .header-modern-v2 {
+                padding: 12px 0 16px;
+                margin-bottom: 18px;
+            }
+            .table-top-bar {
+                margin-bottom: 14px;
+                padding-bottom: 10px;
+                flex-wrap: wrap;
+            }
+            .table-breadcrumb-nav .breadcrumb {
+                font-size: 0.8rem;
+            }
+            .table-breadcrumb-nav .breadcrumb-item.active {
+                max-width: 140px;
+            }
+            .title-area-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 12px !important;
+                padding: 0 !important;
+            }
+            .title-details-col {
+                border-left: none !important;
+                padding-left: 0 !important;
+                width: 100%;
+            }
+            .tabel-label-box {
+                padding: 0;
+                gap: 12px;
+                background: transparent;
+                border: none;
+            }
+            .tabel-label-box .tabel-number {
+                font-size: 1.55rem;
+            }
+            .table-opd-badge {
+                font-size: 0.76rem;
+                padding: 2px 8px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .table-breadcrumb-nav .breadcrumb-item.active {
+                max-width: none !important;
+                white-space: normal !important;
+                overflow: visible !important;
+            }
+        }
+    </style>
+
+<?php
+$primary_result = !empty($api_results) ? $api_results[0] : null;
+if ($primary_result):
+    $portal_title_main = $primary_result['title'] ?? $primary_result['nama'] ?? $primary_result['data']['title'] ?? 'Tabel Data Portal';
+    $dda_title_main = $primary_result['dda_title'] ?? '';
+    $dda_title_en_main = $primary_result['dda_title_en'] ?? '';
+
+    $display_title_main = $dda_title_main ?: $portal_title_main;
+    $display_title_main = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $display_title_main);
+
+    $tabel_nomor_main = '';
+    $judul_only_main = $display_title_main;
+    if (preg_match('/^Tabel\s+([\d\.\w]+)\s+(.*?)(?:,\s*(\d{4}(?:-\d{4})?))?$/is', trim($display_title_main), $m)) {
+        $tabel_nomor_main = $m[1];
+        $judul_only_main = trim($m[2]);
+        if (isset($m[3]) && $m[3]) {
+            $judul_only_main .= ', ' . $m[3];
         }
     }
-    ?>
-    <div class="row g-3 mb-4 align-items-center">
-        <div class="col-12 col-md-auto">
-            <a href="<?php echo htmlspecialchars($back_url); ?>" class="btn-rounded-modern btn-back-modern w-100 w-md-auto">
-                <i class="bi bi-arrow-left"></i> KEMBALI
-            </a>
+    $judul_only_main = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_only_main);
+
+    // Format judul ringkas untuk breadcrumb agar tidak panjang dan merusak baris
+    $core_breadcrumb_main = preg_split('/\s+(Menurut|Berdasarkan|\()\s+/i', $judul_only_main)[0];
+    $core_breadcrumb_main = trim($core_breadcrumb_main);
+    if (!empty($tabel_nomor_main)) {
+        $breadcrumb_label_main = 'Tabel ' . $tabel_nomor_main . ' - ' . mb_strimwidth($core_breadcrumb_main, 0, 32, '...');
+    } else {
+        $breadcrumb_label_main = mb_strimwidth($core_breadcrumb_main, 0, 38, '...');
+    }
+
+    $eng_title_raw_main = $dda_title_en_main ?: ($primary_result['title_en'] ?? '');
+    $eng_title_raw_main = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $eng_title_raw_main);
+
+    $judul_en_only_main = $eng_title_raw_main;
+    if (preg_match('/^Table\s+([\d\.\w]+)\s+(.*?)(?:,\s*(\d{4}(?:-\d{4})?))?$/is', trim($eng_title_raw_main), $m)) {
+        $judul_en_only_main = trim($m[2]);
+        if (isset($m[3]) && $m[3]) {
+            $judul_en_only_main .= ', ' . $m[3];
+        }
+    }
+    $judul_en_only_main = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_en_only_main);
+
+    $unitkerja_nm_main = $primary_result['unitkerja_ind'] ?? 'Provinsi Jawa Tengah';
+    if ($unitkerja_nm_main === '-' || empty($unitkerja_nm_main)) {
+        $unitkerja_nm_main = 'Provinsi Jawa Tengah';
+    }
+?>
+<div class="header-modern-v2">
+    <div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+        <!-- Top Action Bar -->
+        <div class="table-top-bar d-flex align-items-center justify-content-between gap-2">
+            <!-- Left: Breadcrumb -->
+            <nav aria-label="breadcrumb" class="table-breadcrumb-nav">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="<?= base_url('/') ?>"><i class="fa-solid fa-house-chimney me-1"></i>Beranda</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="<?= base_url('home/search') ?>">Jelajah Data</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page" title="<?= htmlspecialchars($judul_only_main) ?>">
+                        <?= htmlspecialchars($breadcrumb_label_main) ?>
+                    </li>
+                </ol>
+            </nav>
+            
+            <!-- Right: Unduh Data -->
+            <div class="dropdown">
+                <button class="btn d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: var(--bps-blue); color: white; border: none; border-radius: 50px; font-weight: 600; font-size: 13px; transition: all 0.2s;">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Unduh Data
+                </button>
+                <?php $full_title_for_export = trim("Tabel " . $tabel_nomor_main . " " . $judul_only_main); ?>
+                <ul class="dropdown-menu shadow dropdown-menu-end" style="border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <li><a class="dropdown-item py-2" href="#" data-export-title="<?php echo htmlspecialchars($full_title_for_export, ENT_QUOTES, 'UTF-8'); ?>" onclick="exportTableToExcel('dda-table-0', this.getAttribute('data-export-title'))"><i class="fa-solid fa-file-excel text-success me-2"></i> Unduh Format Excel</a></li>
+                    <li><a class="dropdown-item py-2" href="#" 
+                           data-nomor="<?php echo htmlspecialchars($tabel_nomor_main, ENT_QUOTES, 'UTF-8'); ?>"
+                           data-judul-id="<?php echo htmlspecialchars($judul_only_main, ENT_QUOTES, 'UTF-8'); ?>"
+                           data-judul-en="<?php echo htmlspecialchars($judul_en_only_main, ENT_QUOTES, 'UTF-8'); ?>"
+                           onclick="exportTableToPDF('dda-table-0', this.getAttribute('data-nomor'), this.getAttribute('data-judul-id'), this.getAttribute('data-judul-en'))">
+                           <i class="fa-solid fa-file-pdf text-danger me-2"></i> Unduh Format PDF
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
 
-        <div class="col-12 col-md d-flex flex-wrap gap-2 align-items-center justify-content-md-end">
-            <?php
-            // Ambil semua tahun unik dari koleksi data untuk dropdown filter
-            $unique_years = [];
-            foreach ($api_results as $res) {
-                $rows_data = $res['data'] ?? [];
-                foreach ($rows_data as $rd) {
-                    $y = $rd['tahun_data'] ?? $rd['tahun'] ?? null;
-                    if ($y) $unique_years[] = $y;
-                }
-            }
-            $unique_years = array_unique($unique_years);
-            rsort($unique_years);
-            ?>
-            <?php if (!empty($unique_years)): ?>
-                <div class="dropdown">
-                    <button class="btn-rounded-modern btn-back-modern shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                        <i class="bi bi-calendar-event me-1"></i> <span id="year-filter-label">Tahun</span>
-                    </button>
-                    <div class="dropdown-menu p-3 shadow-lg border-0" style="border-radius: 1rem; min-width: 200px;">
-                        <h6 class="dropdown-header px-0 mb-2">Pilih Tahun</h6>
-                        <div id="year-checklist-container">
-                            <?php foreach ($unique_years as $yr): ?>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input year-filter-check" type="checkbox" value="<?php echo $yr; ?>" id="yr-<?php echo $yr; ?>" onchange="filterByYear()">
-                                    <label class="form-check-label small fw-bold" for="yr-<?php echo $yr; ?>">Tahun <?php echo $yr; ?></label>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <hr class="my-2">
-                        <button type="button" onclick="resetYearFilter()" class="btn btn-sm btn-link text-muted p-0 text-decoration-none small">Reset</button>
-                    </div>
+        <!-- Title Area -->
+        <div class="title-area-row">
+            <!-- Tabel Number Block -->
+            <div class="tabel-label-box">
+                <div class="d-flex flex-column align-items-center justify-content-center">
+                    <div class="tabel-ind">Tabel</div>
+                    <div class="tabel-en">Table</div>
                 </div>
-            <?php endif; ?>
-
-            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm">
-                <i class="bi bi-gear-fill"></i> KONFIGURASI
-            </button>
-
-            <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
-                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">EXPORT EXCEL</span><span class="d-inline d-sm-none">EXPORT</span>
-            </button>
+                <div class="tabel-number">
+                    <?= htmlspecialchars($tabel_nomor_main ?: '-') ?>
+                </div>
+            </div>
+            
+            <!-- Title Details -->
+            <div class="title-details-col">
+                <div class="table-opd-badge">
+                    <i class="fa-solid fa-building-columns"></i>
+                    <span><?= htmlspecialchars($unitkerja_nm_main) ?></span>
+                </div>
+                <h1 class="table-main-title"><?= htmlspecialchars($judul_only_main) ?></h1>
+                <?php if (!empty($judul_en_only_main)): ?>
+                    <p class="table-sub-title"><?= htmlspecialchars($judul_en_only_main) ?></p>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
+</div>
+<?php endif; ?>
+
+<div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+    <div class="dda-body">
+
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .header-modern-v2, .header-modern-v2 *,
+            #dda-container-all, #dda-container-all * {
+                visibility: visible;
+            }
+            #dda-container-all {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .btn-rounded-modern, .dropdown, .page-header, .table-top-bar {
+                display: none !important;
+            }
+        }
+    </style>
 
     <style>
         .filter-box-modern {
@@ -834,26 +1095,15 @@ function get_dda_label_nested($col)
 
     <?php echo view('admin/parts/js_export_excel'); ?>
 
-    <?php if ($hasError): ?>
-        <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
+    <?php if (empty($api_results)): ?>
+        <div style="color: red; padding: 20px; border: 1px solid red;">Tidak ada data referensi yang ditemukan.</div>
     <?php else: ?>
-        <div id="dda-container-all" style="padding: 20px;">
+        <div id="dda-container-all">
             <?php foreach ($api_results as $idx_res => $api_result):
                 // Process each result independently
                 $portal_title = $api_result['title'] ?? $api_result['nama'] ?? $api_result['data']['title'] ?? 'Tabel Data Portal';
                 $dda_title = $api_result['dda_title'] ?? '';
                 $dda_title_en = $api_result['dda_title_en'] ?? '';
-                $no_tabel = $api_result['no_tabel'] ?? '';
-
-                if (empty($no_tabel) && preg_match('/^(\d+(?:\.\d+)+(?:[a-zA-Z])?)\s+(.*)$/u', $dda_title ?: $portal_title, $m_num)) {
-                    $no_tabel = $m_num[1];
-                }
-
-                if (!empty($no_tabel)) {
-                    $dda_title = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $dda_title);
-                    $portal_title = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $portal_title);
-                    $dda_title_en = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $dda_title_en);
-                }
                 $rows = [];
                 $columns = [];
 
@@ -977,9 +1227,20 @@ function get_dda_label_nested($col)
 
                         return 0;
                     });
+                }
+                // Jika rows kosong, set marker tapi jangan continue
+                $is_empty_data = empty($rows);
+                
+                // Jika empty data dan tidak ada referensi sama sekali, kita skip,
+                // tapi jika dari DB kita dapat metadata, kita bisa lanjut render header
+                if ($is_empty_data && empty($dda_title) && empty($portal_title)) {
+                    continue;
+                }
 
+                $columns = [];
+                if (!$is_empty_data) {
                     $columns = array_keys($rows[0]);
-
+                    
                     // Reorder: Tahun first, then Kabupaten
                     $thK = '';
                     $kbK = '';
@@ -996,12 +1257,10 @@ function get_dda_label_nested($col)
                         if ($c !== $thK && $c !== $kbK) $newCols[] = $c;
                     }
                     $columns = $newCols;
-                } else {
-                    continue; // Skip if no rows
                 }
 
                 $res_id = $api_result['res_id'] ?? 0;
-                $structure = parse_nested_headers($columns, $res_id, $portal_title);
+                $structure = $is_empty_data ? [] : parse_nested_headers($columns, $res_id, $portal_title);
                 $has_group = false;
                 foreach ($structure as $item) {
                     if ($item['type'] === 'group') {
@@ -1009,7 +1268,7 @@ function get_dda_label_nested($col)
                         break;
                     }
                 }
-            ?>
+                ?>
                 <?php if ($idx_res > 0): ?>
                     <div style="margin: 60px 0; border-top: 2px dashed #ccc; position: relative;">
                         <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #fff; padding: 0 15px; color: #999; font-size: 12px; font-weight: bold; letter-spacing: 1px;">TABEL BERIKUTNYA / NEXT TABLE</span>
@@ -1017,53 +1276,104 @@ function get_dda_label_nested($col)
                 <?php endif; ?>
 
                 <div class="table-wrapper">
-                    <!-- HEADER BAGIAN ATAS -->
-                    <table class="header-table">
-                        <tr>
-                            <td class="label-box">
-                                <div class="label-box-content">
-                                    <div class="label-text">
-                                        <b>Tabel</b><br><i>Table</i>
-                                    </div>
-                                    <?php if (!empty($no_tabel)): ?>
-                                        <div class="label-number">
-                                            <?php echo htmlspecialchars($no_tabel); ?>
-                                        </div>
-                                    <?php endif; ?>
+                    <!-- HEADER MODERN SEPERTI GAMBAR 1 -->
+                    <?php
+                            $display_title = '';
+                            if ($idx_res === 0) {
+                                $display_title = $dda_title ?: $portal_title;
+                            } else {
+                                $display_title = $portal_title;
+                            }
+
+                            // Bersihkan karakter encoding rusak (seperti ?Çô, â€“, dsb)
+                            $display_title = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $display_title);
+
+                            $tabel_nomor = '';
+                            $judul_only = $display_title;
+                            if (preg_match('/^Tabel\s+([\d\.\w]+)\s+(.*?)(?:,\s*(\d{4}(?:-\d{4})?))?$/is', trim($display_title), $m)) {
+                                $tabel_nomor = $m[1];
+                                $judul_only = trim($m[2]);
+                                if (isset($m[3]) && $m[3]) {
+                                    $judul_only .= ', ' . $m[3];
+                                }
+                            }
+                            $judul_only = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_only);
+
+                            // Format judul ringkas untuk breadcrumb agar tidak panjang dan merusak baris
+                            $core_breadcrumb = preg_split('/\s+(Menurut|Berdasarkan|\()\s+/i', $judul_only)[0];
+                            $core_breadcrumb = trim($core_breadcrumb);
+                            if (!empty($tabel_nomor)) {
+                                $breadcrumb_label = 'Tabel ' . $tabel_nomor . ' - ' . mb_strimwidth($core_breadcrumb, 0, 32, '...');
+                            } else {
+                                $breadcrumb_label = mb_strimwidth($core_breadcrumb, 0, 38, '...');
+                            }
+
+                            $eng_title_raw = '';
+                            if ($idx_res === 0) {
+                                $eng_title_raw = $dda_title_en ?: ($api_result['title_en'] ?? '');
+                            } else {
+                                $eng_title_raw = $api_result['title_en'] ?? $dda_title_en ?? '';
+                            }
+                            $eng_title_raw = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $eng_title_raw);
+                            
+                            $judul_en_only = $eng_title_raw;
+                            if (preg_match('/^Table\s+([\d\.\w]+)\s+(.*?)(?:,\s*(\d{4}(?:-\d{4})?))?$/is', trim($eng_title_raw), $m)) {
+                                $judul_en_only = trim($m[2]);
+                                if (isset($m[3]) && $m[3]) {
+                                    $judul_en_only .= ', ' . $m[3];
+                                }
+                            }
+                            $judul_en_only = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_en_only);
+                            
+                            $unitkerja_nm = $api_result['unitkerja_ind'] ?? 'Provinsi Jawa Tengah';
+                            if ($unitkerja_nm === '-' || empty($unitkerja_nm)) {
+                                $unitkerja_nm = 'Provinsi Jawa Tengah';
+                            }
+                    ?>
+                    
+                    <?php if ($idx_res > 0): ?>
+                    <div class="header-modern-v2" style="margin-top: 20px; background: transparent; box-shadow: none; border-bottom: 1px solid #e2e8f0; padding: 0 0 16px 0;">
+                        <div class="title-area-row">
+                            <!-- Tabel Number Block -->
+                            <div class="tabel-label-box">
+                                <div class="d-flex flex-column align-items-center justify-content-center">
+                                    <div class="tabel-ind">Tabel</div>
+                                    <div class="tabel-en">Table</div>
                                 </div>
-                            </td>
-
-                            <td class="title-box">
-                                <span class="title-id">
-                                    <?php
-                                    if ($idx_res === 0) {
-                                        echo htmlspecialchars($dda_title ?: $portal_title);
-                                    } else {
-                                        echo htmlspecialchars($portal_title);
-                                    }
-                                    ?>
-                                </span>
-
-                                <?php if ($idx_res > 0 && !empty($dda_title) && $dda_title !== $portal_title): ?>
-                                    <span style="font-size: 12px; color: #666; display: block; margin-top: 2px;">
-                                        (Ref: <?php echo htmlspecialchars($dda_title); ?>)
-                                    </span>
+                                <div class="tabel-number">
+                                    <?= htmlspecialchars($tabel_nomor ?: '-') ?>
+                                </div>
+                            </div>
+                            
+                            <!-- Title Details -->
+                            <div class="title-details-col">
+                                <div class="table-opd-badge">
+                                    <i class="fa-solid fa-building-columns"></i>
+                                    <span><?= htmlspecialchars($unitkerja_nm) ?></span>
+                                </div>
+                                <h1 class="table-main-title"><?= htmlspecialchars($judul_only) ?></h1>
+                                <?php if (!empty($judul_en_only)): ?>
+                                    <p class="table-sub-title"><?= htmlspecialchars($judul_en_only) ?></p>
                                 <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
-                                <span class="title-en">
-                                    <?php
-                                    if ($idx_res === 0) {
-                                        echo htmlspecialchars($dda_title_en ?: ($api_result['title_en'] ?? ''));
-                                    } else {
-                                        echo htmlspecialchars($api_result['title_en'] ?? $dda_title_en ?? '');
-                                    }
-                                    ?>
-                                </span>
-                            </td>
-                        </tr>
-                    </table>
+                    <!-- Mobile swipe tip -->
+                    <div class="d-block d-md-none text-muted small mb-2 px-1">
+                        <i class="fa-solid fa-arrows-left-right me-1 text-primary"></i>
+                        <span>Geser tabel ke kanan/kiri untuk melihat seluruh kolom data</span>
+                    </div>
 
                     <!-- TABEL DATA UTAMA -->
+                    <?php if ($is_empty_data): ?>
+                        <div class="alert text-center mt-4 mb-5 p-5" style="background: #fff3ed; border: 1px dashed #F26522; border-radius: 16px;">
+                            <i class="fa-solid fa-folder-open mb-3" style="font-size: 3rem; color: #F26522; opacity: 0.5;"></i>
+                            <h4 style="color: #F26522; font-weight: 700;">Data Tabel Belum Tersedia</h4>
+                            <p class="text-muted mb-0">Maaf, data untuk tabel ini belum tersedia dari API Satu Data Jawa Tengah.</p>
+                        </div>
+                    <?php else: ?>
                     <div class="table-responsive-dda">
                         <table class="main-table dda-table-item" id="dda-table-<?php echo $idx_res; ?>">
                         <thead style="background: #FF6D1F; color: #fff;">
@@ -1147,6 +1457,7 @@ function get_dda_label_nested($col)
                         </tfoot>
                     </table>
                     </div>
+                    <?php endif; ?>
 
                     <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;">
                         <div><b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $api_result['id_api'] ?? ''; ?>)</div>
@@ -1157,7 +1468,6 @@ function get_dda_label_nested($col)
         </div>
     <?php endif; ?>
 
-    <?php echo view('admin/parts/modal_config_tabel'); ?>
 
 
     <?php echo view('admin/parts/portal_table_styles'); ?>
@@ -1187,6 +1497,148 @@ function get_dda_label_nested($col)
                 }
             });
         });
+        
+        function exportTableToPDF(tableID, nomor = '', judulId = '', judulEn = '') {
+            if (typeof window.jspdf === 'undefined') {
+                alert("Library PDF belum termuat, silakan coba lagi.");
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', format: 'a4' });
+            
+            // Bersihkan judul dari enter/newline yang tersembunyi dari database
+            const cleanJudulId = (judulId || "Export Data").replace(/\r?\n|\r/g, " ").replace(/\s+/g, " ");
+            const cleanJudulEn = (judulEn || "").replace(/\r?\n|\r/g, " ").replace(/\s+/g, " ");
+
+            // Kalkulasi lebar teks
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const marginLeft = 10;
+            
+            // Atur font ke ukuran nomor untuk mengukur dengan akurat
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            const numWidth = nomor ? doc.getTextWidth(nomor) : 10;
+            
+            const titleStartX = marginLeft + 12 + numWidth + 8; 
+            // Panjangkan judul hingga batas kanan (margin kanan 10)
+            const maxTitleWidth = pageWidth - titleStartX - 10;
+            
+            // Gunakan ukuran font yang lebih besar (12 untuk Indo, 10 untuk Eng) agar tidak terlalu kecil
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            const splitId = doc.splitTextToSize(cleanJudulId, maxTitleWidth);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "italic");
+            const splitEn = doc.splitTextToSize(cleanJudulEn, maxTitleWidth);
+            
+            // Tinggi judul Indo (12pt ~ 5.5mm per baris) + Eng (10pt ~ 4.5mm per baris) + spacing
+            const idHeight = splitId.length * 5.5;
+            const enHeight = splitEn.length * 4.5;
+            // Tinggi dinamis KHUSUS halaman pertama
+            const firstPageStartY = Math.max(30, 15 + idHeight + enHeight + 5);
+            
+            // Konfigurasi Autotable
+            doc.autoTable({
+                html: '#' + tableID,
+                theme: 'grid',
+                startY: firstPageStartY, // Halaman pertama mulai di sini
+                margin: { top: 20, right: 10, bottom: 15, left: 10 }, // Halaman lanjutan pakai margin ini
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 2,
+                    textColor: [0, 0, 0],
+                    lineColor: [200, 200, 200],
+                    lineWidth: 0.1,
+                },
+                headStyles: {
+                    fillColor: [255, 109, 31],
+                    textColor: [255, 255, 255],
+                    fontSize: 9,
+                    fontStyle: 'bold',
+                    halign: 'center',
+                    valign: 'middle'
+                },
+                alternateRowStyles: {
+                    fillColor: [255, 244, 235]
+                },
+                didParseCell: function(data) {
+                    if (data.section === 'body') {
+                        let txt = data.cell.text.join(' ').trim();
+                        // Rata kanan jika isinya angka atau tanda strip
+                        if (txt !== '' && /^[\d\.\,\-\s]+$/.test(txt) && !/[a-zA-Z]/.test(txt)) {
+                            data.cell.styles.halign = 'right';
+                        }
+                    }
+                },
+                didDrawPage: function (data) {
+                    const pageNum = doc.internal.getNumberOfPages();
+                    
+                    if (pageNum === 1) {
+                        let x = data.settings.margin.left;
+                        let y = 15; // Y Awal
+                        
+                        // --- Kolom 1: TABEL & TABLE ---
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(0, 0, 0);
+                        doc.text("Tabel", x, y);
+                        
+                        // Garis pemisah bawah Tabel
+                        doc.setDrawColor(0,0,0);
+                        doc.setLineWidth(0.4);
+                        doc.line(x, y + 1.5, x + 9, y + 1.5);
+                        
+                        doc.setFont("helvetica", "italic");
+                        doc.text("Table", x, y + 4.5);
+                        
+                        // --- Kolom 2: Nomor Tabel ---
+                        let numX = x + 11;
+                        doc.setFontSize(14);
+                        doc.setFont("helvetica", "bold");
+                        doc.text(nomor || "", numX, y + 3);
+                        
+                        // --- Garis Vertikal Pemisah ---
+                        let lineX = numX + numWidth + 3;
+                        doc.setDrawColor(200, 200, 200);
+                        doc.setLineWidth(0.2);
+                        doc.line(lineX, y - 2, lineX, y + 6);
+                        
+                        // --- Kolom 3: Judul Indonesia & Inggris ---
+                        let titleX = lineX + 4;
+                        
+                        // Cetak Judul Indo (Rata Kanan Kiri / Justify)
+                        doc.setFontSize(12);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(0, 0, 0);
+                        doc.text(cleanJudulId, titleX, y + 1, { maxWidth: maxTitleWidth, align: "justify" });
+                        
+                        // Cetak Judul Eng (Rata Kanan Kiri / Justify)
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "italic");
+                        doc.setTextColor(100, 100, 100);
+                        doc.text(cleanJudulEn, titleX, y + 1 + idHeight, { maxWidth: maxTitleWidth, align: "justify" });
+                        
+                    } else {
+                        // HALAMAN LANJUTAN
+                        doc.setFontSize(10);
+                        doc.setFont("helvetica", "bold");
+                        doc.setTextColor(0, 0, 0);
+                        doc.text("Tabel " + (nomor || "") + " (Lanjutan / Continued)", data.settings.margin.left, 15);
+                    }
+                }
+            });
+
+            const safeTitle = cleanJudulId.substring(0, 50).replace(/[/\\?%*:|"<>]/g, '-');
+            const filename = 'Tabel_' + (nomor || "") + '_' + safeTitle + '.pdf';
+            doc.save(filename);
+        }
     </script>
     <div style="display:none;"><?= csrf_field() ?></div>
+    
+    <!-- Load jsPDF and AutoTable for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    </div>
 </div>

@@ -1,4 +1,12 @@
 <script>
+/**
+ * JAVASCRIPT ENGINE: VIEWER & PARSER TABEL DINAMIS PORTAL DATA (portal_table_scripts.php)
+ * Mengelola rendering data JSON/API dari Portal Data Open Data Jawa Tengah:
+ * 1. BPS_REGIONAL_MAP: Kamus referensi kode wilayah BPS 35 Kabupaten/Kota Jawa Tengah (3301 - 3376).
+ * 2. getBpsCode(): Algoritma cerdas deteksi & ekstraksi kode wilayah dari nama kolom/isi data.
+ * 3. Matrix Transformation & Pivot Engine: Memutar tabel, pengelompokan baris wilayah, subtotal, dan grand total Jawa Tengah.
+ * 4. Export Engine: Ekspor matriks tabel yang sudah dipivot/dikustomisasi ke file Excel/CSV.
+ */
     const BPS_REGIONAL_MAP = {
         "3301": "Cilacap",
         "3302": "Banyumas",
@@ -113,6 +121,7 @@
         if (val === '-' || val === null || val === undefined) return '-';
         const num = parseFloat(String(val).replace(',', '.')) || 0;
         if (isNaN(num)) return val;
+        if (num === 0) return '-'; //(baru) mengubah angka 0 menjadi endash (-)
         switch (formatType) {
             case 'decimal':
                 return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -469,7 +478,7 @@
                 rowspanMap[col.key + '-' + startIndices[col.key]]++;
             });
         });
-        const hasVisibleApiTotal = finalCols.some(c => !c.hidden && !c.isRow && (c.label_id.toLowerCase().includes('jumlah') || c.label_id.toLowerCase().includes('total')));
+        const hasVisibleApiTotal = finalCols.some(c => !c.hidden && !c.isRow && (((c.label_id || c.key || '').toLowerCase().includes('jumlah')) || ((c.label_id || c.key || '').toLowerCase().includes('total'))));
         const showTotal = (config.show_total_col || (config.pivot && config.pivot.enabled && config.pivot.total_row)) && !hasVisibleApiTotal;
         let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#fff;">`;
         html += '<thead style="background:#FF6D1F; color:#fff;">';
@@ -565,8 +574,9 @@
 
                 let num = parseFloat(String(rawVal).replace(',', '.')) || 0;
                 let isNumeric = !isNaN(parseFloat(String(rawVal))) && isFinite(String(rawVal).replace(',', '.'));
-                const isTotalInLabel = col.label_id.toLowerCase().includes('jumlah') || col.label_id.toLowerCase().includes('total');
-                const isTahunCol = col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year');
+                const colLabel = (col.label_id || col.key || '').toLowerCase();
+                const isTotalInLabel = colLabel.includes('jumlah') || colLabel.includes('total');
+                const isTahunCol = (col.key || '').toLowerCase().includes('tahun') || (col.key || '').toLowerCase().includes('year');
                 
                 if (isNumeric && !col.isRow && !isTahunCol) { 
                     verticalTotals[col.key] = (verticalTotals[col.key] || 0) + num; 
@@ -600,9 +610,25 @@
                             const indent = (parts.length - 1) * 20;
                             displayVal = `<span style="padding-left:${indent}px">${parts[parts.length - 1]}</span>`;
                         }
-                    } else displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal;
-                if (col.hidden) return;
-                html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #eee; padding:8px; ${col.isRow || c_idx === 0 ? 'font-weight:bold;' : 'text-align:center;'}">${displayVal}</td>`;
+                    } 
+                    // else displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal; (lama)
+                    else { 
+                        let cleanForZero = String(rawVal).replace(/[\.,\s]/g, ''); //(baru) untuk membersihkan tanda titik koma atau spasi pada angka 0
+                        if (cleanForZero === '0' || cleanForZero === '-0') { //(baru) untuk cek angka 0 atau -0
+                            displayVal = '-'; //(baru) untuk mengubah nilai 0 menjadi -
+                        } else {
+                            displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal; //(baru) jika bukan 0 maka tampilkan nilai aslinya
+                        }
+                    }
+                    if (col.hidden) return;
+                // html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #eee; padding:8px; ${col.isRow || c_idx === 0 ? 'font-weight:bold;' : 'text-align:center;'}">${displayVal}</td>`; (lama)
+                let align = 'center'; // (baru) untuk default rata tengah
+                let strVal = String(rawVal).trim(); // (baru) untuk mengubah data asli menjadi teks dan untuk mengubah spasi tersembunyi
+                let isFormattedNum = /^[-0-9.,]+$/.test(strVal) && strVal !== ''; // (baru) untuk melihat angka titik koma
+                if (col.isRow || c_idx === 0) align = 'left'; // (baru) agar kolom pertama rata kiri 
+                else if ((isNumeric || isFormattedNum || displayVal === '-') && !isTahunCol) align = 'right'; // (baru) untuk rata kanan bagian kolom angka
+
+                html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #eee; padding:8px; text-align:${align}; ${col.isRow || c_idx === 0 ? 'font-weight:bold;' : ''}">${displayVal}</td>`;
             });
             if (showTotal) html += `<td style="border:1px solid #eee; text-align:center; font-weight:bold; background:#fffafa;">${formatVal(rowSum, 'number')}</td>`;
             html += '</tr>';
@@ -616,11 +642,15 @@
                 if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:1px solid #fff;"></td>`;
                 else {
                     const sum = verticalTotals[col.key];
-                    if (!(col.label_id.toLowerCase().includes('jumlah') || col.label_id.toLowerCase().includes('total'))) grandTotal += sum;
-                    html += `<td style="border:1px solid #fff; text-align:center;">${formatVal(sum, col.format || 'number')}</td>`;
+                    const colLabel = (col.label_id || col.key || '').toLowerCase();
+                    if (!(colLabel.includes('jumlah') || colLabel.includes('total'))) grandTotal += sum;
+                    // html += `<td style="border:1px solid #fff; text-align:center;">${formatVal(sum, col.format || 'number')}</td>`; (lama)
+                     html += `<td style="border:1px solid #fff; text-align:right;">${formatVal(sum, col.format || 'number')}</td>`;  // (baru) untuk rata kanan bagian angka jumlah
                 }
             });
-            if (showTotal) html += `<th style="border:1px solid #fff; text-align:center;">${formatVal(grandTotal, 'number')}</th>`;
+            if (showTotal) 
+                // html += `<th style="border:1px solid #fff; text-align:center;">${formatVal(grandTotal, 'number')}</th>`; (lama)
+             html += `<th style="border:1px solid #fff; text-align:right;">${formatVal(grandTotal, 'number')}</th>`;  // (baru) untuk rata kanan bagian angka jumlah
             html += '</tr>';
         }
         html += '</tbody></table>';

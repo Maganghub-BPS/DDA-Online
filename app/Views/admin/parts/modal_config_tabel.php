@@ -1,3 +1,12 @@
+<!-- ========================================================================= -->
+<!-- MODAL: KONFIGURASI TAMPILAN TABEL DINAMIS (modal_config_tabel.php)        -->
+<!-- Fitur canggih untuk memanipulasi struktur dan penyajian tabel portal data:-->
+<!-- 1. Kolom & Label : Mengatur visibilitas kolom, label kustom, hierarki      -->
+<!--    header bertingkat (menggunakan delimiter '||'), dan urutan kolom.      -->
+<!-- 2. Pivot Mode     : Memutar matriks data (mentransformasikan baris/kolom) -->
+<!--    dengan hierarki multi-level dan drag-drop custom ordering.              -->
+<!-- 3. Agregasi Data  : Toggle hitung total per kelompok & grand total Jawa Tengah.-->
+<!-- ========================================================================= -->
 <!-- Modal Konfigurasi Tabel Dinamis -->
 <div class="modal fade" id="configModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -5,7 +14,7 @@
             <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-3">
                     <h5 class="modal-title fw-bold text-dark mb-0"><i class="bi bi-sliders me-2 text-primary"></i> KONFIGURASI TABEL</h5>
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" onclick="toggleGuide()" style="font-size: 10px;">
+                    <button type="button" class="btn-sm btn btn-outline-secondary rounded-pill px-3 fw-bold" onclick="toggleGuide()" style="font-size: 10px;">
                         <i class="bi bi-question-circle me-1"></i> PANDUAN PENGGUNA
                     </button>
                 </div>
@@ -45,33 +54,29 @@
                             <!-- Kolom di-inject JS -->
                         </div>
                         <hr>
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100">
-                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="merge-datasets">
-                                    <label class="form-check-label fw-bold small" for="merge-datasets">Gabungkan Dataset</label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="merge-datasets" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="merge-datasets" style="cursor: pointer;">Gabungkan Dataset</label>
                                 </div>
                             </div>
-                            <div class="col-md-8">
-                                <div class="row g-2">
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check form-switch bg-light p-3 rounded-3">
-                                            <input class="form-check-input" type="checkbox" id="config_show_group_total">
-                                            <label class="form-check-label fw-bold small" for="config_show_group_total">Jumlah per Kelompok Kolom</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check form-switch bg-light p-3 rounded-3">
-                                            <input class="form-check-input" type="checkbox" id="config_show_total_col">
-                                            <label class="form-check-label fw-bold small" for="config_show_total_col">Tampilkan Total (Baris JT)</label>
-                                        </div>
-                                    </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="group-by-region" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="group-by-region" style="cursor: pointer;">Grup Wilayah (Kab/Kota)</label>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100">
-                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="group-by-region">
-                                    <label class="form-check-label fw-bold small" for="group-by-region">Grup Wilayah (Kab/Kota)</label>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="config_show_group_total" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="config_show_group_total" style="cursor: pointer;">Jumlah per Kelompok Kolom</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="config_show_total_col" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="config_show_total_col" style="cursor: pointer;">Tampilkan Total (Baris JT)</label>
                                 </div>
                             </div>
                         </div>
@@ -225,6 +230,7 @@
 
 
     function openConfigModal() {
+      try {
         const modalEl = document.getElementById('configModal');
         let bootstrapModal = bootstrap.Modal.getInstance(modalEl);
         if (!bootstrapModal) bootstrapModal = new bootstrap.Modal(modalEl);
@@ -237,7 +243,13 @@
         const baseKeys = (dataRows.length > 0) ? Object.keys(dataRows[0]) : [];
 
         // AMBIL CONFIG YANG ADA ATAU DEFAULT (STATEFUL)
-        if (!currentTableConfig) {
+        if (typeof currentTableConfig === 'string') {
+            try {
+                currentTableConfig = JSON.parse(currentTableConfig);
+                if (typeof currentTableConfig === 'string') currentTableConfig = JSON.parse(currentTableConfig); // In case double encoded
+            } catch(e) {}
+        }
+        if (!currentTableConfig || typeof currentTableConfig !== 'object') {
             currentTableConfig = {
                 columns: baseKeys.map(k => ({ key: k, label_id: k, label_en: '', visible: true, format: 'number' })),
                 pivot: { enabled: false, row: [], col: [], val: [], total_row: true, total_col: true, prefix: '', prefix_en: '', mappings: {} },
@@ -249,12 +261,23 @@
         }
         
         // MIGRASI/NORMALISASI CONFIG LAMA
+        if (!currentTableConfig.columns || !Array.isArray(currentTableConfig.columns)) {
+            if (currentTableConfig.columns && typeof currentTableConfig.columns === 'object' && currentTableConfig.columns !== null) {
+                currentTableConfig.columns = Object.values(currentTableConfig.columns);
+            } else {
+                currentTableConfig.columns = baseKeys.map(k => ({ key: k, label_id: k, label_en: '', visible: true, format: 'number' }));
+            }
+        }
         if (!currentTableConfig.pivot) {
             currentTableConfig.pivot = { enabled: false, row: [], col: [], val: [], total_row: true, total_col: true, prefix: '', prefix_en: '', mappings: {} };
         }
         ['row', 'col', 'val'].forEach(t => {
             if (currentTableConfig.pivot[t] && !Array.isArray(currentTableConfig.pivot[t])) {
-                currentTableConfig.pivot[t] = [currentTableConfig.pivot[t]];
+                if (typeof currentTableConfig.pivot[t] === 'object') {
+                    currentTableConfig.pivot[t] = Object.values(currentTableConfig.pivot[t]);
+                } else {
+                    currentTableConfig.pivot[t] = [currentTableConfig.pivot[t]];
+                }
             } else if (!currentTableConfig.pivot[t]) {
                 currentTableConfig.pivot[t] = [];
             }
@@ -290,7 +313,7 @@
             container.appendChild(div);
         });
 
-        new Sortable(container, { animation: 150, handle: '.cursor-move' });
+        try { new Sortable(container, { animation: 150, handle: '.cursor-move' }); } catch(e) { console.warn('SortableJS not loaded'); }
 
         // Restore Pivot Checklists (Row, Col, Val)
         ['row', 'col', 'val'].forEach(type => {
@@ -308,10 +331,12 @@
             });
 
             refreshPivotOrderList(type);
-            new Sortable(document.getElementById(`pivot-${type}-order-list`), { 
-                animation: 100, 
-                onEnd: () => { updatePivotMappingUI(); } 
-            });
+            try {
+                new Sortable(document.getElementById(`pivot-${type}-order-list`), { 
+                    animation: 100, 
+                    onEnd: () => { updatePivotMappingUI(); } 
+                });
+            } catch(e) { console.warn('SortableJS not loaded'); }
         });
 
         // Restore Switch & Values
@@ -349,15 +374,21 @@
         // Initialize Sortable for Mapping List
         const mappingList = document.getElementById('pivot-mapping-list');
         if (mappingList && !mappingList.dataset.sortableInitialized) {
-            new Sortable(mappingList, { 
-                animation: 150, 
-                handle: '.cursor-move',
-                ghostClass: 'sortable-ghost'
-            });
+            try {
+                new Sortable(mappingList, { 
+                    animation: 150, 
+                    handle: '.cursor-move',
+                    ghostClass: 'sortable-ghost'
+                });
+            } catch(e) { console.warn('SortableJS not loaded'); }
             mappingList.dataset.sortableInitialized = "true";
         }
 
         bootstrapModal.show();
+      } catch (err) {
+        console.error("Error opening config modal:", err);
+        alert("Gagal membuka konfigurasi: " + err.message + "\n\nStack:\n" + err.stack);
+      }
     }
     
     function toggleGuide() {

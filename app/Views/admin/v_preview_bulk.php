@@ -61,7 +61,7 @@
                                         <select name="id_tabel_final[<?php echo $index; ?>]" class="form-select form-select-sm select-table" style="width: 100%;">
                                              <option></option>
                                              <?php foreach ($all_tables as $t): ?>
-                                                 <option value="<?php echo $t->id; ?>"><?php echo $t->judul_ind; ?> (ID: <?php echo $t->id; ?>)</option>
+                                                 <option value="<?php echo $t->id; ?>"><?php echo (!empty($t->no_tabel) ? $t->no_tabel . ' ' : '') . format_judul_tabel($t->judul_ind, $t->periode_id ?? $t->periode ?? ''); ?> (ID: <?php echo $t->id; ?>)</option>
                                              <?php endforeach; ?>
                                          </select>
                                     <?php endif; ?>
