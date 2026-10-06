@@ -930,9 +930,17 @@ if ($primary_result):
                 <button class="btn d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: var(--bps-blue); color: white; border: none; border-radius: 50px; font-weight: 600; font-size: 13px; transition: all 0.2s;">
                     <i class="fa-solid fa-cloud-arrow-down"></i> Unduh Data
                 </button>
-                <?php $full_title_for_export = trim("Tabel " . $tabel_nomor_main . " " . $judul_only_main); ?>
+                <?php 
+                    $clean_nomor = trim((string)($tabel_nomor_main ?? ''));
+                    $clean_judul = trim(preg_replace('/[\r\n\t]+/', ' ', (string)($judul_only_main ?? '')));
+                    if (!empty($clean_nomor)) {
+                        $full_title_for_export = 'Tabel ' . $clean_nomor . ' ' . preg_replace('/^Tabel\s+[\d\.\w]+\s+/i', '', $clean_judul);
+                    } else {
+                        $full_title_for_export = $clean_judul;
+                    }
+                ?>
                 <ul class="dropdown-menu shadow dropdown-menu-end" style="border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <li><a class="dropdown-item py-2" href="#" data-export-title="<?php echo htmlspecialchars($full_title_for_export, ENT_QUOTES, 'UTF-8'); ?>" onclick="exportTableToExcel('dda-table-0', this.getAttribute('data-export-title'))"><i class="fa-solid fa-file-excel text-success me-2"></i> Unduh Format Excel</a></li>
+                    <li><a class="dropdown-item py-2" href="#" data-export-title="<?php echo htmlspecialchars($full_title_for_export, ENT_QUOTES, 'UTF-8'); ?>" onclick="exportTableToExcel('dda-table-0', this.getAttribute('data-export-title'))"><i class="fa-solid fa-file-excel text-success me-2"></i> Unduh Format Excel (.xlsx)</a></li>
                     <li><a class="dropdown-item py-2" href="#" 
                            data-nomor="<?php echo htmlspecialchars($tabel_nomor_main, ENT_QUOTES, 'UTF-8'); ?>"
                            data-judul-id="<?php echo htmlspecialchars($judul_only_main, ENT_QUOTES, 'UTF-8'); ?>"
