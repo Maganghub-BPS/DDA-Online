@@ -531,16 +531,16 @@
         color: white;
         border-radius: 8px;
         font-weight: 700;
-        transition: 0.3s;
+        transition: background-color 0.15s ease;
         font-family: 'Inter', "Inter Fallback", sans-serif;
         letter-spacing: 0.5px;
         font-size: 1.1rem;
         padding: 12px 24px;
         min-height: 48px;
+        border: none;
     }
     .search-tabs-wrapper .btn-search:hover {
-        background: var(--bps-blue-light);
-        transform: translateY(-2px);
+        background: #113861;
     }
 
     @media (max-width: 576px) {
@@ -828,8 +828,7 @@
         align-items: center;
         justify-content: center;
         gap: 10px;
-        box-shadow: 0 6px 18px rgba(21, 70, 121, 0.28);
-        transition: all 0.25s ease;
+        transition: background-color 0.15s ease;
         cursor: pointer;
         text-decoration: none !important;
     }
@@ -853,13 +852,11 @@
     .btn-opd-expand:hover {
         background: #113861;
         color: #ffffff !important;
-        box-shadow: 0 8px 24px rgba(21, 70, 121, 0.38);
-        transform: translateY(-2px);
         text-decoration: none !important;
     }
 
     .btn-opd-expand:active {
-        transform: translateY(0);
+        opacity: 0.9;
     }
 
     .btn-opd-collapse {
@@ -875,15 +872,14 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        transition: all 0.25s ease;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         cursor: pointer;
     }
 
     .btn-opd-collapse:hover {
         background: #e2e8f0;
         color: #0f172a;
-        transform: translateY(-2px);
+        border-color: #cbd5e1;
     }
 
     /* ===== MODERN TABEL TERBARU SECTION & CLEAN CARDS ===== */
@@ -1228,7 +1224,7 @@
         padding: 0;
         margin: 0 10px 0 4px;
         flex-shrink: 0;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background-color 0.15s ease, color 0.15s ease;
         outline: none;
         box-shadow: none;
     }
@@ -1237,21 +1233,19 @@
         margin: 0 !important;
         color: #94a3b8 !important;
         line-height: 1;
-        transition: color 0.2s ease, transform 0.2s ease;
+        transition: color 0.15s ease;
     }
     .btn-clear-q:hover {
         background: #fee2e2;
-        transform: scale(1.1);
     }
     .btn-clear-q:hover i {
         color: #ef4444 !important;
     }
     .btn-clear-q:active {
-        transform: scale(0.92);
         background: #fecaca;
     }
     .btn-hero-search {
-        background: linear-gradient(135deg, #154679 0%, #0d2c4d 100%);
+        background: var(--bps-blue);
         color: #ffffff;
         border: none;
         height: 46px;
@@ -1261,26 +1255,21 @@
         font-weight: 700;
         font-size: 1rem;
         letter-spacing: 0.3px;
-        transition: all 0.25s ease;
+        transition: background-color 0.15s ease;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        box-shadow: 0 4px 14px rgba(13, 44, 77, 0.25);
         cursor: pointer;
     }
     .btn-hero-search:hover {
-        background: linear-gradient(135deg, #1d5999 0%, #11365e 100%);
+        background: #113861;
         color: #ffffff;
-        box-shadow: 0 6px 20px rgba(13, 44, 77, 0.35);
-        transform: translateY(-1px);
     }
     .btn-hero-search:focus,
     .btn-hero-search:active {
-        background: linear-gradient(135deg, #0d2c4d 0%, #154679 100%);
+        background: var(--bps-blue);
         color: #ffffff;
-        transform: translateY(0);
-        box-shadow: 0 2px 6px rgba(13, 44, 77, 0.2);
         outline: none;
     }
     @media (max-width: 576px) {

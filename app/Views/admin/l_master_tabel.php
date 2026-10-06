@@ -180,7 +180,7 @@
                     if (empty($data)) {
                         echo "<tr><td colspan='6' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
                     } else {
-                        $no = 1;
+                        $no = (int)($awal ?? 0) + 1;
                         foreach ($data as $b) {
                     ?>
                             <tr class="hover:bg-gray-50 transition-colors">
@@ -196,16 +196,25 @@
                                 </td>
                                 <td>
                                     <div class="d-flex flex-column gap-1">
-                                        <?php if (strpos($b->link_tabel, 'view_portal_tabel') !== false): ?>
+                                        <?php 
+                                        $link_val = trim((string)($b->link_tabel ?? ''));
+                                        if (empty($link_val)): 
+                                        ?>
+                                            <span class="badge badge-sm bg-light text-secondary border align-self-start fw-semibold" style="font-size: 10px;">
+                                                <i class="bi bi-dash-circle me-1"></i>BELUM ADA LINK
+                                            </span>
+                                            <span class="text-xxs text-muted fst-italic mt-1">-</span>
+                                        <?php elseif (strpos($link_val, 'view_portal_tabel') !== false): ?>
                                             <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold">
                                                 <i class="bi bi-cloud-check me-1"></i>PORTAL DATA
                                             </span>
+                                            <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo esc(str_replace('index.php/admin/', '', $link_val)); ?></code>
                                         <?php else: ?>
                                             <span class="badge badge-sm bg-success-soft text-success border-success-soft align-self-start fw-bold">
                                                 <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPREADSHEET
                                             </span>
+                                            <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo esc(str_replace('index.php/admin/', '', $link_val)); ?></code>
                                         <?php endif; ?>
-                                        <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo str_replace('index.php/admin/', '', $b->link_tabel); ?></code>
                                     </div>
                                 </td>
                                 <td>

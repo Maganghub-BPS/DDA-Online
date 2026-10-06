@@ -443,15 +443,12 @@ if (strpos($iframe_url, '?') === false && strpos($iframe_url, '#') !== false) {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        transition: all 0.25s ease;
-        box-shadow: 0 2px 6px rgba(21, 70, 121, 0.2);
+        transition: background-color 0.15s ease;
     }
     
     .btn-export:hover {
-        background: #0f3459;
+        background: #113861;
         color: white;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.3);
     }
 
     @media (max-width: 576px) {

@@ -218,7 +218,7 @@
         padding: 0;
         margin: 0 6px 0 4px;
         flex-shrink: 0;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background-color 0.15s ease, color 0.15s ease;
         outline: none;
         box-shadow: none;
     }
@@ -229,12 +229,11 @@
         margin: 0 !important;
         color: #94a3b8 !important;
         line-height: 1;
-        transition: color 0.2s ease, transform 0.2s ease;
+        transition: color 0.15s ease;
     }
 
     .btn-clear-q:hover {
         background: #fee2e2;
-        transform: scale(1.1);
     }
 
     .btn-clear-q:hover i {
@@ -242,7 +241,6 @@
     }
 
     .btn-clear-q:active {
-        transform: scale(0.92);
         background: #fecaca;
     }
 
@@ -327,24 +325,21 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
-        transition: all 0.2s ease;
+        transition: background-color 0.15s ease;
         cursor: pointer;
         flex-shrink: 0;
         height: auto;
     }
 
     .btn-search-bar:hover {
-        background: var(--bps-blue-light, #1e4a7d);
+        background: #113861;
         color: #ffffff;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(21, 70, 121, 0.25);
     }
 
     .btn-search-bar:focus,
     .btn-search-bar:active {
         background: var(--bps-blue);
         color: #ffffff;
-        transform: translateY(0);
         outline: none;
     }
 
@@ -462,25 +457,19 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        transition: all 0.22s ease;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
 
     .table-clean-card:hover .tcc-btn,
-    .table-modern-card:hover .tcc-btn {
+    .table-modern-card:hover .tcc-btn,
+    .tcc-btn:hover {
         background: var(--bps-blue);
         color: #ffffff;
         border-color: var(--bps-blue);
-        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.25);
     }
 
     .tcc-btn i {
         font-size: 0.78rem;
-        transition: transform 0.2s ease;
-    }
-
-    .table-clean-card:hover .tcc-btn i,
-    .table-modern-card:hover .tcc-btn i {
-        transform: translateX(3px);
     }
 
     /* Modern List Card */
@@ -671,9 +660,8 @@
     }
 
     .page-btn.page-num.active {
-        background: linear-gradient(135deg, #1d599b 0%, #154679 100%);
+        background: var(--bps-blue);
         color: #ffffff;
-        box-shadow: 0 4px 14px rgba(21, 70, 121, 0.35);
         cursor: default;
     }
 
@@ -845,16 +833,15 @@
         align-items: center;
         justify-content: center;
         text-decoration: none;
-        transition: all 0.25s ease;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         border: 1px solid #e2e8f0;
     }
     
-    .result-card:hover .btn-modern-arrow {
+    .result-card:hover .btn-modern-arrow,
+    .btn-modern-arrow:hover {
         background-color: var(--bps-blue);
         color: #ffffff;
         border-color: var(--bps-blue);
-        transform: translateX(3px);
-        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.25);
     }
     
     @media (max-width: 768px) {

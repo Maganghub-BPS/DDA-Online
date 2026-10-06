@@ -204,28 +204,23 @@
         font-weight: 700;
         font-size: 0.95rem;
         letter-spacing: 0.3px;
-        transition: all 0.2s ease;
+        transition: background-color 0.15s ease;
         height: 100%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 2px 8px rgba(21, 70, 121, 0.2);
         cursor: pointer;
     }
 
     .btn-search-bar:hover {
-        background: var(--bps-blue-light, #1e4a7d);
+        background: #113861;
         color: white;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 14px rgba(21, 70, 121, 0.25);
     }
 
     .btn-search-bar:focus,
     .btn-search-bar:active {
         background: var(--bps-blue);
         color: white;
-        transform: translateY(0);
-        box-shadow: 0 2px 4px rgba(21, 70, 121, 0.2);
         outline: none;
     }
 </style>

@@ -1170,8 +1170,11 @@ class Admin extends BaseController
 			$a['selected_bidang'] = $filter_bidang;
 			$a['selected_tahun']  = $filter_tahun;
 
-			$a['list_tim'] = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' ORDER BY user_wali ASC")->getResult();
-			$a['opd']      = $this->db->query("SELECT * FROM m_unitkerja ORDER BY id_unitkerja ASC")->getResult();
+			$a['list_tim']     = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' ORDER BY user_wali ASC")->getResult();
+			$a['list_opd']     = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
+			$a['opd']          = $a['list_opd'];
+			$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_tahun_tabel GROUP BY tahun ORDER BY tahun DESC")->getResult();
+			$a['awal']         = 0;
 
 			$a['pagi'] = "";
 			$a['page'] = "l_master_tabel";
@@ -1294,17 +1297,6 @@ class Admin extends BaseController
 			);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di update</div>");
 			return redirect()->to('admin/master_tabel/');
-		} else if ($mau_ke == "cari") {
-			$cari = $this->input->post('q') ?? '';
-			$sql_base  = "FROM t_tahun_tabel l JOIN m_list_tabel ml ON l.id_tabel = ml.id LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja";
-			$sql_where = "WHERE (ml.judul_ind LIKE ? OR l.no_tabel LIKE ?) AND l.tahun = ?";
-			$a['data'] = $this->db->query("
-            SELECT ml.judul_ind, ml.judul_en, ml.id_unitkerja, l.*, u.unitkerja_ind, u.user_wali 
-            $sql_base 
-            $sql_where 
-            ORDER BY CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, l.id_tabel ASC
-            ", ['%' . $cari . '%', '%' . $cari . '%', $ta])->getResult();
-			return view('admin/parts/master_tabel_rows', $a);
 		} else {
 			if (isset($_GET['action']) && $_GET['action'] == 'reset') {
 				session()->remove('sess_f_opd');
@@ -1382,6 +1374,7 @@ class Admin extends BaseController
             LIMIT ?, ?
         ", $params_data)->getResult();
 
+			$a['awal'] = (int)$awal;
 			$a['page'] = "l_master_tabel";
 		}
 		return view('admin/index', $a);
