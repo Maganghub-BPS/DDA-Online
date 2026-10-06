@@ -151,200 +151,6 @@
         max-width: 550px;
     }
 
-    /* Modern Search Bar in Hero */
-    .hero-search-bar {
-        background: white;
-        border-radius: 50px;
-        padding: 6px 6px 6px 20px;
-        display: flex;
-        align-items: center;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-        max-width: 100%;
-        transition: 0.3s;
-        border: 1px solid #e2e8f0;
-    }
-    .hero-search-bar:focus-within {
-        box-shadow: 0 25px 50px rgba(21, 70, 121, 0.15);
-        border-color: rgba(21, 70, 121, 0.2);
-    }
-    .hero-search-bar .search-icon {
-        color: #94a3b8;
-        font-size: 1.2rem;
-        margin-right: 15px;
-    }
-    .hero-search-bar .search-input {
-        border: none;
-        background: transparent;
-        flex: 1;
-        outline: none;
-        font-size: 1.05rem;
-        color: var(--text-main);
-        min-width: 0;
-    }
-    .hero-search-bar .search-input::placeholder {
-        color: #94a3b8;
-    }
-    .hero-search-bar .search-btn {
-        background: var(--bps-blue);
-        color: white;
-        border: none;
-        border-radius: 40px;
-        padding: 10px 25px;
-        font-weight: 700;
-        font-size: 1rem;
-        transition: 0.3s;
-        display: flex;
-        align-items: center;
-    }
-    .hero-search-bar .search-btn:hover {
-        background: var(--bps-blue-light, #1e4a7d);
-        transform: scale(1.02);
-        box-shadow: 0 10px 20px rgba(21, 70, 121, 0.2);
-    }
-
-    /* --- Animated 3D Isometric Data Scene --- */
-    .scene-container {
-        position: absolute;
-        top: 50%;
-        right: -100px;
-        width: 800px;
-        height: 800px;
-        transform: translateY(-50%);
-        perspective: 2000px;
-        z-index: 1;
-        pointer-events: none;
-    }
-
-    .scene {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        transform-style: preserve-3d;
-        transform: rotateX(60deg) rotateZ(-45deg);
-    }
-
-    .floor {
-        position: absolute;
-        width: 600px;
-        height: 600px;
-        top: 100px; left: 100px;
-        background-image: 
-            linear-gradient(rgba(255,255,255,0.05) 2px, transparent 2px),
-            linear-gradient(90deg, rgba(255,255,255,0.05) 2px, transparent 2px);
-        background-size: 60px 60px;
-        background-color: rgba(255, 255, 255, 0.02);
-        border: 2px solid rgba(255,255,255,0.1);
-        border-radius: 30px;
-        transform: translateZ(-1px);
-        box-shadow: 0 30px 100px rgba(0,0,0,0.3);
-    }
-
-    .cube {
-        position: absolute;
-        width: 40px;
-        height: 40px;
-        transform-style: preserve-3d;
-        transition: all 0.5s;
-    }
-
-    .cube-face {
-        position: absolute;
-        border: 1px solid rgba(0,0,0,0.1);
-    }
-
-    .cube-top {
-        width: 40px; height: 40px;
-        background: #ffffff;
-        transform: translateZ(60px);
-    }
-    .cube-front {
-        width: 40px; height: 60px;
-        background: #f1f5f9;
-        transform-origin: bottom;
-        transform: rotateX(-90deg) translateY(60px);
-        bottom: 0;
-    }
-    .cube-right {
-        width: 60px; height: 40px;
-        background: #e2e8f0;
-        transform-origin: left;
-        transform: rotateY(90deg) translateX(-60px);
-        left: 0;
-    }
-
-    .cube.tall .cube-top { transform: translateZ(140px); }
-    .cube.tall .cube-front { height: 140px; transform: rotateX(-90deg) translateY(140px); }
-    .cube.tall .cube-right { width: 140px; transform: rotateY(90deg) translateX(-140px); }
-
-    .cube.short .cube-top { transform: translateZ(25px); }
-    .cube.short .cube-front { height: 25px; transform: rotateX(-90deg) translateY(25px); }
-    .cube.short .cube-right { width: 25px; transform: rotateY(90deg) translateX(-25px); }
-
-    .cube.accent-orange .cube-top { background: #ffedd5; }
-    .cube.accent-orange .cube-front { background: #fed7aa; }
-    .cube.accent-orange .cube-right { background: #fdba74; border-color: rgba(255,255,255,0.3); }
-
-    .cube.accent-blue .cube-top { background: #eff6ff; }
-    .cube.accent-blue .cube-front { background: #dbeafe; }
-    .cube.accent-blue .cube-right { background: #bfdbfe; border-color: rgba(255,255,255,0.3); }
-
-    .cube.anim-1 { animation: processData 4s ease-in-out infinite alternate; }
-    .cube.anim-2 { animation: processData 5s ease-in-out infinite alternate-reverse; }
-    .cube.anim-3 { animation: processData 3s ease-in-out infinite alternate; }
-
-    @keyframes processData {
-        0% { transform: translateZ(0px); }
-        100% { transform: translateZ(20px); }
-    }
-
-    .packet {
-        position: absolute;
-        width: 15px; height: 15px;
-        transform-style: preserve-3d;
-        animation: flyPacket 6s linear infinite;
-        z-index: 10;
-    }
-    .packet .p-face { position: absolute; width: 15px; height: 15px; background: var(--bps-orange); box-shadow: 0 0 20px var(--bps-orange); }
-    .packet .p-top { transform: translateZ(15px); background: #fde68a; }
-    .packet .p-front { transform-origin: bottom; transform: rotateX(-90deg) translateY(15px); }
-    .packet .p-right { transform-origin: left; transform: rotateY(90deg) translateX(-15px); }
-
-    @keyframes flyPacket {
-        0% { transform: translate(120px, 120px) translateZ(80px); opacity: 0; }
-        10% { opacity: 1; }
-        30% { transform: translate(360px, 120px) translateZ(80px); }
-        50% { transform: translate(360px, 420px) translateZ(80px); }
-        70% { transform: translate(540px, 420px) translateZ(80px); }
-        90% { opacity: 1; }
-        100% { transform: translate(540px, 660px) translateZ(80px); opacity: 0; }
-    }
-
-    .packet.p2 { animation-delay: 2.5s; animation-duration: 5s; }
-    .packet.p2 .p-face { background: var(--bps-blue); box-shadow: 0 0 20px var(--bps-blue); }
-    .packet.p2 .p-top { background: #93c5fd; }
-
-    @keyframes flyPacket2 {
-        0% { transform: translate(600px, 180px) translateZ(40px); opacity: 0; }
-        20% { opacity: 1; transform: translate(600px, 360px) translateZ(40px); }
-        50% { transform: translate(240px, 360px) translateZ(40px); }
-        80% { opacity: 1; }
-        100% { transform: translate(240px, 660px) translateZ(40px); opacity: 0; }
-    }
-    .packet.p2 { animation-name: flyPacket2; }
-
-    .packet.p3 { animation-delay: 1s; animation-duration: 7s; }
-    .packet.p3 .p-face { background: var(--bps-green); box-shadow: 0 0 20px var(--bps-green); }
-    .packet.p3 .p-top { background: #86efac; }
-
-    @keyframes flyPacket3 {
-        0% { transform: translate(180px, 600px) translateZ(100px); opacity: 0; }
-        30% { opacity: 1; transform: translate(180px, 240px) translateZ(100px); }
-        60% { transform: translate(480px, 240px) translateZ(100px); }
-        90% { opacity: 1; }
-        100% { transform: translate(480px, 60px) translateZ(100px); opacity: 0; }
-    }
-    .packet.p3 { animation-name: flyPacket3; }
-
     /* ===== BENTO STAT CARDS & STATS OVERVIEW SECTION ===== */
     .stats-overview-section {
         padding: 55px 0 40px;
@@ -1210,48 +1016,42 @@
         }
     }
 
-    /* Hero Search Bar */
+    /* Hero Search Bar - Simple, Bersih, Tanpa Efek Lompat/Animasi Berlebih */
     .hero-search-single {
         background: #ffffff;
         border-radius: 50px;
-        padding: 6px 8px 6px 26px;
+        padding: 6px 8px 6px 24px;
         display: flex;
         align-items: center;
-        box-shadow: 0 16px 40px -8px rgba(13, 44, 77, 0.15), 0 4px 14px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
         margin: 0 auto;
         width: 100%;
-        min-height: 58px;
-        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        min-height: 56px;
         position: relative;
-        border: 2px solid rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid #e2e8f0;
+        transition: border-color 0.15s ease;
     }
     .hero-search-single:hover {
-        box-shadow: 0 20px 48px -6px rgba(13, 44, 77, 0.22), 0 6px 18px rgba(0, 0, 0, 0.06);
-        border-color: #ffffff;
-        transform: translateY(-2px);
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+        transform: none;
     }
     .hero-search-single:focus-within {
-        box-shadow: 0 22px 50px -6px rgba(13, 44, 77, 0.24), 0 0 0 3.5px rgba(242, 101, 34, 0.2);
-        border-color: rgba(242, 101, 34, 0.45);
-        transform: translateY(-2px);
+        border-color: #94a3b8;
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
+        transform: none;
     }
     .hero-search-single .search-icon {
         color: #94a3b8;
-        font-size: 1.18rem;
-        margin-right: 16px;
+        font-size: 1.15rem;
+        margin-right: 14px;
         flex-shrink: 0;
-        transition: color 0.25s ease;
-    }
-    .hero-search-single:focus-within .search-icon {
-        color: #F26522;
     }
     .hero-search-single input {
         border: none;
         background: transparent;
         outline: none;
-        font-size: 1.05rem;
+        font-size: 1.02rem;
         font-family: 'Inter', "Inter Fallback", sans-serif;
         color: #0f172a;
         flex: 1;
@@ -1263,9 +1063,9 @@
     .hero-search-single input::placeholder {
         color: #94a3b8;
         font-weight: 400;
-        font-size: 1.02rem;
+        font-size: 1rem;
     }
-    /* Modern Circular Clear (X) Button */
+    /* Circular Clear (X) Button */
     .btn-clear-q {
         display: inline-flex;
         align-items: center;
@@ -1282,16 +1082,15 @@
         padding: 0;
         margin: 0 10px 0 4px;
         flex-shrink: 0;
-        transition: background-color 0.15s ease, color 0.15s ease;
         outline: none;
         box-shadow: none;
+        transition: background-color 0.15s ease;
     }
     .btn-clear-q i {
         font-size: 0.78rem !important;
         margin: 0 !important;
         color: #94a3b8 !important;
         line-height: 1;
-        transition: color 0.15s ease;
     }
     .btn-clear-q:hover {
         background: #fee2e2;
@@ -1306,19 +1105,19 @@
         background: var(--bps-blue);
         color: #ffffff;
         border: none;
-        height: 46px;
-        padding: 0 36px;
+        height: 44px;
+        padding: 0 32px;
         border-radius: 50px;
         font-family: 'Inter', "Inter Fallback", sans-serif;
         font-weight: 700;
-        font-size: 1rem;
-        letter-spacing: 0.3px;
-        transition: background-color 0.15s ease;
+        font-size: 0.98rem;
+        letter-spacing: 0.2px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
         cursor: pointer;
+        transition: background-color 0.15s ease;
     }
     .btn-hero-search:hover {
         background: #113861;

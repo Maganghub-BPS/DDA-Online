@@ -169,7 +169,7 @@
         margin: 0 auto 36px;
     }
 
-    /* Modern Unified Search Capsule */
+    /* Modern Unified Search Capsule - Simple & Bersih */
     .filter-bar-horizontal {
         background: #ffffff;
         border-radius: 60px;
@@ -177,7 +177,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        box-shadow: 0 10px 30px -5px rgba(21, 70, 121, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
         margin: 0 auto;
         position: relative;
         z-index: 10;
@@ -185,13 +185,17 @@
         width: 100%;
         text-align: left;
         border: 1px solid #e2e8f0;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        transition: border-color 0.15s ease;
+    }
+
+    .filter-bar-horizontal:hover {
+        border-color: #cbd5e1;
     }
 
     .filter-bar-horizontal:focus-within,
     .filter-bar-horizontal.is-focused {
-        box-shadow: 0 10px 30px -5px rgba(21, 70, 121, 0.15), 0 2px 8px rgba(0, 0, 0, 0.04);
-        border-color: #cbd5e1;
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
+        border-color: #94a3b8;
         transform: none !important;
     }
 
@@ -211,7 +215,6 @@
         flex: 1;
         min-width: 0;
         text-align: left;
-        transition: all 0.2s;
     }
 
     .fb-group.fb-keyword {
@@ -235,15 +238,6 @@
         font-size: 1rem;
         margin-right: 8px;
         flex-shrink: 0;
-        transition: color 0.2s ease;
-    }
-
-    .fb-group:focus-within i {
-        color: var(--bps-blue);
-    }
-
-    .fb-group.fb-keyword:focus-within i.search-main-icon {
-        color: var(--bps-orange);
     }
 
     /* Modern Circular Clear (X) Button */
