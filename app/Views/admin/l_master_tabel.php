@@ -281,11 +281,12 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
             </div>
             <!-- Form pengunggahan file CSV mapping -->
             <form action="<?php echo base_url(); ?>index.php/admin/preview_bulk_portal" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="tahun" value="<?= esc($ta ?? session()->get('admin_ta') ?? date('Y')) ?>">
                 <?php echo csrf_field(); ?>
                 <div class="modal-body p-4">
                     <div class="alert bg-gray-100 border-0 text-dark text-sm mb-4">
                         <i class="bi bi-info-circle-fill text-primary me-2"></i>
-                        Gunakan file CSV mapping untuk memperbarui tautan tabel secara massal ke Portal Data Jawa Tengah.
+                        Gunakan file CSV mapping untuk memperbarui tautan tabel secara massal ke Portal Data Jawa Tengah pada DDA <b>Tahun <?= esc($ta ?? session()->get('admin_ta') ?? date('Y')) ?></b>.
                     </div>
 
                     <div class="mb-4">
@@ -640,9 +641,9 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                         <label for="prefix_resequence" class="form-label fw-bold text-dark small">Awalan Bab / Subbab</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light border-end-0"><i class="bi bi-hash text-muted"></i></span>
-                            <input type="text" class="form-control border-start-0 ps-1" name="prefix" id="prefix_resequence" placeholder="Contoh: 1.2 atau 4.1" required style="border-radius: 0 8px 8px 0;">
+                            <input type="text" class="form-control border-start-0 ps-1" name="prefix" id="prefix_resequence" placeholder="Contoh: 1.2 (Subbab) atau 8, 11 (Bab 2-tingkat)" required style="border-radius: 0 8px 8px 0;">
                         </div>
-                        <small class="text-muted" style="font-size: 11px;">Hanya tabel dengan awalan nomor ini yang urutannya dirapikan (misal 1.2.1, 1.2.2, ...).</small>
+                        <small class="text-muted" style="font-size: 11px;">Hanya tabel dengan awalan nomor ini yang urutannya dirapikan (misal 1.2.1, 1.2.2 atau 8.1, 8.2).</small>
                     </div>
                 </div>
                 <div class="modal-footer bg-light-subtle border-top py-3 px-4 d-flex justify-content-end gap-2">

@@ -1459,6 +1459,7 @@ class Admin extends BaseController
 		} else if ($mau_ke == "cari") {
 			$cari = $this->input->post('q') ?: ($this->input->post('cari') ?: '');
 			$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			$a['offset'] = 0;
 			$a['pagi'] = "";
 			$a['page'] = "l_master_tabel_opd";
 		} else if ($mau_ke == "add") {
@@ -1550,6 +1551,7 @@ class Admin extends BaseController
 			return redirect()->to('admin/master_tabel_opd/');
 		} else {
 			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['offset']	= (int)$awal;
 			$a['page']		= "l_master_tabel_opd";
 		}
 		return view('admin/index', $a);
@@ -2358,9 +2360,9 @@ class Admin extends BaseController
 
 		// Add BOM for Excel UTF-8 support
 		$csv  = "\xEF\xBB\xBF";
-		$csv .= "Judul Tabel DDA (Indonesia);ID_Portal_Data\n";
-		$csv .= "Contoh Nama Tabel Satu (ID Tunggal);0f918215-695c-4167-9e09-9d79e01f918d\n";
-		$csv .= "Contoh Nama Tabel Multiple (Gunakan Koma);uuid-data-1,uuid-data-2,uuid-data-3\n";
+		$csv .= "No Tabel / Judul / ID DDA;ID_Portal_Data\n";
+		$csv .= "1.1.1;0f918215-695c-4167-9e09-9d79e01f918d\n";
+		$csv .= "Contoh Nama Judul Tabel;uuid-data-1,uuid-data-2,uuid-data-3\n";
 
 		return $this->response->setBody($csv)
 			->setHeader('Content-Type', 'text/csv')
@@ -2368,13 +2370,16 @@ class Admin extends BaseController
 	}
 
 	/**
-	 * Preview Bulk Portal Update dari File CSV (Separator Titik Koma)
+	 * Preview Bulk Portal Update dari File CSV (Separator Titik Koma atau Koma)
 	 */
 	public function preview_bulk_portal()
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
+		$ta_input = trim((string)($this->request->getPost('tahun') ?? ''));
+		$ta       = !empty($ta_input) ? $ta_input : ($this->session->get('admin_ta') ?: date('Y'));
 
 		$file = $this->request->getFile('file_mapping');
 		if (!$file || !$file->isValid()) {
@@ -2383,23 +2388,47 @@ class Admin extends BaseController
 
 		$handle = fopen($file->getTempName(), "r");
 
+		// Deteksi delimiter otomatis (; atau ,)
+		$first_line = fgets($handle);
+		$delimiter  = (substr_count((string)$first_line, ';') >= substr_count((string)$first_line, ',')) ? ';' : ',';
+		rewind($handle);
+
 		// Skip header
-		fgetcsv($handle, 2000, ";");
+		fgetcsv($handle, 2000, $delimiter);
 
 		$list_data = [];
-		while (($row = fgetcsv($handle, 2000, ";")) !== FALSE) {
+		while (($row = fgetcsv($handle, 2000, $delimiter)) !== FALSE) {
 			$input_key = trim($row[0] ?? '');
 			$ids       = trim($row[1] ?? '');
 
 			if (empty($input_key)) continue;
 
-			// Cek apakah input adalah ID (Angka) atau Judul
-			// Flexible matching: Cek per ID atau per Judul (case insensitive)
-			$check = $this->db->query("SELECT t.id, m.judul_ind FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id = ? OR LOWER(m.judul_ind) = LOWER(?)", [$input_key, $input_key])->getRow();
+			// Cek apakah input adalah ID, Nomor Tabel, atau Judul
+			// Prioritaskan pencocokan pada tahun publikasi aktif ($ta) agar link tidak salah update ke tahun lalu
+			$check = $this->db->query("
+				SELECT t.id, m.judul_ind, t.no_tabel, t.periode_id, t.tahun 
+				FROM t_tahun_tabel t 
+				JOIN m_list_tabel m ON t.id_tabel = m.id 
+				WHERE t.tahun = ? AND (t.id = ? OR TRIM(t.no_tabel) = TRIM(?) OR LOWER(TRIM(m.judul_ind)) = LOWER(TRIM(?)))
+				ORDER BY (t.id = ?) DESC, (TRIM(t.no_tabel) = TRIM(?)) DESC, t.id ASC
+				LIMIT 1
+			", [$ta, $input_key, $input_key, $input_key, $input_key, $input_key])->getRow();
+
+			// Fallback: jika input_key berupa angka ID t_tahun_tabel dan tidak ditemukan pada $ta, cek tanpa filter tahun
+			if (!$check && is_numeric($input_key)) {
+				$check = $this->db->query("
+					SELECT t.id, m.judul_ind, t.no_tabel, t.periode_id, t.tahun 
+					FROM t_tahun_tabel t 
+					JOIN m_list_tabel m ON t.id_tabel = m.id 
+					WHERE t.id = ?
+					LIMIT 1
+				", [$input_key])->getRow();
+			}
 
 			$list_data[] = [
 				'input_key' => $input_key,
 				'judul'     => $check ? $check->judul_ind : $input_key,
+				'no_tabel'  => $check ? $check->no_tabel : '',
 				'id_tabel'  => $check ? $check->id : null,
 				'ids'       => $ids,
 				'exists'    => ($check ? true : false)
@@ -2407,8 +2436,18 @@ class Admin extends BaseController
 		}
 		fclose($handle);
 
-		// Ambil list semua tabel untuk fallback dropdown di VIEW
-		$a['all_tables']   = $this->db->query("SELECT t.id, m.judul_ind FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id ORDER BY m.judul_ind ASC")->getResult();
+		// Ambil list semua tabel pada tahun aktif untuk fallback dropdown di VIEW
+		$a['all_tables'] = $this->db->query("
+			SELECT t.id, t.no_tabel, t.periode_id, m.judul_ind, t.tahun 
+			FROM t_tahun_tabel t 
+			JOIN m_list_tabel m ON t.id_tabel = m.id 
+			WHERE t.tahun = ? 
+			ORDER BY CAST(SUBSTRING_INDEX(t.no_tabel, '.', 1) AS UNSIGNED) ASC, 
+			         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(t.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, 
+			         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(t.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, 
+			         m.judul_ind ASC
+		", [$ta])->getResult();
+		$a['ta']           = $ta;
 		$a['data_preview'] = $list_data;
 		$a['page']         = "v_preview_bulk";
 
@@ -2435,11 +2474,20 @@ class Admin extends BaseController
 		$count = 0;
 		foreach ($selected_indices as $index) {
 			$id_tabel   = $id_tabels[$index] ?? '';
-			$portal_ids = $portal_ids_list[$index] ?? '';
+			$raw_portal = trim((string)($portal_ids_list[$index] ?? ''));
 
-			if (empty($id_tabel) || empty($portal_ids)) continue;
+			if (empty($id_tabel) || empty($raw_portal)) continue;
 
-			$new_link = "index.php/admin/view_portal_tabel?id=" . $portal_ids;
+			// Bersihkan portal ID jika user memasukkan link lengkap atau ada spasi/kutip
+			if (preg_match('/view_portal_tabel\?id=([^&]+)/i', $raw_portal, $match)) {
+				$clean_ids = trim($match[1]);
+			} else {
+				$clean_ids = trim($raw_portal, " \t\n\r\0\x0B/\"'");
+			}
+
+			if (empty($clean_ids)) continue;
+
+			$new_link = "index.php/admin/view_portal_tabel?id=" . $clean_ids;
 			$this->db->query("UPDATE t_tahun_tabel SET link_tabel = ? WHERE id = ?", [$new_link, $id_tabel]);
 			$count += $this->db->affectedRows();
 		}
@@ -2639,15 +2687,43 @@ class Admin extends BaseController
 			return redirect()->back();
 		}
 
-		// Validasi: format prefix hanya boleh angka dan titik, serta wajib mencakup Bab dan Subbab (Contoh: 1.2 atau 4.1)
+		// Validasi format awalan:
+		// 1. Jika mencakup Bab dan Subbab (misal 1.2 atau 4.1): diizinkan langsung
+		// 2. Jika hanya Bab (misal 8 atau 11): diizinkan untuk Bab 2-tingkat murni (Bab.Nomor)
 		$prefix_clean = trim($prefix, '.');
-		if (!preg_match('/^\d+(\.\d+)+$/', $prefix_clean)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Format Awalan Bab tidak valid! Harus mencakup Bab dan Subbab (Contoh: 1.2 atau 4.1).</div>");
+		if (preg_match('/^\d+(\.\d+)+$/', $prefix_clean)) {
+			// Format subbab valid (misal 1.1, 4.2)
+			$prefix = $prefix_clean . '.';
+		} else if (preg_match('/^\d+$/', $prefix_clean)) {
+			// User hanya memasukkan angka Bab (misal 8 atau 11)
+			// Cek apakah bab ini merupakan Bab 2-tingkat murni atau 3-tingkat
+			$all_bab_tables = $this->db->query(
+				"SELECT no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY id ASC",
+				[$tahun, $prefix_clean . '.%']
+			)->getResult();
+
+			if (empty($all_bab_tables)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ditemukan tabel berawalan Bab $prefix_clean pada tahun $tahun.</div>");
+				return redirect()->back();
+			}
+
+			$count_3tier = 0;
+			foreach ($all_bab_tables as $tb) {
+				if (substr_count(trim((string)$tb->no_tabel), '.') >= 2) {
+					$count_3tier++;
+				}
+			}
+
+			if ($count_3tier > 0) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Bab {$prefix_clean} memiliki subbab (contoh: {$prefix_clean}.1.1). Silakan masukkan awalan hingga subbab (Contoh: {$prefix_clean}.1 atau {$prefix_clean}.2).</div>");
+				return redirect()->back();
+			}
+
+			$prefix = $prefix_clean . '.';
+		} else {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Format Awalan Bab tidak valid! Gunakan angka (Contoh: 1.2 untuk Bab 3-tingkat atau 8/11 untuk Bab 2-tingkat).</div>");
 			return redirect()->back();
 		}
-
-		// Pastikan prefix diakhiri tanda titik agar pencarian LIKE presisi
-		$prefix = $prefix_clean . '.';
 
 		// Ambil semua tabel yang memiliki prefix tersebut pada tahun target,
 		// diurutkan secara hirarki numerik agar urutan asli tetap terjaga

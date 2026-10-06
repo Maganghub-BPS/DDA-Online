@@ -7,9 +7,31 @@
  * 2. Tolak/Hapus Usulan OPD: mengirim POST ke master_tabel_opd/act_del/ (diatur melalui variabel $act_url)
  */
 
+if (empty($datpil)) {
+?>
+<div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-header bg-light border-0 pt-4 px-4 pb-2">
+            <h5 class="modal-title fw-bold text-dark" id="myModalLabel">
+                <i class="bi bi-info-circle text-primary me-2"></i>Data Tidak Ditemukan
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+            <div class="alert bg-gray-50 border-0 rounded-4 mb-4 py-3">
+                <p class="text-secondary text-sm mb-0">Data tabel tidak ditemukan atau mungkin sudah dihapus dari sistem.</p>
+            </div>
+            <button type="button" class="btn btn-secondary px-4 py-2" style="border-radius: 10px;" data-bs-dismiss="modal">Tutup</button>
+        </div>
+    </div>
+</div>
+<?php
+    return;
+}
+
 $id         = $datpil->id;
-$judul_ind  = $datpil->judul_ind;
-$judul_en   = $datpil->judul_en;
+$judul_ind  = $datpil->judul_ind ?? '';
+$judul_en   = $datpil->judul_en ?? '';
 ?>
 
 <div class="modal-dialog modal-dialog-centered">
@@ -24,6 +46,7 @@ $judul_en   = $datpil->judul_en;
         <div class="modal-body p-4">
             <!-- Form Aksi Hapus: Action URL fleksibel mendukung custom endpoint dari controller -->
             <form action="<?php echo !empty($act_url) ? $act_url : base_url('index.php/admin/master_tabel/act_del/'); ?>" name="modal_popup" method="POST">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" value="<?php echo $id; ?>" />
 
                 <div class="alert bg-gray-50 border-0 rounded-4 mb-4 d-flex align-items-center">
