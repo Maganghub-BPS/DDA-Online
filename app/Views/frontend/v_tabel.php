@@ -653,7 +653,7 @@ function get_dda_label_nested($col)
     <style>
         .header-modern-v2 {
             background: #ffffff; 
-            padding: 12px 0 16px; 
+            padding: 14px 0 18px; 
             border-bottom: 1px solid #e2e8f0;
             margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
@@ -666,17 +666,19 @@ function get_dda_label_nested($col)
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            flex-wrap: nowrap;
+            gap: 12px;
+            flex-wrap: nowrap !important;
+            width: 100%;
         }
 
         .table-breadcrumb-nav {
             flex: 1;
             min-width: 0;
+            overflow: hidden;
         }
 
         .table-breadcrumb-nav .breadcrumb {
-            font-size: 0.88rem;
+            font-size: 0.85rem;
             font-weight: 500;
             margin: 0;
             padding: 0;
@@ -685,7 +687,9 @@ function get_dda_label_nested($col)
             align-items: center;
             flex-wrap: nowrap !important;
             gap: 6px;
-            line-height: 1.5;
+            line-height: 1.4;
+            overflow: hidden;
+            white-space: nowrap;
         }
         .table-breadcrumb-nav .breadcrumb-item {
             display: inline-flex;
@@ -705,38 +709,47 @@ function get_dda_label_nested($col)
             text-decoration: underline;
         }
         .table-breadcrumb-nav .breadcrumb-item.active {
-            color: #475569;
-            max-width: clamp(180px, 32vw, 360px) !important;
+            color: #64748b;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            display: inline-block;
-            vertical-align: middle;
             font-weight: 600;
+            min-width: 0;
             flex-shrink: 1;
         }
 
+        .table-actions-dropdown {
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+
+        /* --- TITLE AREA GAYA GAMBAR 2 (ELEGAN, OTENTIK BPS, BERSIH) --- */
         .title-area-row {
             display: flex;
             align-items: center;
-            gap: 32px;
+            gap: 28px;
             width: 100%;
-            padding: 4px 4px 2px 4px;
+            padding: 2px 0;
         }
 
         .tabel-label-box {
             display: inline-flex;
             align-items: center;
-            gap: 14px;
+            gap: 16px;
             background: transparent;
             border: none;
-            border-radius: 0;
-            padding: 2px 6px 2px 2px;
+            padding: 0;
             flex-shrink: 0;
+        }
+        .tabel-label-box .tabel-ind-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         .tabel-label-box .tabel-ind {
             font-weight: 800; 
-            font-size: 0.85rem; 
+            font-size: 0.88rem; 
             border-bottom: 2px solid #0f172a; 
             padding-bottom: 2px; 
             margin-bottom: 2px;
@@ -754,7 +767,7 @@ function get_dda_label_nested($col)
             text-align: center;
         }
         .tabel-label-box .tabel-number {
-            font-size: 1.5rem; 
+            font-size: 1.65rem; 
             font-weight: 800; 
             line-height: 1;
             color: #0d2c4d;
@@ -767,7 +780,7 @@ function get_dda_label_nested($col)
             flex: 1;
             min-width: 0;
             border-left: 2px solid #cbd5e1;
-            padding-left: 24px;
+            padding: 4px 0 4px 24px;
         }
 
         .table-opd-badge {
@@ -778,31 +791,31 @@ function get_dda_label_nested($col)
             color: var(--bps-blue, #154679);
             border: 1px solid rgba(21, 70, 121, 0.16);
             border-radius: 6px;
-            padding: 2px 10px;
+            padding: 2.5px 10px;
             font-size: 0.78rem;
             font-weight: 600;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             max-width: 100%;
             word-break: break-word;
         }
 
         .table-main-title {
-            font-size: clamp(1.05rem, 1.35vw, 1.25rem);
+            font-size: clamp(1.08rem, 1.3vw, 1.25rem);
             font-weight: 700;
             color: #0f172a;
-            line-height: 1.4;
-            margin: 0 0 5px 0;
+            line-height: 1.48;
+            margin: 0 0 6px 0;
             word-break: break-word;
             overflow-wrap: break-word;
             letter-spacing: -0.2px;
         }
 
         .table-sub-title {
-            font-size: clamp(0.82rem, 1.05vw, 0.9rem);
+            font-size: clamp(0.85rem, 1vw, 0.92rem);
             font-style: italic;
             font-weight: 500;
             color: #64748b;
-            line-height: 1.42;
+            line-height: 1.48;
             margin: 0;
             word-break: break-word;
             overflow-wrap: break-word;
@@ -810,51 +823,77 @@ function get_dda_label_nested($col)
 
         @media (max-width: 767.98px) {
             .header-modern-v2 {
-                padding: 12px 0 16px;
-                margin-bottom: 18px;
+                padding: 10px 0 14px;
+                margin-bottom: 16px;
             }
             .table-top-bar {
-                margin-bottom: 14px;
-                padding-bottom: 10px;
-                flex-wrap: wrap;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                flex-wrap: nowrap !important;
+                gap: 8px;
             }
             .table-breadcrumb-nav .breadcrumb {
-                font-size: 0.8rem;
+                font-size: 0.78rem;
+                gap: 4px;
             }
             .table-breadcrumb-nav .breadcrumb-item.active {
-                max-width: 140px;
+                max-width: 130px;
+            }
+            .table-actions-dropdown .btn {
+                padding: 5px 12px !important;
+                font-size: 12px !important;
             }
             .title-area-row {
                 flex-direction: column !important;
                 align-items: flex-start !important;
-                gap: 12px !important;
+                gap: 10px !important;
                 padding: 0 !important;
+            }
+            .tabel-label-box {
+                gap: 12px;
+                padding: 0;
+            }
+            .tabel-label-box .tabel-ind {
+                font-size: 0.8rem;
+            }
+            .tabel-label-box .tabel-en {
+                font-size: 0.68rem;
+            }
+            .tabel-label-box .tabel-number {
+                font-size: 1.45rem;
             }
             .title-details-col {
                 border-left: none !important;
                 padding-left: 0 !important;
                 width: 100%;
             }
-            .tabel-label-box {
-                padding: 0;
-                gap: 12px;
-                background: transparent;
-                border: none;
-            }
-            .tabel-label-box .tabel-number {
-                font-size: 1.55rem;
-            }
             .table-opd-badge {
-                font-size: 0.76rem;
+                font-size: 0.74rem;
                 padding: 2px 8px;
+                margin-bottom: 6px;
+                line-height: 1.3;
+            }
+            .table-main-title {
+                font-size: 1.02rem;
+                line-height: 1.48;
+                margin-bottom: 6px;
+            }
+            .table-sub-title {
+                font-size: 0.84rem;
+                line-height: 1.48;
             }
         }
 
-        @media (max-width: 420px) {
+        @media (max-width: 480px) {
+            .table-breadcrumb-nav .breadcrumb {
+                font-size: 0.74rem;
+            }
             .table-breadcrumb-nav .breadcrumb-item.active {
-                max-width: none !important;
-                white-space: normal !important;
-                overflow: visible !important;
+                max-width: 90px;
+            }
+            .table-actions-dropdown .btn {
+                padding: 5px 10px !important;
+                font-size: 11.5px !important;
             }
         }
     </style>
@@ -920,15 +959,16 @@ if ($primary_result):
                         <a href="<?= base_url('home/search') ?>">Jelajah Data</a>
                     </li>
                     <li class="breadcrumb-item active" aria-current="page" title="<?= htmlspecialchars($judul_only_main) ?>">
-                        <?= htmlspecialchars($breadcrumb_label_main) ?>
+                        <span class="d-none d-md-inline"><?= htmlspecialchars($breadcrumb_label_main) ?></span>
+                        <span class="d-inline d-md-none"><?= htmlspecialchars($tabel_nomor_main ? 'Tabel ' . $tabel_nomor_main : 'Detail') ?></span>
                     </li>
                 </ol>
             </nav>
             
             <!-- Right: Unduh Data -->
-            <div class="dropdown">
-                <button class="btn d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: var(--bps-blue); color: white; border: none; border-radius: 50px; font-weight: 600; font-size: 13px; transition: all 0.2s;">
-                    <i class="fa-solid fa-cloud-arrow-down"></i> Unduh Data
+            <div class="table-actions-dropdown dropdown">
+                <button class="btn d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: var(--bps-blue, #0d2c4d); color: white; border: none; border-radius: 50px; font-weight: 600; font-size: 13px; transition: all 0.2s; white-space: nowrap;">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> <span class="d-none d-sm-inline">Unduh Data</span><span class="d-inline d-sm-none">Unduh</span>
                 </button>
                 <?php 
                     $clean_nomor = trim((string)($tabel_nomor_main ?? ''));
@@ -957,7 +997,7 @@ if ($primary_result):
         <div class="title-area-row">
             <!-- Tabel Number Block -->
             <div class="tabel-label-box">
-                <div class="d-flex flex-column align-items-center justify-content-center">
+                <div class="tabel-ind-group">
                     <div class="tabel-ind">Tabel</div>
                     <div class="tabel-en">Table</div>
                 </div>
@@ -1333,11 +1373,11 @@ if ($primary_result):
                     ?>
                     
                     <?php if ($idx_res > 0): ?>
-                    <div class="header-modern-v2" style="margin-top: 20px; background: transparent; box-shadow: none; border-bottom: 1px solid #e2e8f0; padding: 0 0 16px 0;">
+                    <div class="header-modern-v2" style="margin-top: 24px; background: transparent; box-shadow: none; border-bottom: 1px solid #e2e8f0; padding: 0 0 16px 0;">
                         <div class="title-area-row">
                             <!-- Tabel Number Block -->
                             <div class="tabel-label-box">
-                                <div class="d-flex flex-column align-items-center justify-content-center">
+                                <div class="tabel-ind-group">
                                     <div class="tabel-ind">Tabel</div>
                                     <div class="tabel-en">Table</div>
                                 </div>
@@ -1352,7 +1392,7 @@ if ($primary_result):
                                     <i class="fa-solid fa-building-columns"></i>
                                     <span><?= htmlspecialchars($unitkerja_nm) ?></span>
                                 </div>
-                                <h1 class="table-main-title"><?= htmlspecialchars($judul_only) ?></h1>
+                                <h2 class="table-main-title"><?= htmlspecialchars($judul_only) ?></h2>
                                 <?php if (!empty($judul_en_only)): ?>
                                     <p class="table-sub-title"><?= htmlspecialchars($judul_en_only) ?></p>
                                 <?php endif; ?>
@@ -1371,8 +1411,7 @@ if ($primary_result):
                     <?php if ($is_empty_data): ?>
                         <div class="alert text-center mt-4 mb-5 p-5" style="background: #fff3ed; border: 1px dashed #F26522; border-radius: 16px;">
                             <i class="fa-solid fa-folder-open mb-3" style="font-size: 3rem; color: #F26522; opacity: 0.5;"></i>
-                            <h4 style="color: #F26522; font-weight: 700;">Data Tabel Belum Tersedia</h4>
-                            <p class="text-muted mb-0">Maaf, data untuk tabel ini belum tersedia dari API Satu Data Jawa Tengah.</p>
+                            <h4 class="mb-0" style="color: #F26522; font-weight: 700;">Data Tabel Belum Tersedia</h4>
                         </div>
                     <?php else: ?>
                     <div class="table-responsive-dda">
