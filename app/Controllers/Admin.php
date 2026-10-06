@@ -2628,9 +2628,10 @@ class Admin extends BaseController
 			return redirect()->to('admin/master_tabel');
 		}
 
-		// Ambil variabel post: prefix bab dan tahun aktif
+		// Ambil variabel post: prefix bab dan tahun target
 		$prefix = trim((string)($this->input->post('prefix') ?? ''));
-		$tahun = $this->session->get("admin_ta") ?: date("Y");
+		$target_tahun = trim((string)($this->input->post('tahun') ?? ''));
+		$tahun = !empty($target_tahun) ? $target_tahun : ($this->session->get("admin_ta") ?: date("Y"));
 
 		// Validasi: prefix tidak boleh kosong
 		if (empty($prefix)) {
@@ -2638,18 +2639,17 @@ class Admin extends BaseController
 			return redirect()->back();
 		}
 
-		// Validasi: format prefix hanya boleh angka dan titik (misal: 1.1 atau 2.3)
-		if (!preg_match('/^[\d\.]+$/', $prefix)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Format Awalan Bab tidak valid! (Contoh: 1.2)</div>");
+		// Validasi: format prefix hanya boleh angka dan titik, serta wajib mencakup Bab dan Subbab (Contoh: 1.2 atau 4.1)
+		$prefix_clean = trim($prefix, '.');
+		if (!preg_match('/^\d+(\.\d+)+$/', $prefix_clean)) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Format Awalan Bab tidak valid! Harus mencakup Bab dan Subbab (Contoh: 1.2 atau 4.1).</div>");
 			return redirect()->back();
 		}
 
 		// Pastikan prefix diakhiri tanda titik agar pencarian LIKE presisi
-		if (substr($prefix, -1) !== '.') {
-			$prefix .= '.';
-		}
+		$prefix = $prefix_clean . '.';
 
-		// Ambil semua tabel yang memiliki prefix tersebut pada tahun aktif,
+		// Ambil semua tabel yang memiliki prefix tersebut pada tahun target,
 		// diurutkan secara hirarki numerik agar urutan asli tetap terjaga
 		$tables = $this->db->query("SELECT id, no_tabel, id_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY CAST(SUBSTRING_INDEX(no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0.0'), '.', 4), '.', -1) AS UNSIGNED) ASC, id_tabel ASC", [$tahun, $prefix . '%'])->getResult();
 		
@@ -2661,29 +2661,36 @@ class Admin extends BaseController
 		$updates = 0;
 		$current_num = 1;
 		$last_id_tabel = null;
+		$last_orig_no  = null;
 
 		// Looping untuk memperbarui nomor tabel secara berurutan
 		foreach ($tables as $t) {
-			// Jika tabel kolaborasi (memiliki id_tabel master yang sama dengan sebelumnya),
-			// berikan nomor kembar yang sama persis
-			if ($last_id_tabel !== null && (int)$t->id_tabel === (int)$last_id_tabel) {
+			$curr_orig_no = trim((string)$t->no_tabel);
+
+			// Jika tabel kolaborasi (memiliki id_tabel master yang sama atau nomor tabel asli yang sama persis),
+			// pertahankan status nomor kembar dengan nomor yang sama seperti baris sebelumnya
+			$is_twin = ($last_id_tabel !== null && (int)$t->id_tabel === (int)$last_id_tabel)
+					|| ($last_orig_no !== null && $curr_orig_no === $last_orig_no);
+
+			if ($is_twin) {
 				$new_no = $prefix . ($current_num - 1);
 			} else {
-				// Jika tabel independen/baru, gunakan nomor berikutnya
+				// Jika tabel independen/baru, gunakan nomor urut berikutnya
 				$new_no = $prefix . $current_num;
 				$current_num++;
 			}
 			
 			// Update nomor tabel jika berbeda dengan nomor sebelumnya
-			if ($t->no_tabel !== $new_no) {
+			if ($curr_orig_no !== $new_no) {
 				$this->db->query("UPDATE t_tahun_tabel SET no_tabel = ? WHERE id = ?", [$new_no, $t->id]);
 				$updates++;
 			}
 			$last_id_tabel = $t->id_tabel;
+			$last_orig_no  = $curr_orig_no;
 		}
 
 		$prefix_msg = rtrim($prefix, '.');
-		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil merapikan urutan (Resequence) pada $updates tabel untuk bab $prefix_msg.</div>");
+		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil merapikan urutan (Resequence) pada $updates tabel untuk bab $prefix_msg di Tahun $tahun.</div>");
 		return redirect()->to('admin/master_tabel');
 	}
 }

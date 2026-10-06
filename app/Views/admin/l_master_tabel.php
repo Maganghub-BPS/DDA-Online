@@ -628,6 +628,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
             </div>
             <!-- Form input prefix subbab yang ingin dirapikan -->
             <form action="<?php echo base_url('index.php/admin/resequence_tabel'); ?>" method="post">
+                <input type="hidden" name="tahun" value="<?= esc($ta ?? session()->get('admin_ta') ?? date('Y')) ?>">
                 <div class="modal-body p-4">
                     <div class="alert alert-warning border-0 rounded-3 p-3 mb-4 d-flex align-items-start gap-2 shadow-none" style="background: #fffbeb; border-left: 4px solid #f59e0b !important;">
                         <i class="bi bi-info-circle-fill fs-5 text-warning mt-0 flex-shrink-0"></i>
