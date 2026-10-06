@@ -15,14 +15,19 @@
         align-items: center !important;
         text-align: left !important;
         cursor: pointer !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    .select2-container--default .select2-selection--single:focus {
+        outline: none !important;
     }
     .select2-container--default .select2-selection--single .select2-selection__rendered {
-        color: var(--text-main) !important;
+        color: #0f172a !important;
         padding: 0 24px 0 0 !important;
         line-height: normal !important;
         font-size: 0.95rem !important;
         font-family: 'Inter', "Inter Fallback", sans-serif !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         text-align: left !important;
         display: block !important;
         width: 100% !important;
@@ -33,33 +38,75 @@
     .select2-container--default .select2-selection--single .select2-selection__arrow {
         display: none !important; /* Hide default arrow, we use fb-group ::after */
     }
-    /* Dropdown Options List */
+
+    /* Dropdown Options List - Clean, Soft, No Over-Animation */
     .select2-dropdown {
-        border: 1px solid var(--border-color) !important;
-        border-radius: 8px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
-        margin-top: 5px;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+        margin-top: 6px !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+        z-index: 9999 !important;
+    }
+    .select2-search--dropdown {
+        padding: 8px 10px !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #f1f5f9 !important;
     }
     .select2-search--dropdown .select2-search__field {
-        border-radius: 6px !important;
-        border: 1px solid var(--border-color) !important;
-        padding: 8px 12px !important;
+        border-radius: 8px !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 7px 12px !important;
+        font-size: 0.9rem !important;
+        font-family: 'Inter', "Inter Fallback", sans-serif !important;
+        color: #0f172a !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: #f8fafc !important;
+        transition: border-color 0.15s ease, background-color 0.15s ease !important;
+    }
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: var(--bps-blue) !important;
+        background: #ffffff !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    .select2-results__options {
+        max-height: 280px !important;
+        padding: 4px 0 !important;
     }
     .select2-results__option {
-        padding: 12px 20px !important;
-        font-size: 0.95rem !important;
-        color: var(--bps-blue) !important;
+        padding: 10px 18px !important;
+        font-size: 0.92rem !important;
+        font-family: 'Inter', "Inter Fallback", sans-serif !important;
+        color: #334155 !important;
+        font-weight: 500 !important;
+        line-height: 1.4 !important;
         border-bottom: 1px solid #f8fafc !important;
-        transition: background-color 0.2s;
+        border-left: none !important;
+        transition: background-color 0.12s ease, color 0.12s ease !important;
     }
+    .select2-results__option:last-child {
+        border-bottom: none !important;
+    }
+    /* Hover / Highlighted State: Lembut, Rata, Tanpa Border Biru Menusuk */
     .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
-        background-color: #f8fafc !important;
-        color: var(--bps-blue) !important;
-        border-left: 4px solid var(--bps-blue) !important;
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        border-left: none !important;
     }
+    /* Selected State: Warna tetap konsisten, tidak jumping font-weight */
     .select2-container--default .select2-results__option--selected {
-        background-color: rgba(21, 70, 121, 0.05) !important;
-        font-weight: bold;
+        background-color: #edf4fc !important;
+        color: var(--bps-blue) !important;
+        font-weight: 600 !important;
+        border-left: none !important;
+    }
+    .select2-container--default .select2-results__option--highlighted.select2-results__option--selected {
+        background-color: #e2e8f0 !important;
+        color: var(--bps-blue) !important;
+        border-left: none !important;
     }
     .page-header {
         position: relative;
@@ -130,24 +177,22 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        box-shadow: 0 16px 40px -8px rgba(21, 70, 121, 0.16), 0 4px 14px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 10px 30px -5px rgba(21, 70, 121, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
         margin: 0 auto;
         position: relative;
         z-index: 10;
         max-width: 1020px;
         width: 100%;
         text-align: left;
-        border: 1px solid rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        transition: all 0.25s ease;
+        border: 1px solid #e2e8f0;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .filter-bar-horizontal:focus-within,
     .filter-bar-horizontal.is-focused {
-        box-shadow: 0 20px 50px -8px rgba(21, 70, 121, 0.22), 0 0 0 3px rgba(242, 101, 34, 0.25);
-        border-color: rgba(242, 101, 34, 0.4);
-        transform: translateY(-2px);
+        box-shadow: 0 10px 30px -5px rgba(21, 70, 121, 0.15), 0 2px 8px rgba(0, 0, 0, 0.04);
+        border-color: #cbd5e1;
+        transform: none !important;
     }
 
     .fb-divider {
@@ -302,7 +347,7 @@
         pointer-events: none;
         color: #94a3b8;
         font-size: 0.72rem;
-        transition: color 0.2s ease, transform 0.2s ease;
+        transition: color 0.15s ease;
     }
 
     .fb-group.select-group:hover::after,
@@ -1271,23 +1316,13 @@ $(document).ready(function() {
         minimumResultsForSearch: Infinity // Hides the search box for the year dropdown
     });
 
-    // Ensure .filter-bar-horizontal maintains the lift effect when Select2 dropdown is open, and returns down when closed
+    // Select2 open/close state handling without jumping or shaking
     $('select[name="opd_search"], select[name="tahun"]').on('select2:opening select2:open', function() {
         $('.filter-bar-horizontal').addClass('is-focused');
         $(this).closest('.fb-group').addClass('is-active');
     }).on('select2:closing select2:close', function() {
-        const $sel = $(this);
         $('.filter-bar-horizontal').removeClass('is-focused');
-        $sel.closest('.fb-group').removeClass('is-active');
-        setTimeout(function() {
-            $sel.closest('.fb-group').find('.select2-selection').blur();
-        }, 50);
-    });
-
-    // Immediate responsiveness on mousedown
-    $('.fb-group.select-group').on('mousedown', function() {
-        $('.filter-bar-horizontal').addClass('is-focused');
-        $(this).addClass('is-active');
+        $(this).closest('.fb-group').removeClass('is-active');
     });
 
     // Clicking anywhere in the select-group box (including the icon) opens Select2
