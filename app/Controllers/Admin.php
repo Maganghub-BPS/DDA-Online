@@ -1056,122 +1056,6 @@ class Admin extends BaseController
 		return $this->response->setJSON($results);
 	}
 
-	// =========================================================================
-	// FUNGSI PENCOCOKAN JUDUL MASTER TABEL CERDAS (FUZZY MATCHING & JACCARD)
-	// Digunakan saat ACC usulan OPD untuk mendeteksi apakah tabel serupa sudah ada
-	// Mencegah duplikasi data master tabel dengan algoritma kemiripan teks
-	// =========================================================================
-	private function find_matching_master_tabel($raw_title, $unitkerja = null, $ta = null)
-	{
-		$raw_title = trim($raw_title ?? '');
-		if (empty($raw_title)) return [];
-
-		$ta = $ta ?: ($this->session->get('admin_ta') ?: date('Y'));
-
-		// Langkah 1: Cek apakah ada judul yang persis sama 100% (Exact Match)
-		$exact = $this->db->query("
-			SELECT m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind,
-			       GROUP_CONCAT(DISTINCT t.tahun ORDER BY t.tahun DESC SEPARATOR ', ') as tahun_terbit,
-			       MAX(CASE WHEN t.tahun = ? THEN t.no_tabel ELSE NULL END) as no_tabel_current_year,
-			       MAX(CASE WHEN t.tahun = ? THEN 1 ELSE 0 END) as is_active_current_year
-			FROM m_list_tabel m
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			LEFT JOIN t_tahun_tabel t ON m.id = t.id_tabel
-			WHERE LOWER(TRIM(m.judul_ind)) = LOWER(TRIM(?))
-			GROUP BY m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind
-			LIMIT 1
-		", [$ta, $ta, $raw_title])->getRow();
-
-		if ($exact) {
-			$exact->similarity = 100;
-			$exact->match_type = 'EXACT';
-			$exact->intersect_words = 'Persis Sama';
-			return [$exact];
-		}
-
-		// Langkah 2: Normalisasi teks dan ekstrak kata kunci penting
-		// Hilangkan angka tahun (misal: 2024, 2025), kata periode, dan kata penghubung (stopwords)
-		$text = mb_strtolower($raw_title, 'UTF-8');
-		$text = preg_replace('/\b(19|20)\d{2}(\s*[-–—]\s*(19|20)?\d{2})?\b/', '', $text);
-		$text = preg_replace('/\b(tahun|thn|th|semester|tw|triwulan|ta|akademik|periode)\b/u', '', $text);
-		$stopwords = ['dan', 'di', 'ke', 'dari', 'pada', 'untuk', 'dengan', 'per', 'menurut', 'provinsi', 'jawa', 'tengah', 'jateng', 'kabupaten', 'kota', 'kabupaten/kota'];
-		$text = preg_replace('/[.,\/#!$%\^&\*;:{}=\-_`~()\[\]]/u', ' ', $text);
-		$words = preg_split('/\s+/', trim($text));
-		$keywords = array_values(array_filter($words, function($w) use ($stopwords) {
-			return strlen($w) >= 3 && !in_array($w, $stopwords);
-		}));
-
-		if (empty($keywords)) return [];
-
-		// Buat query LIKE untuk mencari kandidat master tabel berdasarkan kata kunci
-		$likes = [];
-		$params = [$ta, $ta];
-		foreach ($keywords as $kw) {
-			$likes[] = "m.judul_ind LIKE ?";
-			$params[] = '%' . $kw . '%';
-		}
-
-		$where_sql = "(" . implode(' OR ', $likes) . ")";
-
-		$candidates = $this->db->query("
-			SELECT m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind,
-			       GROUP_CONCAT(DISTINCT t.tahun ORDER BY t.tahun DESC SEPARATOR ', ') as tahun_terbit,
-			       MAX(CASE WHEN t.tahun = ? THEN t.no_tabel ELSE NULL END) as no_tabel_current_year,
-			       MAX(CASE WHEN t.tahun = ? THEN 1 ELSE 0 END) as is_active_current_year
-			FROM m_list_tabel m
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			LEFT JOIN t_tahun_tabel t ON m.id = t.id_tabel
-			WHERE $where_sql
-			GROUP BY m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind
-			LIMIT 40
-		", $params)->getResult();
-
-		$raw_clean = implode(' ', $keywords);
-		$matched = [];
-
-		// Langkah 3: Hitung skor kemiripan kombinasi Jaccard Index & Similar Text
-		foreach ($candidates as $cand) {
-			$c_text = mb_strtolower($cand->judul_ind, 'UTF-8');
-			$c_text = preg_replace('/\b(19|20)\d{2}(\s*[-–—]\s*(19|20)?\d{2})?\b/', '', $c_text);
-			$c_text = preg_replace('/\b(tahun|thn|th|semester|tw|triwulan|ta|akademik|periode)\b/u', '', $c_text);
-			$c_text = preg_replace('/[.,\/#!$%\^&\*;:{}=\-_`~()\[\]]/u', ' ', $c_text);
-			$c_words = preg_split('/\s+/', trim($c_text));
-			$c_keywords = array_values(array_filter($c_words, function($w) use ($stopwords) {
-				return strlen($w) >= 3 && !in_array($w, $stopwords);
-			}));
-
-			$intersect = array_intersect($keywords, $c_keywords);
-			$union = array_unique(array_merge($keywords, $c_keywords));
-			$jaccard = count($union) > 0 ? (count($intersect) / count($union)) * 100 : 0;
-
-			$c_clean = implode(' ', $c_keywords);
-			similar_text($raw_clean, $c_clean, $sim_text);
-
-			// Rumus skor: 60% bobot kesamaan kata kunci (Jaccard) + 40% kemiripan urutan karakter
-			$score = ($jaccard * 0.6) + ($sim_text * 0.4);
-
-			// Tambah bonus nilai jika OPD pengusul sama dengan OPD pemilik master tabel
-			if (!empty($unitkerja) && strtolower(trim($cand->id_unitkerja)) == strtolower(trim($unitkerja))) {
-				$score += 10;
-			}
-
-			// Simpan kandidat jika kemiripan >= 35% atau ada minimal 2 kata kunci yang cocok
-			if ($score >= 35 || count($intersect) >= 2) {
-				$cand->similarity = round(min(100, $score), 1);
-				$cand->match_type = $score >= 70 ? 'HIGH_SIMILARITY' : 'POSSIBLE_MATCH';
-				$cand->intersect_words = implode(', ', $intersect);
-				$matched[] = $cand;
-			}
-		}
-
-		// Urutkan hasil pencocokan dari skor tertinggi ke terendah
-		usort($matched, function($a, $b) {
-			return $b->similarity <=> $a->similarity;
-		});
-
-		// Ambil maksimal 5 kandidat terbaik
-		return array_slice($matched, 0, 5);
-	}
 
 
 	public function master_tabel()
@@ -1591,18 +1475,6 @@ class Admin extends BaseController
 			$a['list_opd']  = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 			$a['ta']        = $ta;
 
-			$a['matched_master'] = null;
-			$a['other_matches']  = [];
-			if ($a['datpil']) {
-				$matches = $this->find_matching_master_tabel($a['datpil']->judul_ind, $a['datpil']->id_unitkerja, $ta);
-				if (!empty($matches)) {
-					$a['matched_master'] = $matches[0];
-					if (count($matches) > 1) {
-						$a['other_matches'] = array_slice($matches, 1, 4);
-					}
-				}
-			}
-
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "act_add") {
 			$hariini = date('Y-m-d');
@@ -1637,44 +1509,16 @@ class Admin extends BaseController
 			}
 
 			// Langkah 2: Daftarkan atau Tautkan ke Induk Master Tabel (m_list_tabel)
-			$link_to_master      = $this->input->post('link_to_master');
-			$link_to_master_id   = $this->input->post('link_to_master_id');
 			$conflict_resolution = $this->input->post("conflict_resolution");
 
 			$m_id = null;
-			if ($conflict_resolution == 'collab') {
-				// Skenario Kolaborasi: OPD pengusul memiliki master tabel mandiri di m_list_tabel
-				$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
-				if ($check_m) {
-					$m_id = $check_m->id;
-					$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
-				} else {
-					$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, '-')", [$judul_ind, $judul_en, $id_unitkerja]);
-					$m_id = $this->db->insertID();
-				}
+			$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
+			if ($check_m) {
+				$m_id = $check_m->id;
+				$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
 			} else {
-				// Skenario Ditautkan ke Master Eksisting (Link to Master)
-				if ($link_to_master == '1' && !empty($link_to_master_id)) {
-					$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id = ?", [$link_to_master_id])->getRow();
-					if ($check_m) {
-						$m_id = $check_m->id;
-						if (!empty($id_unitkerja)) {
-							$this->db->query("UPDATE m_list_tabel SET id_unitkerja = COALESCE(NULLIF(id_unitkerja, ''), ?), judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$id_unitkerja, $judul_en, $m_id]);
-						}
-					}
-				}
-
-				// Jika bukan ditautkan atau master belum ada, cari berdasarkan judul dan OPD atau buat master baru
-				if (empty($m_id)) {
-					$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
-					if ($check_m) {
-						$m_id = $check_m->id;
-						$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
-					} else {
-						$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, ?)", [$judul_ind, $judul_en, $id_unitkerja, '-']);
-						$m_id = $this->db->insertID();
-					}
-				}
+				$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, '-')", [$judul_ind, $judul_en, $id_unitkerja]);
+				$m_id = $this->db->insertID();
 			}
 
 			// Langkah 3: Daftarkan ke Tabel Tahunan DDA (t_tahun_tabel) untuk tahun aktif ($ta)
