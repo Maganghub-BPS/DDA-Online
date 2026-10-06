@@ -6,6 +6,10 @@
      3. Live Search Realtime via AJAX (tanpa refresh halaman)
      4. Modal Duplikasi Tabel (Clone), Rapikan Urutan (Resequence), dan Kosongkan Tahun (Reset)
 ========================================================================= -->
+<?php
+$current_lvl = strtolower(trim((string)(session()->get('admin_level') ?? '')));
+$is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
+?>
 
 <!-- Kartu Kontrol & Aksi Utama (Toolbar Atas) -->
 <div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
@@ -31,7 +35,8 @@
                         <span>Bulk Portal</span>
                     </button>
 
-                    <!-- Dropdown Menu Pengelolaan Tahun: Clone, Resequence, dan Reset (Zona Bahaya) -->
+                    <!-- Dropdown Menu Pengelolaan Tahun: Clone, Resequence, dan Reset (Hanya Super Admin) -->
+                    <?php if ($is_super_admin): ?>
                     <div class="dropdown">
                         <button class="btn btn-sm btn-outline-secondary px-3 border-radius-lg mb-0 shadow-none dropdown-toggle d-inline-flex align-items-center gap-2" type="button" id="dropdownPengelolaanTahun" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-gear-wide-connected fs-6"></i>
@@ -63,13 +68,9 @@
                                     </div>
                                 </a>
                             </li>
-                            <?php 
-                            $current_lvl = strtolower(trim(session()->get('admin_level') ?? ''));
-                            if ($current_lvl == 'admin' || $current_lvl == 'super admin' || $current_lvl == 'superadmin' || session()->get('admin_unitkerja') == 'bps'): 
-                            ?>
                             <li><hr class="dropdown-divider my-2"></li>
                             <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-danger px-2 py-1">Zona Bahaya</h6></li>
-                            <!-- Opsi 3 (Super Admin Only): Kosongkan Seluruh Tabel di Tahun Tertentu -->
+                            <!-- Opsi 3: Kosongkan Seluruh Tabel di Tahun Tertentu -->
                             <li>
                                 <a class="dropdown-item border-radius-md py-2 d-flex align-items-center text-danger" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalResetTahun">
                                     <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: rgba(220, 53, 69, 0.12);">
@@ -81,9 +82,9 @@
                                     </div>
                                 </a>
                             </li>
-                            <?php endif; ?>
                         </ul>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
             <!-- Kotak Pencarian Realtime (AJAX Live Search dengan Debounce) -->
@@ -91,7 +92,7 @@
                 <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari">
                     <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                         <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="inputSearchTabel" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Ketik untuk mencari tabel..." style="box-shadow: none;">
+                        <input type="text" id="inputSearchTabel" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Ketik untuk mencari tabel..." style="box-shadow: none;" value="<?php echo esc($cari ?? ''); ?>">
                     </div>
                 </form>
             </div>
@@ -151,7 +152,7 @@
 
                 <!-- Reset -->
                 <div class="col-md-3 text-end d-flex align-items-center justify-content-end gap-2">
-                    <?php if ((isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all') || (isset($selected_tahun) && $selected_tahun != 'all')): ?>
+                    <?php if ((isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all') || (isset($selected_tahun) && $selected_tahun != 'all') || !empty($cari)): ?>
                         <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-link text-secondary text-xs mb-0 px-2 fw-bold text-decoration-none">
                             <i class="bi bi-x-circle me-1 text-danger"></i> Reset
                         </a>
@@ -447,7 +448,7 @@
                             if (value.length > 0) {
                                 $(".pagination-container").hide();
                             } else {
-                                location.reload(); // Muat ulang untuk mengembalikan pagination dan data awal
+                                window.location.href = "<?php echo base_url('index.php/admin/master_tabel'); ?>";
                             }
                         }
                     });
@@ -500,6 +501,7 @@
 
 </script>
 
+<?php if ($is_super_admin): ?>
 <!-- ========================================================================= -->
 <!-- MODAL: DUPLIKASI MASTER TABEL ANTAR-TAHUN (CLONE TAHUNAN)                -->
 <!-- Fitur ini menyalin seluruh struktur master tabel dari satu tahun rujukan   -->
@@ -654,11 +656,6 @@
     </div>
 </div>
 
-<?php 
-// Pengecekan otorisasi ketat: Hanya Admin / Superadmin atau Unit BPS yang boleh mengakses fitur reset tahun
-$current_lvl = strtolower(trim(session()->get('admin_level') ?? ''));
-if ($current_lvl == 'admin' || $current_lvl == 'super admin' || $current_lvl == 'superadmin' || session()->get('admin_unitkerja') == 'bps'): 
-?>
 <!-- ========================================================================= -->
 <!-- MODAL: KOSONGKAN / RESET MASTER TABEL TAHUN TERTENTU (ZONA BAHAYA)         -->
 <!-- Fitur ini menghapus seluruh keterhubungan tabel pada tahun anggaran tertentu-->
