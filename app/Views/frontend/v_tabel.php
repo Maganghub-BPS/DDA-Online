@@ -463,16 +463,13 @@ function get_dda_label_nested($col)
     .btn-rounded-modern {
         border-radius: 50px;
         padding: 6px 18px;
-        /* Reduced from 8px 24px */
         font-weight: 600;
         font-size: 0.8rem;
-        /* Slightly smaller from 0.85rem */
-        transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         border: none;
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
 
     /* Responsiveness for small screens */
@@ -500,8 +497,6 @@ function get_dda_label_nested($col)
         background: #fff;
         color: #475569;
         border-color: #cbd5e1;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
         text-decoration: none;
     }
 
@@ -513,8 +508,6 @@ function get_dda_label_nested($col)
     .export-btn-modern:hover {
         background: #e05e15;
         color: #fff;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(255, 109, 31, 0.25);
     }
 
     /* Progress Bar Styles */

@@ -56,6 +56,19 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             font-family: 'Inter', "Inter Fallback", sans-serif;
         }
 
+        /* Standardized Simple Button System (No Over-the-Top Bouncing/Shadows) */
+        .btn, button, .btn-search-bar, .btn-hero-search, .btn-opd-expand, .tcc-btn, .btn-modern-arrow, .btn-rounded-modern, .btn-export {
+            transform: none !important;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease !important;
+        }
+        .btn:hover, button:hover, .btn-search-bar:hover, .btn-hero-search:hover, .btn-opd-expand:hover, .tcc-btn:hover, .btn-modern-arrow:hover, .btn-rounded-modern:hover, .btn-export:hover {
+            transform: none !important;
+        }
+        .btn:active, button:active, .btn-search-bar:active, .btn-hero-search:active, .btn-opd-expand:active, .tcc-btn:active {
+            transform: none !important;
+            opacity: 0.9 !important;
+        }
+
         /* Modern Sleek Navbar - Transparent & Seamless over Hero Section */
         .navbar-custom {
             padding: 18px 0;
