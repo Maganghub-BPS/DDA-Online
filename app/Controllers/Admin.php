@@ -1175,6 +1175,7 @@ class Admin extends BaseController
 			$a['opd']          = $a['list_opd'];
 			$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_tahun_tabel GROUP BY tahun ORDER BY tahun DESC")->getResult();
 			$a['awal']         = 0;
+			$a['cari']         = $cari;
 
 			$a['pagi'] = "";
 			$a['page'] = "l_master_tabel";
@@ -1375,6 +1376,7 @@ class Admin extends BaseController
         ", $params_data)->getResult();
 
 			$a['awal'] = (int)$awal;
+			$a['cari'] = '';
 			$a['page'] = "l_master_tabel";
 		}
 		return view('admin/index', $a);
@@ -1402,7 +1404,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		$ta = $this->session->get('admin_ta');
+		$ta = $this->session->get('admin_ta') ?: date('Y');
 
 		/* pagination */
 		$total_row		= $this->db->query("SELECT * FROM m_master_tabel_usulan")->getNumRows();
@@ -1494,6 +1496,8 @@ class Admin extends BaseController
 			$periode_en      = trim($this->input->post('periode_en') ?? '') ?: $periode_id;
 			$link_tabel      = $this->input->post('link_tabel') ?: '';
 			$link_sebelumnya = $this->input->post('link_sebelumnya') ?: '';
+			$ta_target       = trim((string)($this->input->post('ta_target') ?? ''));
+			$ta              = !empty($ta_target) ? $ta_target : ($this->session->get('admin_ta') ?: date('Y'));
 
 			// Langkah 1: Cek apakah ada file lampiran baru yang diunggah
 			if ($this->upload->do_upload('file_tabel')) {
@@ -2473,6 +2477,13 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		// Keamanan: Hak akses dibatasi hanya untuk Super Admin
+		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
+		if (!in_array($user_lvl, ['super admin', 'superadmin'])) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Fitur Duplikasi/Clone Master Tabel hanya dapat diakses oleh Super Admin.</div>");
+			return redirect()->to('admin/master_tabel');
+		}
+
 		// Ambil variabel post dari form
 		$tahun_sumber = $this->input->post('tahun_sumber');
 		$tahun_tujuan = $this->input->post('tahun_tujuan');
@@ -2557,9 +2568,9 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		// Keamanan tingkat 1: Hak akses dibatasi hanya untuk Super Admin BPS
+		// Keamanan tingkat 1: Hak akses dibatasi hanya untuk Super Admin
 		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
-		if (!in_array($user_lvl, ['admin', 'super admin', 'superadmin']) && $this->session->get('admin_unitkerja') != 'bps') {
+		if (!in_array($user_lvl, ['super admin', 'superadmin'])) {
 			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Super Admin yang berhak mengosongkan tabel tahunan.</div>");
 			return redirect()->to('admin/master_tabel');
 		}
@@ -2608,6 +2619,13 @@ class Admin extends BaseController
 		// Cek otentikasi login admin
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
+		}
+
+		// Keamanan: Hak akses dibatasi hanya untuk Super Admin
+		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
+		if (!in_array($user_lvl, ['super admin', 'superadmin'])) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Fitur Rapikan Urutan (Resequence) hanya dapat diakses oleh Super Admin.</div>");
+			return redirect()->to('admin/master_tabel');
 		}
 
 		// Ambil variabel post: prefix bab dan tahun aktif
