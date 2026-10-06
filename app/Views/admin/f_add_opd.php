@@ -63,121 +63,6 @@ $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
                     </div>
                 </div>
 
-                <?php if (!empty($matched_master)): ?>
-                <!-- ========================================================================= -->
-                <!-- KARTU REKOMENDASI MASTER TABEL SERUPA (FUZZY MATCHING RECOMMENDATION)     -->
-                <!-- Sistem secara cerdas membandingkan judul usulan OPD dengan seluruh kamus   -->
-                <!-- master tabel m_list_tabel untuk menemukan kandidat yang identik/mirip.     -->
-                <!-- Tujuannya: Mencegah penambahan master tabel baru yang duplikat!            -->
-                <!-- ========================================================================= -->
-                <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="background: linear-gradient(135deg, #fffbf5 0%, #fff7ed 100%); border: 1.5px solid #fed7aa !important; border-left: 6px solid #f97316 !important;">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold" style="font-size: 11px;">
-                                    <i class="bi bi-lightbulb-fill text-dark me-1"></i> REKOMENDASI MASTER TABEL TERDETEKSI
-                                </span>
-                                <!-- Skor Kemiripan String (%) hasil perhitungan Levenshtein / Token Intersect -->
-                                <span class="badge bg-white text-secondary border px-2 py-1 rounded-pill" style="font-size: 11px;">
-                                    Tingkat Kemiripan: <?= $matched_master->similarity ?>%
-                                </span>
-                            </div>
-                            <!-- Status apakah master tabel ini sudah terdaftar pada tahun berjalan -->
-                            <?php if ($matched_master->is_active_current_year): ?>
-                                <span class="badge bg-warning text-dark border border-warning px-3 py-2 rounded-pill" style="font-size: 11px;">
-                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Sudah Terdaftar di DDA <?= $ta ?> (No: <?= $matched_master->no_tabel_current_year ?: '-' ?>)
-                                </span>
-                            <?php else: ?>
-                                <span class="badge bg-success text-white px-3 py-2 rounded-pill" style="font-size: 11px;">
-                                    <i class="bi bi-check-circle-fill me-1"></i> Siap Ditautkan ke DDA <?= $ta ?>
-                                </span>
-                            <?php endif; ?>
-                        </div>
-
-                        <!-- Detail Master Eksisting Rujukan -->
-                        <div class="mb-2">
-                            <span class="text-muted small fw-semibold text-uppercase" style="font-size: 11px;">Master Tabel di Database:</span>
-                            <h6 class="fw-bold text-dark mt-1 mb-1" style="font-size: 1rem;">
-                                <span class="badge bg-secondary text-white me-1">ID #<span id="display_matched_id"><?= $matched_master->id ?></span></span>
-                                <span id="display_matched_judul"><?= esc($matched_master->judul_ind) ?></span>
-                            </h6>
-                            <div class="text-muted small fst-italic mb-2" id="display_matched_judul_en" style="<?= empty($matched_master->judul_en) ? 'display: none;' : '' ?>">
-                                <i class="bi bi-translate me-1"></i> <span id="display_matched_judul_en_text"><?= esc($matched_master->judul_en ?? '') ?></span>
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex flex-wrap gap-2 align-items-center text-muted small mb-3">
-                            <span class="badge bg-white text-dark border px-2 py-1">
-                                <i class="bi bi-building me-1 text-primary"></i> <span id="display_matched_opd"><?= esc($matched_master->unitkerja_ind ?? $matched_master->id_unitkerja) ?></span>
-                            </span>
-                            <span class="badge bg-white text-dark border px-2 py-1">
-                                <i class="bi bi-clock-history me-1 text-primary"></i> Riwayat Terbit DDA: <b><span id="display_matched_terbit"><?= esc($matched_master->tahun_terbit ?: 'Belum pernah terbit') ?></span></b>
-                            </span>
-                            <?php if (!empty($matched_master->intersect_words)): ?>
-                            <span class="badge bg-white text-muted border px-2 py-1">
-                                <i class="bi bi-tag me-1"></i> Kata Kunci: <?= esc($matched_master->intersect_words) ?>
-                            </span>
-                            <?php endif; ?>
-                        </div>
-
-                        <!-- Switch Toggle: Pilihan Menautkan ke Master ID Eksisting vs Buat Master Baru -->
-                        <div class="bg-white p-3 rounded-3 border mb-3 shadow-none">
-                            <div class="form-check form-switch mb-1 d-flex align-items-center">
-                                <input class="form-check-input mt-0 me-3" type="checkbox" name="link_to_master" value="1" id="linkToMasterSwitch" style="cursor: pointer; width: 2.75em; height: 1.4em;">
-                                <input type="hidden" name="link_to_master_id" id="input_link_to_master_id" value="<?= $matched_master->id ?>">
-                                <label class="form-check-label fw-bold text-dark" for="linkToMasterSwitch" style="cursor: pointer; font-size: 0.9rem;">
-                                    Tautkan Usulan Ini ke Master ID #<span id="label_matched_id"><?= $matched_master->id ?></span> (Mencegah Duplikasi)
-                                </label>
-                            </div>
-                            <small class="text-muted d-block ms-5" style="font-size: 11px;">
-                                <i class="bi bi-info-circle me-1 text-primary"></i> Jika dicentang, usulan ini akan didaftarkan ke DDA <?= $ta ?> menggunakan ID Master yang sama dengan data historis. Hilangkan centang jika Anda memang berniat membuat entri Master Tabel baru.
-                            </small>
-                        </div>
-
-                        <!-- Tombol Sinkronisasi Judul dan Alternatif Kandidat Lain -->
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-dark bg-white shadow-none" id="btn_sync_master_data" style="font-size: 12px; border-radius: 8px;">
-                                <i class="bi bi-arrow-repeat me-1 text-primary"></i> Terapkan Judul Master ke Form Input
-                            </button>
-                            <?php if (!empty($other_matches)): ?>
-                            <button class="btn btn-sm btn-link text-decoration-none text-muted p-0" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOtherMatches" aria-expanded="false" style="font-size: 12px;">
-                                <i class="bi bi-chevron-down me-1"></i> Lihat Alternatif Master Lain (<?= count($other_matches) ?> kandidat)
-                            </button>
-                            <?php endif; ?>
-                        </div>
-
-                        <?php if (!empty($other_matches)): ?>
-                        <div class="collapse mt-3" id="collapseOtherMatches">
-                            <div class="bg-white p-3 rounded-3 border">
-                                <div class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 11px;">Pilihan Master Tabel Alternatif:</div>
-                                <div class="d-flex flex-column gap-2">
-                                    <?php foreach ($other_matches as $om): ?>
-                                    <div class="d-flex align-items-center justify-content-between p-2 rounded-2 bg-light-subtle border gap-2">
-                                        <div class="text-truncate">
-                                            <span class="badge bg-secondary text-white me-1">#<?= $om->id ?></span>
-                                            <span class="fw-semibold text-dark small"><?= esc($om->judul_ind) ?></span>
-                                            <div class="text-muted" style="font-size: 11px;">
-                                                Instansi: <?= esc($om->unitkerja_ind ?? $om->id_unitkerja) ?> | Terbit: <?= esc($om->tahun_terbit ?: '-') ?> | Kemiripan: <?= $om->similarity ?>%
-                                            </div>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary btn-select-alt-master text-nowrap flex-shrink-0" 
-                                                data-id="<?= $om->id ?>" 
-                                                data-judul-ind="<?= esc($om->judul_ind) ?>" 
-                                                data-judul-en="<?= esc($om->judul_en ?? '') ?>"
-                                                data-opd="<?= esc($om->unitkerja_ind ?? $om->id_unitkerja) ?>"
-                                                data-terbit="<?= esc($om->tahun_terbit ?: '-') ?>"
-                                                style="font-size: 11px; padding: 3px 10px; border-radius: 6px;">
-                                            Pilih Ini
-                                        </button>
-                                    </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
 
                 <div class="row g-4">
                     <div class="col-md-12">
@@ -432,87 +317,7 @@ $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // =========================================================================
-    // 1. SINKRONISASI JUDUL MASTER KE FORM INPUT
-    // Menyalin teks judul bahasa Indonesia dan Inggris dari Master rujukan
-    // ke kolom input form agar ejaannya seragam dan baku.
-    // =========================================================================
-    var btnSync = document.getElementById("btn_sync_master_data");
-    if (btnSync) {
-        btnSync.addEventListener("click", function() {
-            var judulIndEl = document.getElementById("display_matched_judul");
-            var taJudulInd = document.querySelector('textarea[name="judul_ind"]');
-            if (taJudulInd && judulIndEl) {
-                taJudulInd.value = judulIndEl.innerText.trim();
-            }
-            
-            var enTextSpan = document.getElementById("display_matched_judul_en_text");
-            var taJudulEn = document.querySelector('textarea[name="judul_en"]');
-            if (taJudulEn && enTextSpan) {
-                var enText = enTextSpan.innerText.trim();
-                if (enText) taJudulEn.value = enText;
-            }
-        });
-    }
-
-    // =========================================================================
-    // 2. PEMILIHAN KANDIDAT MASTER TABEL ALTERNATIF
-    // Jika sistem menemukan lebih dari satu tabel yang mirip di database,
-    // admin dapat memilih tabel lain yang lebih sesuai dari daftar collapse.
-    // =========================================================================
-    document.querySelectorAll(".btn-select-alt-master").forEach(function(btn) {
-        btn.addEventListener("click", function() {
-            var id = this.getAttribute("data-id");
-            var judulInd = this.getAttribute("data-judul-ind");
-            var judulEn = this.getAttribute("data-judul-en");
-            var opd = this.getAttribute("data-opd");
-            var terbit = this.getAttribute("data-terbit");
-            
-            // Perbarui ID master target di hidden input dan kartu rekomendasi
-            var inputId = document.getElementById("input_link_to_master_id");
-            if (inputId) inputId.value = id;
-
-            var dispId = document.getElementById("display_matched_id");
-            if (dispId) dispId.innerText = id;
-
-            var labelId = document.getElementById("label_matched_id");
-            if (labelId) labelId.innerText = id;
-
-            var dispJudul = document.getElementById("display_matched_judul");
-            if (dispJudul) dispJudul.innerText = judulInd;
-            
-            var displayOpd = document.getElementById("display_matched_opd");
-            if (displayOpd) displayOpd.innerText = opd;
-            
-            var displayTerbit = document.getElementById("display_matched_terbit");
-            if (displayTerbit) displayTerbit.innerText = terbit;
-
-            var displayEn = document.getElementById("display_matched_judul_en");
-            var displayEnText = document.getElementById("display_matched_judul_en_text");
-            if (displayEn && displayEnText) {
-                if (judulEn && judulEn.trim() !== '') {
-                    displayEnText.innerText = judulEn;
-                    displayEn.style.display = '';
-                } else {
-                    displayEnText.innerText = '';
-                    displayEn.style.display = 'none';
-                }
-            }
-            
-            // Otomatis aktifkan switch centang tautkan master
-            var switchBtn = document.getElementById("linkToMasterSwitch");
-            if (switchBtn) switchBtn.checked = true;
-
-            // Tutup accordion pilihan alternatif
-            var collapseEl = document.getElementById("collapseOtherMatches");
-            if (collapseEl && window.bootstrap && bootstrap.Collapse) {
-                var bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
-                bsCollapse.hide();
-            }
-        });
-    });
-
-    // =========================================================================
-    // 3. INTERSEPSI SUBMIT FORM: CEK BENTROK NOMOR TABEL
+    // 1. INTERSEPSI SUBMIT FORM: CEK BENTROK NOMOR TABEL
     // Sebelum menyetujui usulan OPD, sistem memeriksa apakah nomor tabel yang
     // diisi bentrok dengan tabel lain yang sudah ada di DDA tahun berjalan.
     // =========================================================================
@@ -543,13 +348,6 @@ document.addEventListener("DOMContentLoaded", function() {
             formData.append("judul_ind", judulInd);
             formData.append("no_tabel", noTabel);
             formData.append("tahun", taTarget);
-            
-            // Jika menautkan ke master eksisting, kirim exclude_id_tabel agar tidak bentrok dengan diri sendiri
-            var linkSwitch = document.getElementById("linkToMasterSwitch");
-            var linkIdInput = document.getElementById("input_link_to_master_id");
-            if (linkSwitch && linkSwitch.checked && linkIdInput && linkIdInput.value) {
-                formData.append("exclude_id_tabel", linkIdInput.value);
-            }
             
             // Panggil API deteksi konflik
             fetch("<?php echo base_url('index.php/admin/check_new_table_conflict'); ?>", {
@@ -605,7 +403,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
 
         // =====================================================================
-        // 4. INTERAKSI KARTU SOLUSI KONFLIK (SHIFT VS COLLAB)
+        // 2. INTERAKSI KARTU SOLUSI KONFLIK (SHIFT VS COLLAB)
         // =====================================================================
         var cardShift = document.getElementById("card_opt_shift");
         var cardCollab = document.getElementById("card_opt_collab");
@@ -668,7 +466,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // =========================================================================
-    // FITUR REKOMENDASI NOMOR TABEL REAL-TIME
+    // 3. FITUR REKOMENDASI NOMOR TABEL REAL-TIME
     // Menampilkan badge "Nomor terakhir X.X.X" saat mengetik awalan sub-bab
     // =========================================================================
     var noTabelOpdInput = document.getElementById("input_no_tabel");
