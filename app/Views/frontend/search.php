@@ -920,6 +920,16 @@
             Saring dan temukan indikator statistik Daerah Dalam Angka dengan mudah.
         </p>
 
+        <?php if (session()->getFlashdata('error')): ?>
+            <div class="alert alert-warning alert-dismissible fade show border-0 shadow-sm rounded-4 mx-auto mb-4 text-start" role="alert" style="max-width: 1020px; background-color: #fffbeb; border: 1px solid #fef3c7 !important; color: #92400e;">
+                <div class="d-flex align-items-center">
+                    <i class="fa-solid fa-triangle-exclamation fs-5 me-3 text-warning"></i>
+                    <div class="flex-grow-1 fw-medium small"><?= esc(session()->getFlashdata('error')) ?></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <!-- SEARCH BAR (Modern Unified Capsule) -->
         <div class="mx-auto" style="max-width: 1020px; width: 100%;">
             <form action="<?= base_url('home/search') ?>" method="GET" id="search-form">
@@ -955,8 +965,13 @@
                         <i class="fa-regular fa-calendar-days"></i>
                         <select name="tahun" id="select-tahun">
                             <option value="">Semua Tahun</option>
-                            <?php foreach([2026, 2025] as $y): ?>
-                                <option value="<?= $y ?>" <?= (isset($_GET['tahun']) && $_GET['tahun'] == $y) ? 'selected' : '' ?>><?= $y ?></option>
+                            <?php 
+                            $years_list = !empty($available_years) ? $available_years : [2026, 2025];
+                            foreach ($years_list as $y): 
+                            ?>
+                                <option value="<?= htmlspecialchars($y) ?>" <?= ((isset($tahun) && (string)$tahun === (string)$y) || (!empty($_GET['tahun']) && (string)$_GET['tahun'] === (string)$y)) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($y) ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>

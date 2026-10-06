@@ -37,10 +37,10 @@ class Admin extends BaseController
 		$this->load->model('m_kelolakegiatan');
 		$stats = $this->m_kelolakegiatan->get_statistik_dashboard($ta);
 
-		$a['stat_diisi']       = (int) ($stats->diisi ?? 0);
-		$a['stat_belum_diisi'] = (int) ($stats->belum_diisi ?? 0);
-		$a['stat_sudah_acc']   = (int) ($stats->sudah_acc ?? 0);
-		$a['stat_belum_acc']   = (int) ($stats->belum_acc ?? 0);
+		$a['stat_diisi']       = (int) $stats->diisi;
+		$a['stat_belum_diisi'] = (int) $stats->belum_diisi;
+		$a['stat_sudah_acc']   = (int) $stats->sudah_acc;
+		$a['stat_belum_acc']   = (int) $stats->belum_acc;
 
 		$data_opd = $this->m_kelolakegiatan->get_statistik_per_opd($ta);
 
@@ -430,7 +430,7 @@ class Admin extends BaseController
 			$a['datpil']	= $this->db->query("select * from t_kontrak where id_kontrak=?", [$id_edit])->getRow();
 			$a['page']		= "f_konfirmasi";
 		} else if ($mau_ke == "act_edt") {
-			$this->db->query("UPDATE t_kontrak SET flag_konfirm = '1' WHERE id_kontrak = ?", [$id_kontrak_konfirm]);
+			$this->db->query("update t_kontrak set flag_konfirm='1' where id_kontrak=?", [$id_kontrak_konfirm]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data sudah dikonfirmasi selesai</div>");
 			return redirect()->to('admin/oi/');
 		} else {
@@ -453,7 +453,7 @@ class Admin extends BaseController
 		$ta = $this->session->get('admin_ta');
 
 		/* pagination */
-		$total_row		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id")->getNumRows();
+		$total_row		= $this->db->query("SELECT * FROM t_list_tabel")->getNumRows();
 		$per_page		= 150;
 
 		$awal	= $this->uri->segment(4);
@@ -531,25 +531,31 @@ class Admin extends BaseController
 				//window.alert('<?php echo $id_konfirmasi; ?>');
 			</script>
 		<?php
-			$a['datpil']	= $this->db->query("SELECT t.id, m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind FROM t_tahun_tabel t JOIN m_list_tabel m_t ON t.id_tabel = m_t.id LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja WHERE t.id=?", [$id_konfirmasi])->getRow();
+			$a['datpil']	= $this->db->query("select l.id, l.judul_ind, l.judul_en, l.id_unitkerja, m.unitkerja_ind from t_list_tabel l left join m_unitkerja m on l.id_unitkerja=m.id_unitkerja where l.id=?", [$id_konfirmasi])->getRow();
 			$a['page']		= "f_konfirmasi";
 		} else if ($mau_ke == "act_konfirmasi") {
 			$id_data = $this->input->post('id');
 			$catatan = $this->input->post('catatan');
 
 			//$confirmed_by=$this->session->get('admin_nama');
-			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan =? where id=?", [$catatan, $id_data]);
+			$this->db->query("UPDATE t_list_tabel SET is_confirm='1', catatan =? where id=?", [$catatan, $id_data]);
 			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data has been updated</div>');
 		} else if ($mau_ke == "periksa") {
-			$id_konfirmasi = $this->input->get('konfirmasi_id');
-			$a['datpil']   = $this->db->query("SELECT t.id, m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind FROM t_tahun_tabel t JOIN m_list_tabel m_t ON t.id_tabel = m_t.id LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja WHERE t.id=?", [$id_konfirmasi])->getRow();
-			return view('admin/f_periksa', $a);
+			$id_konfirmasi = $this->input->get('konfirmasi_id');;
+		?>
+			<script>
+				//window.alert('<?php echo $id_konfirmasi; ?>');
+			</script>
+		<?php
+			$a['datpil']	= $this->db->query("select l.id, l.judul_ind, l.judul_en, l.id_unitkerja, m.unitkerja_ind from t_list_tabel l left join m_unitkerja m on l.id_unitkerja=m.id_unitkerja where l.id=?", [$id_konfirmasi])->getRow();
+			$a['page']		= "f_periksa";
 		} else if ($mau_ke == "act_periksa") {
 			$id_data = $this->input->post('id');
 			$catatan_periksa = $this->input->post('catatan_periksa');
 
-			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan=?, catatan_periksa=? where id=?", [$catatan_periksa, $catatan_periksa, $id_data]);
-			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data berhasil diverifikasi</div>');
+			//$confirmed_by=$this->session->get('admin_nama');
+			$this->db->query("UPDATE t_list_tabel SET is_confirm='1',catatan=? where id=?", [$catatan_periksa, $id_data]);
+			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data has been updated</div>');
 		} else if ($mau_ke == "cari") {
 
 			$a['data']		= $this->db->query("SELECT * from t_oi where keterangan_uraian LIKE ?", ['%' . $cari . '%'])->getResult();
@@ -570,31 +576,36 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			return redirect()->to('admin/dda');
 		} else if ($mau_ke == "act_edt") {
+		?>
+			<script>
+				//window.alert('<?php echo $idu; ?>');
+			</script>
+		<?php
 			$this->db->query("UPDATE t_oi SET kepentingan_kel = ?, kepentingan_uraian = ? where id = ?", [$kepentingan_kel, $kepentingan_uraian, $idp]);
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated</div>");
 			return redirect()->to('admin/dda/');
 		} else if ($mau_ke == "kondef") {
 			$id_tabel = $this->input->get('id');
-			$a['datpil']	= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id = ?", [$id_tabel])->getRow();
+			$a['datpil']	= $this->db->query("SELECT * from t_list_tabel WHERE id = ?", [$id_tabel])->getRow();
 			$a['page']		= "f_kondef";
 		} else if ($mau_ke == "kondef_update") {
 			$idp					= $this->input->post('idp');
 			$kondef					= $this->input->post('kondef');
-			$a['datpil']			= $this->db->query("UPDATE m_list_tabel m JOIN t_tahun_tabel t ON m.id = t.id_tabel SET m.kondef=? WHERE t.id = ?", [$kondef, $idp]);
+			$a['datpil']			= $this->db->query("update t_list_tabel set kondef=? WHERE id = ?", [$kondef, $idp]);
 			return redirect()->to('admin/dda/');
 		} else if ($mau_ke == "view_tabel") {
 			$id_unitkerja = $this->input->get('id');
-			$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.tahun=? ", [$id_unitkerja, $ta])->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and tahun=? ", [$id_unitkerja, $ta])->getResult();
 			$a['page']		= "l_dda";
 		} else if ($mau_ke == "periksa_tabel") {
 			$id_unitkerja = $this->input->get('id');
 			$level = $this->session->get('admin_level');
 			if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-				$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.tahun=? LIMIT $awal, $akhir ", [$id_unitkerja, $ta])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and tahun=? LIMIT $awal, $akhir ", [$id_unitkerja, $ta])->getResult();
 				$a['page']		= "l_dda_periksa";
 			} else {
-				$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.is_confirm='1' and t.tahun=? LIMIT $awal, $akhir ", [$id_unitkerja, $ta])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and is_confirm='1' and tahun=? LIMIT $awal, $akhir ", [$id_unitkerja, $ta])->getResult();
 				$a['page']		= "l_dda_periksa";
 			}
 		} else {
@@ -631,7 +642,7 @@ class Admin extends BaseController
 
 				$a['page']		= "l_dda_admin";
 			} else {
-				$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.tahun=? ", [$unitkerjalogin, $ta])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM t_list_tabel where id_unitkerja=? and tahun=? ", [$unitkerjalogin, $ta])->getResult();
 				$a['page']		= "l_dda";
 			}
 		}
@@ -797,401 +808,20 @@ class Admin extends BaseController
 	}
 
 	//master_tabel
-	// =========================================================================
-	// FUNGSI CEK KONFLIK NOMOR TABEL (AJAX)
-	// Memeriksa secara realtime apakah nomor tabel sudah terpakai di tahun tertentu
-	// =========================================================================
-	public function check_new_table_conflict() {
-		// Ambil dan bersihkan nomor tabel dari spasi
-		$no_tabel = trim(preg_replace('/\s+/', '', (string)$this->request->getPost("no_tabel")));
-		$ta = $this->request->getPost("tahun") ?: ($this->session->get("admin_ta") ?: ($this->session->get("sess_tahun") ?: date("Y")));
-		$exclude_id_tabel = $this->request->getPost("exclude_id_tabel");
-		$exclude_id = $this->request->getPost("exclude_id");
-		
-		if (!$no_tabel) {
-			return $this->response->setJSON(["conflict" => false]);
-		}
-		
-		// Query cek apakah nomor tabel sudah ada di t_tahun_tabel pada tahun yang sama
-		$sql = "
-			SELECT t.id, t.no_tabel, m.judul_ind, COALESCE(u.unitkerja_ind, m.id_unitkerja) as unitkerja_ind
-			FROM t_tahun_tabel t
-			JOIN m_list_tabel m ON t.id_tabel = m.id
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			WHERE t.no_tabel = ? AND t.tahun = ? 
-		";
-		$params = [$no_tabel, $ta];
-		
-		// Kecualikan ID tabel tertentu (jika sedang dalam mode edit)
-		if (!empty($exclude_id_tabel)) {
-			$sql .= " AND t.id_tabel != ? ";
-			$params[] = $exclude_id_tabel;
-		}
-		if (!empty($exclude_id)) {
-			$sql .= " AND t.id != ? ";
-			$params[] = $exclude_id;
-		}
-		$sql .= " LIMIT 1 ";
-		
-		$exists = $this->db->query($sql, $params)->getRow();
-		
-		// Jika ditemukan nomor kembar/konflik, kembalikan data tabel yang sudah memakai nomor tersebut
-		if ($exists) {
-			return $this->response->setJSON([
-				"conflict"       => true, 
-				"no_tabel"       => $no_tabel,
-				"existing_judul" => $exists->judul_ind,
-				"existing_opd"   => $exists->unitkerja_ind ?: '-'
-			]);
-		}
-		return $this->response->setJSON(["conflict" => false]);
-	}
-
-	// =========================================================================
-	// FUNGSI CARI NOMOR TABEL TERAKHIR DI SUB-BAB (AJAX LIVE SUGGESTION)
-	// Mendeteksi nomor terakhir secara adaptif:
-	// - Bab 2-tingkat (Bab.Nomor, misal Bab 8, 11, 14): ketik "11" atau "11." -> "11.10"
-	// - Bab 3-tingkat (Bab.Subbab.Nomor, misal Bab 1, 4): ketik "1.1" -> "1.1.9"
-	// =========================================================================
-	public function ajax_get_last_table_number()
-	{
-		// Ambil variabel GET: prefix dan tahun
-		$prefix = trim((string)$this->request->getGet('prefix'));
-		$tahun  = $this->request->getGet('tahun') ?: ($this->session->get('admin_ta') ?: date('Y'));
-
-		// Bersihkan spasi
-		$prefix = preg_replace('/\s+/', '', $prefix);
-
-		if (empty($prefix)) {
-			return $this->response->setJSON(['status' => false]);
-		}
-
-		// 1. Ekstrak nomor bab pertama (misal dari "11", "11.", "1.1", "4.1.22")
-		if (!preg_match('/^(\d+)(\.|$)/', $prefix, $bm)) {
-			return $this->response->setJSON(['status' => false]);
-		}
-		$bab = $bm[1];
-
-		// 2. Periksa apakah bab ini merupakan Bab 2-Tingkat (Bab.Nomor) atau Bab 3-Tingkat (Bab.Subbab.Nomor)
-		$all_bab_tables = $this->db->query(
-			"SELECT no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY id ASC",
-			[$tahun, $bab . '.%']
-		)->getResult();
-
-		$is_pure_2tier = false;
-		if (!empty($all_bab_tables)) {
-			$count_2tier = 0;
-			$count_3tier = 0;
-			foreach ($all_bab_tables as $tb) {
-				$dots = substr_count(trim((string)$tb->no_tabel), '.');
-				if ($dots === 1) {
-					$count_2tier++;
-				} else if ($dots >= 2) {
-					$count_3tier++;
-				}
-			}
-			// Bab 2-tingkat murni (seperti Bab 8, 11, 14)
-			if ($count_2tier > 0 && $count_3tier === 0) {
-				$is_pure_2tier = true;
-			}
-		}
-
-		// 3. Tentukan Target Prefix Berdasarkan Pola Bab:
-		$target_prefix = null;
-		$is_2tier_mode = false;
-
-		if ($is_pure_2tier) {
-			// KASUS A: BAB 2-TINGKAT (Misal Bab 8, 11, 14)
-			// Mengetik "11", "11.", atau "11.1" merujuk ke prefix bab "11."
-			$target_prefix = $bab . '.';
-			$is_2tier_mode = true;
-		} else {
-			// KASUS B: BAB 3-TINGKAT (Misal Bab 1, 2, 3, 4, dst.)
-			// Membutuhkan minimal sub-bab (misal "1.1" atau "1.1.")
-			if (preg_match('/^(\d+\.\d+)(\.|$)/', $prefix, $m)) {
-				$target_prefix = $m[1] . '.';
-			} else {
-				// User baru mengetik bab saja (misal "1" atau "1.") pada bab 3-tingkat.
-				// Tahan dan jangan beri saran prematur, tunggu sampai sub-bab diketik.
-				return $this->response->setJSON(['status' => false]);
-			}
-		}
-
-		// 4. Query seluruh tabel dengan prefix target
-		$tables = $this->db->query(
-			"SELECT no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY id ASC",
-			[$tahun, $target_prefix . '%']
-		)->getResult();
-
-		if (empty($tables)) {
-			$clean_prefix = rtrim($target_prefix, '.');
-			return $this->response->setJSON([
-				'status'     => true,
-				'has_tables' => false,
-				'prefix'     => $clean_prefix,
-				'last_no'    => null,
-				'next_no'    => $target_prefix . '1',
-				'badge_text' => $is_2tier_mode ? 'Bab baru' : 'Sub-bab baru'
-			]);
-		}
-
-		$max_num = 0;
-		$last_no = null;
-
-		foreach ($tables as $t) {
-			$clean = trim(preg_replace('/\s+/', '', (string)$t->no_tabel));
-			// Ekstrak digit angka setelah prefix
-			if (preg_match('/^' . preg_quote($target_prefix, '/') . '(\d+)/', $clean, $num_match)) {
-				$val = (int)$num_match[1];
-				if ($val > $max_num) {
-					$max_num = $val;
-					$last_no = $clean;
-				}
-			}
-		}
-
-		if ($max_num === 0) {
-			return $this->response->setJSON(['status' => false]);
-		}
-
-		$next_no = $target_prefix . ($max_num + 1);
-
-		return $this->response->setJSON([
-			'status'     => true,
-			'has_tables' => true,
-			'prefix'     => rtrim($target_prefix, '.'),
-			'last_no'    => $last_no ?: ($target_prefix . $max_num),
-			'next_no'    => $next_no,
-			'badge_text' => 'Nomor terakhir ' . ($last_no ?: ($target_prefix . $max_num))
-		]);
-	}
-
-	// =========================================================================
-	// FUNGSI GESER NOMOR TABEL OTOMATIS (SHIFT TABLE NUMBERS)
-	// Menggeser naik (+1) nomor-nomor tabel yang berada di bawah posisi tabel baru
-	// Contoh: jika menyisipkan tabel di 1.2, maka 1.2 lama -> 1.3, 1.3 lama -> 1.4, dst.
-	// =========================================================================
-	private function shift_table_numbers($start_no_tabel, $tahun, $exclude_id = null) {
-		$clean_no = trim(preg_replace('/\s+/', '', (string)$start_no_tabel));
-		
-		// Pisahkan prefix (awalan misal "1."), angka terakhir (misal "2"), dan suffix huruf jika ada (misal "a")
-		if (preg_match('/^(.*[\.])?(\d+)([a-zA-Z]*)$/', $clean_no, $m)) {
-			$prefix = $m[1] ?? '';
-			$num    = (int)$m[2];
-			$suffix = $m[3] ?? '';
-		} else {
-			return false;
-		}
-
-		// Cari semua tabel dengan awalan prefix yang sama pada tahun tersebut
-		$tables = $this->db->query("SELECT id, no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ?", [$tahun, $prefix . '%'])->getResult();
-		
-		$updates = [];
-		foreach ($tables as $t) {
-			if ($exclude_id && $t->id == $exclude_id) continue;
-			$t_clean = trim(preg_replace('/\s+/', '', (string)$t->no_tabel));
-			if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)([a-zA-Z]*)$/', $t_clean, $tm)) {
-				$t_num = (int)$tm[1];
-				$t_suffix = $tm[2];
-				// Jika nomor urut tabel >= nomor yang disisipkan, naikkan angkanya (+1)
-				if ($t_num >= $num) {
-					$new_num = $t_num + 1;
-					$new_no_tabel = $prefix . $new_num . $t_suffix;
-					$updates[] = ['id' => $t->id, 'new_no_tabel' => $new_no_tabel, 'old_num' => $t_num];
-				}
-			}
-		}
-		
-		// Urutkan dari angka terbesar ke terkecil agar tidak terjadi benturan nomor saat UPDATE di database
-		usort($updates, function($a, $b) { return $b['old_num'] - $a['old_num']; });
-		
-		// Eksekusi pembaruan nomor tabel
-		foreach ($updates as $u) {
-			$this->db->query("UPDATE t_tahun_tabel SET no_tabel = ? WHERE id = ?", [$u['new_no_tabel'], $u['id']]);
-		}
-		return count($updates);
-	}
-
-
-	// =========================================================================
-	// FUNGSI PENCARIAN MASTER TABEL VIA AJAX (AUTOCOMPLETE / LIVE SEARCH)
-	// Digunakan pada form tambah/edit tabel untuk mencari master tabel yang sudah ada
-	// =========================================================================
-	public function ajax_search_master_tabel()
-	{
-		// Cek otentikasi login admin
-		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return $this->response->setStatusCode(401)->setJSON(['error' => 'Unauthorized']);
-		}
-
-		// Ambil kata kunci pencarian dan tahun aktif
-		$q = trim($this->request->getVar('q') ?? '');
-		$ta = $this->session->get('admin_ta') ?: ($this->session->get('sess_tahun') ?: date('Y'));
-
-		// Batasi pencarian minimal 2 karakter
-		if (mb_strlen($q) < 2) {
-			return $this->response->setJSON([]);
-		}
-
-		$term = '%' . $q . '%';
-		
-		// Query mencari data master tabel (m_list_tabel) beserta riwayat terbitnya di t_tahun_tabel
-		$sql = "
-			SELECT m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind,
-			       GROUP_CONCAT(DISTINCT t.tahun ORDER BY t.tahun DESC SEPARATOR ', ') as tahun_terbit,
-			       MAX(CASE WHEN t.tahun = ? THEN t.no_tabel ELSE NULL END) as no_tabel_aktif,
-			       MAX(CASE WHEN t.tahun = ? THEN 1 ELSE 0 END) as is_in_ta,
-			       (SELECT link_tabel FROM t_tahun_tabel WHERE id_tabel = m.id AND link_tabel != '' AND link_tabel IS NOT NULL ORDER BY tahun DESC LIMIT 1) as latest_link,
-			       (SELECT no_tabel FROM t_tahun_tabel WHERE id_tabel = m.id AND tahun < ? AND no_tabel != '' AND no_tabel IS NOT NULL ORDER BY tahun DESC LIMIT 1) as prev_no_tabel
-			FROM m_list_tabel m
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			LEFT JOIN t_tahun_tabel t ON m.id = t.id_tabel
-			WHERE m.judul_ind LIKE ? OR m.judul_en LIKE ?
-			GROUP BY m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind
-			ORDER BY is_in_ta ASC, m.judul_ind ASC
-			LIMIT 12
-		";
-
-		$results = $this->db->query($sql, [$ta, $ta, $ta, $term, $term])->getResult();
-		return $this->response->setJSON($results);
-	}
-
-	// =========================================================================
-	// FUNGSI PENCOCOKAN JUDUL MASTER TABEL CERDAS (FUZZY MATCHING & JACCARD)
-	// Digunakan saat ACC usulan OPD untuk mendeteksi apakah tabel serupa sudah ada
-	// Mencegah duplikasi data master tabel dengan algoritma kemiripan teks
-	// =========================================================================
-	private function find_matching_master_tabel($raw_title, $unitkerja = null, $ta = null)
-	{
-		$raw_title = trim($raw_title ?? '');
-		if (empty($raw_title)) return [];
-
-		$ta = $ta ?: ($this->session->get('admin_ta') ?: date('Y'));
-
-		// Langkah 1: Cek apakah ada judul yang persis sama 100% (Exact Match)
-		$exact = $this->db->query("
-			SELECT m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind,
-			       GROUP_CONCAT(DISTINCT t.tahun ORDER BY t.tahun DESC SEPARATOR ', ') as tahun_terbit,
-			       MAX(CASE WHEN t.tahun = ? THEN t.no_tabel ELSE NULL END) as no_tabel_current_year,
-			       MAX(CASE WHEN t.tahun = ? THEN 1 ELSE 0 END) as is_active_current_year
-			FROM m_list_tabel m
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			LEFT JOIN t_tahun_tabel t ON m.id = t.id_tabel
-			WHERE LOWER(TRIM(m.judul_ind)) = LOWER(TRIM(?))
-			GROUP BY m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind
-			LIMIT 1
-		", [$ta, $ta, $raw_title])->getRow();
-
-		if ($exact) {
-			$exact->similarity = 100;
-			$exact->match_type = 'EXACT';
-			$exact->intersect_words = 'Persis Sama';
-			return [$exact];
-		}
-
-		// Langkah 2: Normalisasi teks dan ekstrak kata kunci penting
-		// Hilangkan angka tahun (misal: 2024, 2025), kata periode, dan kata penghubung (stopwords)
-		$text = mb_strtolower($raw_title, 'UTF-8');
-		$text = preg_replace('/\b(19|20)\d{2}(\s*[-–—]\s*(19|20)?\d{2})?\b/', '', $text);
-		$text = preg_replace('/\b(tahun|thn|th|semester|tw|triwulan|ta|akademik|periode)\b/u', '', $text);
-		$stopwords = ['dan', 'di', 'ke', 'dari', 'pada', 'untuk', 'dengan', 'per', 'menurut', 'provinsi', 'jawa', 'tengah', 'jateng', 'kabupaten', 'kota', 'kabupaten/kota'];
-		$text = preg_replace('/[.,\/#!$%\^&\*;:{}=\-_`~()\[\]]/u', ' ', $text);
-		$words = preg_split('/\s+/', trim($text));
-		$keywords = array_values(array_filter($words, function($w) use ($stopwords) {
-			return strlen($w) >= 3 && !in_array($w, $stopwords);
-		}));
-
-		if (empty($keywords)) return [];
-
-		// Buat query LIKE untuk mencari kandidat master tabel berdasarkan kata kunci
-		$likes = [];
-		$params = [$ta, $ta];
-		foreach ($keywords as $kw) {
-			$likes[] = "m.judul_ind LIKE ?";
-			$params[] = '%' . $kw . '%';
-		}
-
-		$where_sql = "(" . implode(' OR ', $likes) . ")";
-
-		$candidates = $this->db->query("
-			SELECT m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind,
-			       GROUP_CONCAT(DISTINCT t.tahun ORDER BY t.tahun DESC SEPARATOR ', ') as tahun_terbit,
-			       MAX(CASE WHEN t.tahun = ? THEN t.no_tabel ELSE NULL END) as no_tabel_current_year,
-			       MAX(CASE WHEN t.tahun = ? THEN 1 ELSE 0 END) as is_active_current_year
-			FROM m_list_tabel m
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			LEFT JOIN t_tahun_tabel t ON m.id = t.id_tabel
-			WHERE $where_sql
-			GROUP BY m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind
-			LIMIT 40
-		", $params)->getResult();
-
-		$raw_clean = implode(' ', $keywords);
-		$matched = [];
-
-		// Langkah 3: Hitung skor kemiripan kombinasi Jaccard Index & Similar Text
-		foreach ($candidates as $cand) {
-			$c_text = mb_strtolower($cand->judul_ind, 'UTF-8');
-			$c_text = preg_replace('/\b(19|20)\d{2}(\s*[-–—]\s*(19|20)?\d{2})?\b/', '', $c_text);
-			$c_text = preg_replace('/\b(tahun|thn|th|semester|tw|triwulan|ta|akademik|periode)\b/u', '', $c_text);
-			$c_text = preg_replace('/[.,\/#!$%\^&\*;:{}=\-_`~()\[\]]/u', ' ', $c_text);
-			$c_words = preg_split('/\s+/', trim($c_text));
-			$c_keywords = array_values(array_filter($c_words, function($w) use ($stopwords) {
-				return strlen($w) >= 3 && !in_array($w, $stopwords);
-			}));
-
-			$intersect = array_intersect($keywords, $c_keywords);
-			$union = array_unique(array_merge($keywords, $c_keywords));
-			$jaccard = count($union) > 0 ? (count($intersect) / count($union)) * 100 : 0;
-
-			$c_clean = implode(' ', $c_keywords);
-			similar_text($raw_clean, $c_clean, $sim_text);
-
-			// Rumus skor: 60% bobot kesamaan kata kunci (Jaccard) + 40% kemiripan urutan karakter
-			$score = ($jaccard * 0.6) + ($sim_text * 0.4);
-
-			// Tambah bonus nilai jika OPD pengusul sama dengan OPD pemilik master tabel
-			if (!empty($unitkerja) && strtolower(trim($cand->id_unitkerja)) == strtolower(trim($unitkerja))) {
-				$score += 10;
-			}
-
-			// Simpan kandidat jika kemiripan >= 35% atau ada minimal 2 kata kunci yang cocok
-			if ($score >= 35 || count($intersect) >= 2) {
-				$cand->similarity = round(min(100, $score), 1);
-				$cand->match_type = $score >= 70 ? 'HIGH_SIMILARITY' : 'POSSIBLE_MATCH';
-				$cand->intersect_words = implode(', ', $intersect);
-				$matched[] = $cand;
-			}
-		}
-
-		// Urutkan hasil pencocokan dari skor tertinggi ke terendah
-		usort($matched, function($a, $b) {
-			return $b->similarity <=> $a->similarity;
-		});
-
-		// Ambil maksimal 5 kandidat terbaik
-		return array_slice($matched, 0, 5);
-	}
-
-
 	public function master_tabel()
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		$ta = $this->session->get('admin_ta') ?: date('Y');
-		$a['ta'] = $ta;
+		$ta = $this->session->get('admin_ta');
 
 		$a['list_opd'] = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 		$a['list_tim'] = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' AND user_wali != '-' ORDER BY user_wali ASC")->getResult();
-		$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_tahun_tabel GROUP BY tahun ORDER BY tahun DESC")->getResult();
 
-		//ambil variabel URL
 		$mau_ke = $this->uri->segment(3);
 		$idu    = $this->uri->segment(4);
 
-		//ambil variabel post
 		$idp             = $this->input->post('idp');
 		$judul_ind       = $this->input->post('judul_ind');
 		$judul_en        = $this->input->post('judul_en');
@@ -1208,41 +838,12 @@ class Admin extends BaseController
 
 		if ($mau_ke == "del") {
 			$id_delete   = $this->input->get('delete_id');
-			$a['datpil'] = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id=?", [$id_delete])->getRow();
-			$a['act_url'] = base_url('index.php/admin/master_tabel/act_del/');
-			return view('admin/f_del_master', $a);
+			$a['datpil'] = $this->db->query("select * from t_list_tabel where id=?", [$id_delete])->getRow();
+			$a['page']   = "f_del_master";
 		} else if ($mau_ke == "act_del") {
 			$id_oi = $this->input->post('id');
-			
-			// Ambil info t_tahun_tabel terlebih dahulu
-			$row_tt = $this->db->query("SELECT id_tabel, tahun FROM t_tahun_tabel WHERE id = ?", [$id_oi])->getRow();
-			
-			if ($row_tt) {
-				$id_master = $row_tt->id_tabel;
-				$tahun     = $row_tt->tahun;
-
-				// 1. Hapus entri dari t_tahun_tabel
-				$this->db->query("DELETE FROM t_tahun_tabel WHERE id = ?", [$id_oi]);
-
-				// 2. Cek apakah master tabel (m_list_tabel) masih ditautkan di tahun lainnya
-				if (!empty($id_master)) {
-					$cek = $this->db->query("SELECT COUNT(*) as jml FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master])->getRow();
-					if ($cek && (int)$cek->jml === 0) {
-						// Sudah tidak tertaut di tahun manapun -> Hapus master tabel agar database bersih dari orphan
-						$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
-						$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
-						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel tahun " . htmlspecialchars($tahun) . " beserta master tabel berhasil dihapus permanen (tidak ada tautan di tahun lain).</div>");
-					} else {
-						// Masih ada tautan di tahun lain -> Master tabel tetap dipertahankan
-						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel tahun " . htmlspecialchars($tahun) . " berhasil dihapus. Master tabel tetap dipertahankan karena masih digunakan pada tahun lain.</div>");
-					}
-				} else {
-					$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data tabel berhasil dihapus.</div>");
-				}
-			} else {
-				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Data tabel tidak ditemukan atau sudah dihapus.</div>");
-			}
-
+			$this->db->query("DELETE FROM t_list_tabel WHERE id = ?", [$id_oi]);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/master_tabel/');
 		} else if ($mau_ke == "cari") {
 			$filter_opd    = $this->session->get('sess_f_opd') ?? 'all';
@@ -1257,7 +858,7 @@ class Admin extends BaseController
 
 			$where_filters = "WHERE $where_tahun";
 			if ($filter_opd != 'all') {
-				$where_filters .= " AND ml.id_unitkerja = ? ";
+				$where_filters .= " AND l.id_unitkerja = ? ";
 				$params[] = $filter_opd;
 			}
 			if ($filter_bidang != 'all') {
@@ -1267,15 +868,14 @@ class Admin extends BaseController
 
 			$params[] = '%' . $cari . '%';
 			$params[] = '%' . $cari . '%';
-			$params[] = '%' . $cari . '%';
 
 			$a['data'] = $this->db->query("
-            SELECT ml.judul_ind, ml.judul_en, ml.id_unitkerja, l.*, u.unitkerja_ind, u.user_wali 
-            FROM t_tahun_tabel l JOIN m_list_tabel ml ON l.id_tabel = ml.id 
-            LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja 
+            SELECT l.*, u.unitkerja_ind, u.user_wali 
+            FROM t_list_tabel l 
+            LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja 
             $where_filters 
-            AND (ml.judul_ind LIKE ? OR u.unitkerja_ind LIKE ? OR l.no_tabel LIKE ?)
-            ORDER BY (l.tahun = '" . $ta . "') DESC, l.tahun DESC, CAST(SUBSTRING_INDEX(l.no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, ml.judul_ind ASC
+            AND (l.judul_ind LIKE ? OR u.unitkerja_ind LIKE ?)
+            ORDER BY l.id DESC
         ", $params)->getResult();
 
 			if ($this->request->isAJAX()) {
@@ -1294,133 +894,17 @@ class Admin extends BaseController
 		} else if ($mau_ke == "add") {
 			$a['page'] = "f_master_tabel";
 		} else if ($mau_ke == "edt") {
-			$a['datpil'] = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id = ?", [$idu])->getRow();
-			$a['page'] = "f_master_tabel";
+			$a['datpil'] = $this->db->query("SELECT * from t_list_tabel WHERE id = ?", [$idu])->getRow();
+			$a['page']   = "f_master_tabel";
 		} else if ($mau_ke == "act_add") {
-			// Ambil tanggal hari ini dan input dari form
-			$hariini             = date('Y-m-d');
-			$no_tabel            = trim(preg_replace('/\s+/', '', (string)$this->input->post("no_tabel"))) ?: null;
-			$periode_id          = $this->input->post("periode_id") ?: ($this->input->post("periode") ?: null);
-			$periode_en          = $this->input->post("periode_en") ?: $periode_id;
-			$judul_ind           = trim($this->input->post('judul_ind') ?? '');
-			$judul_en            = trim($this->input->post('judul_en') ?? '');
-			$master_id           = $this->input->post("master_id");
-			$conflict_resolution = $this->input->post("conflict_resolution");
-
-			$m_id = null;
-
-			// =================================================================
-			// SKENARIO 1: MODE KOLABORASI (NOMOR KEMBAR)
-			// Dua OPD atau lebih mempublikasikan tabel dengan nomor yang sama
-			// Setiap OPD memiliki data tabel mandiri di m_list_tabel
-			// =================================================================
-			if ($conflict_resolution == 'collab') {
-				// Cek apakah OPD yang dipilih sudah memiliki master tabel ini di m_list_tabel
-				$check_m = $this->db->query(
-					"SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1",
-					[$id_unitkerja, $judul_ind]
-				)->getRow();
-
-				if ($check_m) {
-					$m_id = $check_m->id;
-					// Update judul bahasa Inggris jika diisi
-					if (!empty($judul_en)) {
-						$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
-					}
-				} else {
-					// Daftarkan master tabel baru untuk OPD tersebut
-					$this->db->query(
-						"INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, ?)",
-						[$judul_ind, $judul_en, $id_unitkerja, $kondef]
-					);
-					$m_id = $this->db->insertID();
-				}
-
-				// Karena ini tabel kolaborasi (nomor kembar), SELALU INSERT baris baru ke t_tahun_tabel
-				$this->db->query(
-					"INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					[$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa]
-				);
-
-				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel kolaborasi (Nomor Kembar {$no_tabel}) berhasil ditambahkan dan ditautkan ke Master ID #{$m_id} di Tahun {$ta}</div>");
-				return redirect()->to('admin/master_tabel/');
-			}
-
-			// =================================================================
-			// SKENARIO 2: MODE NORMAL ATAU SHIFT (BUKAN KOLABORASI)
-			// =================================================================
-			// Jika admin memilih untuk menautkan ke master tabel yang sudah ada dari autocomplete
-			if (!empty($master_id)) {
-				$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id = ?", [$master_id])->getRow();
-				if ($check_m) {
-					$m_id = $check_m->id;
-					if (!empty($id_unitkerja)) {
-						$this->db->query("UPDATE m_list_tabel SET id_unitkerja = COALESCE(NULLIF(id_unitkerja, ''), ?), judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$id_unitkerja, $judul_en, $m_id]);
-					}
-				}
-			}
-
-			// Jika belum tertaut ke master tabel mana pun, cari berdasarkan judul dan OPD atau insert baru
-			if (empty($m_id)) {
-				$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
-				if ($check_m) {
-					$m_id = $check_m->id;
-					if (!empty($id_unitkerja)) {
-						$this->db->query("UPDATE m_list_tabel SET id_unitkerja = COALESCE(NULLIF(id_unitkerja, ''), ?), judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$id_unitkerja, $judul_en, $m_id]);
-					}
-				} else {
-					$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, ?)", [$judul_ind, $judul_en, $id_unitkerja, $kondef]);
-					$m_id = $this->db->insertID();
-				}
-			}
-
-			// Cek apakah tabel ini sudah pernah didaftarkan pada tahun aktif ($ta)
-			$check_in_year = $this->db->query("SELECT id FROM t_tahun_tabel WHERE id_tabel = ? AND tahun = ?", [$m_id, $ta])->getRow();
-			if ($check_in_year) {
-				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill me-2\"></i>Master tabel #{$m_id} sudah terdaftar di DDA Tahun {$ta}. Data tahunan telah diperbarui.</div>");
-				$this->db->query("UPDATE t_tahun_tabel SET no_tabel = COALESCE(?, no_tabel), periode_id = COALESCE(?, periode_id), periode_en = COALESCE(?, periode_en), link_tabel = COALESCE(NULLIF(?, ''), link_tabel) WHERE id = ?", [$no_tabel, $periode_id, $periode_en, $link_tabel, $check_in_year->id]);
-				return redirect()->to('admin/master_tabel/');
-			}
-
-			// Jika user memilih resolusi 'shift', geser nomor tabel yang ada di bawahnya (+1)
-			if ($conflict_resolution == "shift" && $no_tabel) {
-				$this->shift_table_numbers($no_tabel, $ta);
-			}
-            
-			// Masukkan data baru ke tabel tahunan DDA (t_tahun_tabel)
-			$this->db->query("INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa]);
-
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil ditambahkan dan ditautkan ke Master ID #{$m_id} di Tahun {$ta}</div>");
+			$hariini = date('Y-m-d');
+			$this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, $link_tabel, $link_sebelumnya, $id_unitkerja, $is_confirm, $catatan, $is_periksa, $catatan_periksa, $kondef, $ta]);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil ditambahkan</div>");
 			return redirect()->to('admin/master_tabel/');
 		} else if ($mau_ke == "act_edt") {
-			// =================================================================
-			// UPDATE DATA MASTER TABEL DAN TAHUNAN (act_edt)
-			// Memperbarui informasi judul di m_list_tabel dan atribut tahunan di t_tahun_tabel
-			// =================================================================
-			$no_tabel = trim(preg_replace('/\s+/', '', (string)$this->input->post('no_tabel'))) ?: null;
-			$periode_id = $this->input->post('periode_id') ?: ($this->input->post('periode') ?: null);
-			$periode_en = $this->input->post('periode_en') ?: $periode_id;
-			$judul_ind = trim($this->input->post('judul_ind') ?? '');
-			$judul_en = trim($this->input->post('judul_en') ?? '');
-
-			// Query UPDATE menggunakan JOIN antar tabel master dan tahunan
-			$this->db->query(
-				"UPDATE m_list_tabel m JOIN t_tahun_tabel t ON m.id = t.id_tabel SET m.judul_ind=?, m.judul_en=?, t.no_tabel=?, t.periode_id=?, t.periode_en=?, t.link_tabel=?, t.link_sebelumnya=?, m.id_unitkerja=? WHERE t.id=?",
-				[$judul_ind, $judul_en, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $id_unitkerja, $idp]
-			);
+			$this->db->query("UPDATE t_list_tabel SET judul_ind =?, judul_en= ?, link_tabel = ?, link_sebelumnya = ?, id_unitkerja=? where id=?", [$judul_ind, $judul_en, $link_tabel, $link_sebelumnya, $id_unitkerja, $idp]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di update</div>");
 			return redirect()->to('admin/master_tabel/');
-		} else if ($mau_ke == "cari") {
-			$cari = $this->input->post('q') ?? '';
-			$sql_base  = "FROM t_tahun_tabel l JOIN m_list_tabel ml ON l.id_tabel = ml.id LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja";
-			$sql_where = "WHERE (ml.judul_ind LIKE ? OR l.no_tabel LIKE ?) AND l.tahun = ?";
-			$a['data'] = $this->db->query("
-            SELECT ml.judul_ind, ml.judul_en, ml.id_unitkerja, l.*, u.unitkerja_ind, u.user_wali 
-            $sql_base 
-            $sql_where 
-            ORDER BY CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, l.id_tabel ASC
-            ", ['%' . $cari . '%', '%' . $cari . '%', $ta])->getResult();
-			return view('admin/parts/master_tabel_rows', $a);
 		} else {
 			if (isset($_GET['action']) && $_GET['action'] == 'reset') {
 				session()->remove('sess_f_opd');
@@ -1456,7 +940,7 @@ class Admin extends BaseController
 			$a['selected_bidang'] = $filter_bidang;
 			$a['selected_tahun']  = $filter_tahun;
 
-			$sql_base  = "FROM t_tahun_tabel l JOIN m_list_tabel ml ON l.id_tabel = ml.id LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja";
+			$sql_base  = "FROM t_list_tabel l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja";
 			$sql_where = "WHERE 1=1";
 
 			$params_count = [];
@@ -1466,7 +950,7 @@ class Admin extends BaseController
 			}
 
 			if ($filter_opd != 'all') {
-				$sql_where .= " AND ml.id_unitkerja = ?";
+				$sql_where .= " AND l.id_unitkerja = ?";
 				$params_count[] = $filter_opd;
 			}
 
@@ -1491,10 +975,10 @@ class Admin extends BaseController
 			$params_data[] = (int)$per_page;
 
 			$a['data'] = $this->db->query("
-            SELECT ml.judul_ind, ml.judul_en, ml.id_unitkerja, l.*, u.unitkerja_ind, u.user_wali 
+            SELECT l.*, u.unitkerja_ind, u.user_wali 
             $sql_base 
             $sql_where 
-            ORDER BY (l.tahun = '" . $ta . "') DESC, l.tahun DESC, CAST(SUBSTRING_INDEX(l.no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, ml.judul_ind ASC 
+            ORDER BY l.id DESC 
             LIMIT ?, ?
         ", $params_data)->getResult();
 
@@ -1568,41 +1052,29 @@ class Admin extends BaseController
 		$this->load->library('upload', $config);
 
 		if ($mau_ke == "del") {
-			$id_delete   = $this->input->get('delete_id');
-			$a['datpil']  = $this->db->query("select * from m_master_tabel_usulan where id=?", [$id_delete])->getRow();
-			$a['act_url'] = base_url('index.php/admin/master_tabel_opd/act_del/');
-			return view('admin/f_del_master', $a);
+			$id_delete = $this->input->get('delete_id');;
+		?>
+			<script>
+				//window.alert('<?php echo $id_delete; ?>');
+			</script>
+<?php
+			$a['datpil']	= $this->db->query("select * from m_master_tabel_usulan where id=?", [$id_delete])->getRow();
+			$a['page']		= "f_del_master";
 		} else if ($mau_ke == "act_del") {
 			$id = $this->input->post('id');
 			$this->db->query("DELETE FROM m_master_tabel_usulan WHERE id = ?", [$id]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "cari") {
-			$cari = $this->input->post('q') ?: ($this->input->post('cari') ?: '');
-			$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
-			$a['pagi'] = "";
-			$a['page'] = "l_master_tabel_opd";
+
+			$a['data']		= $this->db->query("SELECT * from t_list_tabel where keterangan_uraian LIKE ? and tahun=?", ['%' . $cari . '%', $ta])->getResult();
+			$a['page']		= "l_master_tabel";
 		} else if ($mau_ke == "add") {
 
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "edt") {
 
 			$a['datpil']	= $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = ?", [$idu])->getRow();
-			$a['list_opd']  = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
-			$a['ta']        = $ta;
-
-			$a['matched_master'] = null;
-			$a['other_matches']  = [];
-			if ($a['datpil']) {
-				$matches = $this->find_matching_master_tabel($a['datpil']->judul_ind, $a['datpil']->id_unitkerja, $ta);
-				if (!empty($matches)) {
-					$a['matched_master'] = $matches[0];
-					if (count($matches) > 1) {
-						$a['other_matches'] = array_slice($matches, 1, 4);
-					}
-				}
-			}
-
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "act_add") {
 			$hariini = date('Y-m-d');
@@ -1615,100 +1087,13 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel berhasil ditambahkan</div>");
 			return redirect()->to('admin/');
 		} else if ($mau_ke == "act_edt") {
-			// =================================================================
-			// PROSES PERSETUJUAN (ACC) USULAN TABEL DARI OPD
-			// Mengubah usulan menjadi tabel resmi di master tabel & tahunan
-			// =================================================================
-			// Ambil input form persetujuan
-			$idp             = $this->input->post('idp');
-			$judul_ind       = trim($this->input->post('judul_ind') ?? '');
-			$judul_en        = trim($this->input->post('judul_en') ?? '');
-			$id_unitkerja    = $this->input->post('id_unitkerja') ?: $this->session->get('admin_unitkerja');
-			$no_tabel        = trim(preg_replace('/\s+/', '', (string)$this->input->post('no_tabel'))) ?: null;
-			$periode_id      = trim($this->input->post('periode_id') ?? '') ?: (trim($this->input->post('periode') ?? '') ?: null);
-			$periode_en      = trim($this->input->post('periode_en') ?? '') ?: $periode_id;
-			$link_tabel      = $this->input->post('link_tabel') ?: '';
-			$link_sebelumnya = $this->input->post('link_sebelumnya') ?: '';
-
-			// Langkah 1: Cek apakah ada file lampiran baru yang diunggah
-			if ($this->upload->do_upload('file_tabel')) {
-				$up_data = $this->upload->data();
-				$this->db->query("UPDATE m_master_tabel_usulan SET file_tabel = ? WHERE id = ?", [$up_data['file_name'], $idp]);
-			}
-
-			// Langkah 2: Daftarkan atau Tautkan ke Induk Master Tabel (m_list_tabel)
-			$link_to_master      = $this->input->post('link_to_master');
-			$link_to_master_id   = $this->input->post('link_to_master_id');
-			$conflict_resolution = $this->input->post("conflict_resolution");
-
-			$m_id = null;
-			if ($conflict_resolution == 'collab') {
-				// Skenario Kolaborasi: OPD pengusul memiliki master tabel mandiri di m_list_tabel
-				$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
-				if ($check_m) {
-					$m_id = $check_m->id;
-					$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
-				} else {
-					$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, '-')", [$judul_ind, $judul_en, $id_unitkerja]);
-					$m_id = $this->db->insertID();
-				}
-			} else {
-				// Skenario Ditautkan ke Master Eksisting (Link to Master)
-				if ($link_to_master == '1' && !empty($link_to_master_id)) {
-					$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id = ?", [$link_to_master_id])->getRow();
-					if ($check_m) {
-						$m_id = $check_m->id;
-						if (!empty($id_unitkerja)) {
-							$this->db->query("UPDATE m_list_tabel SET id_unitkerja = COALESCE(NULLIF(id_unitkerja, ''), ?), judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$id_unitkerja, $judul_en, $m_id]);
-						}
-					}
-				}
-
-				// Jika bukan ditautkan atau master belum ada, cari berdasarkan judul dan OPD atau buat master baru
-				if (empty($m_id)) {
-					$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
-					if ($check_m) {
-						$m_id = $check_m->id;
-						$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
-					} else {
-						$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, ?)", [$judul_ind, $judul_en, $id_unitkerja, '-']);
-						$m_id = $this->db->insertID();
-					}
-				}
-			}
-
-			// Langkah 3: Daftarkan ke Tabel Tahunan DDA (t_tahun_tabel) untuk tahun aktif ($ta)
-			$check_t = $this->db->query("SELECT id FROM t_tahun_tabel WHERE id_tabel = ? AND tahun = ?", [$m_id, $ta])->getRow();
-			
-			// Jika user memilih resolusi 'shift', geser nomor tabel yang beririsan (+1)
-			if ($conflict_resolution == "shift" && $no_tabel) {
-				$this->shift_table_numbers($no_tabel, $ta, $check_t ? $check_t->id : null);
-			}
-
-			// Masukkan atau update data tabel tahunan
-			if (!$check_t) {
-				$is_confirm      = '2'; // Belum dikonfirmasi selesai
-				$catatan         = '-';
-				$is_periksa      = '0'; // Belum diperiksa
-				$catatan_periksa = '-';
-				$this->db->query(
-					"INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					[$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa]
-				);
-			} else {
-				$this->db->query(
-					"UPDATE t_tahun_tabel SET no_tabel = COALESCE(?, no_tabel), periode_id = COALESCE(?, periode_id), periode_en = COALESCE(?, periode_en), link_tabel = COALESCE(NULLIF(?, ''), link_tabel), link_sebelumnya = COALESCE(NULLIF(?, ''), link_sebelumnya) WHERE id = ?",
-					[$no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $check_t->id]
-				);
-			}
-
-			// Langkah 4: Tandai tabel usulan sebagai telah disetujui (is_setujui = '1')
-			$this->db->query("UPDATE m_master_tabel_usulan SET is_setujui = '1', judul_ind = ?, judul_en = ?, id_unitkerja = ? WHERE id = ?", [$judul_ind, $judul_en, $id_unitkerja, $idp]);
-
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel usulan berhasil disetujui (ACC) dan ditautkan ke Master Tabel #{$m_id} untuk DDA Tahun {$ta}</div>");
+			$id_unitkerja				= $this->input->post('id_unitkerja');
+			$this->db->query("UPDATE m_master_tabel_usulan SET is_setujui ='1' where id=?", [$idp]);
+			$this->db->query("INSERT INTO t_list_tabel (id, judul_ind, judul_en, link_tabel, link_sebelumnya, id_unitkerja, is_confirm, catatan, is_periksa, catatan_periksa, kondef, tahun) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, '', '', $id_unitkerja, '2', '-', '0', '-', '-', $ta]);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di konfirmasi</div>");
 			return redirect()->to('admin/master_tabel_opd/');
 		} else {
-			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 			$a['page']		= "l_master_tabel_opd";
 		}
 		return view('admin/index', $a);
@@ -1782,7 +1167,9 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			return redirect()->to('admin/master_opd');
 		} else if ($mau_ke == "act_edt") {
+
 			$this->db->query("UPDATE m_unitkerja SET id_unitkerja = ?, unitkerja_ind = ?, unitkerja_en = ?, user_wali = ?, user_spv = ? WHERE id_unitkerja = ?", [$id_unitkerja, $unitkerja_ind, $unitkerja_en, $user_wali, $user_spv, $idp]);
+
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/master_opd');
@@ -1813,7 +1200,7 @@ class Admin extends BaseController
 			'catatan_periksa' => $catatan
 		);
 
-		$this->db->table('t_tahun_tabel')->where('id', $id_tabel)->update($data);
+		$this->db->table('t_list_tabel')->where('id', $id_tabel)->update($data);
 
 		return redirect()->back()->with('k', '<div class="alert alert-success">Status berhasil diperbarui!</div>');
 	}
@@ -1824,80 +1211,9 @@ class Admin extends BaseController
 			'is_periksa' => '0',
 			'catatan_periksa' => '-'
 		);
-		$this->db->table('t_tahun_tabel')->where('id', $id)->update($data);
+		$this->db->table('t_list_tabel')->where('id', $id)->update($data);
 		return redirect()->back();
 	}
-
-	/**
-	 * AJAX endpoint to toggle publish status of a table to the public frontend
-	 */
-	public function act_toggle_publish()
-	{
-		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return $this->response->setJSON([
-				'status' => 'error',
-				'message' => 'Sesi login telah berakhir. Silakan login kembali.'
-			])->setStatusCode(401);
-		}
-
-		// Keamanan RBAC: Hanya akun Admin dan Super Admin yang berwenang mempublikasikan tabel ke publik
-		$user_level = strtolower(trim($this->session->get('admin_level') ?? ''));
-		if (!in_array($user_level, ['admin', 'super admin', 'superadmin'])) {
-			return $this->response->setJSON([
-				'status' => 'error',
-				'message' => 'Akses ditolak! Hanya Admin dan Super Admin yang berwenang mengubah status publikasi tabel.'
-			])->setStatusCode(403);
-		}
-
-		$id = (int)$this->request->getPost('id');
-		$is_publish = (int)$this->request->getPost('is_publish');
-
-		if ($id <= 0 || !in_array($is_publish, [0, 1])) {
-			return $this->response->setJSON([
-				'status' => 'error',
-				'message' => 'Parameter tidak valid.'
-			])->setStatusCode(400);
-		}
-
-		// Ambil info tabel
-		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, t.no_tabel, t.link_tabel, m.judul_ind')
-			->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-			->where('t.id', $id)
-			->get()
-			->getRow();
-
-		if (!$tabel) {
-			return $this->response->setJSON([
-				'status' => 'error',
-				'message' => 'Data tabel tidak ditemukan.'
-			])->setStatusCode(404);
-		}
-
-		// Validasi: jika ingin publish (1), pastikan link_tabel tidak kosong
-		if ($is_publish === 1 && empty(trim($tabel->link_tabel ?? ''))) {
-			return $this->response->setJSON([
-				'status' => 'error',
-				'message' => 'Tabel belum memiliki tautan data (link kosong). Silakan lengkapi link terlebih dahulu sebelum mempublish.'
-			])->setStatusCode(422);
-		}
-
-		$this->db->table('t_tahun_tabel')
-			->where('id', $id)
-			->update(['is_publish' => $is_publish]);
-
-		$judul_singkat = !empty($tabel->no_tabel) ? 'Tabel ' . trim($tabel->no_tabel) : mb_strimwidth($tabel->judul_ind, 0, 30, '...');
-
-		return $this->response->setJSON([
-			'status' => 'success',
-			'id' => $id,
-			'is_publish' => $is_publish,
-			'message' => $is_publish === 1 
-				? "{$judul_singkat} berhasil dipublish ke frontend!" 
-				: "{$judul_singkat} ditarik dari frontend (Draft)."
-		]);
-	}
-
 	public function export_excel_instansi()
 	{
 		error_reporting(0);
@@ -1916,7 +1232,7 @@ class Admin extends BaseController
             SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
             SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
         FROM m_unitkerja m 
-        LEFT JOIN m_list_tabel mt ON m.id_unitkerja = mt.id_unitkerja LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
+        LEFT JOIN t_list_tabel t ON m.id_unitkerja = t.id_unitkerja AND t.tahun = ?
         GROUP BY m.id_unitkerja 
         ORDER BY m.unitkerja_ind ASC
     ", [$ta])->getResult();
@@ -1961,7 +1277,7 @@ class Admin extends BaseController
                 SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
                 SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
             FROM m_unitkerja u
-            LEFT JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
+            LEFT JOIN t_list_tabel t ON u.id_unitkerja = t.id_unitkerja AND t.tahun = ?
             WHERE u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
             GROUP BY u.user_wali 
             ORDER BY u.user_wali ASC
@@ -2047,11 +1363,11 @@ class Admin extends BaseController
 	public function matching()
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return redirect()->to("admin/login");
+			return redirect()->to("admin/matching");
 		}
 		$jenis_rekap = $this->input->post('jenis_rekap');
 		if ($jenis_rekap == '0') {
-			$data_byjk	= $this->db->query("SELECT mt.id_unitkerja, u.unitkerja_ind, count(mt.judul_ind) as jumlah_tabel, sum(case when t.is_confirm = 1 then 1 else 0 end ) as terentri FROM `t_tahun_tabel` t JOIN m_list_tabel mt ON t.id_tabel = mt.id LEFT JOIN m_unitkerja u ON mt.id_unitkerja=u.id_unitkerja GROUP BY mt.id_unitkerja ORDER BY u.id_unitkerja ")->getResult();
+			$data_byjk	= $this->db->query("SELECT t.id_unitkerja,u.unitkerja_ind,count(judul_ind) as jumlah_tabel,sum(case when t.is_confirm = 1 then 1 else 0 end ) as terentri FROM `t_list_tabel` t left join m_unitkerja u on  t.id_unitkerja=u.id_unitkerja group by id_unitkerja order by u.id_unitkerja ")->getResult();
 			$a['page']		= "view_report";
 		}
 
@@ -2064,9 +1380,8 @@ class Admin extends BaseController
 	{
 		//$token = 'wenFlEPchGCa7aIMTBoB5Lt0pN1fcsDq';
 		//$token = 'k83pdzFWM5C4VF5eOLeaFF7V4iW0bO0q1I9AKlJ2i1JbTEsxhmdLMwC7OXip';
-		// $token ='1ScZHTidKmSn562vRXFWBf2wcWImhNL3XcTdtlFMx5cLVYU1zJS9H8uAzJG4';
+		$token ='1ScZHTidKmSn562vRXFWBf2wcWImhNL3XcTdtlFMx5cLVYU1zJS9H8uAzJG4';
 		// $token = 'uIJibrGVvdBvfi4EroYKbKeBCkpIsVMeVxnlgSTZk8xc4ttmYX63dHDhKoHa';
-		$token = 'sdj_UYf5h0TPgUW3E0kcZisn33xrTe5PMRqLuXq6CWbAfb69tEA7dILT0TLhpFtjQiWHqrd1pn9SGvE4NYlN';
 
 		$ch = curl_init($url);
 		curl_setopt_array($ch, [
@@ -2473,9 +1788,9 @@ class Admin extends BaseController
 
 			if (!empty($all_rows)) {
 				$dda_info = $this->db->query("
-					SELECT t.id, t.no_tabel, t.periode_id, t.periode_en, m.judul_ind, m.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en
-                    FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id 
-                    LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+                    SELECT t.id, t.judul_ind, t.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en 
+                    FROM t_list_tabel t 
+                    LEFT JOIN m_unitkerja u ON t.id_unitkerja = u.id_unitkerja
                     WHERE t.link_tabel REGEXP ?
                     LIMIT 1
                 ", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
@@ -2483,9 +1798,8 @@ class Admin extends BaseController
 				$final_res = $meta_info;
 				$final_res['data']           = $all_rows;
 				$final_res['res_id']         = $dda_info->id ?? 0;
-				$final_res['no_tabel']       = $dda_info->no_tabel ?? '';
-				$final_res['dda_title']      = format_judul_tabel($dda_info->judul_ind ?? '', $dda_info->periode_id ?? '');
-				$final_res['dda_title_en']   = format_judul_tabel($dda_info->judul_en ?? '', $dda_info->periode_en ?? ($dda_info->periode_id ?? ''));
+				$final_res['dda_title']      = $dda_info->judul_ind ?? '';
+				$final_res['dda_title_en']   = $dda_info->judul_en ?? '';
 				$final_res['config_tabel']   = $dda_info->config_tabel ?? null;
 				$final_res['unitkerja_ind']  = $dda_info->unitkerja_ind ?? '-';
 				$final_res['unitkerja_en']   = $dda_info->unitkerja_en ?? '-';
@@ -2554,7 +1868,7 @@ class Admin extends BaseController
 
 			// Cek apakah input adalah ID (Angka) atau Judul
 			// Flexible matching: Cek per ID atau per Judul (case insensitive)
-			$check = $this->db->query("SELECT t.id, m.judul_ind FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id = ? OR LOWER(m.judul_ind) = LOWER(?)", [$input_key, $input_key])->getRow();
+			$check = $this->db->query("SELECT id, judul_ind FROM t_list_tabel WHERE id = ? OR LOWER(judul_ind) = LOWER(?)", [$input_key, $input_key])->getRow();
 
 			$list_data[] = [
 				'input_key' => $input_key,
@@ -2567,7 +1881,7 @@ class Admin extends BaseController
 		fclose($handle);
 
 		// Ambil list semua tabel untuk fallback dropdown di VIEW
-		$a['all_tables']   = $this->db->query("SELECT t.id, m.judul_ind FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id ORDER BY m.judul_ind ASC")->getResult();
+		$a['all_tables']   = $this->db->query("SELECT id, judul_ind FROM t_list_tabel ORDER BY judul_ind ASC")->getResult();
 		$a['data_preview'] = $list_data;
 		$a['page']         = "v_preview_bulk";
 
@@ -2599,7 +1913,7 @@ class Admin extends BaseController
 			if (empty($id_tabel) || empty($portal_ids)) continue;
 
 			$new_link = "index.php/admin/view_portal_tabel?id=" . $portal_ids;
-			$this->db->query("UPDATE t_tahun_tabel SET link_tabel = ? WHERE id = ?", [$new_link, $id_tabel]);
+			$this->db->query("UPDATE t_list_tabel SET link_tabel = ? WHERE id = ?", [$new_link, $id_tabel]);
 			$count += $this->db->affectedRows();
 		}
 
@@ -2616,219 +1930,12 @@ class Admin extends BaseController
 				return $this->response->setJSON(['status' => 'error', 'message' => 'Data tidak lengkap']);
 			}
 
-			$update = $this->db->table('t_tahun_tabel')->where('id', $id)->update(['config_tabel' => $config]);
+			$update = $this->db->table('t_list_tabel')->where('id', $id)->update(['config_tabel' => $config]);
 
 			if ($update) {
 				return $this->response->setJSON(['status' => 'success', 'message' => 'Konfigurasi berhasil disimpan']);
 			}
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal simpan database']);
 		}
-	}
-
-	// =========================================================================
-	// FUNGSI DUPLIKASI TABEL DARI TAHUN SEBELUMNYA (CLONE TAHUNAN)
-	// Digunakan untuk menyalin seluruh daftar tabel dari tahun sumber ke tahun tujuan
-	// =========================================================================
-	public function clone_tahunan()
-	{
-		// Cek otentikasi login admin
-		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return redirect()->to("admin/login");
-		}
-
-		// Ambil variabel post dari form
-		$tahun_sumber = $this->input->post('tahun_sumber');
-		$tahun_tujuan = $this->input->post('tahun_tujuan');
-
-		// Validasi: pastikan tahun sumber dan tujuan sudah diisi
-		if (empty($tahun_sumber) || empty($tahun_tujuan)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Tahun sumber dan tujuan harus diisi!</div>");
-			return redirect()->back();
-		}
-
-		// Validasi: tahun sumber dan tujuan tidak boleh sama
-		if ($tahun_sumber == $tahun_tujuan) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Tahun sumber dan tujuan tidak boleh sama!</div>");
-			return redirect()->back();
-		}
-
-		// Ambil seluruh data tabel pada tahun sumber dari tabel t_tahun_tabel
-		$data_sumber = $this->db->query("SELECT * FROM t_tahun_tabel WHERE tahun = ?", [$tahun_sumber])->getResultArray();
-		
-		// Jika tahun sumber belum memiliki data tabel sama sekali
-		if (count($data_sumber) == 0) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ada data tabel pada tahun sumber ($tahun_sumber).</div>");
-			return redirect()->back();
-		}
-
-		// Ambil data tabel yang sudah terdaftar di tahun tujuan saat ini
-		// Pemetaan (target_map) ini berguna agar tabel kolaborasi / nomor kembar dapat di-clone sesuai jumlah yang tepat
-		$data_tujuan = $this->db->query("SELECT id, id_tabel, no_tabel FROM t_tahun_tabel WHERE tahun = ?", [$tahun_tujuan])->getResultArray();
-		$target_map = [];
-		foreach ($data_tujuan as $t) {
-			$key = $t['id_tabel'] . '_' . $t['no_tabel'];
-			$target_map[$key][] = $t['id'];
-		}
-
-		// Looping untuk menduplikasi setiap tabel dari tahun sumber ke tahun tujuan
-		$count_inserted = 0;
-		foreach ($data_sumber as $row) {
-			$key = $row['id_tabel'] . '_' . $row['no_tabel'];
-			
-			// Jika tabel tersebut sudah ada di tahun tujuan, kurangi slot antrian dan lewati (agar tidak dobel)
-			if (isset($target_map[$key]) && count($target_map[$key]) > 0) {
-				array_pop($target_map[$key]); 
-			} else {
-				// Jika belum ada di tahun tujuan, insert data baru:
-				// - link_tabel dikosongkan (menunggu pengisian data tahun baru)
-				// - link_sebelumnya diisi dengan link_tabel dari tahun sumber (sebagai referensi)
-				// - is_confirm diset ke '2' (belum dikonfirmasi)
-				// - is_periksa diset ke 0 (belum diperiksa)
-				$this->db->query("INSERT INTO t_tahun_tabel 
-					(id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, config_tabel) 
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
-					$row['id_tabel'],
-					$tahun_tujuan,
-					$row['no_tabel'],
-					$row['periode_id'],
-					$row['periode_en'] ?? $row['periode_id'],
-					'', // link_tabel baru dikosongkan
-					$row['link_tabel'], // link tahun lalu disimpan sebagai riwayat
-					'2', // status konfirmasi diset belum selesai
-					'-',
-					0, // status pemeriksaan awal
-					'-',
-					$row['config_tabel'] // konfigurasi layout tabel dinamis ikut disalin
-				]);
-				$count_inserted++;
-			}
-		}
-
-		// Berikan notifikasi sukses dan kembalikan ke halaman master tabel
-		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil menduplikasi $count_inserted tabel dari tahun $tahun_sumber ke $tahun_tujuan.</div>");
-		return redirect()->to('admin/master_tabel');
-	}
-
-	// =========================================================================
-	// FUNGSI RESET / KOSONGKAN TABEL PADA TAHUN TERTENTU
-	// Menghapus data t_tahun_tabel pada tahun target tanpa menghapus kamus master m_list_tabel
-	// =========================================================================
-	public function reset_tahun()
-	{
-		// Cek otentikasi login admin
-		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return redirect()->to("admin/login");
-		}
-
-		// Keamanan tingkat 1: Hak akses dibatasi hanya untuk Super Admin BPS
-		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
-		if (!in_array($user_lvl, ['admin', 'super admin', 'superadmin']) && $this->session->get('admin_unitkerja') != 'bps') {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Super Admin yang berhak mengosongkan tabel tahunan.</div>");
-			return redirect()->to('admin/master_tabel');
-		}
-
-		// Ambil variabel post dari form modal konfirmasi
-		$target_tahun = trim($this->input->post('target_tahun') ?? '');
-		$confirm_text = trim($this->input->post('confirm_text') ?? '');
-
-		// Validasi target tahun
-		if (empty($target_tahun)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Tahun target tidak valid!</div>");
-			return redirect()->to('admin/master_tabel');
-		}
-
-		// Keamanan tingkat 2: Type-to-Confirm (User wajib mengetik kata 'HAPUS <TAHUN>')
-		// Mencegah klik tombol hapus yang tidak disengaja
-		$expected = "HAPUS " . $target_tahun;
-		if (strtoupper($confirm_text) !== strtoupper($expected)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Teks konfirmasi tidak cocok! Anda mengetik '{$confirm_text}', seharusnya '{$expected}'. Tindakan dibatalkan demi keamanan data.</div>");
-			return redirect()->to('admin/master_tabel');
-		}
-
-		// Hitung jumlah data tabel pada tahun tersebut
-		$count = $this->db->query("SELECT COUNT(*) as c FROM t_tahun_tabel WHERE tahun = ?", [$target_tahun])->getRow()->c ?? 0;
-
-		if ($count == 0) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ada tabel yang terdaftar pada Tahun {$target_tahun}.</div>");
-			return redirect()->to('admin/master_tabel');
-		}
-
-		// Eksekusi penghapusan massal data tahunan (hanya pada t_tahun_tabel)
-		// Master tabel pada m_list_tabel tetap aman dan tidak terhapus
-		$this->db->query("DELETE FROM t_tahun_tabel WHERE tahun = ?", [$target_tahun]);
-
-		// Berikan notifikasi sukses
-		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\"><strong>Berhasil!</strong> Sebanyak {$count} tabel pada DDA Tahun {$target_tahun} telah berhasil dikosongkan. Kamus tabel master tetap utuh.</div>");
-		return redirect()->to('admin/master_tabel');
-	}
-
-	// =========================================================================
-	// FUNGSI RESEQUENCE (PENOMORAN ULANG OTOMATIS)
-	// Merapikan urutan nomor tabel pada bab tertentu agar berurutan (misal: 1.1.1, 1.1.2, dst.)
-	// =========================================================================
-	public function resequence_tabel()
-	{
-		// Cek otentikasi login admin
-		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return redirect()->to("admin/login");
-		}
-
-		// Ambil variabel post: prefix bab dan tahun aktif
-		$prefix = trim((string)($this->input->post('prefix') ?? ''));
-		$tahun = $this->session->get("admin_ta") ?: date("Y");
-
-		// Validasi: prefix tidak boleh kosong
-		if (empty($prefix)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Awalan Bab tidak boleh kosong!</div>");
-			return redirect()->back();
-		}
-
-		// Validasi: format prefix hanya boleh angka dan titik (misal: 1.1 atau 2.3)
-		if (!preg_match('/^[\d\.]+$/', $prefix)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Format Awalan Bab tidak valid! (Contoh: 1.2)</div>");
-			return redirect()->back();
-		}
-
-		// Pastikan prefix diakhiri tanda titik agar pencarian LIKE presisi
-		if (substr($prefix, -1) !== '.') {
-			$prefix .= '.';
-		}
-
-		// Ambil semua tabel yang memiliki prefix tersebut pada tahun aktif,
-		// diurutkan secara hirarki numerik agar urutan asli tetap terjaga
-		$tables = $this->db->query("SELECT id, no_tabel, id_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY CAST(SUBSTRING_INDEX(no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0.0'), '.', 4), '.', -1) AS UNSIGNED) ASC, id_tabel ASC", [$tahun, $prefix . '%'])->getResult();
-		
-		if (empty($tables)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ditemukan tabel berawalan $prefix pada tahun $tahun.</div>");
-			return redirect()->back();
-		}
-
-		$updates = 0;
-		$current_num = 1;
-		$last_id_tabel = null;
-
-		// Looping untuk memperbarui nomor tabel secara berurutan
-		foreach ($tables as $t) {
-			// Jika tabel kolaborasi (memiliki id_tabel master yang sama dengan sebelumnya),
-			// berikan nomor kembar yang sama persis
-			if ($last_id_tabel !== null && (int)$t->id_tabel === (int)$last_id_tabel) {
-				$new_no = $prefix . ($current_num - 1);
-			} else {
-				// Jika tabel independen/baru, gunakan nomor berikutnya
-				$new_no = $prefix . $current_num;
-				$current_num++;
-			}
-			
-			// Update nomor tabel jika berbeda dengan nomor sebelumnya
-			if ($t->no_tabel !== $new_no) {
-				$this->db->query("UPDATE t_tahun_tabel SET no_tabel = ? WHERE id = ?", [$new_no, $t->id]);
-				$updates++;
-			}
-			$last_id_tabel = $t->id_tabel;
-		}
-
-		$prefix_msg = rtrim($prefix, '.');
-		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil merapikan urutan (Resequence) pada $updates tabel untuk bab $prefix_msg.</div>");
-		return redirect()->to('admin/master_tabel');
 	}
 }

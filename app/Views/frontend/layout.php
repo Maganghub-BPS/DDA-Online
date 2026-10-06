@@ -563,13 +563,6 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
         .a11y-option:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--bps-blue); }
         .a11y-option i { width: 24px; text-align: center; font-size: 1.1rem; }
 
-        body.high-contrast { background: #000 !important; color: #fff !important; }
-        body.high-contrast * { background-color: #000 !important; color: #0ff !important; border-color: #0ff !important; box-shadow: none !important; }
-        body.high-contrast img, body.high-contrast .scene-container, body.high-contrast .scene-container-search { filter: contrast(150%) grayscale(100%); }
-        body.high-contrast .a11y-menu * { background-color: #222 !important; color: #fff !important; border-color: #fff !important; }
-        body.high-contrast .a11y-btn { background-color: #000 !important; color: #0ff !important; border-color: #0ff !important; }
-        body.high-contrast .hero-airy { background: #000 !important; }
-
         @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
 
     </style>
@@ -722,9 +715,6 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             <div class="a11y-option" onclick="changeFontSize(-1)">
                 <i class="fa-solid fa-magnifying-glass-minus"></i> Perkecil Teks
             </div>
-            <div class="a11y-option" onclick="toggleHighContrast()">
-                <i class="fa-solid fa-circle-half-stroke"></i> Kontras Tinggi
-            </div>
             <div class="a11y-option" onclick="resetA11y()">
                 <i class="fa-solid fa-rotate-right"></i> Reset Pengaturan
             </div>
@@ -770,13 +760,9 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             currentFontSizeOffset += direction;
             document.documentElement.style.fontSize = (100 + (currentFontSizeOffset * 10)) + '%';
         }
-        function toggleHighContrast() {
-            document.body.classList.toggle('high-contrast');
-        }
         function resetA11y() {
             currentFontSizeOffset = 0;
             document.documentElement.style.fontSize = '';
-            document.body.classList.remove('high-contrast');
         }
         document.addEventListener('click', function(e) {
             const widget = document.querySelector('.a11y-widget');

@@ -43,7 +43,7 @@ $RECYCLE.BIN/
 # as it poses a security risk.
 .env
 .env.*
-*.bak*
+.env.bak
 .vagrant
 Vagrantfile
 

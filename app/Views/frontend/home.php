@@ -1345,9 +1345,6 @@
     <div class="container">
         <!-- Section Header to fill the top nicely -->
         <div class="text-center stats-header-wrap mb-4 pb-1">
-            <div class="stats-pill-badge">
-                <i class="fa-solid fa-chart-pie me-1"></i> Ringkasan Portal Data
-            </div>
             <h2 class="stats-section-title">Statistik Terpadu Jawa Tengah</h2>
             <p class="stats-section-subtitle">
                 Akses terbuka dan terintegrasi ke seluruh indikator data statistik sektoral yang dikelola secara resmi oleh Instansi Pemerintah Provinsi Jawa Tengah.
@@ -1412,9 +1409,6 @@
     <div class="container py-2">
         <!-- Section Header matching design language -->
         <div class="text-center mb-4 pb-1">
-            <div class="stats-pill-badge">
-                <i class="fa-solid fa-building-columns me-1.5"></i> Direktori Instansi Daerah
-            </div>
             <h2 class="stats-section-title">Jelajahi Instansi</h2>
             <p class="stats-section-subtitle">
                 Telusuri ketersediaan data dan publikasi statistik resmi berdasarkan Organisasi Perangkat Daerah di Jawa Tengah.
@@ -1800,9 +1794,6 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="container py-2">
         <!-- Section Header matching Gambar 2 (Centered) -->
         <div class="text-center mb-4 pb-2">
-            <div class="stats-pill-badge">
-                <i class="fa-solid fa-bolt me-1.5" style="color: var(--bps-orange);"></i> Pembaruan Terkini
-            </div>
             <h2 class="stats-section-title">Tabel Terbaru</h2>
             <p class="stats-section-subtitle">
                 Rilis dataset tabular dan publikasi statistik sektoral teraktual dari berbagai instansi di Jawa Tengah.
@@ -1894,9 +1885,6 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="container py-3">
         <!-- Section Header matching design language -->
         <div class="text-center mb-4 pb-2">
-            <div class="stats-pill-badge">
-                <i class="fa-solid fa-shapes me-1.5" style="color: var(--bps-orange);"></i> Fitur Unggulan
-            </div>
             <h2 class="stats-section-title">Kenali Fitur Portal</h2>
             <p class="stats-section-subtitle">
                 Ragam kemudahan dan keandalan sistem untuk mendukung kebutuhan eksplorasi data statistik Anda.
