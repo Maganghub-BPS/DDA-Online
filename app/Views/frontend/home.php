@@ -1004,7 +1004,7 @@
 
     /* Hero Illustration Background */
     .hero-illustration-bg {
-        background-image: url('<?= base_url('aset/images/hero-home-bg.jpg') ?>');
+        background-image: url('<?= base_url('aset/images/hero-home-bg.jpeg') ?>?v=<?= filemtime(FCPATH . 'aset/images/hero-home-bg.jpeg') ?>');
         background-size: 100% 100%;
         background-position: center bottom;
         background-repeat: no-repeat;
