@@ -501,6 +501,7 @@
         'l_oi'           => 'Organization Info',
         'report'         => 'Laporan Rekap',
         'matching'       => 'Sinkronisasi/Matching',
+        'matching_pdf'   => 'Matching PDF (Python)',
         'f_passwod'      => 'Ganti Password',
         'v_portal_tabel' => 'View Portal Tabel',
         'v_preview_bulk' => 'Preview Bulk Update',
@@ -550,6 +551,12 @@
                     <a href="<?php echo base_url(); ?>admin/matching/" class="sidebar-link <?php echo ($page == 'matching') ? 'active' : ''; ?>">
                         <i class="bi bi-arrow-left-right"></i>
                         <span class="link-text">Sinkronisasi/Matching</span>
+                    </a>
+
+                    <!-- [Penambahan Fitur Matching PDF]: Navigasi Menu Sidebar ke modul Matching PDF DDA (Python Engine) -->
+                    <a href="<?php echo base_url(); ?>admin/matching_pdf/" class="sidebar-link <?php echo ($page == 'matching_pdf') ? 'active' : ''; ?>">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        <span class="link-text">Matching PDF (Python)</span>
                     </a>
 
                     <a href="<?php echo base_url(); ?>admin/report/" class="sidebar-link <?php echo ($page == 'report') ? 'active' : ''; ?>">
