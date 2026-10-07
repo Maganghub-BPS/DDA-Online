@@ -42,6 +42,14 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             --border-color: #E2E8F0;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
+        #instansi, .instansi-section {
+            scroll-margin-top: 85px;
+        }
+
         *, body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link {
             font-family: 'Inter', "Inter Fallback", sans-serif;
         }
@@ -548,6 +556,11 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="<?= base_url('#instansi') ?>">
+                            <i class="fa-solid fa-building-columns me-1"></i> Instansi
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link <?= $isSearch ? 'active' : '' ?>" href="<?= base_url('home/search') ?>">
                             <i class="fa-solid fa-compass me-1"></i> Jelajah Data
                         </a>
@@ -597,6 +610,10 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                         <a href="<?= base_url() ?>" class="footer-link">
                             <i class="fa-solid fa-chevron-right footer-link-icon"></i>
                             <span>Beranda Utama</span>
+                        </a>
+                        <a href="<?= base_url('#instansi') ?>" class="footer-link">
+                            <i class="fa-solid fa-chevron-right footer-link-icon"></i>
+                            <span>Jelajah Instansi</span>
                         </a>
                         <a href="<?= base_url('home/search') ?>" class="footer-link">
                             <i class="fa-solid fa-chevron-right footer-link-icon"></i>
@@ -722,6 +739,27 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             if (widget && !widget.contains(e.target) && menu.classList.contains('show')) {
                 menu.classList.remove('show');
             }
+        });
+
+        // Smooth scroll ke bagian #instansi di Beranda & tutup menu mobile bila terbuka
+        document.querySelectorAll('a[href*="#instansi"]').forEach(function(anchor) {
+            anchor.addEventListener('click', function(e) {
+                const target = document.getElementById('instansi');
+                if (target) {
+                    e.preventDefault();
+                    const navCollapse = document.getElementById('navbarNav');
+                    if (navCollapse && navCollapse.classList.contains('show')) {
+                        const bsCollapse = bootstrap.Collapse.getInstance(navCollapse) || new bootstrap.Collapse(navCollapse);
+                        bsCollapse.hide();
+                    }
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (history.pushState) {
+                        history.pushState(null, null, '<?= base_url('#instansi') ?>');
+                    } else {
+                        window.location.hash = '#instansi';
+                    }
+                }
+            });
         });
     </script>
 </body>
