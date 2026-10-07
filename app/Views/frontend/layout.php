@@ -10,6 +10,11 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= isset($title) ? $title . ' - ' : '' ?>DDA Jawa Tengah</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="<?= base_url('aset/images/logo-dda.svg') ?>">
+    <link rel="alternate icon" type="image/png" href="<?= base_url('aset/images/logo-dda.png') ?>">
+    <link rel="shortcut icon" href="<?= base_url('favicon.ico') ?>">
+    <link rel="apple-touch-icon" href="<?= base_url('aset/images/logo-dda.png') ?>">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -270,49 +275,28 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             z-index: 10;
         }
 
-        /* Brand Column Styling */
-        .footer-logo-badge {
-            width: 46px;
-            height: 46px;
-            border-radius: 12px;
-            background: rgba(242, 101, 34, 0.14);
-            border: 1px solid rgba(242, 101, 34, 0.28);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: var(--bps-orange);
-            box-shadow: 0 6px 20px rgba(242, 101, 34, 0.2);
+        .footer-logo-img {
+            object-fit: contain;
             flex-shrink: 0;
-            transition: all 0.3s ease;
-        }
-        .footer-logo-badge:hover {
-            transform: scale(1.05) rotate(5deg);
         }
 
         .footer-brand-title {
             font-family: 'Inter', "Inter Fallback", sans-serif;
             font-weight: 800;
-            font-size: 1.5rem;
+            font-size: 1.55rem;
             letter-spacing: -0.4px;
             color: #ffffff;
             line-height: 1.15;
         }
 
-        .footer-badge-instansi {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.07);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #cbd5e1;
-            font-size: 0.76rem;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 20px;
-            margin-top: 5px;
-            letter-spacing: 0.2px;
+        .footer-brand-subtitle {
             font-family: 'Inter', "Inter Fallback", sans-serif;
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.3px;
+            margin-top: 3px;
+            line-height: 1.25;
         }
 
         .footer-desc {
@@ -527,44 +511,6 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             color: #e2e8f0;
         }
 
-        .footer-status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 9px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.09);
-            border-radius: 50px;
-            padding: 5px 14px;
-            font-size: 0.8rem;
-            color: #cbd5e1;
-            font-family: 'Inter', "Inter Fallback", sans-serif;
-            font-weight: 500;
-        }
-
-        .status-dot-pulse {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #10b981;
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-            animation: pulse-green 2s infinite;
-        }
-
-        @keyframes pulse-green {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-            }
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-            }
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-            }
-        }
-
         /* Accessibility Widget */
         .a11y-widget { position: fixed; bottom: 30px; right: 30px; z-index: 9999; }
         .a11y-btn { width: 55px; height: 55px; border-radius: 50%; background-color: var(--bps-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease; border: 3px solid white; }
@@ -626,10 +572,9 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                             <div class="footer-brand-title">
                                 DDA<span style="color: var(--bps-orange);">Online</span>
                             </div>
-                            <span class="footer-badge-instansi">
-                                <i class="fa-solid fa-shield-halved text-warning"></i>
-                                BPS Provinsi Jawa Tengah
-                            </span>
+                            <div class="footer-brand-subtitle">
+                                Provinsi Jawa Tengah
+                            </div>
                         </div>
                     </div>
                     
@@ -702,15 +647,9 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             </div>
             
             <!-- Bottom Copyright Bar -->
-            <div class="footer-bottom d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-                <div class="footer-copyright text-center text-md-start">
+            <div class="footer-bottom text-center">
+                <div class="footer-copyright">
                     &copy; <?= date('Y') ?> <strong>Badan Pusat Statistik Provinsi Jawa Tengah</strong>. Hak Cipta Dilindungi.
-                </div>
-                <div class="footer-status-badge">
-                    <span class="status-dot-pulse"></span>
-                    <span>Portal DDA v2.0</span>
-                    <span style="opacity: 0.35;">•</span>
-                    <span>Satu Data Indonesia</span>
                 </div>
             </div>
         </div>
