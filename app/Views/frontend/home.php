@@ -462,6 +462,7 @@
         position: relative;
         border-top: 1px solid rgba(226, 232, 240, 0.6);
         border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+        scroll-margin-top: 85px;
     }
 
     /* Left Sidebar Menu Card */
@@ -619,6 +620,8 @@
         justify-content: center;
         font-size: 1.15rem;
         flex-shrink: 0;
+        background: #eef5ff;
+        color: var(--bps-blue);
         transition: transform 0.2s ease;
     }
 
@@ -626,15 +629,12 @@
         transform: scale(1.06);
     }
 
-    /* Icon Color Themes matching Image 1 */
-    .opd-strip-icon.opd-icon-orange { background: #fff7ed; color: #ea580c; }
-    .opd-strip-icon.opd-icon-rose   { background: #fdf2f8; color: #db2777; }
-    .opd-strip-icon.opd-icon-green  { background: #f0fdf4; color: #16a34a; }
-    .opd-strip-icon.opd-icon-blue   { background: #eff6ff; color: #2563eb; }
-    .opd-strip-icon.opd-icon-indigo { background: #eef2ff; color: #4f46e5; }
-    .opd-strip-icon.opd-icon-amber  { background: #fefce8; color: #ca8a04; }
-    .opd-strip-icon.opd-icon-purple { background: #faf5ff; color: #9333ea; }
-    .opd-strip-icon.opd-icon-cyan   { background: #ecfeff; color: #0891b2; }
+    /* Warna seragam untuk seluruh ikon instansi */
+    .opd-strip-icon,
+    .opd-strip-icon[class*="opd-icon-"] {
+        background: #eef5ff;
+        color: var(--bps-blue);
+    }
 
     .opd-strip-info {
         flex: 1;
@@ -1310,84 +1310,61 @@
                     $catLabel = 'Instansi Lainnya';
                 }
 
-                // Specific Icon & Color Theme matching Image 1
+                // Specific Icon per instansi
                 if (strpos($lower, 'kepegawaian') !== false || strpos($lower, 'sdm') !== false || strpos($lower, 'bkd') !== false) {
                     $icon = 'fa-solid fa-id-card-clip';
-                    $colorClass = 'opd-icon-orange';
                 } elseif (strpos($lower, 'bencana') !== false || strpos($lower, 'bpbd') !== false) {
                     $icon = 'fa-solid fa-house-fire';
-                    $colorClass = 'opd-icon-orange';
                 } elseif (strpos($lower, 'politik') !== false || strpos($lower, 'kesbangpol') !== false || strpos($lower, 'bangsa') !== false) {
                     $icon = 'fa-solid fa-landmark-flag';
-                    $colorClass = 'opd-icon-rose';
                 } elseif (strpos($lower, 'keuangan') !== false || strpos($lower, 'aset') !== false || strpos($lower, 'bpkad') !== false) {
                     $icon = 'fa-solid fa-file-invoice-dollar';
-                    $colorClass = 'opd-icon-orange';
                 } elseif (strpos($lower, 'pendapatan') !== false || strpos($lower, 'bapenda') !== false || strpos($lower, 'pajak') !== false) {
                     $icon = 'fa-solid fa-money-bill-trend-up';
-                    $colorClass = 'opd-icon-orange';
                 } elseif (strpos($lower, 'pom') !== false || strpos($lower, 'obat') !== false || strpos($lower, 'makanan') !== false) {
                     $icon = 'fa-solid fa-arrow-trend-up';
-                    $colorClass = 'opd-icon-green';
                 } elseif (strpos($lower, 'aliran sungai') !== false || strpos($lower, 'sungai') !== false || strpos($lower, 'das') !== false || strpos($lower, 'air') !== false) {
                     $icon = 'fa-solid fa-water';
-                    $colorClass = 'opd-icon-blue';
                 } elseif (strpos($lower, 'bank') !== false || strpos($lower, 'bi ') !== false || strpos($lower, 'ojk') !== false) {
                     $icon = 'fa-solid fa-building-columns';
-                    $colorClass = 'opd-icon-indigo';
                 } elseif (strpos($lower, 'kesehatan') !== false || strpos($lower, 'rsud') !== false) {
                     $icon = 'fa-solid fa-heart-pulse';
-                    $colorClass = 'opd-icon-rose';
                 } elseif (strpos($lower, 'pendidikan') !== false || strpos($lower, 'sekolah') !== false) {
                     $icon = 'fa-solid fa-graduation-cap';
-                    $colorClass = 'opd-icon-blue';
                 } elseif (strpos($lower, 'pertanian') !== false || strpos($lower, 'kehutanan') !== false || strpos($lower, 'lingkungan') !== false || strpos($lower, 'pangan') !== false) {
                     $icon = 'fa-solid fa-leaf';
-                    $colorClass = 'opd-icon-green';
                 } elseif (strpos($lower, 'komunikasi') !== false || strpos($lower, 'informatika') !== false || strpos($lower, 'diskominfo') !== false) {
                     $icon = 'fa-solid fa-network-wired';
-                    $colorClass = 'opd-icon-cyan';
                 } elseif (strpos($lower, 'perhubungan') !== false || strpos($lower, 'dishub') !== false) {
                     $icon = 'fa-solid fa-route';
-                    $colorClass = 'opd-icon-amber';
                 } elseif (strpos($lower, 'hukum') !== false || strpos($lower, 'kejaksaan') !== false || strpos($lower, 'pengadilan') !== false) {
                     $icon = 'fa-solid fa-scale-balanced';
-                    $colorClass = 'opd-icon-purple';
                 } elseif (strpos($lower, 'sosial') !== false || strpos($lower, 'dinsos') !== false) {
                     $icon = 'fa-solid fa-hands-holding-child';
-                    $colorClass = 'opd-icon-rose';
                 } elseif (strpos($lower, 'energi') !== false || strpos($lower, 'esdm') !== false) {
                     $icon = 'fa-solid fa-bolt';
-                    $colorClass = 'opd-icon-amber';
                 } elseif (strpos($lower, 'kearsipan') !== false || strpos($lower, 'perpustakaan') !== false) {
                     $icon = 'fa-solid fa-book-bookmark';
-                    $colorClass = 'opd-icon-blue';
                 } elseif (strpos($lower, 'pariwisata') !== false || strpos($lower, 'budaya') !== false) {
                     $icon = 'fa-solid fa-masks-theater';
-                    $colorClass = 'opd-icon-rose';
                 } elseif (strpos($lower, 'industri') !== false || strpos($lower, 'perdagangan') !== false) {
                     $icon = 'fa-solid fa-industry';
-                    $colorClass = 'opd-icon-indigo';
                 } elseif (strpos($lower, 'bappeda') !== false || strpos($lower, 'perencanaan') !== false) {
                     $icon = 'fa-solid fa-chart-line';
-                    $colorClass = 'opd-icon-cyan';
                 } elseif (strpos($lower, 'inspektorat') !== false) {
                     $icon = 'fa-solid fa-clipboard-check';
-                    $colorClass = 'opd-icon-purple';
                 } else {
                     $palette = [
-                        ['icon' => 'fa-solid fa-building-user', 'color' => 'opd-icon-orange'],
-                        ['icon' => 'fa-solid fa-landmark', 'color' => 'opd-icon-blue'],
-                        ['icon' => 'fa-solid fa-city', 'color' => 'opd-icon-green'],
-                        ['icon' => 'fa-solid fa-building', 'color' => 'opd-icon-indigo'],
-                        ['icon' => 'fa-solid fa-house-chimney', 'color' => 'opd-icon-rose']
+                        'fa-solid fa-building-user',
+                        'fa-solid fa-landmark',
+                        'fa-solid fa-city',
+                        'fa-solid fa-building',
+                        'fa-solid fa-house-chimney'
                     ];
-                    $selected = $palette[$index % count($palette)];
-                    $icon = $selected['icon'];
-                    $colorClass = $selected['color'];
+                    $icon = $palette[$index % count($palette)];
                 }
 
-                return ['icon' => $icon, 'colorClass' => $colorClass, 'catSlug' => $catSlug, 'catLabel' => $catLabel];
+                return ['icon' => $icon, 'colorClass' => '', 'catSlug' => $catSlug, 'catLabel' => $catLabel];
             }
         }
         ?>
@@ -1462,8 +1439,8 @@
                         ?>
                             <div class="col-md-6 col-12 opd-item" data-category="<?= $meta['catSlug'] ?>" data-name="<?= strtolower(htmlspecialchars($opd->unitkerja_ind)) ?>" <?= $index >= 8 ? 'style="display:none;"' : '' ?>>
                                 <a href="<?= base_url('home/search?opd_search=' . urlencode($opd->unitkerja_ind)) ?>" class="opd-strip-card" title="<?= htmlspecialchars($opd->unitkerja_ind) ?>">
-                                    <!-- Left Round Icon with pastel background -->
-                                    <div class="opd-strip-icon <?= $meta['colorClass'] ?>">
+                                    <!-- Left Round Icon with unified brand color -->
+                                    <div class="opd-strip-icon">
                                         <i class="<?= $meta['icon'] ?>"></i>
                                     </div>
 
@@ -1770,9 +1747,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="keunggulan-content-box">
                     <div class="row g-4 align-items-center">
                         <div class="col-lg-7">
-                            <div class="stats-pill-badge mb-2">
-                                <i class="fa-solid fa-bolt me-1.5" style="color: var(--bps-orange);"></i> Penelusuran Instan
-                            </div>
                             <h3 class="kc-title">Pencarian Dataset Cepat & Filter Presisi</h3>
                             <p class="kc-desc">
                                 Temukan data yang Anda butuhkan dalam hitungan detik dengan sistem pencarian dinamis, filter multi-instansi, dan pengelompokan tahun yang presisi.
@@ -1916,9 +1890,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="keunggulan-content-box">
                     <div class="row g-4 align-items-center">
                         <div class="col-lg-7">
-                            <div class="stats-pill-badge mb-2">
-                                <i class="fa-solid fa-shield-halved me-1.5" style="color: var(--bps-green);"></i> Kualitas & Integritas
-                            </div>
                             <h3 class="kc-title">Data Resmi Sesuai Standar Satu Data Indonesia</h3>
                             <p class="kc-desc">
                                 Seluruh informasi yang disajikan berasal langsung dari sumber resmi dan dijamin keakuratannya oleh instansi pemerintah yang bersangkutan melalui validasi BPS.
@@ -2025,9 +1996,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="keunggulan-content-box">
                     <div class="row g-4 align-items-center">
                         <div class="col-lg-7">
-                            <div class="stats-pill-badge mb-2">
-                                <i class="fa-solid fa-download me-1.5" style="color: var(--bps-orange);"></i> Akses & Unduhan
-                            </div>
                             <h3 class="kc-title">Fleksibilitas Unduhan Excel & Dokumen PDF</h3>
                             <p class="kc-desc">
                                 Menyediakan berbagai opsi pengunduhan berkas yang disesuaikan secara khusus dengan kebutuhan analisis data, pelaporan resmi dinas, maupun pengarsipan.
@@ -2145,9 +2113,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="keunggulan-content-box">
                     <div class="row g-4 align-items-center">
                         <div class="col-lg-7">
-                            <div class="stats-pill-badge mb-2">
-                                <i class="fa-solid fa-network-wired me-1.5" style="color: var(--bps-blue);"></i> Konektivitas Sistem
-                            </div>
                             <h3 class="kc-title">Koneksi Host-to-Host & Sinkronisasi Real-Time</h3>
                             <p class="kc-desc">
                                 Infrastruktur sistem yang terhubung langsung dengan server pusat pemerintah provinsi, menjamin distribusi dataset yang cepat, otomatis, dan konsisten.
@@ -2305,6 +2270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         font-size: 1.75rem;
         letter-spacing: -0.02em;
         line-height: 1.25;
+        margin-bottom: 14px;
     }
     
     .kc-desc {
