@@ -127,7 +127,7 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-image: url('<?= base_url('aset/images/hero-search-bg.jpg') ?>');
+        background-image: url('<?= base_url('aset/images/hero-search-bg.jpeg') ?>');
         background-size: 100% 100%;
         background-position: center bottom;
         background-repeat: no-repeat;
