@@ -170,22 +170,23 @@ def fetch_data_from_link(link: str):
             if "gid=" in link:
                 gid = link.split("gid=")[1].split("#")[0].split("&")[0].strip()
 
+            now_ts = int(time.time())
             if doc_key:
                 urls_to_try = [
-                    f"https://docs.google.com/spreadsheets/d/{doc_key}/export?format=csv" + (f"&gid={gid}" if gid else ""),
-                    f"https://docs.google.com/spreadsheets/d/{doc_key}/gviz/tq?tqx=out:csv" + (f"&gid={gid}" if gid else "")
+                    f"https://docs.google.com/spreadsheets/d/{doc_key}/export?format=csv" + (f"&gid={gid}" if gid else "") + f"&_t={now_ts}",
+                    f"https://docs.google.com/spreadsheets/d/{doc_key}/gviz/tq?tqx=out:csv" + (f"&gid={gid}" if gid else "") + f"&_t={now_ts}"
                 ]
             else:
                 csv_link = re.sub(r"/edit.*", "/export?format=csv", link)
                 if gid: csv_link += f"&gid={gid}"
-                urls_to_try = [csv_link]
+                urls_to_try = [csv_link + f"&_t={now_ts}"]
             
             max_retries = 3
             last_err = None
             for csv_url in urls_to_try:
                 for attempt in range(max_retries):
                     try:
-                        req = urllib.request.Request(csv_url, headers={"User-Agent": "Mozilla/5.0"})
+                        req = urllib.request.Request(csv_url, headers={"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache", "Pragma": "no-cache"})
                         with urllib.request.urlopen(req, timeout=15, context=ssl_ctx) as response:
                             csv_data = response.read().decode("utf-8", errors="ignore")
                             if csv_data.strip().startswith(("<html", "<!DOCTYPE", "<!doctype", "<head")):
@@ -452,7 +453,7 @@ def find_bps_numbering_row(source_data):
     year_idx, year_cells = -1, []
     for i, r in enumerate(source_data[:25]):
         if not isinstance(r, list): continue
-        non_empty = [(idx, str(c).strip()) for idx, c in enumerate(r) if str(c).strip()]
+        non_empty = [(idx, str(c).strip()) for idx, c in enumerate(r) if c is not None and str(c).strip() and str(c).strip().lower() != 'none']
         if len(non_empty) < 2: continue
         
         all_bps = all((re.match(r'^\(?(\d+)\)?$', v) and int(re.match(r'^\(?(\d+)\)?$', v).group(1)) <= 150) for _, v in non_empty)
@@ -486,11 +487,11 @@ def detect_active_data_cols(source_data):
                         if not isinstance(r, list): continue
                         txt = ' '.join(str(c) for c in r).lower().strip()
                         if any(txt.startswith(k) for k in ['sumber:', 'source:', 'catatan:', 'note:', 'perubahan data:']): break
-                        if col_idx < len(r) and str(r[col_idx]).strip():
+                        if col_idx < len(r) and r[col_idx] is not None and str(r[col_idx]).strip():
                             non_meta.append(str(r[col_idx]).strip())
                     
-                    clean_ints = [int(re.sub(r'[^\d]', '', v)) for v in non_meta if re.sub(r'[^\d]', '', v).isdigit()]
-                    is_row_num = clean_ints and (len(clean_ints) >= 3 and clean_ints[0] == 1 and clean_ints[1] == 2 and clean_ints[2] == 3)
+                    first_3_digits = [re.sub(r'[^\d]', '', v) for v in non_meta[:3]]
+                    is_row_num = (col_idx <= 1) and (len(first_3_digits) == 3 and first_3_digits == ['1', '2', '3'])
                     num_count = sum(1 for v in non_meta if parse_num(v) is not None)
                     is_mostly_numeric = (num_count >= 1 and num_count >= len(non_meta) * 0.3) if non_meta else False
                     
@@ -765,6 +766,38 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
             return all_headers
 
     if not rows or not isinstance(rows, list): return []
+    bps_row_idx, bps_cells, row_type = find_bps_numbering_row(rows)
+    if bps_row_idx >= 0 and bps_cells:
+        data_cols = [col_idx for col_idx, val in bps_cells if int(re.match(r'^\(?(\d+)\)?$', str(val).strip()).group(1)) >= 2]
+        if expected_p_len and len(data_cols) == expected_p_len:
+            hdr_rows = [r for r in rows[:bps_row_idx] if isinstance(r, list) and not is_title_row(r)]
+            max_c = max(len(r) for r in hdr_rows)
+            filled_hdr = []
+            for r in hdr_rows:
+                r_padded = [clean_header_text(c) for c in r] + [''] * max(0, max_c - len(r))
+                f_row = []
+                cur = ""
+                for idx, cell in enumerate(r_padded):
+                    if cell:
+                        cur = cell
+                        f_row.append(cell)
+                    else:
+                        if cur and not re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', cur) and not is_bps_col_num(cur):
+                            f_row.append(cur)
+                        else:
+                            f_row.append("")
+                filled_hdr.append(f_row)
+            col_headers = []
+            for c_idx in data_cols:
+                parts = []
+                for r in filled_hdr:
+                    if c_idx < len(r):
+                        val = r[c_idx].strip()
+                        if val and not is_bps_col_num(val) and val not in parts:
+                            parts.append(val)
+                lbl = ' - '.join(parts) if parts else ""
+                col_headers.append(f"Tahun {lbl}" if re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', lbl) else (lbl or f"PDF #{c_idx+1}"))
+            return col_headers
     data_start = -1
     for i, r in enumerate(rows):
         if not isinstance(r, list): continue
@@ -885,13 +918,13 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                             match_cnt += 1
                         elif pv != 0 and abs(sv - pv) / abs(pv) < 0.0001:
                             match_cnt += 1
-                        elif abs(sv * 1000 - pv) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01:
+                        elif pv != 0 and sv != 0 and (abs(sv * 1000 - pv) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01):
                             match_cnt += 1
-                        elif abs(pv * 1000 - sv) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01:
+                        elif pv != 0 and sv != 0 and (abs(pv * 1000 - sv) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01):
                             match_cnt += 1
-                        elif abs(sv * 1000000 - pv) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01:
+                        elif pv != 0 and sv != 0 and (abs(sv * 1000000 - pv) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01):
                             match_cnt += 1
-                        elif abs(pv * 1000000 - sv) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01:
+                        elif pv != 0 and sv != 0 and (abs(pv * 1000000 - sv) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01):
                             match_cnt += 1
                 if total_cnt >= 5:
                     ratio = match_cnt / total_cnt
@@ -1503,6 +1536,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             block_type = 'ones'
             for idx, r in enumerate(source_data[:15]):
                 if not isinstance(r, list): continue
+                if any(re.search(r'[a-zA-Z]{3,}', str(c)) for c in r): continue
+                non_empty = [str(c).strip() for c in r if str(c).strip()]
+                if not non_empty or not all(re.match(r'^\(?\d{1,2}\)?\.?$', c) for c in non_empty): continue
+
                 ones = [i for i, c in enumerate(r) if str(c).strip() in ['(1)', '1', '(1).', '1.']]
                 twos = [i for i, c in enumerate(r) if str(c).strip() in ['(2)', '2', '(2).', '2.']]
                 if len(ones) >= 2:
@@ -1539,6 +1576,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if s in ['JUMLAH', 'TOTAL', 'JUMLAH/TOTAL', 'TOTAL/JUMLAH', 'JUMLAH TOTAL']: return 'TOTAL'
                 if (s.startswith('JUMLAH') or s.startswith('TOTAL')) and not any(k in s for k in ['CURAH', 'HARI', 'HUJAN', 'PENDUDUK', 'SEKOLAH', 'GURU', 'MURID']):
                     return 'TOTAL'
+                s = s.replace('FUNGSIHONAL', 'FUNGSIONAL').replace('FUNGSHIONAL', 'FUNGSIONAL')
 
                 m_grade = re.search(r'\b([I|V|X]+/[A-E])\b', s)
                 if m_grade: return m_grade.group(1).upper()
@@ -1582,6 +1620,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 first_line = valid_lines[0] if valid_lines else (lines[0] if lines else t)
                 if '/' in first_line and not re.search(r'\d/\d', first_line):
                     first_line = first_line.split('/')[0].strip()
+                first_line = re.sub(r'\s+[a-z]$', '', first_line)
                 clean = re.sub(r'[^\w\s\(\)/]', '', first_line).strip()
                 clean = re.sub(r'\s+', ' ', clean).strip()
                 return clean if clean else t
@@ -1700,10 +1739,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             abs_diff = int(abs(diff_val)) if abs(diff_val).is_integer() else abs(diff_val)
 
                             if pv == sv or abs(pv - sv) < 0.0001: is_match = True
-                            elif abs(sv - (pv * 1000)) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01: is_match = True
-                            elif abs(pv - (sv * 1000)) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01: is_match = True
-                            elif abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01: is_match = True
-                            elif abs(pv - (sv * 1000000)) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01: is_match = True
+                            elif pv != 0 and sv != 0 and (abs(sv - (pv * 1000)) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01): is_match = True
+                            elif pv != 0 and sv != 0 and (abs(pv - (sv * 1000)) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01): is_match = True
+                            elif pv != 0 and sv != 0 and (abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01): is_match = True
+                            elif pv != 0 and sv != 0 and (abs(pv - (sv * 1000000)) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01): is_match = True
                             elif rounding_noise(pv, sv):
                                 is_match = True
                                 is_tol = True
@@ -1924,6 +1963,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 c_str = str(c).strip()
                                 if not c_str: continue
                                 if idx_c == first_idx and re.match(r'^\d+\.?$', c_str) and int(c_str.rstrip('.')) <= 50: continue
+                                if not nums and re.search(r'[a-zA-Z]{3,}', c_str):
+                                    if not raw_label: raw_label = c_str
+                                    else: raw_label += ' ' + c_str
+                                    continue
                                 v = parse_num(c_str, is_pdf=is_pdf)
                                 if v is not None: nums.append(v)
                                 else:
@@ -1958,7 +2001,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 # Pass 2: Safe fuzzy matching for unmatched PDF rows
                 for idx_p, p in enumerate(p_recs):
                     if idx_p in used_p_indices: continue
-                    match_s = next((s for s in s_recs if not p_grouped[s['id']] and SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s['display'])), None)
+                    match_s = next((s for s in s_recs if SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s['display'])), None)
                     if match_s:
                         p_grouped[match_s['id']].extend(p['nums'])
                         used_p_indices.add(idx_p)
@@ -1982,10 +2025,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         abs_diff = int(abs(diff_val)) if abs(diff_val).is_integer() else abs(diff_val)
 
                         if pv == sv or abs(pv - sv) < 0.0001: is_match = True
-                        elif abs(sv - (pv * 1000)) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01: is_match = True
-                        elif abs(pv - (sv * 1000)) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01: is_match = True
-                        elif abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01: is_match = True
-                        elif abs(pv - (sv * 1000000)) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01: is_match = True
+                        elif pv != 0 and sv != 0 and (abs(sv - (pv * 1000)) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01): is_match = True
+                        elif pv != 0 and sv != 0 and (abs(pv - (sv * 1000)) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01): is_match = True
+                        elif pv != 0 and sv != 0 and (abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01): is_match = True
+                        elif pv != 0 and sv != 0 and (abs(pv - (sv * 1000000)) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01): is_match = True
                         elif abs(pv - round(sv)) < 0.0001 and abs(pv - sv) < 1.0:
                             is_match = True
                             is_tol = True
@@ -2109,22 +2152,26 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         label_parts = [str(c).strip() for c in r[:year_col_idx] if str(c).strip() and parse_num(str(c).strip(), is_pdf=True) is None]
                         row_label = ' '.join(label_parts) if label_parts else ''
                         
-                        prov_code, prov_name = resolve_provinsi_entity(row_label)
-                        if prov_name:
-                            cur_w = prov_name
+                        if is_prov and (c0 == '1' or 'jawa tengah' in row_label.lower() or 'provinsi' in row_label.lower()):
+                            cur_w = 'Provinsi Jawa Tengah'
                             is_prov = False
-                        elif is_prov and (c0 == '1' or 'jawa tengah' in row_label.lower()):
+                        elif 'provinsi jawa tengah' in row_label.lower() or 'pemprov' in row_label.lower():
                             cur_w = 'Provinsi Jawa Tengah'
                             is_prov = False
                         elif any(k in row_label.lower() for k in ['jumlah', 'total']) and not any(k in row_label.lower() for k in ['curah', 'hari', 'hujan', 'penduduk']):
                             cur_w = 'Total Jawa Tengah'
                             is_prov = False
-                        elif row_label:
-                            found_w = find_wilayah_with_type(row_label, is_kota=is_k)
-                            if found_w != "Umum":
-                                cur_w = found_w
-                        elif any('jawa tengah' in str(c).lower() for c in r[:year_col_idx+1]):
-                            cur_w = "Total Jawa Tengah"
+                        else:
+                            prov_code, prov_name = resolve_provinsi_entity(row_label)
+                            if prov_name:
+                                cur_w = prov_name
+                                is_prov = False
+                            elif row_label:
+                                found_w = find_wilayah_with_type(row_label, is_kota=is_k)
+                                if found_w != "Umum":
+                                    cur_w = found_w
+                            elif any('jawa tengah' in str(c).lower() for c in r[:year_col_idx+1]):
+                                cur_w = "Total Jawa Tengah"
 
                         if cur_w and ('Brebes' in cur_w or cur_w == 'Kota Tegal'):
                             brebes_seen = True
@@ -2177,25 +2224,29 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     label_parts = [str(c).strip() for c in r[:3] if str(c).strip() and parse_num(str(c).strip(), is_pdf=is_pdf) is None]
                     row_label = ' '.join(label_parts) if label_parts else ' '.join(str(c) for c in r[:2])
                     
-                    prov_code, prov_name = resolve_provinsi_entity(row_label)
-                    if prov_name:
-                        w = prov_name
+                    if is_prov and (c0 == '1' or 'jawa tengah' in row_label.lower() or 'provinsi' in row_label.lower()):
+                        w = 'Provinsi Jawa Tengah'
                         is_prov = False
-                    elif is_prov and (c0 == '1' or 'jawa tengah' in row_label.lower()):
+                    elif 'provinsi jawa tengah' in row_label.lower() or 'pemprov' in row_label.lower():
                         w = 'Provinsi Jawa Tengah'
                         is_prov = False
                     elif any(k in row_label.lower() for k in ['jumlah', 'total']) and not any(k in row_label.lower() for k in ['curah', 'hari', 'hujan', 'penduduk']):
                         w = 'Total Jawa Tengah'
                         is_prov = False
                     else:
-                        w = find_wilayah_with_type(row_label, is_kota=is_k)
-                        if w == "Umum":
-                            if any('jawa tengah' in str(c).lower() for c in r):
-                                w = "Total Jawa Tengah"
-                            elif brebes_seen and is_k and (not label_parts or 'total' in txt or 'jumlah' in txt) and any(parse_num(str(c).strip(), is_pdf=is_pdf) is not None for c in r):
-                                w = "Total Jawa Tengah"
-                            else:
-                                continue
+                        prov_code, prov_name = resolve_provinsi_entity(row_label)
+                        if prov_name:
+                            w = prov_name
+                            is_prov = False
+                        else:
+                            w = find_wilayah_with_type(row_label, is_kota=is_k)
+                            if w == "Umum":
+                                if any('jawa tengah' in str(c).lower() for c in r):
+                                    w = "Total Jawa Tengah"
+                                elif brebes_seen and is_k and (not label_parts or 'total' in txt or 'jumlah' in txt) and any(parse_num(str(c).strip(), is_pdf=is_pdf) is not None for c in r):
+                                    w = "Total Jawa Tengah"
+                                else:
+                                    continue
                     
                     if 'Brebes' in w or w == 'Kota Tegal': brebes_seen = True
                         
@@ -2223,7 +2274,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 c_str = str(r[c_idx]).strip() if c_idx < len(r) else ''
                                 v = parse_num(c_str, is_pdf=False)
                                 nums.append(0.0 if v is None else v)
-                        elif w == 'Total Jawa Tengah' and common_first_data_col is not None:
+                        elif w in ('Total Jawa Tengah', 'Jawa Tengah', 'Provinsi Jawa Tengah') and common_first_data_col is not None:
                             first_data_col = common_first_data_col
                         else:
                             w_idx = -1
@@ -2235,7 +2286,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             first_data_col = 2 if w_idx == -1 else w_idx + 1
                             if first_data_col < len(r) and re.match(r'^33\.\d{2}$', str(r[first_data_col]).strip()):
                                 first_data_col += 1
-                            if w != 'Total Jawa Tengah':
+                            if w not in ('Total Jawa Tengah', 'Jawa Tengah', 'Provinsi Jawa Tengah'):
                                 common_first_data_col = first_data_col
                                 
                         if not active_cols:
@@ -2315,10 +2366,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     abs_diff = int(abs(diff_val)) if abs(diff_val).is_integer() else abs(diff_val)
 
                     if pv == sv or abs(pv - sv) < 0.0001: is_match = True
-                    elif abs(sv - (pv * 1000)) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01: is_match = True
-                    elif abs(pv - (sv * 1000)) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01: is_match = True
-                    elif abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01: is_match = True
-                    elif abs(pv - (sv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01: is_match = True
+                    elif pv != 0 and sv != 0 and (abs(sv - (pv * 1000)) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01): is_match = True
+                    elif pv != 0 and sv != 0 and (abs(pv - (sv * 1000)) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01): is_match = True
+                    elif pv != 0 and sv != 0 and (abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01): is_match = True
+                    elif pv != 0 and sv != 0 and (abs(pv - (sv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01): is_match = True
                     elif abs(pv - round(sv)) < 0.0001 and abs(pv - sv) < 1.0:
                         is_match = True
                         is_tol = True
