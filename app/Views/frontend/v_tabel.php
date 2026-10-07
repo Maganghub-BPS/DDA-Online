@@ -302,6 +302,129 @@ function get_dda_label_nested($col)
         border: 1px solid #e2e8f0;
         border-radius: 14px;
         box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+        position: relative;
+        min-height: 480px;
+    }
+
+    /* Skeleton Loading Overlay (Identik dengan Spreadsheet) */
+    .table-skeleton-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        padding: 24px clamp(20px, 2.5vw, 36px);
+        box-sizing: border-box;
+        border-radius: 14px;
+        transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.45s ease;
+        overflow: hidden;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    .table-skeleton-overlay.is-hidden {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    /* Skeleton Table Styles */
+    .table-skeleton-overlay .skeleton-table-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        min-height: 400px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    .table-skeleton-overlay .skeleton-table-row {
+        display: flex;
+        align-items: center;
+        padding: 10px 14px;
+        border-bottom: 1px solid #f1f5f9;
+        gap: 16px;
+    }
+
+    .table-skeleton-overlay .skeleton-table-row:nth-child(even) {
+        background-color: #fafbfc;
+    }
+
+    .table-skeleton-overlay .skeleton-header-row {
+        background: #f1f5f9 !important;
+        border-bottom: 2px solid #cbd5e1;
+        padding: 12px 14px;
+    }
+
+    .table-skeleton-overlay .skeleton-header-row .skeleton-cell .skeleton-shimmer {
+        height: 15px;
+        background: linear-gradient(90deg, #cbd5e1 0%, #e2e8f0 50%, #cbd5e1 100%);
+        background-size: 200% 100%;
+    }
+
+    .table-skeleton-overlay .skeleton-footer-row {
+        background: #f8fafc !important;
+        border-top: 2px solid #cbd5e1;
+        border-bottom: none;
+        margin-top: auto;
+        padding: 11px 14px;
+    }
+
+    .table-skeleton-overlay .skeleton-cell {
+        display: flex;
+        align-items: center;
+    }
+
+    .table-skeleton-overlay .skeleton-cell-no {
+        width: 36px;
+        flex-shrink: 0;
+        justify-content: center;
+    }
+
+    .table-skeleton-overlay .skeleton-cell-name {
+        width: 35%;
+        min-width: 140px;
+        flex-grow: 1;
+    }
+
+    .table-skeleton-overlay .skeleton-cell-val {
+        width: 18%;
+        min-width: 80px;
+        justify-content: flex-end;
+    }
+
+    .table-skeleton-overlay .skeleton-cell-total {
+        width: 20%;
+        min-width: 90px;
+        justify-content: flex-end;
+    }
+
+    /* Shimmer Animation */
+    .table-skeleton-overlay .skeleton-shimmer {
+        display: inline-block;
+        height: 12px;
+        width: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+        background-size: 200% 100%;
+        animation: skeleton-shimmer-wave 1.6s infinite linear;
+    }
+
+    @keyframes skeleton-shimmer-wave {
+        0% {
+            background-position: 200% 0;
+        }
+        100% {
+            background-position: -200% 0;
+        }
     }
 
     /* Force parent containers in the layout to stay within screen width */
@@ -1025,6 +1148,60 @@ if ($primary_result):
 <div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
     <div class="dda-body">
 
+        <!-- Skeleton Loading Screen (Identik dengan Spreadsheet) -->
+        <div id="table-skeleton-overlay" class="table-skeleton-overlay">
+            <div class="skeleton-table-wrapper">
+                <!-- Header Row -->
+                <div class="skeleton-table-row skeleton-header-row">
+                    <div class="skeleton-cell skeleton-cell-no"><span class="skeleton-shimmer"></span></div>
+                    <div class="skeleton-cell skeleton-cell-name"><span class="skeleton-shimmer"></span></div>
+                    <div class="skeleton-cell skeleton-cell-val"><span class="skeleton-shimmer"></span></div>
+                    <div class="skeleton-cell skeleton-cell-val"><span class="skeleton-shimmer"></span></div>
+                    <div class="skeleton-cell skeleton-cell-val d-none d-md-flex"><span class="skeleton-shimmer"></span></div>
+                    <div class="skeleton-cell skeleton-cell-total"><span class="skeleton-shimmer"></span></div>
+                </div>
+
+                <!-- Data Rows (10 Rows for full frame coverage) -->
+                <?php 
+                $sk_widths_name  = [72, 85, 60, 90, 78, 68, 82, 75, 88, 70];
+                $sk_widths_val1  = [55, 70, 48, 65, 58, 72, 60, 52, 68, 62];
+                $sk_widths_val2  = [60, 45, 68, 52, 64, 48, 62, 58, 50, 66];
+                $sk_widths_val3  = [50, 62, 55, 70, 45, 66, 58, 60, 52, 58];
+                $sk_widths_total = [65, 58, 72, 62, 68, 54, 70, 64, 75, 60];
+                for ($k = 0; $k < 10; $k++): 
+                ?>
+                <div class="skeleton-table-row">
+                    <div class="skeleton-cell skeleton-cell-no"><span class="skeleton-shimmer" style="width: 24px;"></span></div>
+                    <div class="skeleton-cell skeleton-cell-name">
+                        <span class="skeleton-shimmer" style="width: <?= $sk_widths_name[$k] ?>%;"></span>
+                    </div>
+                    <div class="skeleton-cell skeleton-cell-val">
+                        <span class="skeleton-shimmer" style="width: <?= $sk_widths_val1[$k] ?>%;"></span>
+                    </div>
+                    <div class="skeleton-cell skeleton-cell-val">
+                        <span class="skeleton-shimmer" style="width: <?= $sk_widths_val2[$k] ?>%;"></span>
+                    </div>
+                    <div class="skeleton-cell skeleton-cell-val d-none d-md-flex">
+                        <span class="skeleton-shimmer" style="width: <?= $sk_widths_val3[$k] ?>%;"></span>
+                    </div>
+                    <div class="skeleton-cell skeleton-cell-total">
+                        <span class="skeleton-shimmer" style="width: <?= $sk_widths_total[$k] ?>%;"></span>
+                    </div>
+                </div>
+                <?php endfor; ?>
+
+                <!-- Summary / Total Row -->
+                <div class="skeleton-table-row skeleton-footer-row">
+                    <div class="skeleton-cell skeleton-cell-no"></div>
+                    <div class="skeleton-cell skeleton-cell-name"><span class="skeleton-shimmer" style="width: 45%; height: 14px;"></span></div>
+                    <div class="skeleton-cell skeleton-cell-val"><span class="skeleton-shimmer" style="width: 70%; height: 14px;"></span></div>
+                    <div class="skeleton-cell skeleton-cell-val"><span class="skeleton-shimmer" style="width: 65%; height: 14px;"></span></div>
+                    <div class="skeleton-cell skeleton-cell-val d-none d-md-flex"><span class="skeleton-shimmer" style="width: 72%; height: 14px;"></span></div>
+                    <div class="skeleton-cell skeleton-cell-total"><span class="skeleton-shimmer" style="width: 80%; height: 14px;"></span></div>
+                </div>
+            </div>
+        </div>
+
     <style>
         @media print {
             body * {
@@ -1039,6 +1216,9 @@ if ($primary_result):
                 left: 0;
                 top: 0;
                 width: 100%;
+            }
+            .table-skeleton-overlay {
+                display: none !important;
             }
             .btn-rounded-modern, .dropdown, .page-header, .table-top-bar {
                 display: none !important;
@@ -1522,6 +1702,19 @@ if ($primary_result):
         let rawApiResults = <?php echo json_encode($api_results); ?>;
         let currentSelectedYears = []; // Global state multi-tahun
         let currentTableConfig = null;
+        let tableSkeletonDismissed = false;
+
+        function hideTableSkeleton() {
+            if (tableSkeletonDismissed) return;
+            const skeletonEl = document.getElementById('table-skeleton-overlay');
+            if (skeletonEl) {
+                tableSkeletonDismissed = true;
+                skeletonEl.classList.add('is-hidden');
+                setTimeout(function() {
+                    skeletonEl.style.display = 'none';
+                }, 480);
+            }
+        }
 
         // --- 1. AUTO-LOAD DARI DATABASE SAAT HALAMAN DIBUKA ---
         window.addEventListener('DOMContentLoaded', (event) => {
@@ -1536,7 +1729,16 @@ if ($primary_result):
                     }
                 }
             });
+
+            // Berikan jeda halus agar rendering tabel selesai & stabil sebelum skeleton memudar
+            setTimeout(hideTableSkeleton, 250);
         });
+
+        // Safety fallback jika load event terlambat atau selesai lebih cepat
+        window.addEventListener('load', () => {
+            setTimeout(hideTableSkeleton, 150);
+        });
+        setTimeout(hideTableSkeleton, 4500);
         
         function exportTableToPDF(tableID, nomor = '', judulId = '', judulEn = '') {
             if (typeof window.jspdf === 'undefined') {
