@@ -89,3 +89,36 @@ Sistem ini awalnya dirancang untuk mengelola tautan (link) tabel dari Google She
 3.  **Maintenance Tampilan**: Semua pembaruan UI harus merujuk pada `index.css` untuk menjaga konsistensi tema.
 
 ---
+---
+
+## 6. Modul Baru: Data Verifier AI (Matching & Audit PDF DDA)
+
+Modul ini dikembangkan untuk mengotomasi audit dan verifikasi rekonsiliasi antara dokumen cetak publikasi BPS (**Provinsi Jawa Tengah Dalam Angka / DDA**) melawan sumber data primer (**Google Spreadsheet** atau **API Satu Data Jawa Tengah**).
+
+### A. Arsitektur & Komponen
+1. **Python AI/Data Engine (python_engine/)**:
+   - match_pdf.py: Pemindaian cepat nomor dan judul tabel menggunakan PyMuPDF (fitz), regex parsing multi-tingkat (strict & relaxed), pembersihan mojibake, fuzzy matching berbasis RapidFuzz (ambang batas 85%), serta pembuatan cache index halaman (.pdf.index.json) untuk pencarian O(1).
+   - compare_table.py: Engine komparasi sel-demi-sel (head-to-head). Mendukung pembacaan Google Spreadsheet CSV publik, API Satu Data Jateng (Bearer Token), parser numerik multi-format (ribuan bertitik, desimal koma, dash/tanda minus OCR, satuan km2/persen), pendeteksi header berjenjang, dan pendeteksi tabel multi-tahun.
+   - atch_verify.py: Worker background multi-threading (ThreadPoolExecutor, 3 workers) yang memproses 400+ tabel di sisi server secara ringan dan stabil, dilengkapi mekanisme graceful stop (.stop).
+   - export_excel.py: Generator laporan resmi Berita Acara Rekonsiliasi berbasis spreadsheet Excel (.xlsx) dengan penandaan warna (Merah = Beda Nilai, Hijau = Cocok, Biru = Cocok Toleransi, Kuning = Khusus Cetakan PDF).
+
+2. **Controller & Endpoint Backend (pp/Controllers/Admin.php)**:
+   - matching_pdf(): Halaman utama modul Data Verifier AI.
+   - process_matching_pdf(): Handler upload dan pemindaian awal PDF master.
+   - erify_tabel_pdf(): Komparasi langsung satu tabel secara instan.
+   - start_batch_worker(): Menjalankan worker validasi massal secara background asynchronous (non-blocking).
+   - get_batch_progress(): Endpoint polling ringan pembaca file progress JSON.
+   - stop_batch_worker(): Endpoint pembatalan proses validasi massal.
+   - export_tabel_excel(): Endpoint unduh berkas Berita Acara Rekonsiliasi Excel.
+   - save_batch_status() & get_batch_status(): Penyimpanan status verifikasi per nomor tabel.
+
+3. **User Interface (pp/Views/admin/matching_pdf.php)**:
+   - Card status berkas master PDF per tahun anggaran aktif.
+   - Card monitoring progress bar real-time saat batch worker berjalan.
+   - Live filter & quick filter buttons: Semua, Ada Beda Nilai, Cocok, Belum Cek, API Kosong.
+   - Modal detail komparasi head-to-head, visualisasi selisih nilai, disposisi status database, dan unduh Excel.
+
+4. **Strategi Penyimpanan (Deterministic Master & Zero-DB Changes)**:
+   - File master PDF disimpan terpusat per tahun anggaran: writable/uploads/dda_master_{tahun}.pdf.
+   - Riwayat hasil verifikasi disimpan pada writable/uploads/dda_state_{tahun}.json sehingga data audit abadi (persistent) tanpa perlu menambah tabel atau kolom baru di database MySQL.
+   - Garbage collector otomatis membersihkan berkas temporer tak bertuan yang berusia lebih dari 24 jam.

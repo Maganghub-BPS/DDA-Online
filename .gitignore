@@ -126,3 +126,17 @@ _modules/*
 
 /results/
 /phpunit*.xml
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+python_engine/*.json
+
+# Local scratch / test dumps
+scratch/
+data/
+*.bak
+debug_output.txt
+mock_db.json
+simdasi.html

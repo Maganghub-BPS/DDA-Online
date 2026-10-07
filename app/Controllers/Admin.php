@@ -2769,4 +2769,510 @@ class Admin extends BaseController
 		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil merapikan urutan (Resequence) pada $updates tabel untuk bab $prefix_msg di Tahun $tahun.</div>");
 		return redirect()->to('admin/master_tabel');
 	}
+
+	// =========================================================================
+	// MODUL DATA VERIFIER AI (MATCHING & AUDIT PDF DDA)
+	// =========================================================================
+	public function matching_pdf()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$ta = $this->session->get('admin_ta');
+		if (empty($ta)) {
+			$ta = '2026';
+		}
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		$pdfMaster = $uploadPath . "dda_master_{$ta}.pdf";
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+		$progressJson = $uploadPath . "dda_progress_{$ta}.json";
+
+		$hasMaster = false;
+		$masterData = null;
+		$batchStatus = [];
+		$isBatchRunning = false;
+
+		// 1. Cek ketersediaan file master PDF dan file hasil scan tabel
+		if (file_exists($pdfMaster) && file_exists($matchedJson)) {
+			$rawMatched = @file_get_contents($matchedJson);
+			$masterData = json_decode($rawMatched, true);
+			if ($masterData && (isset($masterData['matched_in_pdf']) || isset($masterData['matched_tables']))) {
+				$hasMaster = true;
+				$masterData['pdf_path'] = $pdfMaster;
+				$masterData['db_json_path'] = $dbJson;
+				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
+				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
+			}
+		}
+
+		// 2. Muat status validasi terakhir dari file state JSON
+		if (file_exists($stateJson)) {
+			$batchStatus = json_decode(@file_get_contents($stateJson), true) ?? [];
+		}
+
+		// 3. Cek apakah background batch worker masih aktif berjalan
+		if (file_exists($progressJson)) {
+			$prog = json_decode(@file_get_contents($progressJson), true);
+			if ($prog && !empty($prog['is_running'])) {
+				if (isset($prog['updated_at']) && (time() - $prog['updated_at']) < 45) {
+					$isBatchRunning = true;
+				}
+			}
+		}
+
+		$a['page'] = "matching_pdf";
+		$a['ta'] = $ta;
+		$a['has_master'] = $hasMaster;
+		$a['master_data'] = $masterData;
+		$a['batch_status'] = $batchStatus;
+		$a['is_batch_running'] = $isBatchRunning;
+
+		return view('admin/index', $a);
+	}
+
+	/**
+	 * Memproses unggahan publikasi PDF buku DDA (Initial Upload maupun Revisi).
+	 *
+	 * Menggunakan arsitektur "Deterministic Slot Master per Tahun":
+	 * 1. File disimpan dengan nama statis `dda_master_{ta}.pdf` (overwrite file lama).
+	 * 2. Mengambil metadata tabel tahun aktif dari tabel `t_list_tabel`.
+	 * 3. Menjalankan Python engine `match_pdf.py` untuk pemindaian tabel dan indexing halaman.
+	 * 4. Menyimpan hasil pencocokan struktur tabel ke `dda_matched_{ta}.json`.
+	 * 5. Menjalankan Lazy Garbage Collection otomatis: menghapus file upload sementara
+	 *    yang berumur > 24 jam untuk menjaga kapasitas disk server tetap ramping.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface JSON response status dan data hasil scan
+	 */
+	public function process_matching_pdf()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$file = $this->request->getFile('pdf_file');
+		
+		if (!$file || !$file->isValid()) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'File PDF tidak valid atau gagal diunggah.']);
+		}
+		
+		if ($file->getExtension() != 'pdf') {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Hanya file PDF yang diizinkan.']);
+		}
+
+		$ta = $this->session->get('admin_ta');
+		if (empty($ta)) {
+			$ta = '2026';
+		}
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		if (!is_dir($uploadPath)) {
+			mkdir($uploadPath, 0777, true);
+		}
+
+		// Master file paths for year $ta
+		$pdfMasterName = "dda_master_{$ta}.pdf";
+		$pdfPath = $uploadPath . $pdfMasterName;
+		$dbJsonPath = $uploadPath . "dda_db_{$ta}.json";
+		$matchedJsonPath = $uploadPath . "dda_matched_{$ta}.json";
+
+		// Overwrite master PDF file
+		if (file_exists($pdfPath)) {
+			@unlink($pdfPath);
+		}
+		$file->move($uploadPath, $pdfMasterName, true);
+
+		// Ambil data database: Mendukung skema baru (t_tahun_tabel JOIN m_list_tabel) maupun skema lama (t_list_tabel)
+		if ($this->db->tableExists('t_tahun_tabel') && $this->db->tableExists('m_list_tabel')) {
+			$query = $this->db->query("
+				SELECT 
+					COALESCE(t.no_tabel, '') as nomor_tabel, 
+					m.judul_ind as raw_judul, 
+					t.periode_id,
+					t.link_tabel 
+				FROM t_tahun_tabel t
+				JOIN m_list_tabel m ON t.id_tabel = m.id
+				WHERE t.tahun = ?
+			", [$ta]);
+			$raw_tables = $query->getResultArray();
+			$db_tables = [];
+			foreach ($raw_tables as $r) {
+				$formatted_judul = function_exists('format_judul_tabel') 
+					? format_judul_tabel($r['raw_judul'], $r['periode_id']) 
+					: $r['raw_judul'];
+				$db_tables[] = [
+					'nomor_tabel' => $r['nomor_tabel'],
+					'judul_tabel' => $formatted_judul,
+					'link_tabel'  => $r['link_tabel']
+				];
+			}
+		} else {
+			$query = $this->db->query("SELECT nomor_tabel, judul_ind as judul_tabel, link_tabel FROM t_list_tabel WHERE tahun = ?", [$ta]); 
+			$db_tables = $query->getResultArray();
+		}
+		foreach ($db_tables as &$row) {
+		    if (empty(trim($row["nomor_tabel"]))) {
+		        if (preg_match("/(?:Tabel|Table)?\s*(\d+\.\d+(?:\.\d+[a-zA-Z]*)?)/i", $row["judul_tabel"], $matches)) {
+		            $row["nomor_tabel"] = trim($matches[1]);
+		        }
+		    }
+		}
+
+		// Save array DB ke master JSON file untuk tahun $ta
+		file_put_contents($dbJsonPath, json_encode($db_tables));
+
+		// Path ke script Python match_pdf.py
+		$pythonScript = FCPATH . '../python_engine/match_pdf.py';
+		
+		// Run Python lewat shell_exec
+		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " 2>&1";
+		$output = shell_exec($command);
+
+		if (!$output) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Script Python gagal jalan. Pastikan Python sudah di path.']);
+		}
+
+		$result = json_decode($output, true);
+		if (!$result) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Error parsing Python output. Detail: ' . $output]);
+		}
+
+		// Simpan hasil scan daftar tabel ke file master dda_matched_{ta}.json
+		file_put_contents($matchedJsonPath, json_encode($result, JSON_PRETTY_PRINT));
+
+		// Lazy Garbage Collection: Hapus file sampah lama (>24 jam) yang bukan master
+		$now = time();
+		$files = glob($uploadPath . '*');
+		foreach ($files as $f) {
+			if (is_file($f)) {
+				$basename = basename($f);
+				if (strpos($basename, 'dda_master_') === 0 || 
+					strpos($basename, 'dda_matched_') === 0 || 
+					strpos($basename, 'dda_state_') === 0 || 
+					strpos($basename, 'dda_progress_') === 0 || 
+					strpos($basename, 'dda_db_') === 0 ||
+					$basename === 'index.html') {
+					continue;
+				}
+				if (($now - filemtime($f)) > 86400) {
+					@unlink($f);
+				}
+			}
+		}
+
+		$result['pdf_path'] = $pdfPath;
+		$result['db_json_path'] = $dbJsonPath;
+		$result['upload_time'] = date('d M Y H:i');
+		$result['file_size_mb'] = round(filesize($pdfPath) / (1024 * 1024), 1);
+
+		return $this->response->setJSON($result);
+	}
+
+	/**
+	 * Melakukan verifikasi dan rekonsiliasi head-to-head untuk 1 tabel spesifik.
+	 *
+	 * Menjalankan Python engine `compare_table.py` untuk mengunduh data live terbaru
+	 * dari Google Spreadsheet / Satu Data API, lalu mencocokkannya dengan tabel di PDF.
+	 * Hasil perbandingan langsung disimpan ke `dda_state_{ta}.json` secara real-time,
+	 * sehingga saat data yang salah dibetulkan di spreadsheet dan dicek ulang, status
+	 * otomatis berubah menjadi "Cocok 100%" dan persisten.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface Detail perbandingan sel angka (diffs, matches, pdf_only)
+	 */
+	public function verify_tabel_pdf()
+	{
+		$nomor_tabel = $this->request->getPost("nomor_tabel");
+		$pdfPath = $this->request->getPost("pdf_path");
+		$dbJsonPath = $this->request->getPost("db_json_path");
+		$tolerance = $this->request->getPost("tolerance") ?? "0.0";
+
+		if (empty($nomor_tabel) || empty($pdfPath) || empty($dbJsonPath)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Nomor tabel tidak valid']);
+		}
+
+		$pythonScript = FCPATH . "../python_engine/compare_table.py";
+		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($tolerance) . " 2>&1";
+		$output = shell_exec($command);
+
+		if (!$output) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal mengeksekusi script Python']);
+		}
+
+		$res = json_decode($output, true);
+		if ($res) {
+			// Update state file secara otomatis & persisten
+			$ta = $this->session->get('admin_ta') ?? '2026';
+			if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
+				$ta = $mYear[1];
+			}
+			$statePath = WRITEPATH . "uploads/dda_state_{$ta}.json";
+			$stateData = [];
+			if (file_exists($statePath)) {
+				$stateData = json_decode(@file_get_contents($statePath), true) ?? [];
+			}
+
+			$status = 'diff';
+			$diff_count = 0;
+			$match_count = 0;
+
+			if (isset($res['status']) && $res['status'] === 'success') {
+				$totalDiffs = isset($res['summary']) ? $res['summary']['total_diffs'] : (isset($res['diffs']) ? count($res['diffs']) : 0);
+				$totalMatches = isset($res['summary']) ? $res['summary']['total_matches'] : (isset($res['matches']) ? count($res['matches']) : 0);
+				if ($totalDiffs > 0) {
+					$status = 'diff';
+					$diff_count = $totalDiffs;
+				} else {
+					$status = 'match';
+					$match_count = $totalMatches;
+				}
+			} else if (isset($res['is_api_empty']) && $res['is_api_empty']) {
+				$status = 'api_empty';
+			} else {
+				$status = 'diff';
+				$diff_count = '!';
+			}
+
+			$stateData[$nomor_tabel] = [
+				'nomor_tabel' => $nomor_tabel,
+				'status' => $status,
+				'diff_count' => $diff_count,
+				'match_count' => $match_count,
+				'updated_at' => date('Y-m-d H:i:s')
+			];
+			@file_put_contents($statePath, json_encode($stateData, JSON_PRETTY_PRINT));
+		}
+
+		return $this->response->setJSON($res);
+	}
+
+	/**
+	 * Menyalakan Background Worker untuk validasi semua tabel secara massal (Batch Validation).
+	 *
+	 * Solusi beban berat: Alih-alih browser menembakkan ratusan AJAX bolak-balik menyalakan
+	 * proses Python, server menyalakan 1 background worker Python (`batch_verify.py`)
+	 * dengan multi-threading internal. Browser user tetap ringan, adem, dan responsif.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface Status keberhasilan inisiasi background task
+	 */
+	public function start_batch_worker()
+	{
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$tolerance = $this->request->getPost('tolerance') ?? "0.0";
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		$pdfPath = $uploadPath . "dda_master_{$ta}.pdf";
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+		$progressJson = $uploadPath . "dda_progress_{$ta}.json";
+
+		if (!file_exists($pdfPath) || !file_exists($matchedJson) || !file_exists($dbJson)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
+		}
+
+		// Bersihkan stop file jika ada
+		$stopFile = $progressJson . '.stop';
+		if (file_exists($stopFile)) {
+			@unlink($stopFile);
+		}
+
+		// Reset state file ke object kosong (BUKAN array) agar batch_verify.py mulai bersih
+		@file_put_contents($stateJson, json_encode(new \stdClass(), JSON_FORCE_OBJECT));
+
+		// Initial progress marker
+		$progData = [
+			'is_running' => true,
+			'completed' => 0,
+			'total' => 0,
+			'percent' => 0,
+			'updated_at' => time()
+		];
+		@file_put_contents($progressJson, json_encode($progData));
+
+		$pyScript = FCPATH . '../python_engine/batch_verify.py';
+		$errLog = $uploadPath . "dda_batch_stderr_{$ta}.log";
+		$cmd = "start /B python " . escapeshellarg($pyScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($matchedJson) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($stateJson) . " " . escapeshellarg($progressJson) . " " . escapeshellarg($tolerance) . " > NUL 2>" . escapeshellarg($errLog);
+
+		pclose(popen($cmd, "r"));
+
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Batch worker berhasil dimulai']);
+	}
+
+	/**
+	 * Mengambil progres terkini dan update status tabel dari Background Worker.
+	 *
+	 * Dipanggil secara ringan (polling) oleh browser setiap 1.5 detik untuk memperbarui
+	 * progress bar dan badge tabel secara real-time tanpa membebani server maupun klien.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface Data progres (%) dan kumpulan status tabel
+	 */
+	public function get_batch_progress()
+	{
+		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$progressJson = $uploadPath . "dda_progress_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+
+		$prog = [
+			'is_running' => false,
+			'completed' => 0,
+			'total' => 0,
+			'percent' => 0
+		];
+
+		if (file_exists($progressJson)) {
+			$parsed = null;
+			for ($attempt = 0; $attempt < 4; $attempt++) {
+				$raw = @file_get_contents($progressJson);
+				if (!empty($raw)) {
+					$decoded = json_decode($raw, true);
+					if (is_array($decoded) && isset($decoded['is_running'])) {
+						$parsed = $decoded;
+						break;
+					}
+				}
+				usleep(40000); // 40ms backoff
+			}
+
+			if ($parsed) {
+				$prog = $parsed;
+				// Safety timeout: jika tidak ada pembaruan > 180 detik, anggap proses telah selesai
+				// (diperbesar karena beberapa tabel butuh waktu lama untuk fetch API eksternal)
+				if (!empty($prog['is_running']) && isset($prog['updated_at']) && (time() - $prog['updated_at']) > 180) {
+					$prog['is_running'] = false;
+				}
+			} else {
+				// File ada tapi sesaat sedang di-lock/ditulis oleh Python, pertahankan is_running true
+				$prog['is_running'] = true;
+			}
+		}
+
+		$stateData = [];
+		if (file_exists($stateJson)) {
+			for ($attempt = 0; $attempt < 3; $attempt++) {
+				$rawState = @file_get_contents($stateJson);
+				if (!empty($rawState)) {
+					$decodedState = json_decode($rawState, true);
+					if (is_array($decodedState)) {
+						$stateData = $decodedState;
+						break;
+					}
+				}
+				usleep(40000);
+			}
+		}
+
+		return $this->response->setJSON([
+			'status' => 'success',
+			'progress' => $prog,
+			'batch_status' => $stateData
+		]);
+	}
+
+	/**
+	 * Menghentikan proses Background Batch Worker secara graceful.
+	 *
+	 * Membuat file sinyal `.stop` yang akan dideteksi oleh script Python untuk membatalkan
+	 * antrean task yang belum dieksekusi dan menutup thread pool dengan aman.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface Konfirmasi penghentian worker
+	 */
+	public function stop_batch_worker()
+	{
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$progressJson = $uploadPath . "dda_progress_{$ta}.json";
+		$stopFile = $progressJson . '.stop';
+
+		@file_put_contents($stopFile, 'STOP');
+
+		if (file_exists($progressJson)) {
+			$raw = @file_get_contents($progressJson);
+			$parsed = json_decode($raw, true);
+			if ($parsed) {
+				$parsed['is_running'] = false;
+				@file_put_contents($progressJson, json_encode($parsed));
+			}
+		}
+
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Proses batch dihentikan']);
+	}
+
+	/**
+	 * Mengekspor Berita Acara Rekonsiliasi Tabel ke file Excel (.xlsx).
+	 *
+	 * Menggunakan Python script `export_excel.py` dengan format lembar kerja resmi:
+	 * memuat ringkasan KPI, tabel perbandingan nilai, selisih data, serta kolom tanda tangan.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface Download stream berkas Excel
+	 */
+	public function export_tabel_excel()
+	{
+		$nomor_tabel = $this->request->getGet("nomor_tabel");
+		$pdfPath = $this->request->getGet("pdf_path");
+		$dbJsonPath = $this->request->getGet("db_json_path");
+		$tolerance = $this->request->getGet("tolerance") ?? "0.0";
+
+		if (empty($nomor_tabel) || empty($pdfPath) || empty($dbJsonPath)) {
+			return $this->response->setStatusCode(400)->setBody("Parameter tidak valid");
+		}
+
+		$cleanTable = preg_replace('/[^a-zA-Z0-9_\.]/', '_', $nomor_tabel);
+		$outputFileName = "Rekonsiliasi_Tabel_" . $cleanTable . "_" . time() . ".xlsx";
+		$outputPath = WRITEPATH . "uploads/" . $outputFileName;
+
+		$pythonScript = FCPATH . "../python_engine/export_excel.py";
+		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($outputPath) . " " . escapeshellarg($tolerance) . " 2>&1";
+		$output = shell_exec($command);
+
+		if (file_exists($outputPath)) {
+			return $this->response->download($outputPath, null)->setFileName("Rekonsiliasi_Tabel_" . $cleanTable . ".xlsx");
+		} else {
+			return $this->response->setStatusCode(500)->setBody("Gagal membuat file Excel: " . $output);
+		}
+	}
+
+	/**
+	 * Menyimpan status verifikasi batch tabel ke file state JSON.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface Status penyimpanan
+	 */
+	public function save_batch_status()
+	{
+		$pdfPath = $this->request->getPost("pdf_path");
+		$batchData = $this->request->getPost("batch_data");
+
+		if (empty($pdfPath) || empty($batchData)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Parameter tidak lengkap']);
+		}
+
+		$ta = $this->session->get('admin_ta') ?? '2026';
+		if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
+			$ta = $mYear[1];
+		}
+		$statePath = WRITEPATH . "uploads/dda_state_{$ta}.json";
+		file_put_contents($statePath, $batchData);
+
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Status batch berhasil disimpan']);
+	}
+
+	/**
+	 * Mengambil riwayat verifikasi batch dari file state JSON tahun aktif.
+	 *
+	 * @return \CodeIgniter\HTTP\ResponseInterface JSON array riwayat status tabel
+	 */
+	public function get_batch_status()
+	{
+		$ta = $this->request->getGetPost("ta") ?? $this->session->get('admin_ta') ?? '2026';
+		$statePath = WRITEPATH . "uploads/dda_state_{$ta}.json";
+		if (file_exists($statePath)) {
+			$data = json_decode(@file_get_contents($statePath), true);
+			return $this->response->setJSON(['status' => 'success', 'data' => $data]);
+		}
+
+		return $this->response->setJSON(['status' => 'empty', 'data' => []]);
+	}
 }
