@@ -132,6 +132,8 @@ __pycache__/
 *.py[cod]
 *.class
 python_engine/*.json
+.venv/
+venv/
 
 # Local scratch / test dumps
 scratch/

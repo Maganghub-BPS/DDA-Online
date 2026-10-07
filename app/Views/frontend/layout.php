@@ -511,18 +511,85 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             color: #e2e8f0;
         }
 
-        /* Accessibility Widget */
-        .a11y-widget { position: fixed; bottom: 30px; right: 30px; z-index: 9999; }
-        .a11y-btn { width: 55px; height: 55px; border-radius: 50%; background-color: var(--bps-blue); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.3s ease; border: 3px solid white; }
-        .a11y-btn:hover { transform: scale(1.1); }
-        .a11y-menu { position: absolute; bottom: 70px; right: 0; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 250px; padding: 15px; display: none; flex-direction: column; gap: 10px; transform-origin: bottom right; border: 1px solid #e2e8f0; }
-        .a11y-menu.show { display: flex; animation: popIn 0.3s ease forwards; }
-        .a11y-menu-header { font-weight: bold; font-size: 1.1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 5px; color: #1e293b; font-family: 'Inter', "Inter Fallback", sans-serif; text-align: center; }
-        .a11y-option { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; background: #f8fafc; cursor: pointer; transition: background 0.2s; border: 1px solid transparent; color: #334155; font-weight: 500; font-size: 0.95rem; }
-        .a11y-option:hover { background: #eff6ff; border-color: #bfdbfe; color: var(--bps-blue); }
-        .a11y-option i { width: 24px; text-align: center; font-size: 1.1rem; }
-
-        @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        /* Floating LATIFA Button */
+        .latifa-widget {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 9999;
+        }
+        .latifa-btn {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
+            border: 3px solid #ffffff;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .latifa-btn:hover {
+            transform: scale(1.12) translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+            border-color: #ffffff;
+        }
+        .latifa-btn-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
+        }
+        .latifa-tooltip {
+            position: absolute;
+            right: 68px;
+            top: 50%;
+            transform: translateY(-50%) translateX(10px);
+            background: #1e293b;
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-family: 'Inter', "Inter Fallback", sans-serif;
+        }
+        .latifa-tooltip::after {
+            content: '';
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-width: 5px 0 5px 5px;
+            border-style: solid;
+            border-color: transparent transparent transparent #1e293b;
+        }
+        .latifa-widget:hover .latifa-tooltip {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+        @media (max-width: 576px) {
+            .latifa-widget {
+                bottom: 20px;
+                right: 20px;
+            }
+            .latifa-btn {
+                width: 50px;
+                height: 50px;
+            }
+            .latifa-tooltip {
+                display: none;
+            }
+        }
 
     </style>
 </head>
@@ -655,25 +722,12 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
         </div>
     </footer>
 
-    <!-- Accessibility Widget HTML -->
-    <div class="a11y-widget">
-        <div class="a11y-menu" id="a11yMenu">
-            <div class="a11y-menu-header">
-                Aksesibilitas
-            </div>
-            <div class="a11y-option" onclick="changeFontSize(1)">
-                <i class="fa-solid fa-magnifying-glass-plus"></i> Perbesar Teks
-            </div>
-            <div class="a11y-option" onclick="changeFontSize(-1)">
-                <i class="fa-solid fa-magnifying-glass-minus"></i> Perkecil Teks
-            </div>
-            <div class="a11y-option" onclick="resetA11y()">
-                <i class="fa-solid fa-rotate-right"></i> Reset Pengaturan
-            </div>
-        </div>
-        <div class="a11y-btn" onclick="document.getElementById('a11yMenu').classList.toggle('show')">
-            <i class="fa-solid fa-universal-access"></i>
-        </div>
+    <!-- Floating LATIFA Button -->
+    <div class="latifa-widget">
+        <span class="latifa-tooltip">Kunjungi LATIFA</span>
+        <a href="https://latifa.jateng.pro/" target="_blank" rel="noopener noreferrer" class="latifa-btn" title="LATIFA - Layanan Terpadu Informasi Statistik & Konsultasi BPS Jateng" aria-label="LATIFA BPS Jawa Tengah">
+            <img src="<?= base_url('aset/images/latifa.svg') ?>" alt="Logo LATIFA" class="latifa-btn-img">
+        </a>
     </div>
 
     <!-- Scripts -->
@@ -703,26 +757,6 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
         handleNavbarScroll();
         <?php endif; ?>
 
-        // Accessibility JS
-        let currentFontSizeOffset = 0;
-        function changeFontSize(direction) {
-            if (direction > 0 && currentFontSizeOffset >= 3) return; // limit max
-            if (direction < 0 && currentFontSizeOffset <= -1) return; // limit min
-            
-            currentFontSizeOffset += direction;
-            document.documentElement.style.fontSize = (100 + (currentFontSizeOffset * 10)) + '%';
-        }
-        function resetA11y() {
-            currentFontSizeOffset = 0;
-            document.documentElement.style.fontSize = '';
-        }
-        document.addEventListener('click', function(e) {
-            const widget = document.querySelector('.a11y-widget');
-            const menu = document.getElementById('a11yMenu');
-            if (widget && !widget.contains(e.target) && menu.classList.contains('show')) {
-                menu.classList.remove('show');
-            }
-        });
     </script>
 </body>
 </html>
