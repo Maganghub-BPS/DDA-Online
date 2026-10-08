@@ -1773,11 +1773,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 <div class="kc-highlight-item">
                                     <div class="kc-highlight-icon">
-                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        <i class="fa-solid fa-table-cells"></i>
                                     </div>
                                     <div class="kc-highlight-text">
-                                        <h6>Akses Langsung ke Metadata</h6>
-                                        <p>Tinjau ringkasan variabel dan sumber data secara instan sebelum melakukan pengunduhan berkas.</p>
+                                        <h6>Pratinjau Tabel Interaktif</h6>
+                                        <p>Buka dan telusuri isi tabel data secara langsung lengkap dengan catatan sumber sebelum mengunduh berkas.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1892,7 +1892,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-lg-7">
                             <h3 class="kc-title">Data Resmi Sesuai Standar Satu Data Indonesia</h3>
                             <p class="kc-desc">
-                                Seluruh informasi yang disajikan berasal langsung dari sumber resmi dan dijamin keakuratannya oleh instansi pemerintah yang bersangkutan melalui validasi BPS.
+                                Tata kelola publikasi data mengacu pada Perpres No. 39 Tahun 2019 tentang Satu Data Indonesia, melalui kolaborasi terpadu antara Pembina Data, Walidata, dan Produsen Data.
                             </p>
 
                             <div class="kc-highlight-list mb-4">
@@ -1901,8 +1901,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="fa-solid fa-award"></i>
                                     </div>
                                     <div class="kc-highlight-text">
-                                        <h6>Pembinaan Statistik Sektoral</h6>
-                                        <p>Dikelola di bawah pembinaan Badan Pusat Statistik (BPS) Provinsi Jawa Tengah selaku Pembina Data Statistik.</p>
+                                        <h6>Pembina Data Statistik</h6>
+                                        <p>BPS Provinsi Jawa Tengah menetapkan standar data, struktur metadata, dan interoperabilitas data statistik sektoral.</p>
+                                    </div>
+                                </div>
+                                <div class="kc-highlight-item">
+                                    <div class="kc-highlight-icon">
+                                        <i class="fa-solid fa-server"></i>
+                                    </div>
+                                    <div class="kc-highlight-text">
+                                        <h6>Walidata Daerah</h6>
+                                        <p>Diskominfo Provinsi Jawa Tengah mengumpulkan, memeriksa keterpaduan data, dan mengelola integrasi portal data.</p>
                                     </div>
                                 </div>
                                 <div class="kc-highlight-item">
@@ -1911,16 +1920,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                     <div class="kc-highlight-text">
                                         <h6>Produsen Data Terverifikasi</h6>
-                                        <p>Setiap tabel disusun dan dipublikasikan langsung oleh OPD teknis yang berwenang dan bertanggung jawab penuh.</p>
-                                    </div>
-                                </div>
-                                <div class="kc-highlight-item">
-                                    <div class="kc-highlight-icon">
-                                        <i class="fa-solid fa-file-shield"></i>
-                                    </div>
-                                    <div class="kc-highlight-text">
-                                        <h6>Metadata Sesuai Standar SDI</h6>
-                                        <p>Struktur data mematuhi kaidah Satu Data Indonesia, menjamin konsistensi konsep, definisi, dan interoperabilitas.</p>
+                                        <p>Seluruh dinas dan badan daerah menyusun data sektoral resmi sesuai tugas dan fungsi kewenangannya.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1960,11 +1960,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="sim-verify-list">
                                         <div class="sim-verify-item">
                                             <i class="fa-solid fa-circle-check text-success me-2"></i>
-                                            <span>Pembina Data: <strong>BPS Jawa Tengah</strong></span>
+                                            <span>Pembina Data: <strong>BPS Provinsi Jawa Tengah</strong></span>
                                         </div>
                                         <div class="sim-verify-item">
                                             <i class="fa-solid fa-circle-check text-success me-2"></i>
-                                            <span>Walidata: <strong>Diskominfo Prov. Jateng</strong></span>
+                                            <span>Walidata: <strong>Diskominfo Provinsi Jawa Tengah</strong></span>
                                         </div>
                                         <div class="sim-verify-item">
                                             <i class="fa-solid fa-circle-check text-success me-2"></i>
@@ -2076,17 +2076,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             </div>
                                             <span class="sim-format-chip text-danger">Official</span>
                                         </div>
-
-                                        <div class="sim-format-item">
-                                            <div class="sim-format-icon" style="background: rgba(21, 70, 121, 0.1); color: var(--bps-blue);">
-                                                <i class="fa-solid fa-file-lines"></i>
-                                            </div>
-                                            <div class="sim-format-info">
-                                                <div class="sim-format-name">Ringkasan Metadata (.txt)</div>
-                                                <div class="sim-format-desc">Definisi variabel & sumber</div>
-                                            </div>
-                                            <span class="sim-format-chip text-primary">Metadata</span>
-                                        </div>
                                     </div>
 
                                     <!-- Bottom Metric Strip -->
@@ -2113,9 +2102,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="keunggulan-content-box">
                     <div class="row g-4 align-items-center">
                         <div class="col-lg-7">
-                            <h3 class="kc-title">Koneksi Host-to-Host & Sinkronisasi Real-Time</h3>
+                            <h3 class="kc-title">Terintegrasi API Satu Data Jawa Tengah</h3>
                             <p class="kc-desc">
-                                Infrastruktur sistem yang terhubung langsung dengan server pusat pemerintah provinsi, menjamin distribusi dataset yang cepat, otomatis, dan konsisten.
+                                Infrastruktur sistem terhubung langsung dengan REST API Satu Data Jawa Tengah (satudata.jatengprov.go.id), menjamin sinkronisasi dataset sektoral OPD ke dalam database DDA secara otomatis, cepat, dan konsisten.
                             </p>
 
                             <div class="kc-highlight-list mb-4">
@@ -2124,8 +2113,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="fa-solid fa-arrows-rotate"></i>
                                     </div>
                                     <div class="kc-highlight-text">
-                                        <h6>Sinkronisasi Otomatis</h6>
-                                        <p>Setiap penambahan atau pembaruan dataset pada portal utama langsung terefleksi di sistem tanpa penundaan waktu.</p>
+                                        <h6>Sinkronisasi Otomatis Satu Data Jateng</h6>
+                                        <p>Setiap dataset terintegrasi langsung dengan endpoint resmi Satu Data Jateng peruntukan DDA secara real-time.</p>
                                     </div>
                                 </div>
                                 <div class="kc-highlight-item">
@@ -2133,17 +2122,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <i class="fa-solid fa-code"></i>
                                     </div>
                                     <div class="kc-highlight-text">
-                                        <h6>Arsitektur Terstandar REST API</h6>
-                                        <p>Dirancang modular untuk memudahkan integrasi data ke aplikasi eksternal, dashboard pimpinan, maupun platform Satu Data.</p>
+                                        <h6>Arsitektur REST API & Token Resmi</h6>
+                                        <p>Penarikan data menggunakan parameter peruntukan DDA dan protokol autentikasi Bearer Token untuk validitas data.</p>
                                     </div>
                                 </div>
                                 <div class="kc-highlight-item">
                                     <div class="kc-highlight-icon">
-                                        <i class="fa-solid fa-lock"></i>
+                                        <i class="fa-solid fa-database"></i>
                                     </div>
                                     <div class="kc-highlight-text">
-                                        <h6>Keamanan Jalur Distribusi Data</h6>
-                                        <p>Koneksi terlindungi protokol enkripsi modern untuk menjaga keutuhan dan mencegah manipulasi pihak luar.</p>
+                                        <h6>Integrasi Database & Caching Cepat</h6>
+                                        <p>Data tersimpan terstruktur pada basis data portal dengan sistem cache pintar untuk loading tabel instan tanpa jeda.</p>
                                     </div>
                                 </div>
                             </div>
@@ -2166,37 +2155,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <span class="dot dot-green"></span>
                                     </div>
                                     <span class="kc-preview-tag" style="background: rgba(21, 70, 121, 0.08); color: var(--bps-blue);">
-                                        <i class="fa-solid fa-circle text-success me-1" style="font-size: 0.6rem;"></i> Live API Status
+                                        <i class="fa-solid fa-circle text-success me-1" style="font-size: 0.6rem;"></i> API Satu Data Jateng
                                     </span>
                                 </div>
                                 <div class="kc-preview-body">
                                     <!-- Endpoint Badge -->
                                     <div class="sim-endpoint-bar mb-3">
                                         <span class="sim-method">GET</span>
-                                        <span class="sim-url">/api/v1/dataset/sektoral</span>
+                                        <span class="sim-url" title="https://satudata.jatengprov.go.id/api/v1/data/{id}?peruntukan=DDA">satudata.jatengprov.go.id/api/v1/data/{id}?peruntukan=DDA</span>
                                         <span class="sim-status">200 OK</span>
                                     </div>
 
                                     <!-- Code Box -->
                                     <div class="sim-code-box mb-3">
                                         <div class="sim-code-line"><span class="code-k">{</span></div>
+                                        <div class="sim-code-line ps-3"><span class="code-p">"source"</span>: <span class="code-s">"satudata.jatengprov.go.id"</span>,</div>
+                                        <div class="sim-code-line ps-3"><span class="code-p">"peruntukan"</span>: <span class="code-s">"DDA"</span>,</div>
+                                        <div class="sim-code-line ps-3"><span class="code-p">"instansi"</span>: <span class="code-s">"Biro Pemerintahan Prov. Jateng"</span>,</div>
                                         <div class="sim-code-line ps-3"><span class="code-p">"status"</span>: <span class="code-s">"success"</span>,</div>
-                                        <div class="sim-code-line ps-3"><span class="code-p">"sync"</span>: <span class="code-s">"realtime"</span>,</div>
-                                        <div class="sim-code-line ps-3"><span class="code-p">"source"</span>: <span class="code-s">"OPD Jawa Tengah"</span>,</div>
-                                        <div class="sim-code-line ps-3"><span class="code-p">"total"</span>: <span class="code-n">1024</span></div>
+                                        <div class="sim-code-line ps-3"><span class="code-p">"total_data"</span>: <span class="code-n">35</span></div>
                                         <div class="sim-code-line"><span class="code-k">}</span></div>
                                     </div>
 
                                     <!-- Bottom Metric Strip -->
                                     <div class="sim-metrics-strip">
                                         <div class="sim-metric">
-                                            <span class="sim-metric-val">99.9%</span>
-                                            <span class="sim-metric-lbl">Uptime Server</span>
+                                            <span class="sim-metric-val">Satu Data Jateng</span>
+                                            <span class="sim-metric-lbl">Sumber API Resmi</span>
                                         </div>
                                         <div class="sim-metric-divider"></div>
                                         <div class="sim-metric">
-                                            <span class="sim-metric-val">&lt; 50ms</span>
-                                            <span class="sim-metric-lbl">Latensi Data</span>
+                                            <span class="sim-metric-val">Database DDA</span>
+                                            <span class="sim-metric-lbl">Sinkronisasi Otomatis</span>
                                         </div>
                                     </div>
                                 </div>
@@ -2524,13 +2514,13 @@ document.addEventListener('DOMContentLoaded', function() {
     .sim-format-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
     }
     .sim-format-item {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 10px 12px;
+        gap: 14px;
+        padding: 12px 14px;
         background: #f8fafc;
         border: 1px solid #f1f5f9;
         border-radius: 12px;
@@ -2575,7 +2565,7 @@ document.addEventListener('DOMContentLoaded', function() {
         border-radius: 10px;
         padding: 8px 12px;
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-        font-size: 0.76rem;
+        font-size: 0.74rem;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -2587,14 +2577,20 @@ document.addEventListener('DOMContentLoaded', function() {
         border-radius: 4px;
         font-weight: 800;
         font-size: 0.68rem;
+        flex-shrink: 0;
     }
     .sim-url {
         flex: 1;
         color: #94a3b8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
     }
     .sim-status {
         color: #10b981;
         font-weight: 700;
+        flex-shrink: 0;
     }
     .sim-code-box {
         background: #0f172a;
