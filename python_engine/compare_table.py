@@ -18,6 +18,18 @@ import threading
 _PDF_PAGE_CACHE = {}
 _PDF_PAGE_CACHE_LOCK = threading.Lock()
 
+def is_valid_table_char(obj):
+    if obj.get('object_type') != 'char':
+        return True
+    if not obj.get('upright', True):
+        return False
+    # Filter BPS watermark characters (e.g. Arial-BoldMT size > 15)
+    font = str(obj.get('fontname', ''))
+    size = float(obj.get('size', 0))
+    if 'Arial' in font and size > 15:
+        return False
+    return True
+
 def get_cached_page_tables(pdf_path, page_num):
     cache_key = (pdf_path, page_num)
     with _PDF_PAGE_CACHE_LOCK:
@@ -27,7 +39,7 @@ def get_cached_page_tables(pdf_path, page_num):
     with pdfplumber.open(pdf_path) as pdf:
         if 0 <= page_num - 1 < len(pdf.pages):
             page = pdf.pages[page_num - 1]
-            clean_page = page.filter(lambda obj: obj.get('object_type') != 'char' or obj.get('upright', True))
+            clean_page = page.filter(is_valid_table_char)
             page_tables = clean_page.extract_tables()
             res = []
             for t in page_tables:
@@ -94,7 +106,7 @@ def extract_table_content(pdf_path, target_pdf_info):
                     rows.extend(cached)
                 elif 0 <= p - 1 < len(pdf.pages):
                     page = pdf.pages[p-1]
-                    clean_page = page.filter(lambda obj: obj.get('object_type') != 'char' or obj.get('upright', True))
+                    clean_page = page.filter(is_valid_table_char)
                     tables = clean_page.extract_tables()
                     p_rows = []
                     for t in tables:
@@ -400,13 +412,19 @@ def parse_num(val_str, is_pdf=False):
         s = re.sub(r'^[a-zA-Z\s\.\/:\n\r]+(?=[0-9–\-—\ufffd\u2026…])', '', s)
         # Strip watermark suffixes after numbers (e.g. '7.084.p')
         s = re.sub(r'(?<=\d)[a-zA-Z\s\.\/:\n\r]+$', '', s)
+        # Strip watermark dots inserted inside decimals (e.g., '49.752.646,8.0' -> '49.752.646,80')
+        if ',' in s:
+            s = re.sub(r',(\d+)\.(\d+)', r',\1\2', s)
+
+    s_clean_token = s.strip().lower()
+    if s_clean_token in ['–', '-', '—', 'na', 'n.a', 'n.a.', 'n/a', '...', '', '\ufffd', '\u2026', '…']:
+        return 0.0
+    if any(d in s for d in ['–', '-', '—', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s):
+        return 0.0
 
     s_cleaned = re.sub(r'(?i)\b(km2?|m2?|cm|dm|mm|ha|kg|ton|jiwa|orang|rupiah|persen|ribu|juta|miliar|triliun)\b', '', s)
     if re.search(r'[a-zA-Z]{2,}', s_cleaned):
         return None
-
-    if s in ['–', '-', '—', 'n.a', '...', 'n.a.', '', '\ufffd', '\u2026', '…']: return 0.0
-    if any(d in s for d in ['–', '-', '—', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s): return 0.0
         
     s = re.sub(r'(?i)\b(km|m|cm|dm|mm)2\b', r'\1', s)
     s = s.replace('%', '')
@@ -451,6 +469,9 @@ def find_wilayah_with_type(ctx, is_kota=False):
 def find_bps_numbering_row(source_data):
     if not source_data or not isinstance(source_data, list): return -1, [], 'none'
     year_idx, year_cells = -1, []
+    best_candidate = None
+    best_score = -1
+
     for i, r in enumerate(source_data[:25]):
         if not isinstance(r, list): continue
         non_empty = [(idx, str(c).strip()) for idx, c in enumerate(r) if c is not None and str(c).strip() and str(c).strip().lower() != 'none']
@@ -458,14 +479,32 @@ def find_bps_numbering_row(source_data):
         
         all_bps = all((re.match(r'^\(?(\d+)\)?$', v) and int(re.match(r'^\(?(\d+)\)?$', v).group(1)) <= 150) for _, v in non_empty)
         if all_bps:
-            return i, non_empty, 'bps'
+            has_parens = any(re.match(r'^\(\d+\)$', v) for _, v in non_empty)
+            all_parens = all(re.match(r'^\(\d+\)$', v) for _, v in non_empty)
+            starts_one = (int(re.match(r'^\(?(\d+)\)?$', non_empty[0][1]).group(1)) == 1 and non_empty[0][0] <= 1)
+            starts_early = (non_empty[0][0] <= 1)
+            nums = [int(re.match(r'^\(?(\d+)\)?$', v).group(1)) for _, v in non_empty]
+            is_seq = (nums == list(range(nums[0], nums[0] + len(nums))))
+            score = (100 if all_parens else (50 if has_parens else 0)) + \
+                    (50 if (starts_one and is_seq) else 0) + \
+                    (30 if starts_early else 0) + \
+                    (20 if is_seq else 0) + \
+                    len(non_empty)
+            if score > best_score:
+                best_score = score
+                best_candidate = (i, non_empty, 'bps')
             
         all_year = all(re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', val) for _, val in non_empty)
         if all_year and year_idx == -1:
             year_idx = i
             year_cells = non_empty
+
+    if best_candidate and best_score >= 50:
+        return best_candidate
     if year_idx >= 0:
         return year_idx, year_cells, 'year'
+    if best_candidate:
+        return best_candidate
     return -1, [], 'none'
 
 def detect_active_data_cols(source_data):
@@ -551,10 +590,15 @@ def detect_active_data_cols(source_data):
     
     return data_cols
 
+def is_interval_label(s):
+    if not s: return False
+    s_clean = re.sub(r'[\s\*]', '', str(s))
+    return bool(re.match(r'^(?:0|01|\d+[\-–—\ufffd]\d+|\d+\+|\<\s*\d+|\>\s*\d+)$', s_clean))
+
 def is_bps_col_num(val):
     if not val: return False
     s = str(val).strip()
-    m = re.match(r'^\(?(\d{1,2})\)?\.?$', s)
+    m = re.match(r'^\((\d{1,2})\)$', s)
     if m:
         return 1 <= int(m.group(1)) <= 50
     return False
@@ -1042,8 +1086,9 @@ def is_header_or_metadata_row(row):
     non_empty = [str(c).strip() for c in row if str(c).strip()]
     if not non_empty: return True
     ctx = ' | '.join(non_empty).lower()
+    ctx_norm = re.sub(r'\s*/\s*', '/', ctx)
     
-    if any(k in ctx for k in ['kabupaten/regency', 'kota/municipality']): return True
+    if any(k in ctx_norm for k in ['kabupaten/regency', 'kota/municipality']): return True
     
     cleaned_cells = [re.sub(r'^[a-zA-Z\.\s/]+\n', '', c).strip() for c in non_empty if c]
     if cleaned_cells and all(is_bps_col_num(c) for c in cleaned_cells): return True
@@ -1061,7 +1106,7 @@ def is_header_or_metadata_row(row):
     if any(k in ctx for k in ['laki-laki', 'perempuan', 'female', 'male', 'jenis kelamin', 'sex', 'pangkat', 'golongan', 'tingkat pendidikan']):
         if not any(parse_num(c) is not None for c in non_empty if not is_bps_col_num(str(c).strip())): return True
 
-    if any(k in ctx for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students']):
+    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps']):
         if not any(parse_num(c) is not None for c in non_empty if not is_bps_col_num(str(c).strip())): return True
         
 # Pillar 1: DETERMINISTIC ARCHETYPE AUTO-ROUTER
@@ -1312,6 +1357,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     if not source_data:
         if "view_portal_tabel" in link: return {"status": "error", "source_type": "API Satudata", "message": "Tidak ada data dalam API", "is_api_empty": True}
         return {"status": "error", "message": "Format link tidak didukung atau butuh login (misal: Simdasi)"}
+        
+    # Slicing otomatis jika spreadsheet memuat rekategorisasi/tabel revisi (misal tabel 3.2.5 dan 3.2.7)
+    if isinstance(source_data, list):
+        rekat_idx = -1
+        for idx, r in enumerate(source_data):
+            if not isinstance(r, list): continue
+            txt = ' '.join(str(c) for c in r).lower()
+            if 'rekategorisasi' in txt or ('rse besar' in txt and 'kategori' in txt):
+                rekat_idx = idx
+                break
+        if rekat_idx >= 0:
+            source_data = source_data[rekat_idx+1:]
         
     target_pages = None
     if os.path.exists(index_cache_path):
@@ -1564,6 +1621,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
             def get_cat_key(text):
                 if not text: return ''
+                if is_interval_label(text):
+                    c = re.sub(r'[\s\*]', '', str(text))
+                    if c in ['0', '01']: return 'JAM_0'
+                    if '+' in c: return f"JAM_{c.replace('+', '_PLUS')}"
+                    c_dash = re.sub(r'[\-–—\ufffd]', '_', c)
+                    return f"JAM_{c_dash}"
                 p = find_provinsi(text)
                 if p: return f"PROV_{re.sub(r'[^\w]', '', p.upper())}"
                 s = str(text).upper()
@@ -1601,6 +1664,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
             def clean_cat_display(text):
                 t = str(text).strip()
+                if is_interval_label(t):
+                    c = re.sub(r'[\s\*]', '', str(t))
+                    if c in ['0', '01']: return '0 Jam (Sementara Tidak Bekerja)'
+                    if '+' in c: return f"{c} Jam"
+                    c_dash = re.sub(r'[\-–—\ufffd]', ' - ', c)
+                    return f"{c_dash} Jam"
                 p = find_provinsi(t)
                 if p: return p
                 m_grade = re.search(r'\b([I|V|X]+/[A-E])\b', t, re.IGNORECASE)
@@ -1948,8 +2017,15 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         if any(txt.startswith(k) for k in ['sumber:', 'source:', 'catatan:', 'note:']): break
 
                         if not is_pdf and active_cat_cols:
+                            raw_vals = [parse_num(str(r[c]).strip(), is_pdf=False) for c in active_cat_cols if c < len(r)]
+                            if not any(v is not None for v in raw_vals):
+                                continue
                             first_col = active_cat_cols[0]
-                            raw_label = ' '.join(str(c).strip() for c in r[:first_col] if str(c).strip() and parse_num(str(c).strip()) is None)
+                            label_cells = [str(c).strip() for c in r[:first_col] if str(c).strip()]
+                            if any(is_interval_label(c) for c in label_cells):
+                                raw_label = next(c for c in label_cells if is_interval_label(c))
+                            else:
+                                raw_label = ' '.join(c for c in label_cells if parse_num(c) is None)
                             nums = []
                             for c_idx in active_cat_cols:
                                 c_str = str(r[c_idx]).strip() if c_idx < len(r) else ''
@@ -1962,7 +2038,11 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             for idx_c, c in enumerate(r):
                                 c_str = str(c).strip()
                                 if not c_str: continue
-                                if idx_c == first_idx and re.match(r'^\d+\.?$', c_str) and int(c_str.rstrip('.')) <= 50: continue
+                                if is_interval_label(c_str) and not nums:
+                                    raw_label = c_str
+                                    continue
+                                if idx_c == first_idx and re.match(r'^\d+\.?$', c_str) and int(c_str.rstrip('.')) <= 50 and not is_interval_label(c_str):
+                                    continue
                                 if not nums and re.search(r'[a-zA-Z]{3,}', c_str):
                                     if not raw_label: raw_label = c_str
                                     else: raw_label += ' ' + c_str
@@ -1975,7 +2055,11 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                         else: raw_label += ' ' + c_str
 
                         if not raw_label:
-                            raw_label = ' '.join(str(c).strip() for c in r[:2] if str(c).strip() and parse_num(str(c).strip(), is_pdf=is_pdf) is None)
+                            label_candidates = [str(c).strip() for c in r[:2] if str(c).strip()]
+                            if any(is_interval_label(c) for c in label_candidates):
+                                raw_label = next(c for c in label_candidates if is_interval_label(c))
+                            else:
+                                raw_label = ' '.join(str(c).strip() for c in r[:2] if str(c).strip() and parse_num(str(c).strip(), is_pdf=is_pdf) is None)
 
                         clean_disp = clean_cat_display(raw_label)
                         if not clean_disp: continue
@@ -2204,6 +2288,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 for r in data_list:
                     if not isinstance(r, list): continue
                     txt = ' '.join(str(c) for c in r).lower()
+                    if is_pdf and any(k in txt for k in ['tabel', 'table']):
+                        m_next = re.search(r'tabel\s+(\d+\.\d+\.\d+)', txt)
+                        if m_next and m_next.group(1).strip('.') != target_table.strip('.'):
+                            break
                     if 'kota/municipality' in txt: 
                         is_k = True
                         brebes_seen = True
@@ -2230,7 +2318,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     elif 'provinsi jawa tengah' in row_label.lower() or 'pemprov' in row_label.lower():
                         w = 'Provinsi Jawa Tengah'
                         is_prov = False
-                    elif any(k in row_label.lower() for k in ['jumlah', 'total']) and not any(k in row_label.lower() for k in ['curah', 'hari', 'hujan', 'penduduk']):
+                    elif any(k in row_label.lower() for k in ['jumlah', 'total']) and not any(k in row_label.lower() for k in ['curah', 'hari', 'hujan', 'penduduk', 'kecamatan', 'desa', 'kelurahan', 'tps', 'sekolah', 'guru', 'murid', 'kabupaten', 'kota']):
                         w = 'Total Jawa Tengah'
                         is_prov = False
                     else:
@@ -2270,6 +2358,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if val is not None: nums.append(val)
                     else:
                         if active_cols:
+                            raw_vals = [parse_num(str(r[c]).strip(), is_pdf=False) for c in active_cols if c < len(r)]
+                            if not any(v is not None for v in raw_vals):
+                                continue
                             for c_idx in active_cols:
                                 c_str = str(r[c_idx]).strip() if c_idx < len(r) else ''
                                 v = parse_num(c_str, is_pdf=False)
