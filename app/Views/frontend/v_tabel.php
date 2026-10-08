@@ -1069,7 +1069,7 @@ if ($primary_result):
     }
 ?>
 <div class="header-modern-v2">
-    <div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+    <div class="container">
         <!-- Top Action Bar -->
         <div class="table-top-bar d-flex align-items-center justify-content-between gap-2">
             <!-- Left: Breadcrumb -->
@@ -1145,7 +1145,7 @@ if ($primary_result):
 </div>
 <?php endif; ?>
 
-<div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+<div class="container">
     <div class="dda-body">
 
         <!-- Skeleton Loading Screen (Identik dengan Spreadsheet) -->
