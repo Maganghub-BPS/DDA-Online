@@ -87,11 +87,6 @@ echo session()->getFlashdata("k");
                         </td>
                         <td class="text-center">
                             <div class="d-flex gap-1 justify-content-center align-items-center">
-                                <?php if ($b->is_setujui == '1'): ?>
-                                    <span class="badge bg-success-soft text-success border-success-soft py-1 px-2 border-radius-md me-1" style="font-size: 11px;">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Disetujui
-                                    </span>
-                                <?php endif; ?>
                                 <a href="<?php echo base_URL()?>index.php/admin/master_tabel_opd/edt/<?php echo $b->id; ?>" class="btn btn-icon-only <?php echo ($b->is_setujui == '1') ? 'btn-outline-success' : 'btn-success'; ?> btn-sm border-radius-lg shadow-none" title="<?php echo ($b->is_setujui == '1') ? 'Perbarui / Daftarkan Ulang' : 'Terima Usulan (ACC)'; ?>">
                                     <i class="bi bi-check-lg"></i>
                                 </a>
@@ -137,6 +132,8 @@ echo session()->getFlashdata("k");
     .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
     .bg-success-soft { background-color: rgba(25, 135, 84, 0.1) !important; color: #198754 !important; }
     .border-success-soft { border: 1px solid rgba(25, 135, 84, 0.25) !important; }
+    .bg-warning-soft { background-color: rgba(245, 158, 11, 0.12) !important; color: #b45309 !important; }
+    .border-warning-soft { border: 1px solid rgba(245, 158, 11, 0.28) !important; }
     .text-primary-orange { color: #FF6D1F !important; }
 
     .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }

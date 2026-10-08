@@ -1467,11 +1467,23 @@ class Admin extends BaseController
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "edt") {
 
-			$a['datpil']	= $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = ?", [$idu])->getRow();
-			$a['list_opd']  = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
-			$a['ta']        = $ta;
+			$datpil = $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = ?", [$idu])->getRow();
+			$a['datpil']   = $datpil;
+			$a['list_opd'] = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
+			$a['ta']       = $ta;
 
-			$a['page']		= "f_add_opd";
+			$linked_m = null;
+			$linked_t = null;
+			if ($datpil) {
+				$linked_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$datpil->id_unitkerja, $datpil->judul_ind])->getRow();
+				if ($linked_m) {
+					$linked_t = $this->db->query("SELECT * FROM t_tahun_tabel WHERE id_tabel = ? AND tahun = ? LIMIT 1", [$linked_m->id, $ta])->getRow();
+				}
+			}
+			$a['linked_m'] = $linked_m;
+			$a['linked_t'] = $linked_t;
+
+			$a['page']     = "f_add_opd";
 		} else if ($mau_ke == "act_add") {
 			$hariini = date('Y-m-d');
 			date_default_timezone_set("Asia/Jakarta");
