@@ -403,7 +403,11 @@
                 $('#btnScan').prop('disabled', false).html('<i class="bi bi-cpu-fill me-2"></i> JALANKAN ANALISA AI');
                 $('#badgeStatus').removeClass('bg-primary').addClass('bg-danger text-white').text('GAGAL');
                 $('#loadingState').addClass('d-none');
-                $('#idleState').removeClass('d-none').html(`<div class="text-danger"><i class="bi bi-wifi-off d-block mb-2" style="font-size: 2.5rem;"></i><span class="fw-bold">Koneksi Terputus / Server Error</span></div>`);
+                let errText = 'Koneksi Terputus / Server Error';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errText = xhr.responseJSON.message;
+                }
+                $('#idleState').removeClass('d-none').html(`<div class="text-danger"><i class="bi bi-wifi-off d-block mb-2" style="font-size: 2.5rem;"></i><span class="fw-bold">${errText}</span></div>`);
             }
         });
 
