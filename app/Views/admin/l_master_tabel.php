@@ -42,43 +42,43 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                             <i class="bi bi-gear-wide-connected fs-6"></i>
                             <span>Pengelolaan Tahun</span>
                         </button>
-                        <ul class="dropdown-menu shadow-lg border-0 border-radius-lg p-2 mt-1" aria-labelledby="dropdownPengelolaanTahun" style="min-width: 260px; z-index: 1050;">
-                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-muted px-2 py-1">Operasi Tahunan</h6></li>
+                        <ul class="dropdown-menu shadow border border-light border-radius-lg p-2 mt-1" aria-labelledby="dropdownPengelolaanTahun" style="min-width: 260px; z-index: 1050;">
+                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-secondary px-2 py-1">Operasi Tahunan</h6></li>
                             <!-- Opsi 1: Duplikasi Seluruh Tabel dari Tahun Lalu -->
                             <li>
                                 <a class="dropdown-item border-radius-md py-2 d-flex align-items-center" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalCloneTahunan">
-                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: rgba(23, 162, 184, 0.12);">
-                                        <i class="bi bi-files text-info"></i>
+                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: #f1f5f9; border: 1px solid #e2e8f0;">
+                                        <i class="bi bi-files text-secondary"></i>
                                     </div>
                                     <div>
                                         <span class="d-block text-xs font-weight-bold text-dark">Duplikasi Tahun</span>
-                                        <span class="text-xxs text-muted">Salin daftar tabel tahun lalu</span>
+                                        <span class="text-xxs text-secondary">Salin daftar tabel tahun lalu</span>
                                     </div>
                                 </a>
                             </li>
                             <!-- Opsi 2: Rapikan Penomoran Tabel yang Melompat pada Bab Tertentu -->
                             <li>
                                 <a class="dropdown-item border-radius-md py-2 d-flex align-items-center" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalResequence">
-                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: rgba(255, 193, 7, 0.15);">
-                                        <i class="bi bi-sort-numeric-down text-warning"></i>
+                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: #f1f5f9; border: 1px solid #e2e8f0;">
+                                        <i class="bi bi-sort-numeric-down text-secondary"></i>
                                     </div>
                                     <div>
                                         <span class="d-block text-xs font-weight-bold text-dark">Rapikan Urutan</span>
-                                        <span class="text-xxs text-muted">Resequence nomor urut tabel</span>
+                                        <span class="text-xxs text-secondary">Resequence nomor urut tabel</span>
                                     </div>
                                 </a>
                             </li>
                             <li><hr class="dropdown-divider my-2"></li>
-                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-danger px-2 py-1">Zona Bahaya</h6></li>
+                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-secondary px-2 py-1">Zona Bahaya</h6></li>
                             <!-- Opsi 3: Kosongkan Seluruh Tabel di Tahun Tertentu -->
                             <li>
                                 <a class="dropdown-item border-radius-md py-2 d-flex align-items-center text-danger" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalResetTahun">
-                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: rgba(220, 53, 69, 0.12);">
-                                        <i class="bi bi-trash3-fill text-danger"></i>
+                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: #fef2f2; border: 1px solid #fee2e2;">
+                                        <i class="bi bi-trash3 text-danger"></i>
                                     </div>
                                     <div>
                                         <span class="d-block text-xs font-weight-bold text-danger">Kosongkan Tahun</span>
-                                        <span class="text-xxs text-danger opacity-8">Hapus semua data di tahun tertentu</span>
+                                        <span class="text-xxs text-secondary">Hapus semua data di tahun tertentu</span>
                                     </div>
                                 </a>
                             </li>

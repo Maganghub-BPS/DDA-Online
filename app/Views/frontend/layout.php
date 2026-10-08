@@ -525,6 +525,19 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             bottom: 30px;
             right: 30px;
             z-index: 9999;
+            will-change: transform;
+            animation: latifaFloat 3.6s ease-in-out infinite;
+        }
+        .latifa-widget:hover {
+            animation-play-state: paused;
+        }
+        @keyframes latifaFloat {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-6px);
+            }
         }
         .latifa-btn {
             width: 58px;
@@ -536,13 +549,13 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             justify-content: center;
             box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
             border: 3px solid #ffffff;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
             text-decoration: none;
             position: relative;
             overflow: hidden;
         }
         .latifa-btn:hover {
-            transform: scale(1.12) translateY(-3px);
+            transform: scale(1.12);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
             border-color: #ffffff;
         }
@@ -596,6 +609,11 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             }
             .latifa-tooltip {
                 display: none;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .latifa-widget {
+                animation: none;
             }
         }
 
