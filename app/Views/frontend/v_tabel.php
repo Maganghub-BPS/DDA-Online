@@ -846,6 +846,55 @@ function get_dda_label_nested($col)
             margin-left: auto;
         }
 
+        .btn-download-modern {
+            background: #0b3c68;
+            color: #ffffff;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 13px;
+            box-shadow: 0 2px 6px rgba(11, 60, 104, 0.25);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn-download-modern:hover,
+        .btn-download-modern:focus,
+        .btn-download-modern[aria-expanded="true"] {
+            background: #082d4f;
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(11, 60, 104, 0.35);
+        }
+        .btn-download-modern i {
+            color: #bbc9d5;
+            font-size: 15px;
+            transition: color 0.2s ease;
+        }
+        .btn-download-modern:hover i,
+        .btn-download-modern:focus i,
+        .btn-download-modern[aria-expanded="true"] i {
+            color: #ffffff;
+        }
+        .btn-download-modern.dropdown-toggle::after {
+            color: #ffffff;
+            vertical-align: 0.15em;
+        }
+        .dropdown-menu-download {
+            border-radius: 14px !important;
+            min-width: 210px;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+        }
+        .dropdown-menu-download .dropdown-item {
+            font-size: 13.5px;
+            font-weight: 500;
+            color: #334155;
+            transition: all 0.15s ease;
+        }
+        .dropdown-menu-download .dropdown-item:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
         /* --- TITLE AREA GAYA GAMBAR 2 (ELEGAN, OTENTIK BPS, BERSIH) --- */
         .title-area-row {
             display: flex;
@@ -1069,7 +1118,7 @@ if ($primary_result):
     }
 ?>
 <div class="header-modern-v2">
-    <div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+    <div class="container">
         <!-- Top Action Bar -->
         <div class="table-top-bar d-flex align-items-center justify-content-between gap-2">
             <!-- Left: Breadcrumb -->
@@ -1090,8 +1139,8 @@ if ($primary_result):
             
             <!-- Right: Unduh Data -->
             <div class="table-actions-dropdown dropdown">
-                <button class="btn d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="background: var(--bps-blue, #0d2c4d); color: white; border: none; border-radius: 50px; font-weight: 600; font-size: 13px; transition: all 0.2s; white-space: nowrap;">
-                    <i class="fa-solid fa-cloud-arrow-down"></i> <span class="d-none d-sm-inline">Unduh Data</span><span class="d-inline d-sm-none">Unduh</span>
+                <button class="btn btn-download-modern d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-cloud-arrow-down" style="font-size: 15px; color: #bbc9d5;"></i> <span class="d-none d-sm-inline">Unduh Data</span><span class="d-inline d-sm-none">Unduh</span>
                 </button>
                 <?php 
                     $clean_nomor = trim((string)($tabel_nomor_main ?? ''));
@@ -1102,14 +1151,14 @@ if ($primary_result):
                         $full_title_for_export = $clean_judul;
                     }
                 ?>
-                <ul class="dropdown-menu shadow dropdown-menu-end" style="border-radius: 12px; border: 1px solid #e2e8f0;">
-                    <li><a class="dropdown-item py-2" href="#" data-export-title="<?php echo htmlspecialchars($full_title_for_export, ENT_QUOTES, 'UTF-8'); ?>" onclick="exportTableToExcel('dda-table-0', this.getAttribute('data-export-title'))"><i class="fa-solid fa-file-excel text-success me-2"></i> Unduh Format Excel (.xlsx)</a></li>
-                    <li><a class="dropdown-item py-2" href="#" 
+                <ul class="dropdown-menu dropdown-menu-download dropdown-menu-end p-2 border-0 mt-2">
+                    <li><a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" data-export-title="<?php echo htmlspecialchars($full_title_for_export, ENT_QUOTES, 'UTF-8'); ?>" onclick="exportTableToExcel('dda-table-0', this.getAttribute('data-export-title'))"><i class="bi bi-file-earmark-excel me-2.5 fs-5" style="color: #198754;"></i> Format Excel (.xlsx)</a></li>
+                    <li><a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" 
                            data-nomor="<?php echo htmlspecialchars($tabel_nomor_main, ENT_QUOTES, 'UTF-8'); ?>"
                            data-judul-id="<?php echo htmlspecialchars($judul_only_main, ENT_QUOTES, 'UTF-8'); ?>"
                            data-judul-en="<?php echo htmlspecialchars($judul_en_only_main, ENT_QUOTES, 'UTF-8'); ?>"
                            onclick="exportTableToPDF('dda-table-0', this.getAttribute('data-nomor'), this.getAttribute('data-judul-id'), this.getAttribute('data-judul-en'))">
-                           <i class="fa-solid fa-file-pdf text-danger me-2"></i> Unduh Format PDF
+                           <i class="bi bi-file-earmark-pdf me-2.5 fs-5" style="color: #dc3545;"></i> Format PDF (.pdf)
                         </a>
                     </li>
                 </ul>
@@ -1145,7 +1194,7 @@ if ($primary_result):
 </div>
 <?php endif; ?>
 
-<div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+<div class="container">
     <div class="dda-body">
 
         <!-- Skeleton Loading Screen (Identik dengan Spreadsheet) -->

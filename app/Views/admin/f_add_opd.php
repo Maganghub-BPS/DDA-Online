@@ -23,6 +23,15 @@ if ($mode == "edt" || $mode == "act_edt") {
     $judul_en   = $datpil->judul_en;
     $id_unitkerja = $datpil->id_unitkerja;
     $file_tabel = $datpil->file_tabel;
+
+    // Ambil data t_tahun_tabel jika usulan ini sudah pernah di-ACC / didaftarkan sebelumnya
+    $no_tabel        = $linked_t->no_tabel ?? '';
+    $periode_id      = $linked_t->periode_id ?? $ta;
+    $periode_en      = $linked_t->periode_en ?? $periode_id;
+    $link_tabel      = $linked_t->link_tabel ?? '';
+    $link_sebelumnya = $linked_t->link_sebelumnya ?? '';
+    $exclude_id      = $linked_t->id ?? '';
+    $exclude_id_tabel= $linked_m->id ?? '';
 } else {
     // Mode Tambah Usulan Baru
     $act        = "act_add";
@@ -32,6 +41,14 @@ if ($mode == "edt" || $mode == "act_edt") {
     $judul_en   = "";
     $id_unitkerja = session()->get('admin_unitkerja');
     $file_tabel = "";
+
+    $no_tabel        = '';
+    $periode_id      = $ta;
+    $periode_en      = $ta;
+    $link_tabel      = '';
+    $link_sebelumnya = '';
+    $exclude_id      = '';
+    $exclude_id_tabel= '';
 }
 // Tahun anggaran target (DDA yang sedang aktif dikerjakan)
 $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
@@ -54,6 +71,8 @@ $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
                 <input type="hidden" name="idp" value="<?php echo $idp; ?>">
                 <input type="hidden" name="conflict_resolution" id="conflict_resolution" value="">
                 <input type="hidden" name="ta_target" id="ta_target" value="<?php echo $ta; ?>">
+                <input type="hidden" name="exclude_id" id="exclude_id" value="<?php echo esc($exclude_id ?? ''); ?>">
+                <input type="hidden" name="exclude_id_tabel" id="exclude_id_tabel" value="<?php echo esc($exclude_id_tabel ?? ''); ?>">
 
                 <div class="alert bg-primary-soft text-primary border-0 rounded-4 mb-4 d-flex align-items-center">
                     <i class="bi bi-info-circle-fill fs-4 me-3"></i>
@@ -62,6 +81,16 @@ $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
                         <small>Periksa dan lengkapi rincian tabel sebelum menyetujui usulan ini masuk ke Master Tabel DDA <b>Tahun <?php echo $ta; ?></b>.</small>
                     </div>
                 </div>
+
+                <?php if (!empty($linked_t)): ?>
+                <div class="alert bg-success-soft text-success border-0 rounded-4 mb-4 d-flex align-items-center">
+                    <i class="bi bi-check-circle-fill fs-4 me-3 text-success"></i>
+                    <div>
+                        <span class="fw-bold d-block text-success">Tabel Telah Terdaftar di DDA Tahun <?php echo $ta; ?> (Nomor: <?= esc($linked_t->no_tabel ?: '-') ?>)</span>
+                        <small class="text-secondary">Usulan ini sudah memiliki entri di master tabel. Anda dapat memperbarui data tanpa khawatir terjadi bentrok nomor dengan dirinya sendiri.</small>
+                    </div>
+                </div>
+                <?php endif; ?>
 
 
                 <div class="row g-4">
@@ -96,18 +125,18 @@ $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Nomor Tabel (Opsional)</label>
-                                <input type="text" name="no_tabel" id="input_no_tabel" class="form-control border-radius-lg p-3" placeholder="Contoh: 4.1.19">
+                                <input type="text" name="no_tabel" id="input_no_tabel" class="form-control border-radius-lg p-3" placeholder="Contoh: 4.1.19" value="<?php echo esc($no_tabel ?? ''); ?>">
                                 <div id="no_tabel_opd_suggestion" style="display: none;"></div>
                                 <small class="text-muted d-block mt-1" style="font-size: 11px;">Bisa dikosongkan untuk diratakan nanti.</small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Periode Tabel (ID)</label>
-                                <input type="text" name="periode_id" class="form-control border-radius-lg p-3" placeholder="Contoh: <?php echo $ta; ?>" value="<?php echo $ta; ?>">
+                                <input type="text" name="periode_id" class="form-control border-radius-lg p-3" placeholder="Contoh: <?php echo $ta; ?>" value="<?php echo esc($periode_id ?? $ta); ?>">
                                 <small class="text-muted" style="font-size: 11px;">Periode Bahasa Indonesia.</small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Period (EN)</label>
-                                <input type="text" name="periode_en" class="form-control border-radius-lg p-3" placeholder="Example: <?php echo $ta; ?>" value="<?php echo $ta; ?>">
+                                <input type="text" name="periode_en" class="form-control border-radius-lg p-3" placeholder="Example: <?php echo $ta; ?>" value="<?php echo esc($periode_en ?? $ta); ?>">
                                 <small class="text-muted" style="font-size: 11px;">English Period.</small>
                             </div>
                             <div class="col-md-2">
@@ -120,11 +149,11 @@ $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Link Tabel Portal (Opsional)</label>
-                                <input type="text" name="link_tabel" class="form-control border-radius-lg p-3" placeholder="URL API Portal Data / Link Tabel...">
+                                <input type="text" name="link_tabel" class="form-control border-radius-lg p-3" placeholder="URL API Portal Data / Link Tabel..." value="<?php echo esc($link_tabel ?? ''); ?>">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Link Tabel Sebelumnya (Opsional)</label>
-                                <input type="text" name="link_sebelumnya" class="form-control border-radius-lg p-3" placeholder="URL / Link Tahun Sebelumnya...">
+                                <input type="text" name="link_sebelumnya" class="form-control border-radius-lg p-3" placeholder="URL / Link Tahun Sebelumnya..." value="<?php echo esc($link_sebelumnya ?? ''); ?>">
                             </div>
                         </div>
                         <?php else: ?>
@@ -343,11 +372,19 @@ document.addEventListener("DOMContentLoaded", function() {
             var judulIndEl = document.querySelector('textarea[name="judul_ind"]');
             var judulInd = judulIndEl ? judulIndEl.value.trim() : "";
             var taTarget = document.getElementById("ta_target") ? document.getElementById("ta_target").value : "<?= $ta ?>";
+            var excludeId = document.getElementById("exclude_id") ? document.getElementById("exclude_id").value : "";
+            var excludeIdTabel = document.getElementById("exclude_id_tabel") ? document.getElementById("exclude_id_tabel").value : "";
             
             var formData = new FormData();
             formData.append("judul_ind", judulInd);
             formData.append("no_tabel", noTabel);
             formData.append("tahun", taTarget);
+            if (excludeId) {
+                formData.append("exclude_id", excludeId);
+            }
+            if (excludeIdTabel) {
+                formData.append("exclude_id_tabel", excludeIdTabel);
+            }
             
             // Panggil API deteksi konflik
             fetch("<?php echo base_url('index.php/admin/check_new_table_conflict'); ?>", {

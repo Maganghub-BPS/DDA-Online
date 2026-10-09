@@ -499,7 +499,7 @@ if (strpos($iframe_url, '?') === false && strpos($iframe_url, '#') !== false) {
 </style>
 
 <div class="header-modern-v2">
-    <div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+    <div class="container">
         <!-- Top Action Bar -->
         <div class="table-top-bar d-flex align-items-center">
             <!-- Breadcrumb -->
@@ -547,7 +547,7 @@ if (strpos($iframe_url, '?') === false && strpos($iframe_url, '#') !== false) {
     </div>
 </div>
 
-<div class="container-fluid" style="max-width: 1680px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 36px);">
+<div class="container">
     <!-- Mobile helpful hint -->
     <div class="d-block d-md-none text-muted small mb-2 px-1">
         <i class="fa-solid fa-arrows-up-down-left-right me-1 text-primary"></i>
