@@ -1,14 +1,5 @@
-"""
-pdf_index.py  -  pengganti extract_tables_from_pdf + match_tables di match_pdf.py
-
-Ide utama:
-  1. Nomor tabel diambil dari DAFTAR TABEL di halaman awal PDF (bukan menebak angka "3.5"
-     di seluruh halaman), lengkap dengan halaman cetaknya -> halaman PDF (offset dihitung otomatis).
-  2. Pencocokan judul DB <-> judul PDF memakai penugasan satu-ke-satu (Hungarian),
-     bukan greedy, sehingga satu tabel PDF tidak "dicuri" oleh judul yang mirip.
-  3. Baris tabel dibaca dari PyMuPDF dengan membuang teks miring/vertikal (watermark),
-     yang selama ini menyisipkan huruf liar ("d\n630", "i\n1.116") ke dalam sel angka di pdfplumber.
-"""
+#Untuk mencocokkan nomor dan judul tabel pdf dengan yang ada di database 
+#Mencari dan memetakan identitas tabel (Nomor, Judul, dan Halaman).
 import re, sys, json, os
 
 if sys.platform == "win32":
@@ -98,7 +89,7 @@ def detect_offset(doc, toc, sample=40):
     for k, v in sample_keys:
         pr = v["printed_page"]
         pat = re.compile(rf'(?:Tabel|Table)?\s*{re.escape(k)}\b', re.IGNORECASE)
-        for off in range(60, 80):
+        for off in range(10, 130):
             p_0based = pr + off - 1
             if 0 <= p_0based < len(doc):
                 txt = doc[p_0based].get_text()[:400]
@@ -219,34 +210,90 @@ def match_tables(toc, db_tables, min_score=65):
     avail_toc = [k for k in toc if k not in used]
     still_missing = []
     
-    for item, db_id, title in unmatched_db:
-        t_num = item.get("nomor_tabel", "").strip()
-        d_norm = normalize_title(title)
-        best_k, best_score = None, 0
-        for k in avail_toc:
-            score = _score(d_norm, normalize_title(toc[k]["judul_pdf"]))
-            if score > best_score:
-                best_score = score
-                best_k = k
-        if best_score >= min_score and best_k:
-            used.add(best_k)
-            avail_toc.remove(best_k)
-            matched.append({
-                "nomor_tabel": best_k,
-                "id_db": db_id,
-                "judul_db": title,
-                "judul_pdf": toc[best_k]["judul_pdf"],
-                "pages": toc[best_k]["pages"],
-                "similarity": round(float(best_score), 1)
-            })
-        else:
-            still_missing.append({
-                "nomor_tabel": t_num or "-",
-                "judul_db": title,
-                "judul_pdf": "-",
-                "similarity": round(float(best_score), 1),
-                "reason": f"Tidak ada kecocokan di PDF (skor tertinggi {round(float(best_score), 1)}%)"
-            })
+    if unmatched_db and avail_toc:
+        try:
+            # Optimal Hungarian Assignment (Maximum Bipartite Matching)
+            cost_matrix = []
+            score_matrix = []
+            for item, db_id, title in unmatched_db:
+                d_norm = normalize_title(title)
+                r_scores = []
+                r_costs = []
+                for k in avail_toc:
+                    sc = _score(d_norm, normalize_title(toc[k]["judul_pdf"]))
+                    r_scores.append(sc)
+                    r_costs.append(100.0 - sc)
+                score_matrix.append(r_scores)
+                cost_matrix.append(r_costs)
+                
+            row_ind, col_ind = linear_sum_assignment(np.array(cost_matrix))
+            matched_db_indices = set()
+            for r_idx, c_idx in zip(row_ind, col_ind):
+                best_score = score_matrix[r_idx][c_idx]
+                item, db_id, title = unmatched_db[r_idx]
+                t_num = item.get("nomor_tabel", "").strip()
+                best_k = avail_toc[c_idx]
+                
+                if best_score >= min_score:
+                    used.add(best_k)
+                    matched_db_indices.add(r_idx)
+                    matched.append({
+                        "nomor_tabel": best_k,
+                        "id_db": db_id,
+                        "judul_db": title,
+                        "judul_pdf": toc[best_k]["judul_pdf"],
+                        "pages": toc[best_k]["pages"],
+                        "similarity": round(float(best_score), 1)
+                    })
+                else:
+                    still_missing.append({
+                        "nomor_tabel": t_num or "-",
+                        "judul_db": title,
+                        "judul_pdf": "-",
+                        "similarity": round(float(best_score), 1),
+                        "reason": f"Tidak ada kecocokan di PDF (skor tertinggi {round(float(best_score), 1)}%)"
+                    })
+                    
+            for idx, (item, db_id, title) in enumerate(unmatched_db):
+                if idx not in matched_db_indices and idx not in row_ind:
+                    t_num = item.get("nomor_tabel", "").strip()
+                    still_missing.append({
+                        "nomor_tabel": t_num or "-",
+                        "judul_db": title,
+                        "judul_pdf": "-",
+                        "similarity": 0.0,
+                        "reason": "Tidak ada kecocokan di PDF"
+                    })
+        except Exception:
+            # Fallback ke greedy jika linear_sum_assignment tidak tersedia/error
+            for item, db_id, title in unmatched_db:
+                t_num = item.get("nomor_tabel", "").strip()
+                d_norm = normalize_title(title)
+                best_k, best_score = None, 0
+                for k in avail_toc:
+                    score = _score(d_norm, normalize_title(toc[k]["judul_pdf"]))
+                    if score > best_score:
+                        best_score = score
+                        best_k = k
+                if best_score >= min_score and best_k and best_k not in used:
+                    used.add(best_k)
+                    avail_toc.remove(best_k)
+                    matched.append({
+                        "nomor_tabel": best_k,
+                        "id_db": db_id,
+                        "judul_db": title,
+                        "judul_pdf": toc[best_k]["judul_pdf"],
+                        "pages": toc[best_k]["pages"],
+                        "similarity": round(float(best_score), 1)
+                    })
+                else:
+                    still_missing.append({
+                        "nomor_tabel": t_num or "-",
+                        "judul_db": title,
+                        "judul_pdf": "-",
+                        "similarity": round(float(best_score), 1),
+                        "reason": f"Tidak ada kecocokan di PDF (skor tertinggi {round(float(best_score), 1)}%)"
+                    })
             
     unreg = [{"nomor_tabel": k, "judul_pdf": toc[k]["judul_pdf"],
               "reason": "Ada di PDF, tidak ada judul yang mirip di Database"} for k in toc if k not in used]
@@ -258,25 +305,6 @@ def match_tables(toc, db_tables, min_score=65):
         
     return {"status": "success", "matched_in_pdf": matched, "missing_in_pdf": still_missing, "unregistered_in_db": unreg}
 
-# ---------------------------------------------------------------- 3. Baris tabel bebas watermark
-def page_rows(page, ytol=3.0):
-    items = []
-    for b in page.get_text("dict")["blocks"]:
-        for l in b.get("lines", []):
-            if abs(l["dir"][0]) < 0.99: continue            # buang teks miring/vertikal (watermark)
-            for s in l["spans"]:
-                t = s["text"].strip()
-                if t:
-                    x0, y0, x1, y1 = s["bbox"]; items.append(((y0+y1)/2, x0, x1, t))
-    items.sort()
-    rows, cur, cy = [], [], None
-    for y, x0, x1, t in items:
-        if cy is None or abs(y - cy) <= ytol:
-            cur.append((x0, x1, t)); cy = y if cy is None else (cy + y)/2
-        else:
-            rows.append(sorted(cur)); cur, cy = [(x0, x1, t)], y
-    if cur: rows.append(sorted(cur))
-    return [[t for _, _, t in r] for r in rows]
 
 def main():
     pdf_path, db_json = sys.argv[1], sys.argv[2]
