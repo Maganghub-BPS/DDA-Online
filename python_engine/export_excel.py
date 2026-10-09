@@ -1,8 +1,4 @@
-"""
-=============================================================================
-DDA ONLINE CI4 - EXCEL RECONCILIATION REPORT GENERATOR (REVISED)
-=============================================================================
-"""
+#Untuk memformat ke excel hasil dari perbandingan
 
 import sys
 import os

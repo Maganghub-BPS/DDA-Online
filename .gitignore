@@ -44,6 +44,8 @@ $RECYCLE.BIN/
 .env
 .env.*
 .env.bak
+env copy
+env*
 .vagrant
 Vagrantfile
 

@@ -1,15 +1,4 @@
-"""
-=============================================================================
-DDA ONLINE CI4 - BACKGROUND BATCH VERIFICATION WORKER (REVISED v2)
-=============================================================================
-Fixes:
-1. Race condition: All file writes are now serialized under a single lock.
-2. Atomic writes: Uses tmp + rename pattern with proper error handling.
-3. Completed counter overflow: Prevented from exceeding total.
-4. Exception logging: All errors are now logged to a debug file.
-=============================================================================
-"""
-
+#untuk Worker verifikasi tabel massal
 import sys
 import os
 import json
@@ -110,6 +99,9 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
                 except Exception: pass
             return False
 
+    last_state_write = [time.time()]
+    unflushed_state_count = [0]
+
     def write_progress(current_item=None, is_running=True):
         pct = int((completed[0] / total) * 100) if total > 0 else 100
         pct = min(pct, 100)
@@ -120,14 +112,21 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
         safe_write_json(progress_json_path, prog_data)
 
     def write_state_and_progress(result_info=None, is_running=True):
-        """Write both state and progress in a single locked operation."""
+        """Write progress frequently, and buffer state writes to avoid disk thrashing."""
         with file_lock:
             if result_info:
                 t_num = result_info["nomor_tabel"]
                 state[t_num] = result_info
                 completed[0] = min(completed[0] + 1, total)
+                unflushed_state_count[0] += 1
             
-            safe_write_json(state_json_path, state)
+            # Flush state every 5 items, atau jika > 2.0 detik berlalu, atau saat batch selesai
+            now = time.time()
+            if not is_running or unflushed_state_count[0] >= 5 or (now - last_state_write[0]) >= 2.0:
+                safe_write_json(state_json_path, state)
+                last_state_write[0] = now
+                unflushed_state_count[0] = 0
+
             write_progress(result_info, is_running)
 
     # Initial write

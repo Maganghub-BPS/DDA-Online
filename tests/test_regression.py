@@ -5,7 +5,7 @@ from compare_table import compare_head_to_head
 db_path = os.path.abspath('writable/uploads/dda_db_2026.json')
 pdf_path = os.path.abspath('writable/uploads/dda_master_2026.pdf')
 
-targets = ['1.1.1','1.1.2','1.1.4','1.1.5','1.1.6','1.1.8','2.3.1','2.3.3','2.3.5']
+targets = ['1.1.1','1.1.2','1.1.4','1.1.5','1.1.6','1.1.8','2.3.1','2.3.3','2.3.5','2.4.8','2.5.17']
 
 for target in targets:
     result = compare_head_to_head(pdf_path, target, db_path, tolerance=0.0)
