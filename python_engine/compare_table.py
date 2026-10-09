@@ -7,6 +7,17 @@ DDA ONLINE CI4 - HEAD-TO-HEAD TABLE COMPARISON ENGINE
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+if sys.platform == "win32":
+    try:
+        import io
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'buffer'):
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 import json
 import re
 import urllib.request

@@ -2861,6 +2861,8 @@ class Admin extends BaseController
 	 */
 	public function process_matching_pdf()
 	{
+		set_time_limit(300);
+
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
 		}
@@ -2868,10 +2870,12 @@ class Admin extends BaseController
 		$file = $this->request->getFile('pdf_file');
 		
 		if (!$file || !$file->isValid()) {
-			return $this->response->setJSON(['status' => 'error', 'message' => 'File PDF tidak valid atau gagal diunggah.']);
+			$err = $file ? $file->getErrorString() : 'File kosong';
+			return $this->response->setJSON(['status' => 'error', 'message' => 'File PDF tidak valid atau gagal diunggah: ' . $err]);
 		}
 		
-		if ($file->getExtension() != 'pdf') {
+		$ext = strtolower($file->getClientExtension() ?: $file->getExtension());
+		if ($ext != 'pdf') {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Hanya file PDF yang diizinkan.']);
 		}
 
@@ -2891,11 +2895,22 @@ class Admin extends BaseController
 		$dbJsonPath = $uploadPath . "dda_db_{$ta}.json";
 		$matchedJsonPath = $uploadPath . "dda_matched_{$ta}.json";
 
-		// Overwrite master PDF file
+		// Overwrite master PDF file & bersihkan cache index lama
 		if (file_exists($pdfPath)) {
 			@unlink($pdfPath);
 		}
-		$file->move($uploadPath, $pdfMasterName, true);
+		if (file_exists($pdfPath . '.index.json')) {
+			@unlink($pdfPath . '.index.json');
+		}
+		if (file_exists($matchedJsonPath)) {
+			@unlink($matchedJsonPath);
+		}
+
+		try {
+			$file->move($uploadPath, $pdfMasterName, true);
+		} catch (\Exception $e) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal memindahkan file PDF: ' . $e->getMessage()]);
+		}
 
 		// Ambil data database: Mendukung skema baru (t_tahun_tabel JOIN m_list_tabel) maupun skema lama (t_list_tabel)
 		if ($this->db->tableExists('t_tahun_tabel') && $this->db->tableExists('m_list_tabel')) {
@@ -2934,7 +2949,7 @@ class Admin extends BaseController
 		}
 
 		// Save array DB ke master JSON file untuk tahun $ta
-		file_put_contents($dbJsonPath, json_encode($db_tables));
+		file_put_contents($dbJsonPath, json_encode($db_tables, JSON_UNESCAPED_UNICODE));
 
 		// Path ke script Python match_pdf.py
 		$pythonScript = FCPATH . '../python_engine/match_pdf.py';
@@ -2943,17 +2958,30 @@ class Admin extends BaseController
 		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " 2>&1";
 		$output = shell_exec($command);
 
-		if (!$output) {
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Script Python gagal jalan. Pastikan Python sudah di path.']);
+		// Prioritaskan membaca hasil yang disimpan langsung oleh Python ke dda_matched_{ta}.json
+		$result = null;
+		if (file_exists($matchedJsonPath)) {
+			$rawMatchedJson = @file_get_contents($matchedJsonPath);
+			if ($rawMatchedJson !== false && !empty(trim($rawMatchedJson))) {
+				$result = json_decode($rawMatchedJson, true);
+			}
 		}
 
-		$result = json_decode($output, true);
+		// Fallback membaca stdout jika file belum terbaca
+		if (!$result && !empty($output)) {
+			$cleanOutput = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
+			$result = json_decode($cleanOutput, true);
+		}
+
 		if (!$result) {
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Error parsing Python output. Detail: ' . $output]);
+			$safeMsg = mb_convert_encoding($output ?? 'Tidak ada output dari Python engine.', 'UTF-8', 'UTF-8');
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Error parsing Python output. Detail: ' . $safeMsg]);
 		}
 
-		// Simpan hasil scan daftar tabel ke file master dda_matched_{ta}.json
-		file_put_contents($matchedJsonPath, json_encode($result, JSON_PRETTY_PRINT));
+		// Pastikan file dda_matched_{ta}.json tersimpan
+		if (!file_exists($matchedJsonPath)) {
+			file_put_contents($matchedJsonPath, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+		}
 
 		// Lazy Garbage Collection: Hapus file sampah lama (>24 jam) yang bukan master
 		$now = time();
@@ -3014,6 +3042,15 @@ class Admin extends BaseController
 		}
 
 		$res = json_decode($output, true);
+		if (!$res && !empty($output)) {
+			$cleanOutput = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
+			$res = json_decode($cleanOutput, true);
+		}
+		if (!$res) {
+			$cleanOutput = mb_convert_encoding($output ?? 'Gagal membaca respon python.', 'UTF-8', 'UTF-8');
+			return $this->response->setJSON(['status' => 'error', 'message' => $cleanOutput]);
+		}
+
 		if ($res) {
 			// Update state file secara otomatis & persisten
 			$ta = $this->session->get('admin_ta') ?? '2026';

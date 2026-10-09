@@ -10,6 +10,17 @@ Ide utama:
      yang selama ini menyisipkan huruf liar ("d\n630", "i\n1.116") ke dalam sel angka di pdfplumber.
 """
 import re, sys, json, os
+
+if sys.platform == "win32":
+    try:
+        import io
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'buffer'):
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 import pymupdf
 import numpy as np
 from rapidfuzz import fuzz
