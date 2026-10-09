@@ -638,17 +638,17 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-1 gap-lg-3">
                     <li class="nav-item">
-                        <a class="nav-link <?= $isBeranda ? 'active' : '' ?>" href="<?= base_url() ?>">
+                        <a class="nav-link <?= $isBeranda ? 'active' : '' ?>" id="nav-link-beranda" href="<?= base_url() ?>">
                             <i class="fa-solid fa-house-chimney me-1"></i> Beranda
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="<?= base_url('#instansi') ?>">
+                        <a class="nav-link" id="nav-link-instansi" href="<?= base_url('#instansi') ?>">
                             <i class="fa-solid fa-building-columns me-1"></i> Instansi
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?= $isSearch ? 'active' : '' ?>" href="<?= base_url('home/search') ?>">
+                        <a class="nav-link <?= $isSearch ? 'active' : '' ?>" id="nav-link-jelajah" href="<?= base_url('home/search') ?>">
                             <i class="fa-solid fa-compass me-1"></i> Jelajah Data
                         </a>
                     </li>
@@ -794,26 +794,101 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
         handleNavbarScroll();
         <?php endif; ?>
 
-        // Smooth scroll ke bagian #instansi di Beranda & tutup menu mobile bila terbuka
-        document.querySelectorAll('a[href*="#instansi"]').forEach(function(anchor) {
-            anchor.addEventListener('click', function(e) {
-                const target = document.getElementById('instansi');
-                if (target) {
-                    e.preventDefault();
-                    const navCollapse = document.getElementById('navbarNav');
-                    if (navCollapse && navCollapse.classList.contains('show')) {
-                        const bsCollapse = bootstrap.Collapse.getInstance(navCollapse) || new bootstrap.Collapse(navCollapse);
-                        bsCollapse.hide();
-                    }
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    if (history.pushState) {
-                        history.pushState(null, null, '<?= base_url('#instansi') ?>');
-                    } else {
-                        window.location.hash = '#instansi';
-                    }
+        // Navigasi Cerdas & ScrollSpy untuk Beranda dan Instansi
+        (function() {
+            const navLinkBeranda = document.getElementById('nav-link-beranda');
+            const navLinkInstansi = document.getElementById('nav-link-instansi');
+            const instansiSection = document.getElementById('instansi');
+
+            function setActiveNav(target) {
+                if (!navLinkBeranda || !navLinkInstansi) return;
+                if (target === 'instansi') {
+                    navLinkInstansi.classList.add('active');
+                    navLinkBeranda.classList.remove('active');
+                } else if (target === 'beranda') {
+                    navLinkBeranda.classList.add('active');
+                    navLinkInstansi.classList.remove('active');
                 }
-            });
-        });
+            }
+
+            // Jalankan logika ScrollSpy hanya jika section #instansi ada di halaman saat ini (Beranda)
+            if (instansiSection) {
+                let scrollTimeout;
+                let isAutoScrolling = false;
+
+                // 1. Sinkronisasi status saat halaman dimuat jika terdapat hash #instansi
+                if (window.location.hash === '#instansi') {
+                    setActiveNav('instansi');
+                    setTimeout(function() {
+                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 200);
+                }
+
+                // 2. Klik menu Beranda saat berada di halaman Beranda
+                if (navLinkBeranda) {
+                    navLinkBeranda.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const navCollapse = document.getElementById('navbarNav');
+                        if (navCollapse && navCollapse.classList.contains('show')) {
+                            const bsCollapse = bootstrap.Collapse.getInstance(navCollapse) || new bootstrap.Collapse(navCollapse);
+                            bsCollapse.hide();
+                        }
+                        setActiveNav('beranda');
+                        isAutoScrolling = true;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        if (history.pushState) {
+                            history.pushState(null, null, '<?= base_url() ?>');
+                        }
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(function() { isAutoScrolling = false; }, 800);
+                    });
+                }
+
+                // 3. Smooth scroll ke #instansi saat tautan #instansi diklik
+                document.querySelectorAll('a[href*="#instansi"]').forEach(function(anchor) {
+                    anchor.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const navCollapse = document.getElementById('navbarNav');
+                        if (navCollapse && navCollapse.classList.contains('show')) {
+                            const bsCollapse = bootstrap.Collapse.getInstance(navCollapse) || new bootstrap.Collapse(navCollapse);
+                            bsCollapse.hide();
+                        }
+                        setActiveNav('instansi');
+                        isAutoScrolling = true;
+                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        if (history.pushState) {
+                            history.pushState(null, null, '<?= base_url('#instansi') ?>');
+                        } else {
+                            window.location.hash = '#instansi';
+                        }
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(function() { isAutoScrolling = false; }, 800);
+                    });
+                });
+
+                // 4. ScrollSpy dinamis saat pengguna scroll manual di halaman Beranda
+                window.addEventListener('scroll', function() {
+                    if (isAutoScrolling) return;
+                    const rect = instansiSection.getBoundingClientRect();
+                    // Jika section instansi berada di viewport
+                    if (rect.top <= 200 && rect.bottom >= 150) {
+                        setActiveNav('instansi');
+                    } else if (window.scrollY < 200) {
+                        setActiveNav('beranda');
+                    }
+                }, { passive: true });
+
+                // 5. Listener saat pengguna menekan tombol Back / Forward pada browser
+                window.addEventListener('hashchange', function() {
+                    if (window.location.hash === '#instansi') {
+                        setActiveNav('instansi');
+                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                        setActiveNav('beranda');
+                    }
+                });
+            }
+        })();
     </script>
 </body>
 </html>
