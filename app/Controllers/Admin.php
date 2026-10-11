@@ -451,9 +451,12 @@ class Admin extends BaseController
 		}
 
 		$ta = $this->session->get('admin_ta');
+		if (empty($ta)) {
+			$ta = date('Y');
+		}
 
 		/* pagination */
-		$total_row		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id")->getNumRows();
+		$total_row		= (int)($this->db->query("SELECT COUNT(*) as total FROM t_tahun_tabel")->getRow()->total ?? 0);
 		$per_page		= 150;
 
 		$awal	= $this->uri->segment(4);
@@ -602,7 +605,7 @@ class Admin extends BaseController
 
 			if ($unitkerjalogin == 'bps') {
 				/* pagination */
-				$total_row		= $this->db->query("SELECT * FROM m_unitkerja")->getNumRows();
+				$total_row		= (int)($this->db->query("SELECT COUNT(*) as total FROM m_unitkerja")->getRow()->total ?? 0);
 				$per_page		= 150;
 
 				$awal	= $this->uri->segment(4);
@@ -618,14 +621,24 @@ class Admin extends BaseController
 				$level = $this->session->get('admin_level');
 				if ($level == 'Admin' || $level == 'Super Admin') {
 					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja order by unitkerja_ind LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
-					//$a['datadiperiksa'] = $this->db->query("SELECT * FROM m_unitkerja LIMIT $awal, $akhir")->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
-					$user_level = $this->session->get('admin_level');
+					$user_level = strtolower(trim((string)$this->session->get('admin_level')));
 					if ($user_level == 'lo') {
-						$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where user_wali=?", [$user_wali])->getResult();
+						$user_id = (int)$this->session->get('admin_id');
+						$user_teams = $this->db->query("SELECT kode_tim FROM t_tim_anggota WHERE id_admin = ?", [$user_id])->getResultArray();
+						$team_codes = array_filter(array_column($user_teams, 'kode_tim'));
+						if (!empty($user_wali) && !in_array($user_wali, $team_codes)) {
+							$team_codes[] = $user_wali;
+						}
+						if (!empty($team_codes)) {
+							$in_clause = implode(',', array_fill(0, count($team_codes), '?'));
+							$a['data'] = $this->db->query("SELECT * FROM m_unitkerja WHERE user_wali IN ($in_clause) ORDER BY unitkerja_ind ASC", $team_codes)->getResult();
+						} else {
+							$a['data'] = [];
+						}
 					} else if ($user_level == 'spv') {
-						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv=?", [$user_wali])->getResult();
+						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv=? ORDER BY unitkerja_ind ASC", [$user_wali])->getResult();
 					}
 				}
 
@@ -773,14 +786,25 @@ class Admin extends BaseController
 			if ($unitkerjalogin == 'bps') {
 				$level = $this->session->get('admin_level');
 				if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
-					$user_level = $this->session->get('admin_level');
+					$user_level = strtolower(trim((string)$this->session->get('admin_level')));
 					if ($user_level == 'lo') {
-						$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where user_wali=?", [$user_wali])->getResult();
+						$user_id = (int)$this->session->get('admin_id');
+						$user_teams = $this->db->query("SELECT kode_tim FROM t_tim_anggota WHERE id_admin = ?", [$user_id])->getResultArray();
+						$team_codes = array_filter(array_column($user_teams, 'kode_tim'));
+						if (!empty($user_wali) && !in_array($user_wali, $team_codes)) {
+							$team_codes[] = $user_wali;
+						}
+						if (!empty($team_codes)) {
+							$in_clause = implode(',', array_fill(0, count($team_codes), '?'));
+							$a['data'] = $this->db->query("SELECT * FROM m_unitkerja WHERE user_wali IN ($in_clause) ORDER BY unitkerja_ind ASC", $team_codes)->getResult();
+						} else {
+							$a['data'] = [];
+						}
 					} else if ($user_level == 'spv') {
-						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv=?", [$user_wali])->getResult();
+						$a['data'] = $this->db->query("SELECT * FROM m_unitkerja where user_spv=? ORDER BY unitkerja_ind ASC", [$user_wali])->getResult();
 					}
 				}
 				$a['page']		= "l_forum";
@@ -1600,7 +1624,7 @@ class Admin extends BaseController
 		$unitkerja_ind	= $this->input->post('unitkerja_ind');
 		$unitkerja_en	= $this->input->post('unitkerja_en');
 		$user_wali		= $this->input->post('user_wali');
-		$user_spv		= $this->input->post('user_spv');
+		$user_spv		= trim((string)($this->input->post('user_spv') ?? '')) ?: '-';
 
 
 		if ($mau_ke == "del") {
@@ -1716,7 +1740,7 @@ class Admin extends BaseController
 
 		// Ambil info tabel
 		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, t.no_tabel, t.link_tabel, m.judul_ind')
+			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, m.judul_ind')
 			->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
 			->where('t.id', $id)
 			->get()
@@ -1729,12 +1753,34 @@ class Admin extends BaseController
 			])->setStatusCode(404);
 		}
 
-		// Validasi: jika ingin publish (1), pastikan link_tabel tidak kosong
-		if ($is_publish === 1 && empty(trim($tabel->link_tabel ?? ''))) {
-			return $this->response->setJSON([
-				'status' => 'error',
-				'message' => 'Tabel belum memiliki tautan data (link kosong). Silakan lengkapi link terlebih dahulu sebelum mempublish.'
-			])->setStatusCode(422);
+		// Validasi persyaratan tampil (hanya saat mengaktifkan publikasi / is_publish = 1)
+		if ($is_publish === 1) {
+			// 1. Syarat Link: Harus memiliki tautan data
+			if (empty(trim($tabel->link_tabel ?? ''))) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Tabel belum memiliki tautan data (link kosong). Silakan lengkapi link terlebih dahulu sebelum mempublish.'
+				])->setStatusCode(422);
+			}
+
+			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data)
+			$is_portal = (stripos($tabel->link_tabel ?? '', 'portal') !== false || 
+			              stripos($tabel->link_tabel ?? '', 'satudata') !== false);
+			$is_filled = ($tabel->is_periksa == '1' || $is_portal);
+			if (!$is_filled) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Tabel belum dapat dipublish karena status pengisian masih Belum Diisi.'
+				])->setStatusCode(422);
+			}
+
+			// 3. Syarat Verifikasi: Harus sudah diverifikasi oleh BPS (is_confirm == 1)
+			if ($tabel->is_confirm != '1') {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Tabel belum dapat dipublish karena belum diverifikasi oleh BPS (status masih Menunggu Cek).'
+				])->setStatusCode(422);
+			}
 		}
 
 		$this->db->table('t_tahun_tabel')
@@ -1842,61 +1888,195 @@ class Admin extends BaseController
 		}
 		echo "</table>";
 	}
-	// --- FITUR MASTER TIM  ---
+	// --- FITUR MASTER TIM (PENGELOLAAN TIM & ANGGOTA + OPD BINAAN) ---
 	public function master_tim()
 	{
+		// Cek otentikasi login
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		$total_row      = $this->db->query("SELECT * FROM t_admin WHERE level = 'lo'")->getNumRows();
-		$per_page       = 10;
-
-		$awal   = $this->uri->segment(4);
-		$awal   = (empty($awal) || $awal == 1) ? 0 : $awal;
-		$akhir  = $per_page;
-
-		$a['pagi']  = _page($total_row, $per_page, 4, base_url() . "admin/master_tim/p");
-
-		$mau_ke         = $this->uri->segment(3);
-		$idu            = $this->uri->segment(4);
-		$cari           = $this->input->post('q');
-
-		$idp            = $this->input->post('idp');
-		$nama           = $this->input->post('nama');
-		$nip            = $this->input->post('nip');
-		$username       = $this->input->post('username');
-		$password       = md5($this->input->post('password'));
-
-		$level          = "lo";
-		$unitkerja      = "bps";
-
-		if ($mau_ke == "del") {
-			$this->db->query("DELETE FROM t_admin WHERE id = ?", [$idu]);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data Tim berhasil dihapus</div>");
-			return redirect()->to('admin/master_tim');
-		} else if ($mau_ke == "cari") {
-
-			$a['data']      = $this->db->query("SELECT * FROM t_admin WHERE level = 'lo' AND (nama LIKE ? OR username LIKE ?) ORDER BY username ASC", ['%' . $cari . '%', '%' . $cari . '%'])->getResult();
-			$a['page']      = "l_master_tim";
-		} else if ($mau_ke == "act_add") {
-			$cek = $this->db->query("SELECT * FROM t_admin WHERE username=?", [$username])->getNumRows();
-
-			if ($cek > 0) {
-				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Tim (Username) sudah digunakan!</div>");
-				return redirect()->to('admin/master_tim');
-			} else {
-				$this->db->query("INSERT INTO t_admin (username, password, nama, nip, level, id_unitkerja, email) VALUES (?, ?, ?, ?, ?, ?, ?)", [$username, $password, $nama, $nip, $level, $unitkerja, '-']);
-				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tim Baru berhasil ditambahkan</div>");
-				return redirect()->to('admin/master_tim');
-			}
-		} else {
-
-			$a['data']      = $this->db->query("SELECT * FROM t_admin WHERE level = 'lo' ORDER BY username ASC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
-			$a['page']      = "l_master_tim";
+		// Batasi hak akses hanya untuk Super Admin dan Admin (Diseminasi)
+		$user_lvl = strtolower(trim((string)($this->session->get('admin_level') ?? '')));
+		$admin_user = strtolower(trim((string)($this->session->get('admin_user') ?? '')));
+		if (!in_array($user_lvl, ['super admin', 'superadmin', 'admin']) && $admin_user != 'diseminasi') {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Menu Master Tim hanya dapat diakses oleh Admin dan Super Admin.</div>");
+			return redirect()->to('admin');
 		}
 
-		return view('admin/index', $a);
+		$mau_ke = $this->uri->segment(3);
+		$idu = $this->uri->segment(4);
+
+		// AKSI 1: TAMBAH TIM BARU
+		if ($mau_ke == "act_add_tim") {
+			$nama_tim = trim((string)$this->input->post('nama_tim'));
+			$kode_tim = strtolower(trim(preg_replace('/\s+/', '', (string)$this->input->post('kode_tim'))));
+
+			if (empty($nama_tim) || empty($kode_tim)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Tim dan Kode Tim tidak boleh kosong!</div>");
+				return redirect()->to('admin/master_tim');
+			}
+
+			// Cek apakah username / kode tim sudah ada
+			$cek = $this->db->query("SELECT id FROM t_admin WHERE username = ?", [$kode_tim])->getNumRows();
+			if ($cek > 0) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Kode Tim '<strong>{$kode_tim}</strong>' sudah digunakan! Gunakan kode lain.</div>");
+				return redirect()->to('admin/master_tim');
+			}
+
+			$this->db->query("INSERT INTO t_admin (username, password, nama, nip, level, id_unitkerja, email) VALUES (?, ?, ?, ?, ?, ?, ?)", [
+				$kode_tim,
+				md5('123456'),
+				$nama_tim,
+				'-',
+				'lo',
+				'bps',
+				'-'
+			]);
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tim baru <strong>{$nama_tim}</strong> ({$kode_tim}) berhasil ditambahkan.</div>");
+			return redirect()->to('admin/master_tim');
+		}
+
+		// AKSI 2: HAPUS TIM
+		else if ($mau_ke == "act_del_tim") {
+			$id_tim = (int)$idu;
+			$tim_row = $this->db->query("SELECT id, username, nama FROM t_admin WHERE id = ?", [$id_tim])->getRow();
+
+			if (!$tim_row) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Data Tim tidak ditemukan!</div>");
+				return redirect()->to('admin/master_tim');
+			}
+
+			// Validasi Keamanan: Cek apakah tim masih membina OPD di m_unitkerja
+			$count_opd = (int)($this->db->query("SELECT COUNT(*) as c FROM m_unitkerja WHERE user_wali = ?", [$tim_row->username])->getRow()->c ?? 0);
+			if ($count_opd > 0) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal menghapus! Tim <strong>{$tim_row->nama}</strong> masih memiliki <strong>{$count_opd} OPD Binaan</strong>. Pindahkan penugasan OPD terlebih dahulu sebelum menghapus tim.</div>");
+				return redirect()->to('admin/master_tim');
+			}
+
+			// Hapus keanggotaan di t_tim_anggota
+			$this->db->query("DELETE FROM t_tim_anggota WHERE kode_tim = ?", [$tim_row->username]);
+			// Hapus entitas tim di t_admin
+			$this->db->query("DELETE FROM t_admin WHERE id = ?", [$id_tim]);
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tim <strong>{$tim_row->nama}</strong> berhasil dihapus.</div>");
+			return redirect()->to('admin/master_tim');
+		}
+
+		// AKSI 3: TAMBAH ANGGOTA KE TIM
+		else if ($mau_ke == "act_add_anggota") {
+			$kode_tim = trim((string)$this->input->post('kode_tim'));
+			$id_admin = (int)$this->input->post('id_admin');
+
+			if (empty($kode_tim) || empty($id_admin)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Pilih tim dan pegawai dengan benar!</div>");
+				return redirect()->to('admin/master_tim');
+			}
+
+			// Validasi ketat: Hanya user dengan level LO yang dapat ditambahkan ke tim
+			$pegawai = $this->db->query("SELECT id, nama, level FROM t_admin WHERE id = ?", [$id_admin])->getRow();
+			if (!$pegawai || strtolower(trim((string)$pegawai->level)) !== 'lo') {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal! Hanya pegawai dengan peran <strong>LO</strong> yang dapat ditambahkan ke dalam tim. Akun Administrator tidak dapat dimasukkan ke tim.</div>");
+				return redirect()->to('admin/master_tim');
+			}
+
+			// Validasi Opsi B (Strict): 1 Personil LO hanya boleh bertugas di 1 tim
+			$cek_existing = $this->db->query("SELECT ta.kode_tim, u.nama, t.nama as nama_tim 
+				FROM t_tim_anggota ta 
+				JOIN t_admin u ON ta.id_admin = u.id 
+				LEFT JOIN t_admin t ON ta.kode_tim = t.username 
+				WHERE ta.id_admin = ?", [$id_admin])->getRow();
+
+			if ($cek_existing) {
+				$nama_tim_asal = !empty($cek_existing->nama_tim) ? $cek_existing->nama_tim : strtoupper($cek_existing->kode_tim);
+				if ($cek_existing->kode_tim == $kode_tim) {
+					$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\"><strong>{$cek_existing->nama}</strong> sudah menjadi anggota tim ini!</div>");
+				} else {
+					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal! <strong>{$cek_existing->nama}</strong> sudah terdaftar di <strong>{$nama_tim_asal}</strong>. Sesuai aturan, 1 LO hanya dapat bertugas di 1 tim. Silakan keluarkan dari tim sebelumnya terlebih dahulu jika ingin memindahkannya.</div>");
+				}
+				return redirect()->to('admin/master_tim');
+			}
+
+			$this->db->query("INSERT INTO t_tim_anggota (kode_tim, id_admin) VALUES (?, ?)", [$kode_tim, $id_admin]);
+			$pegawai_nama = $this->db->query("SELECT nama FROM t_admin WHERE id = ?", [$id_admin])->getRow()->nama ?? 'Pegawai';
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\"><strong>{$pegawai_nama}</strong> berhasil ditambahkan ke tim <strong>{$kode_tim}</strong>.</div>");
+			return redirect()->to('admin/master_tim');
+		}
+
+		// AKSI 4: KELUARKAN / HAPUS ANGGOTA DARI TIM
+		else if ($mau_ke == "act_del_anggota") {
+			$rel_id = (int)$idu;
+			$rel_row = $this->db->query("SELECT ta.id, ta.kode_tim, u.nama FROM t_tim_anggota ta JOIN t_admin u ON ta.id_admin = u.id WHERE ta.id = ?", [$rel_id])->getRow();
+
+			if ($rel_row) {
+				$this->db->query("DELETE FROM t_tim_anggota WHERE id = ?", [$rel_id]);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\"><strong>{$rel_row->nama}</strong> berhasil dikeluarkan dari {$rel_row->kode_tim}. Akun pegawai tetap aman.</div>");
+			} else {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Data anggota tidak ditemukan!</div>");
+			}
+			return redirect()->to('admin/master_tim');
+		}
+
+		// TAMPILAN UTAMA: MASTER TIM (OPSI B: TAB ANGGOTA & OPD BINAAN)
+		else {
+			// 1. Ambil seluruh Tim terdaftar di t_admin
+			$teams_raw = $this->db->query("SELECT * FROM t_admin WHERE (username LIKE 'tim%' OR nama LIKE 'Tim %' OR username IN (SELECT DISTINCT user_wali FROM m_unitkerja)) AND id_unitkerja = 'bps' ORDER BY id ASC")->getResult();
+
+			$teams_data = [];
+			$total_anggota_count = 0;
+			$total_opd_count = 0;
+
+			foreach ($teams_raw as $t) {
+				// Ambil anggota tim dari t_tim_anggota
+				$members = $this->db->query("SELECT ta.id as rel_id, ta.created_at, u.id as admin_id, u.nama, u.nip, u.username, u.email 
+					FROM t_tim_anggota ta 
+					JOIN t_admin u ON ta.id_admin = u.id 
+					WHERE ta.kode_tim = ? 
+					ORDER BY u.nama ASC", [$t->username])->getResult();
+
+				// Ambil daftar OPD binaan dari m_unitkerja
+				$opds = $this->db->query("SELECT id_unitkerja, unitkerja_ind, unitkerja_en, user_spv 
+					FROM m_unitkerja 
+					WHERE user_wali = ? 
+					ORDER BY unitkerja_ind ASC", [$t->username])->getResult();
+
+				$total_anggota_count += count($members);
+				$spv_arr = array_unique(array_filter(array_map(function($o) {
+					return (!empty($o->user_spv) && $o->user_spv !== '-') ? strtoupper($o->user_spv) : null;
+				}, $opds)));
+				$spv_text = !empty($spv_arr) ? implode(', ', $spv_arr) : '-';
+
+				$teams_data[] = (object)[
+					'id'        => $t->id,
+					'kode_tim'  => $t->username,
+					'nama'      => $t->nama,
+					'members'   => $members,
+					'opds'      => $opds,
+					'spv'       => $spv_text,
+				];
+			}
+
+			// 2. Ambil staf BPS yang berstatus LO saja, serta status penugasan timnya (untuk Opsi B: 1 personil 1 tim)
+			$staff_bps = $this->db->query("SELECT u.id, u.nama, u.nip, u.username, u.level, ta.kode_tim as assigned_tim, t.nama as assigned_tim_nama 
+				FROM t_admin u 
+				LEFT JOIN t_tim_anggota ta ON u.id = ta.id_admin 
+				LEFT JOIN t_admin t ON ta.kode_tim = t.username 
+				WHERE u.id_unitkerja = 'bps' 
+				  AND LOWER(u.level) = 'lo' 
+				  AND NOT (u.username LIKE 'tim%' OR u.nama LIKE 'Tim %') 
+				ORDER BY (ta.kode_tim IS NOT NULL) ASC, u.nama ASC")->getResult();
+
+			$a['teams']         = $teams_data;
+			$a['staff_bps']     = $staff_bps;
+			$a['total_tim']     = count($teams_data);
+			$a['total_anggota'] = $total_anggota_count;
+			$a['total_opd']     = $total_opd_count;
+			$a['page']          = "l_master_tim";
+
+			return view('admin/index', $a);
+		}
 	}
 
 	public function matching()

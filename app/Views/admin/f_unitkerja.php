@@ -81,16 +81,16 @@ if ($mode == "edt" || $mode == "act_edt") {
                                 </div>
                             </div>
 
-                            <!-- LO & SPV Row -->
-                            <div class="col-md-6">
-                                <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Liassion Officer (Wali Data)</label>
+                            <!-- LO Row -->
+                            <div class="col-md-12">
+                                <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Tim Pembina / Liaison Officer (Wali Data)</label>
                                 <div class="input-group border-radius-lg overflow-hidden shadow-none border border-gray-100 bg-white">
-                                    <span class="input-group-text bg-white border-0"><i class="bi bi-person-badge text-primary-orange"></i></span>
+                                    <span class="input-group-text bg-white border-0"><i class="bi bi-people-fill text-primary-orange"></i></span>
                                     <select name="user_wali" id="user_wali" class="form-select border-0 py-2" tabindex="5">
                                         <?php if ($mode == "edt" || $mode == "act_edt"): ?>
                                             <option selected value="<?php echo $user_wali; ?>"><?php echo $nama_userwali; ?></option>
                                         <?php else: ?>
-                                            <option selected value="Kosong">- Pilih Walidata -</option>
+                                            <option selected value="Kosong">- Pilih Tim Pembina / Walidata -</option>
                                         <?php endif; ?>
                                         
                                         <?php
@@ -102,25 +102,6 @@ if ($mode == "edt" || $mode == "act_edt") {
                                             }
                                         }
                                         ?>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Pengawas (Supervisor)</label>
-                                <div class="input-group border-radius-lg overflow-hidden shadow-none border border-gray-100 bg-white">
-                                    <span class="input-group-text bg-white border-0"><i class="bi bi-shield-check text-info"></i></span>
-                                    <select name="user_spv" class="form-select border-0 py-2" required tabindex="6">
-                                        <option value="">- Pilih Pengawas -</option>
-                                        <?php
-                                        $id_user_spv	= array('puguh.raharjo','herpas','medha');
-                                        $nama_user_spv	= array('Puguh Raharjo','Hermawan Prasetyo','Medha Wardhany');
-                                        
-                                        for ($i = 0; $i < sizeof($id_user_spv); $i++) {
-                                            $selected = ($id_user_spv[$i] == $user_spv) ? 'selected' : '';
-                                            echo "<option value='".$id_user_spv[$i]."' $selected>".$nama_user_spv[$i]."</option>";
-                                        }			
-                                        ?>			
                                     </select>
                                 </div>
                             </div>
