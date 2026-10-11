@@ -53,6 +53,40 @@
         right: 24px;
         z-index: 99999;
     }
+    /* Minimalist Tooltip for Locked Switch */
+    .tooltip.tooltip-publish-lock.show {
+        opacity: 1 !important;
+    }
+    .tooltip-publish-lock .tooltip-inner {
+        max-width: 320px !important;
+        padding: 5px 11px !important;
+        color: #ffffff !important;
+        background: #1e293b !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-radius: 6px !important;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        white-space: nowrap !important;
+        text-align: center !important;
+        letter-spacing: 0.01em !important;
+    }
+    .tooltip-publish-lock.bs-tooltip-top .tooltip-arrow::before,
+    .tooltip-publish-lock.bs-tooltip-auto[data-popper-placement^="top"] .tooltip-arrow::before {
+        border-top-color: #1e293b !important;
+    }
+    .tooltip-publish-lock.bs-tooltip-bottom .tooltip-arrow::before,
+    .tooltip-publish-lock.bs-tooltip-auto[data-popper-placement^="bottom"] .tooltip-arrow::before {
+        border-bottom-color: #1e293b !important;
+    }
+    .tooltip-publish-lock.bs-tooltip-start .tooltip-arrow::before,
+    .tooltip-publish-lock.bs-tooltip-auto[data-popper-placement^="left"] .tooltip-arrow::before {
+        border-left-color: #1e293b !important;
+    }
+    .tooltip-publish-lock.bs-tooltip-end .tooltip-arrow::before,
+    .tooltip-publish-lock.bs-tooltip-auto[data-popper-placement^="right"] .tooltip-arrow::before {
+        border-right-color: #1e293b !important;
+    }
     @media (max-width: 991.98px) { .tabel-judul-cell { min-width: 280px; } }
     @media (max-width: 575.98px) {
         .filter-search-container { flex-wrap: wrap !important; width: 100%; }
@@ -223,34 +257,81 @@
                         <?php
                             $user_lvl_sess = strtolower(trim(session()->get('admin_level') ?? ''));
                             $is_admin_or_super = in_array($user_lvl_sess, ['admin', 'super admin', 'superadmin']);
-                            $switch_disabled = (!$has_link || !$is_admin_or_super);
+                            $is_filled = ($b->is_periksa == '1' || $is_portal);
+                            $is_verified = ($b->is_confirm == '1');
+                            $is_eligible = ($has_link && $is_filled && $is_verified);
+
                             if (!$is_admin_or_super) {
-                                $switch_title = 'Hanya Admin dan Super Admin yang dapat mengubah status publikasi';
+                                $switch_disabled = true;
+                                $switch_title = '<i class="bi bi-shield-x text-danger me-1"></i>Hanya Admin & Super Admin';
                                 $switch_cursor = 'not-allowed';
-                            } elseif (!$has_link) {
-                                $switch_title = 'Lengkapi link tabel terlebih dahulu untuk mempublish';
-                                $switch_cursor = 'not-allowed';
-                            } else {
-                                $switch_title = $is_published ? 'Klik untuk menarik ke Draft' : 'Klik untuk mempublish ke Web Frontend';
+                            } elseif ($is_published) {
+                                // Jika tabel saat ini sedang aktif (Publik), admin dapat mematikan ke Draft kapan saja (tanpa tooltip)
+                                $switch_disabled = false;
+                                $switch_title = '';
                                 $switch_cursor = 'pointer';
+                            } elseif ($is_eligible) {
+                                // Jika Draft dan ketiga syarat terpenuhi, switch aktif (tanpa tooltip)
+                                $switch_disabled = false;
+                                $switch_title = '';
+                                $switch_cursor = 'pointer';
+                            } else {
+                                // Jika Draft tapi belum memenuhi syarat, kunci switch dengan pesan ringkas
+                                $switch_disabled = true;
+                                $switch_cursor = 'not-allowed';
+                                
+                                if (!$is_filled && !$is_verified && !$has_link) {
+                                    $reason_text = 'Tabel belum diisi & belum diverifikasi';
+                                } elseif (!$is_filled && !$is_verified) {
+                                    $reason_text = 'Belum diisi & belum diverifikasi';
+                                } elseif (!$is_filled) {
+                                    $reason_text = 'Data tabel belum diisi';
+                                } elseif (!$is_verified) {
+                                    $reason_text = 'Menunggu verifikasi BPS';
+                                } elseif (!$has_link) {
+                                    $reason_text = 'Link tabel belum tersedia';
+                                } else {
+                                    $reason_text = 'Syarat publikasi belum lengkap';
+                                }
+
+                                $switch_title = '<i class="bi bi-lock-fill text-warning me-1"></i> ' . $reason_text;
                             }
                         ?>
                         <td class="text-center" style="vertical-align: middle;">
                             <div class="d-flex flex-column align-items-center justify-content-center gap-1">
-                                <div class="form-check form-switch m-0" style="min-height: 24px;">
-                                    <input class="form-check-input publish-switch" 
-                                           type="checkbox" 
-                                           role="switch" 
-                                           id="switch-pub-<?= $b->id ?>" 
-                                           data-id="<?= $b->id ?>"
-                                           <?= $is_published ? 'checked' : '' ?>
-                                           <?= $switch_disabled ? 'disabled' : '' ?>
-                                           title="<?= $switch_title ?>"
-                                           style="width: 2.8em; height: 1.45em; cursor: <?= $switch_cursor ?>;">
-                                </div>
+                                <?php if ($switch_disabled): ?>
+                                    <div class="switch-wrapper d-inline-block" 
+                                         data-bs-toggle="tooltip" 
+                                         data-bs-html="true"
+                                         data-bs-placement="top" 
+                                         data-bs-custom-class="tooltip-publish-lock"
+                                         title="<?= htmlspecialchars($switch_title, ENT_QUOTES) ?>"
+                                         style="cursor: not-allowed;">
+                                        <div class="form-check form-switch m-0" style="min-height: 24px; pointer-events: none;">
+                                            <input class="form-check-input publish-switch" 
+                                                   type="checkbox" 
+                                                   role="switch" 
+                                                   id="switch-pub-<?= $b->id ?>" 
+                                                   data-id="<?= $b->id ?>"
+                                                   <?= $is_published ? 'checked' : '' ?>
+                                                   disabled
+                                                   style="width: 2.8em; height: 1.45em; cursor: not-allowed;">
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="form-check form-switch m-0" style="min-height: 24px;">
+                                        <input class="form-check-input publish-switch" 
+                                               type="checkbox" 
+                                               role="switch" 
+                                               id="switch-pub-<?= $b->id ?>" 
+                                               data-id="<?= $b->id ?>"
+                                               <?= $is_published ? 'checked' : '' ?>
+                                               style="width: 2.8em; height: 1.45em; cursor: pointer;">
+                                    </div>
+                                <?php endif; ?>
                                 <div id="pub-status-label-<?= $b->id ?>" class="mt-1">
                                     <?php if (!$has_link): ?>
-                                        <span class="badge bg-light text-muted border px-2 py-0.5" style="font-size: 10px; font-weight: 600;" title="Link data belum diisi">
+                                        <span class="badge bg-light text-muted border px-2 py-0.5" style="font-size: 10px; font-weight: 600;">
                                             <i class="bi bi-link-45deg me-0.5"></i> Tanpa Link
                                         </span>
                                     <?php elseif ($is_published): ?>
@@ -259,7 +340,7 @@
                                         </span>
                                     <?php else: ?>
                                         <span class="badge bg-secondary-subtle text-secondary border-0 px-2 py-0.5" style="font-size: 10px; font-weight: 700;">
-                                            <i class="bi bi-eye-slash-fill me-0.5"></i> Draft
+                                            <i class="bi <?= $is_eligible ? 'bi-eye-slash-fill' : 'bi-lock-fill' ?> me-0.5"></i> Draft
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -325,6 +406,12 @@
 
 <script type="text/javascript">
 $(document).ready(function() {
+    // Inisialisasi Tooltip Bootstrap 5
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
     // Current Active Publish Filter ('all', 'published', 'draft')
     var currentPublishFilter = 'all';
 

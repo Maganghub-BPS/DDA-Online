@@ -12,6 +12,10 @@
 $today = getdate();
 $tahunsekarang = $today['year'];
 
+// Tahun anggaran target (DDA yang sedang aktif dikerjakan) & Default Periode Data (N-1)
+$ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
+$default_periode = is_numeric($ta) ? ((int)$ta - 1) : $ta;
+
 $mode = segment_safe(3); // Membaca mode dari URL: "edt" (verifikasi usulan) atau "add" (tambah usulan manual)
 
 if ($mode == "edt" || $mode == "act_edt") {
@@ -26,8 +30,8 @@ if ($mode == "edt" || $mode == "act_edt") {
 
     // Ambil data t_tahun_tabel jika usulan ini sudah pernah di-ACC / didaftarkan sebelumnya
     $no_tabel        = $linked_t->no_tabel ?? '';
-    $periode_id      = $linked_t->periode_id ?? $ta;
-    $periode_en      = $linked_t->periode_en ?? $periode_id;
+    $periode_id      = !empty($linked_t->periode_id) ? $linked_t->periode_id : $default_periode;
+    $periode_en      = !empty($linked_t->periode_en) ? $linked_t->periode_en : $periode_id;
     $link_tabel      = $linked_t->link_tabel ?? '';
     $link_sebelumnya = $linked_t->link_sebelumnya ?? '';
     $exclude_id      = $linked_t->id ?? '';
@@ -43,15 +47,13 @@ if ($mode == "edt" || $mode == "act_edt") {
     $file_tabel = "";
 
     $no_tabel        = '';
-    $periode_id      = $ta;
-    $periode_en      = $ta;
+    $periode_id      = $default_periode;
+    $periode_en      = $default_periode;
     $link_tabel      = '';
     $link_sebelumnya = '';
     $exclude_id      = '';
     $exclude_id_tabel= '';
 }
-// Tahun anggaran target (DDA yang sedang aktif dikerjakan)
-$ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
 ?>
 <div class="row justify-content-center">
     <div class="col-lg-10">
@@ -131,12 +133,12 @@ $ta = $ta ?? session()->get('admin_ta') ?? $tahunsekarang;
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Periode Tabel (ID)</label>
-                                <input type="text" name="periode_id" class="form-control border-radius-lg p-3" placeholder="Contoh: <?php echo $ta; ?>" value="<?php echo esc($periode_id ?? $ta); ?>">
+                                <input type="text" name="periode_id" class="form-control border-radius-lg p-3" placeholder="Contoh: <?php echo $default_periode; ?>" value="<?php echo esc($periode_id ?? $default_periode); ?>">
                                 <small class="text-muted" style="font-size: 11px;">Periode Bahasa Indonesia.</small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Period (EN)</label>
-                                <input type="text" name="periode_en" class="form-control border-radius-lg p-3" placeholder="Example: <?php echo $ta; ?>" value="<?php echo esc($periode_en ?? $ta); ?>">
+                                <input type="text" name="periode_en" class="form-control border-radius-lg p-3" placeholder="Example: <?php echo $default_periode; ?>" value="<?php echo esc($periode_en ?? $default_periode); ?>">
                                 <small class="text-muted" style="font-size: 11px;">English Period.</small>
                             </div>
                             <div class="col-md-2">
