@@ -34,14 +34,13 @@
                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Nama Organisasi (ID)</th>
                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Organization Name (EN)</th>
                         <th width="150" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Walidata</th>
-                        <th width="150" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Pengawas</th>
                         <th width="100" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tableOPDBody" class="divide-y divide-gray-100 bg-white">
                     <?php 
                     if (empty($data)) {
-                        echo "<tr><td colspan='6' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
+                        echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
                     } else {
                         foreach ($data as $b) {
                     ?>
@@ -58,11 +57,6 @@
                         <td class="text-center">
                             <span class="badge badge-sm bg-primary-soft text-primary font-weight-bold px-3 py-2 border-radius-md border-primary-soft">
                                 <i class="bi bi-person-badge me-1"></i><?php echo strtoupper($b->user_wali); ?>
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <span class="badge badge-sm bg-info-soft text-info font-weight-bold px-3 py-2 border-radius-md border-info-soft">
-                                <i class="bi bi-shield-check me-1"></i><?php echo strtoupper($b->user_spv); ?>
                             </span>
                         </td>
                         <td class="text-center">

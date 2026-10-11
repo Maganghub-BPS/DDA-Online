@@ -1163,7 +1163,7 @@
         
         <!-- SUB JUDUL -->
         <p class="hero-desc mx-auto mb-4 pb-2" style="font-size: 1.22rem; color: #334155; max-width: 760px; font-weight: 500; line-height: 1.65;">
-            Platform terpadu untuk menelusuri, menganalisis, dan mengunduh data statistik dari seluruh Instansi dan Organisasi Perangkat Daerah di Jawa Tengah secara gratis.
+            Platform terpadu untuk menelusuri dan mengunduh data statistik dari seluruh Organisasi Perangkat Daerah di Jawa Tengah.
         </p>
 
         <!-- SEARCH BAR -->
@@ -1724,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-data" data-bs-toggle="pill" data-bs-target="#pane-data" type="button" role="tab" aria-controls="pane-data" aria-selected="false">
-                        <i class="fa-solid fa-shield-halved me-2"></i>Data Terjamin 100%
+                        <i class="fa-solid fa-shield-halved me-2"></i>Standar Satu Data
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -1874,8 +1874,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                         <div class="sim-metric-divider"></div>
                                         <div class="sim-metric">
-                                            <span class="sim-metric-val">100%</span>
-                                            <span class="sim-metric-lbl">Akurasi Data</span>
+                                            <span class="sim-metric-val">Presisi</span>
+                                            <span class="sim-metric-lbl">Pencarian Tepat</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1953,7 +1953,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <i class="fa-solid fa-shield-halved"></i>
                                         </div>
                                         <h5 class="sim-trust-title mb-1">Standar Satu Data Indonesia</h5>
-                                        <p class="sim-trust-sub mb-0">Tervalidasi & Bebas Manipulasi</p>
+                                        <p class="sim-trust-sub mb-0">Tervalidasi Sesuai Prinsip SDI</p>
                                     </div>
 
                                     <!-- Verification Points -->
@@ -1975,8 +1975,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <!-- Bottom Metric Strip -->
                                     <div class="sim-metrics-strip mt-3">
                                         <div class="sim-metric">
-                                            <span class="sim-metric-val">100%</span>
-                                            <span class="sim-metric-lbl">Otentisitas</span>
+                                            <span class="sim-metric-val">Otentik</span>
+                                            <span class="sim-metric-lbl">Integritas Data</span>
                                         </div>
                                         <div class="sim-metric-divider"></div>
                                         <div class="sim-metric">
@@ -2022,11 +2022,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                                 <div class="kc-highlight-item">
                                     <div class="kc-highlight-icon">
-                                        <i class="fa-solid fa-unlock-keyhole"></i>
+                                        <i class="fa-solid fa-cloud-arrow-down"></i>
                                     </div>
                                     <div class="kc-highlight-text">
-                                        <h6>Akses Unduhan Bebas & Instan</h6>
-                                        <p>Unduh langsung tanpa proses registrasi yang rumit, bebas biaya, dan tanpa batasan kuota berkas.</p>
+                                        <h6>Akses Unduhan Langsung & Terstruktur</h6>
+                                        <p>Unduh berkas data seketika untuk mendukung kebutuhan analisis statistik, kajian data, maupun penyusunan laporan kedinasan.</p>
                                     </div>
                                 </div>
                             </div>
@@ -2081,13 +2081,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <!-- Bottom Metric Strip -->
                                     <div class="sim-metrics-strip mt-3">
                                         <div class="sim-metric">
-                                            <span class="sim-metric-val">100%</span>
-                                            <span class="sim-metric-lbl">Gratis & Terbuka</span>
+                                            <span class="sim-metric-val">XLSX</span>
+                                            <span class="sim-metric-lbl">Kalkulasi & Olah Data</span>
                                         </div>
                                         <div class="sim-metric-divider"></div>
                                         <div class="sim-metric">
-                                            <span class="sim-metric-val">Tanpa Kuota</span>
-                                            <span class="sim-metric-lbl">Bebas Akses</span>
+                                            <span class="sim-metric-val">PDF</span>
+                                            <span class="sim-metric-lbl">Standar Cetak & Arsip</span>
                                         </div>
                                     </div>
                                 </div>
