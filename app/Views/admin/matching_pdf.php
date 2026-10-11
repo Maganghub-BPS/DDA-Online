@@ -736,12 +736,19 @@
 
     window.setDiffType = function(type, btn) {
         window.currentDiffFilter = type;
-        $('.btn-filter-type').removeClass('active btn-danger btn-success btn-warning btn-dark').addClass('btn-outline-secondary');
+        $('.btn-filter-type').removeClass('active btn-danger btn-success btn-warning btn-dark text-white').addClass('btn-outline-secondary');
         if (type === 'diff') $(btn).removeClass('btn-outline-secondary').addClass('btn-danger active text-white');
         else if (type === 'match') $(btn).removeClass('btn-outline-secondary').addClass('btn-success active text-white');
         else if (type === 'pdf_only') $(btn).removeClass('btn-outline-secondary').addClass('btn-warning active text-dark');
         else $(btn).removeClass('btn-outline-secondary').addClass('btn-dark active text-white');
         applyDiffFilters();
+    };
+
+    window.switchDiffFilter = function(type) {
+        let btn = document.querySelector(`.btn-filter-type[data-filter="${type}"]`);
+        if (btn) {
+            window.setDiffType(type, btn);
+        }
     };
 
     window.applyDiffFilters = function() {
@@ -857,91 +864,107 @@
                         </div>
                     `;
                     
+                    // Banner Verifikasi Bersih Ringkas (Jika 100% Cocok Sempurna)
                     if (totalDiffs === 0 && totalPdfOnly === 0) {
                         html += `
-                            <div class="card border border-success-subtle bg-success-subtle rounded-3 p-4 my-2 shadow-xs text-center" style="border-left: 5px solid #10b981 !important;">
-                                <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center mx-auto mb-2 shadow-xs" style="width: 48px; height: 48px;">
-                                    <i class="bi bi-check-lg fw-bold" style="font-size: 1.6rem;"></i>
+                            <div class="alert alert-success border-success-subtle bg-success-subtle rounded-3 p-3 mb-3 shadow-xs d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-left: 5px solid #10b981 !important;">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center me-3 shadow-xs flex-shrink-0" style="width: 40px; height: 40px;">
+                                        <i class="bi bi-check-lg fw-bold" style="font-size: 1.4rem;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold text-success-emphasis mb-0" style="font-size: 0.95rem;">100% Cocok Sempurna</h6>
+                                        <div class="text-secondary small">
+                                            Seluruh data (<strong>${totalMatches} angka</strong>) pada cetakan PDF sama persis dengan database resmi tanpa selisih.
+                                        </div>
+                                    </div>
                                 </div>
-                                <h5 class="fw-bold text-success-emphasis mb-1" style="font-size: 1.1rem;">100% Cocok Sempurna</h5>
-                                <p class="text-secondary small mb-3" style="font-size: 0.82rem;">
-                                    Seluruh data (<strong>${totalMatches} angka</strong>) pada cetakan PDF sama persis dengan sumber aslinya tanpa selisih.
-                                </p>
-                                <div class="d-flex align-items-center justify-content-center gap-2">
-                                    <span class="badge bg-white text-success border border-success-subtle px-3 py-1-5 rounded-pill fw-semibold" style="font-size: 0.75rem;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-white text-success border border-success-subtle px-3 py-1-5 rounded-pill fw-semibold shadow-xs" style="font-size: 0.78rem;">
                                         <i class="bi bi-shield-check me-1"></i> Terverifikasi Bersih
                                     </span>
-                                    <a href="${exportUrl}" target="_blank" class="btn btn-sm btn-success fw-semibold rounded-pill px-3 py-1-5 shadow-xs" style="font-size: 0.78rem;">
-                                        <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Berita Acara (.xlsx)
-                                    </a>
                                 </div>
                             </div>
                         `;
-                    } else {
-                        // 1. KPI Cards
-                        html += `
-                            <div class="row g-3 mb-4">
-                                <div class="col-md-4">
-                                    <div class="p-3 rounded-3 border ${totalDiffs > 0 ? 'bg-danger-subtle border-danger' : 'bg-light'} d-flex align-items-center shadow-xs">
-                                        <div class="rounded-circle p-2 ${totalDiffs > 0 ? 'bg-danger text-white' : 'bg-secondary text-white'} me-3 d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
-                                            <i class="bi bi-exclamation-octagon-fill fs-4"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-black fs-4 ${totalDiffs > 0 ? 'text-danger' : 'text-muted'} mb-0">${totalDiffs} Angka</div>
-                                            <div class="small fw-semibold ${totalDiffs > 0 ? 'text-danger' : 'text-muted'}">Beda Nilai (Perlu Dicek)</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="p-3 rounded-3 border bg-success-subtle border-success d-flex align-items-center shadow-xs">
-                                        <div class="rounded-circle p-2 bg-success text-white me-3 d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
-                                            <i class="bi bi-check-lg fs-3 fw-bold"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-black fs-4 text-success mb-0">${totalMatches} Angka</div>
-                                            <div class="small text-success fw-semibold">Cocok Sempurna</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="p-3 rounded-3 border bg-warning-subtle border-warning d-flex align-items-center shadow-xs">
-                                        <div class="rounded-circle p-2 bg-warning-emphasis text-white me-3 d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
-                                            <i class="bi bi-journal-bookmark-fill fs-4"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-black fs-4 text-warning-emphasis mb-0">${totalPdfOnly} Info</div>
-                                            <div class="small text-warning-emphasis fw-semibold">Khusus Cetakan PDF</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+                    }
 
-                        // Info Alert if Multi-Year / Satudata / Google Sheets
-                        if (totalPdfOnly > 0) {
-                            html += `
-                                <div class="alert alert-info border-info-subtle py-2 px-3 mb-3 rounded-3 d-flex align-items-center shadow-xs" style="font-size: 0.82rem;">
-                                    <i class="bi bi-info-circle-fill text-info fs-5 me-2 flex-shrink-0"></i>
+                    // 1. KPI Cards (Selalu ditampilkan untuk status cocok maupun beda nilai)
+                    html += `
+                        <div class="row g-3 mb-4">
+                            <!-- KPI: Beda Nilai -->
+                            <div class="col-md-4">
+                                <div class="p-3 rounded-3 border ${totalDiffs > 0 ? 'bg-danger-subtle border-danger' : 'bg-light'} d-flex align-items-center shadow-xs" 
+                                     ${totalDiffs > 0 ? `onclick="switchDiffFilter('diff')" style="cursor:pointer;" title="Klik untuk menyaring data yang beda"` : 'style="opacity: 0.75;"'}>
+                                    <div class="rounded-circle p-2 ${totalDiffs > 0 ? 'bg-danger text-white' : 'bg-secondary text-white'} me-3 d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
+                                        <i class="bi ${totalDiffs > 0 ? 'bi-exclamation-octagon-fill' : 'bi-dash-circle'} fs-4"></i>
+                                    </div>
                                     <div>
-                                        <strong>Penyelarasan Multi-Tahun:</strong> Sumber data (${res.source_type}) memuat data tahun terbaru (<strong>2025</strong>). Kolom tahun-tahun sebelumnya yang tercetak di buku PDF dipisahkan ke tab <em>'Khusus Cetakan PDF'</em> agar perbandingan tetap presisi dan tidak dianggap selisih data.
+                                        <div class="fw-black fs-4 ${totalDiffs > 0 ? 'text-danger' : 'text-muted'} mb-0">${totalDiffs} Angka</div>
+                                        <div class="small fw-semibold ${totalDiffs > 0 ? 'text-danger' : 'text-muted'}">Beda Nilai ${totalDiffs > 0 ? '(Perlu Dicek)' : '(Nihil)'}</div>
                                     </div>
                                 </div>
-                            `;
-                        }
+                            </div>
 
-                        // 2. Control Toolbar (Filters & Search)
-                        html += `
-                            <div class="card bg-light border p-3 rounded-3 mb-3 shadow-xs">
-                                <div class="row g-2 align-items-center justify-content-between">
-                                    <div class="col-md-7 d-flex align-items-center flex-wrap gap-2">
-                                        <span class="small fw-bold text-dark me-1"><i class="bi bi-funnel-fill text-secondary me-1"></i>Filter:</span>
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            ${totalDiffs > 0 ? `<button type="button" class="btn btn-danger active btn-filter-type fw-bold px-3 py-1" onclick="setDiffType('diff', this)"><i class="bi bi-exclamation-octagon-fill me-1"></i> Beda Nilai (${totalDiffs})</button>` : ''}
-                                            <button type="button" class="btn ${totalDiffs === 0 ? 'btn-success active text-white' : 'btn-outline-secondary'} btn-filter-type fw-bold px-3 py-1" onclick="setDiffType('match', this)"><i class="bi bi-check-circle-fill me-1"></i> Cocok (${totalMatches})</button>
-                                            ${totalPdfOnly > 0 ? `<button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" onclick="setDiffType('pdf_only', this)"><i class="bi bi-journal-bookmark me-1"></i> Cuma di PDF (${totalPdfOnly})</button>` : ''}
-                                            <button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" onclick="setDiffType('all', this)">Semua (${totalAll})</button>
-                                        </div>
+                            <!-- KPI: Cocok Sempurna (Highlight Spesial Saat 100% Cocok) -->
+                            <div class="col-md-4">
+                                <div class="p-3 rounded-3 border d-flex align-items-center shadow-xs ${totalDiffs === 0 ? 'border-success' : 'border-success bg-success-subtle'}" 
+                                     onclick="switchDiffFilter('match')" 
+                                     style="cursor:pointer; ${totalDiffs === 0 ? 'border: 2px solid #10b981 !important; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important; box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.25) !important;' : ''}" 
+                                     title="Klik untuk menyaring data yang cocok">
+                                    <div class="rounded-circle p-2 bg-success text-white me-3 d-flex align-items-center justify-content-center shadow-xs" style="width:48px; height:48px;">
+                                        <i class="bi bi-check-lg fs-3 fw-bold"></i>
                                     </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="fw-black fs-4 text-success mb-0">${totalMatches} Angka</div>
+                                            ${totalDiffs === 0 ? `<span class="badge bg-success text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.68rem;"><i class="bi bi-stars me-1"></i>Cocok</span>` : ''}
+                                        </div>
+                                        <div class="small text-success fw-semibold">Cocok Sempurna ${totalDiffs === 0 ? '(100%)' : ''}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- KPI: Khusus PDF -->
+                            <div class="col-md-4">
+                                <div class="p-3 rounded-3 border ${totalPdfOnly > 0 ? 'bg-warning-subtle border-warning' : 'bg-light'} d-flex align-items-center shadow-xs" 
+                                     ${totalPdfOnly > 0 ? `onclick="switchDiffFilter('pdf_only')" style="cursor:pointer;" title="Klik untuk menyaring data khusus cetakan PDF"` : 'style="opacity: 0.75;"'}>
+                                    <div class="rounded-circle p-2 ${totalPdfOnly > 0 ? 'bg-warning-emphasis text-white' : 'bg-secondary text-white'} me-3 d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
+                                        <i class="bi bi-journal-bookmark-fill fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-black fs-4 ${totalPdfOnly > 0 ? 'text-warning-emphasis' : 'text-muted'} mb-0">${totalPdfOnly} Info</div>
+                                        <div class="small ${totalPdfOnly > 0 ? 'text-warning-emphasis' : 'text-muted'} fw-semibold">Khusus Cetakan PDF</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Info Alert if Multi-Year / Satudata / Google Sheets
+                    if (totalPdfOnly > 0) {
+                        html += `
+                            <div class="alert alert-info border-info-subtle py-2 px-3 mb-3 rounded-3 d-flex align-items-center shadow-xs" style="font-size: 0.82rem;">
+                                <i class="bi bi-info-circle-fill text-info fs-5 me-2 flex-shrink-0"></i>
+                                <div>
+                                    <strong>Penyelarasan Multi-Tahun:</strong> Sumber data (${res.source_type}) memuat data tahun terbaru (<strong>2025</strong>). Kolom tahun-tahun sebelumnya yang tercetak di buku PDF dipisahkan ke tab <em>'Khusus Cetakan PDF'</em> agar perbandingan tetap presisi dan tidak dianggap selisih data.
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // 2. Control Toolbar (Filters & Search)
+                    html += `
+                        <div class="card bg-light border p-3 rounded-3 mb-3 shadow-xs">
+                            <div class="row g-2 align-items-center justify-content-between">
+                                <div class="col-md-7 d-flex align-items-center flex-wrap gap-2">
+                                    <span class="small fw-bold text-dark me-1"><i class="bi bi-funnel-fill text-secondary me-1"></i>Filter:</span>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        ${totalDiffs > 0 ? `<button type="button" class="btn btn-danger active btn-filter-type fw-bold px-3 py-1" data-filter="diff" onclick="setDiffType('diff', this)"><i class="bi bi-exclamation-octagon-fill me-1"></i> Beda Nilai (${totalDiffs})</button>` : ''}
+                                        <button type="button" class="btn ${totalDiffs === 0 ? 'btn-success active text-white shadow-xs' : 'btn-outline-secondary'} btn-filter-type fw-bold px-3 py-1" data-filter="match" onclick="setDiffType('match', this)"><i class="bi bi-check-circle-fill me-1"></i> Cocok (${totalMatches})</button>
+                                        ${totalPdfOnly > 0 ? `<button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" data-filter="pdf_only" onclick="setDiffType('pdf_only', this)"><i class="bi bi-journal-bookmark me-1"></i> Cuma di PDF (${totalPdfOnly})</button>` : ''}
+                                        <button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" data-filter="all" onclick="setDiffType('all', this)">Semua (${totalAll})</button>
+                                    </div>
+                                </div>
                                     
                                     <div class="col-md-5 d-flex align-items-center justify-content-md-end gap-2 flex-wrap">
                                         <div class="d-flex align-items-center gap-1 bg-white border px-2 py-1 rounded-2 shadow-xs">
@@ -1037,7 +1060,7 @@
                             let defaultDisplay = totalDiffs > 0 ? 'display: none;' : '';
                             res.matches.forEach(m => {
                                 html += `
-                                    <div class="card mb-2 border border-success-subtle shadow-xs item-row" data-type="match" style="${defaultDisplay}" data-wilayah="${m.wilayah.toLowerCase()}" data-metric="${m.metric.toLowerCase()}" data-section="${(m.section || '').toLowerCase()}">
+                                    <div class="card mb-2 border border-success-subtle shadow-xs item-row" data-type="match" style="${defaultDisplay} border-left: 4px solid #10b981 !important;" data-wilayah="${m.wilayah.toLowerCase()}" data-metric="${m.metric.toLowerCase()}" data-section="${(m.section || '').toLowerCase()}">
                                         <div class="card-body py-2 px-3">
                                             <div class="row align-items-center g-2">
                                                 <div class="col-md-4">
@@ -1114,7 +1137,6 @@
                         `;
 
                         html += `</div>`; // Close comparisonList
-                    }
                     $('#diffContent').html(html);
                 } else {
                     let msg = res.message || 'Terjadi kesalahan saat memproses data';
