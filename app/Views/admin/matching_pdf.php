@@ -170,41 +170,62 @@
                         </h2>
                         <div id="collapseMatched" class="accordion-collapse collapse show" aria-labelledby="headingMatched" data-bs-parent="#accordionResult">
                         <div class="accordion-body p-0">
-                            <!-- BATCH ACTION & QUICK FILTER TOOLBAR -->
-                            <div class="p-3 bg-light border-bottom">
-                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <button id="btnBatchVerify" onclick="startBatchValidation()" class="btn btn-sm btn-success fw-bold px-3 py-1-5 rounded-pill shadow-xs" style="background: linear-gradient(135deg, #10b981, #059669); border:none;">
-                                            <i class="bi bi-lightning-charge-fill me-1"></i> Validasi Semua Tabel Sekaligus
+                            <!-- 1. TABS SUMBER DATA (Clean & Modern) -->
+                            <div class="bg-white border-bottom px-3 pt-2">
+                                <ul class="nav nav-tabs border-bottom-0 gap-1" id="sourceTabs" role="tablist">
+                                    <li class="nav-item">
+                                        <button type="button" id="tabSourceAll" class="nav-link active fw-bold text-dark border-0 border-bottom border-3 border-primary pb-2 px-3 bg-transparent" style="font-size:0.83rem;" onclick="filterMatchedSource('all', this)">
+                                            <i class="bi bi-collection-fill text-primary me-1"></i> Semua Data (<span id="cntSourceAll">0</span>)
                                         </button>
-                                        <button id="btnStopBatch" onclick="stopBatchValidation()" class="btn btn-sm btn-outline-danger fw-bold px-3 py-1-5 rounded-pill d-none">
-                                            <i class="bi bi-stop-circle me-1"></i> Hentikan
+                                    </li>
+                                    <li class="nav-item">
+                                        <button type="button" id="tabSourceSpreadsheet" class="nav-link fw-semibold text-secondary border-0 pb-2 px-3 bg-transparent" style="font-size:0.83rem;" onclick="filterMatchedSource('spreadsheet', this)">
+                                            <i class="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i> Spreadsheet (<span id="cntSourceSpreadsheet">0</span>)
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button type="button" id="tabSourceApi" class="nav-link fw-semibold text-secondary border-0 pb-2 px-3 bg-transparent" style="font-size:0.83rem;" onclick="filterMatchedSource('api', this)">
+                                            <i class="bi bi-hdd-network-fill text-info me-1"></i> API Satudata (<span id="cntSourceApi">0</span>)
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- 2. STATUS FILTER & ACTION TOOLBAR (Hanya 1 Baris Rapi) -->
+                            <div class="p-3 bg-light border-bottom">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                    <!-- Status Pills -->
+                                    <div class="d-flex align-items-center gap-1 flex-wrap" id="batchFilters">
+                                        <button type="button" id="btnFilterAll" class="btn btn-xs btn-secondary active fw-bold px-2 py-1 rounded-pill text-white" style="font-size:0.75rem;" onclick="filterMatchedStatus('all', this)">
+                                            Semua (<span id="cntAll">0</span>)
+                                        </button>
+                                        <button type="button" id="btnFilterDiff" class="btn btn-xs btn-outline-danger fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('diff', this)">
+                                            <i class="bi bi-exclamation-octagon-fill me-1"></i>Ada Beda (<span id="cntDiff">0</span>)
+                                        </button>
+                                        <button type="button" id="btnFilterMatch" class="btn btn-xs btn-outline-success fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('match', this)">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Cocok (<span id="cntMatch">0</span>)
+                                        </button>
+                                        <button type="button" id="btnFilterEmpty" class="btn btn-xs btn-outline-warning fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('api_empty', this)">
+                                            <i class="bi bi-database-slash me-1"></i>Data Kosong (<span id="cntEmpty">0</span>)
+                                        </button>
+                                        <button type="button" id="btnFilterUnverified" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('unverified', this)">
+                                            <i class="bi bi-clock me-1"></i>Belum Cek (<span id="cntUnverified">0</span>)
                                         </button>
                                     </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="input-group input-group-sm" style="max-width: 220px;">
+
+                                    <!-- Action & Search -->
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <button id="btnBatchVerify" onclick="startBatchValidation()" class="btn btn-sm btn-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem; background: linear-gradient(135deg, #10b981, #059669); border:none;">
+                                            <i class="bi bi-lightning-charge-fill me-1"></i> Validasi Semua
+                                        </button>
+                                        <button id="btnStopBatch" onclick="stopBatchValidation()" class="btn btn-sm btn-outline-danger fw-bold px-3 py-1 rounded-pill d-none" style="font-size:0.75rem;">
+                                            <i class="bi bi-stop-circle me-1"></i> Hentikan
+                                        </button>
+                                        <div class="input-group input-group-sm" style="max-width: 190px;">
                                             <span class="input-group-text bg-white py-0 px-2 border-end-0"><i class="bi bi-search text-muted" style="font-size:0.75rem;"></i></span>
                                             <input type="text" id="searchMatchedInput" class="form-control form-control-sm py-1 px-2 border-start-0" placeholder="Cari tabel..." style="font-size: 0.75rem;" onkeyup="applyMatchedFilters()">
                                         </div>
                                     </div>
-                                </div>
-                                <!-- Filter Pills -->
-                                <div class="d-flex align-items-center gap-1 flex-wrap" id="batchFilters">
-                                    <button type="button" id="btnFilterAll" class="btn btn-xs btn-outline-secondary active fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('all', this)">
-                                        Semua (<span id="cntAll">0</span>)
-                                    </button>
-                                    <button type="button" id="btnFilterDiff" class="btn btn-xs btn-outline-danger fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('diff', this)">
-                                        <i class="bi bi-exclamation-octagon-fill me-1"></i>Ada Beda (<span id="cntDiff">0</span>)
-                                    </button>
-                                    <button type="button" id="btnFilterMatch" class="btn btn-xs btn-outline-success fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('match', this)">
-                                        <i class="bi bi-check-circle-fill me-1"></i>Cocok (<span id="cntMatch">0</span>)
-                                    </button>
-                                    <button type="button" id="btnFilterEmpty" class="btn btn-xs btn-outline-warning fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('api_empty', this)">
-                                        <i class="bi bi-database-slash me-1"></i>API Kosong (<span id="cntEmpty">0</span>)
-                                    </button>
-                                    <button type="button" id="btnFilterUnverified" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('unverified', this)">
-                                        <i class="bi bi-clock me-1"></i>Belum Cek (<span id="cntUnverified">0</span>)
-                                    </button>
                                 </div>
                             </div>
                             
@@ -228,7 +249,7 @@
                     <div class="accordion-item border-0 mb-3 shadow-sm rounded">
                         <h2 class="accordion-header" id="headingMissing">
                         <button class="accordion-button collapsed bg-warning-subtle text-warning-emphasis fw-bold rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMissing" aria-expanded="false" aria-controls="collapseMissing">
-                            <i class="bi bi-exclamation-circle-fill me-2"></i> Tabel Hilang di PDF (<span id="countMissing">0</span>)
+                            <i class="bi bi-exclamation-circle-fill me-2"></i> Tabel Tidak Ada di PDF (<span id="countMissing">0</span>)
                         </button>
                         </h2>
                         <div id="collapseMissing" class="accordion-collapse collapse" aria-labelledby="headingMissing" data-bs-parent="#accordionResult">
@@ -242,7 +263,7 @@
                     <div class="accordion-item border-0 mb-3 shadow-sm rounded">
                         <h2 class="accordion-header" id="headingUnreg">
                         <button class="accordion-button collapsed bg-danger-subtle text-danger fw-bold rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUnreg" aria-expanded="false" aria-controls="collapseUnreg">
-                            <i class="bi bi-x-circle-fill me-2"></i> Tabel Asing/Tidak Terdaftar (<span id="countUnreg">0</span>)
+                            <i class="bi bi-x-circle-fill me-2"></i> Tabel Tidak Ada di Database (<span id="countUnreg">0</span>)
                         </button>
                         </h2>
                         <div id="collapseUnreg" class="accordion-collapse collapse" aria-labelledby="headingUnreg" data-bs-parent="#accordionResult">
@@ -428,12 +449,18 @@
         window.currentMatchedTables.forEach(item => {
             let cleanId = getSafeId(item.nomor_tabel);
             let info = window.batchStatusMap[item.nomor_tabel] || { status: 'unverified' };
+            let link = (item.link_tabel || '').toLowerCase();
+            let srcType = item.source_type || ((link.includes('docs.google.com') || link.includes('spreadsheet')) ? 'spreadsheet' : 'api');
+            let srcBadge = srcType === 'spreadsheet'
+                ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: Google Spreadsheet"><i class="bi bi-file-earmark-spreadsheet-fill me-1"></i>Spreadsheet</span>`
+                : `<span class="badge bg-info-subtle text-primary border border-info-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: API Satudata"><i class="bi bi-hdd-network-fill me-1"></i>API</span>`;
 
             let html = `
-                <li class="list-group-item matched py-3 d-flex justify-content-between align-items-center" data-status="${info.status}" data-tnum="${item.nomor_tabel}" id="matched_row_${cleanId}">
+                <li class="list-group-item matched py-3 d-flex justify-content-between align-items-center" data-status="${info.status}" data-source="${srcType}" data-tnum="${item.nomor_tabel}" id="matched_row_${cleanId}">
                     <div class="pe-3">
                         <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                             <span class="badge bg-secondary mb-0 fw-bold">Tabel ${item.nomor_tabel}</span>
+                            ${srcBadge}
                             <div id="badge_${cleanId}" class="d-inline-block badge-container"></div>
                         </div>
                         <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.9rem;">${item.judul_db}</h6>
@@ -453,25 +480,13 @@
         let status = info ? info.status : 'unverified';
         $rows.attr('data-status', status);
 
-        // Apply current filter state if filtering is active
-        if (window.currentBatchFilter && window.currentBatchFilter !== 'all') {
-            let isMatchFilter = (window.currentBatchFilter === 'unverified')
-                ? (status !== 'match' && status !== 'diff' && status !== 'api_empty')
-                : (status === window.currentBatchFilter);
-            if (isMatchFilter) {
-                $rows.removeClass('d-filtered-out').addClass('d-flex');
-            } else {
-                $rows.addClass('d-filtered-out').removeClass('d-flex');
-            }
-        }
-
         let badgeHtml = '';
         let btnHtml = '';
 
         if (status === 'match') {
             badgeHtml = `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-check-circle-fill me-1"></i>Cocok 100% (${info.match_count ? info.match_count + ' Data' : 'OK'})</span>`;
             btnHtml = `
-                <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 shadow-xs" title="Unduh Berita Acara Excel (.xlsx)" style="font-size:0.75rem;">
+                <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 shadow-xs" title="Unduh Laporan Validasi Data Excel (.xlsx)" style="font-size:0.75rem;">
                     <i class="bi bi-file-earmark-excel"></i>
                 </a>
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
@@ -483,14 +498,14 @@
             let matchText = (info.match_count && info.match_count > 0) ? ` <span class="opacity-75 font-monospace" style="font-size:0.7rem;">(${info.match_count} Cocok)</span>` : '';
             badgeHtml = `<span class="badge bg-danger text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-exclamation-octagon-fill me-1"></i>${diffLabel}${matchText}</span>`;
             btnHtml = `
-                <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-1 shadow-xs" title="Unduh Berita Acara Excel (.xlsx)" style="font-size:0.75rem;">
+                <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-1 shadow-xs" title="Unduh Laporan Validasi Data Excel (.xlsx)" style="font-size:0.75rem;">
                     <i class="bi bi-file-earmark-excel"></i>
                 </a>
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-danger fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
                     <i class="bi bi-search me-1"></i> Cek Beda
                 </button>`;
         } else if (status === 'api_empty') {
-            badgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-database-slash me-1"></i>API Kosong</span>`;
+            badgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-database-slash me-1"></i>Data Kosong</span>`;
             btnHtml = `
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-secondary fw-semibold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
                     <i class="bi bi-search me-1"></i> Detail
@@ -519,64 +534,115 @@
         $rows.find('.action-container').html(btnHtml);
         $(`#badge_${cleanId}`).html(badgeHtml);
         $(`#action_${cleanId}`).html(btnHtml);
-    }
-
-    function updateBatchCounters() {
-        let all = window.currentMatchedTables ? window.currentMatchedTables.length : 0;
-        let match = 0, diff = 0, empty = 0, unverified = 0;
-
-        if (window.currentMatchedTables) {
-            window.currentMatchedTables.forEach(item => {
-                let info = window.batchStatusMap[item.nomor_tabel];
-                let status = info ? info.status : 'unverified';
-                if (status === 'match') match++;
-                else if (status === 'diff') diff++;
-                else if (status === 'api_empty') empty++;
-                else unverified++;
-            });
-        }
-
-        $('#cntAll').text(all);
-        $('#cntMatch').text(match);
-        $('#cntDiff').text(diff);
-        $('#cntEmpty').text(empty);
-        $('#cntUnverified').text(unverified);
-    }
-
-    window.currentBatchFilter = 'all';
-
-    function filterMatchedStatus(type, btn) {
-        window.currentBatchFilter = type;
-        $('#batchFilters button').removeClass('active btn-secondary btn-danger btn-success btn-warning text-white text-dark').addClass('btn-outline-secondary');
-        if (type === 'all') $(btn).addClass('active btn-secondary text-white');
-        else if (type === 'diff') $(btn).addClass('active btn-danger text-white');
-        else if (type === 'match') $(btn).addClass('active btn-success text-white');
-        else if (type === 'api_empty') $(btn).addClass('active btn-warning text-dark');
-        else if (type === 'unverified') $(btn).addClass('active btn-secondary text-white');
 
         applyMatchedFilters();
     }
 
+    function updateBatchCounters() {
+        if (!window.currentMatchedTables) return;
+
+        let srcFilter = window.currentSourceFilter || 'all';
+
+        let stats = {
+            all: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 },
+            spreadsheet: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 },
+            api: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 }
+        };
+
+        window.currentMatchedTables.forEach(item => {
+            let info = window.batchStatusMap[item.nomor_tabel];
+            let status = info ? info.status : 'unverified';
+            if (status !== 'diff' && status !== 'match' && status !== 'api_empty') {
+                status = 'unverified';
+            }
+            let link = (item.link_tabel || '').toLowerCase();
+            let srcType = item.source_type || ((link.includes('docs.google.com') || link.includes('spreadsheet')) ? 'spreadsheet' : 'api');
+
+            stats.all.all++;
+            stats.all[status]++;
+
+            if (stats[srcType]) {
+                stats[srcType].all++;
+                stats[srcType][status]++;
+            }
+        });
+
+        // 1. Update Tab Counters
+        $('#cntSourceAll').text(stats.all.all);
+        $('#cntSourceSpreadsheet').text(stats.spreadsheet.all);
+        $('#cntSourceApi').text(stats.api.all);
+
+        // 2. Update Status Pills (Dinamis sesuai Tab Sumber yang sedang aktif)
+        let activeStats = stats[srcFilter] || stats.all;
+        $('#cntAll').text(activeStats.all);
+        $('#cntDiff').text(activeStats.diff);
+        $('#cntMatch').text(activeStats.match);
+        $('#cntEmpty').text(activeStats.api_empty);
+        $('#cntUnverified').text(activeStats.unverified);
+    }
+
+    window.currentBatchFilter = 'all';
+    window.currentSourceFilter = 'all';
+
+    function filterMatchedStatus(type, btn) {
+        window.currentBatchFilter = type;
+        $('#batchFilters button').removeClass('active btn-secondary btn-danger btn-success btn-warning text-white text-dark').addClass('btn-outline-secondary');
+        if (type === 'all') $(btn).removeClass('btn-outline-secondary').addClass('active btn-secondary text-white');
+        else if (type === 'diff') $(btn).removeClass('btn-outline-secondary').addClass('active btn-danger text-white');
+        else if (type === 'match') $(btn).removeClass('btn-outline-secondary').addClass('active btn-success text-white');
+        else if (type === 'api_empty') $(btn).removeClass('btn-outline-secondary').addClass('active btn-warning text-dark');
+        else if (type === 'unverified') $(btn).removeClass('btn-outline-secondary').addClass('active btn-secondary text-white');
+
+        applyMatchedFilters();
+    }
+
+    function filterMatchedSource(src, btn) {
+        window.currentSourceFilter = src;
+        
+        // Tab indicator active style
+        $('#sourceTabs button').removeClass('active fw-bold text-dark border-bottom border-3 border-primary border-success border-info')
+                               .addClass('fw-semibold text-secondary');
+        
+        if (src === 'all') {
+            $(btn).removeClass('fw-semibold text-secondary').addClass('active fw-bold text-dark border-bottom border-3 border-primary');
+        } else if (src === 'spreadsheet') {
+            $(btn).removeClass('fw-semibold text-secondary').addClass('active fw-bold text-dark border-bottom border-3 border-success');
+        } else if (src === 'api') {
+            $(btn).removeClass('fw-semibold text-secondary').addClass('active fw-bold text-dark border-bottom border-3 border-info');
+        }
+
+        applyMatchedFilters();
+        updateBatchCounters();
+    }
+
     function applyMatchedFilters() {
-        let type = window.currentBatchFilter || 'all';
+        let statusFilter = window.currentBatchFilter || 'all';
+        let sourceFilter = window.currentSourceFilter || 'all';
         let searchQuery = ($('#searchMatchedInput').val() || '').toLowerCase().trim();
 
         $('#listMatched li.matched').each(function() {
             let rowStatus = $(this).attr('data-status') || 'unverified';
+            let rowSource = $(this).attr('data-source') || 'api';
             let tnum = ($(this).attr('data-tnum') || '').toLowerCase();
             let title = $(this).find('h6').text().toLowerCase();
 
-            let matchesStatus = (type === 'all');
+            // Status Filter Check
+            let matchesStatus = (statusFilter === 'all');
             if (!matchesStatus) {
-                if (type === 'unverified') {
+                if (statusFilter === 'unverified') {
                     matchesStatus = (rowStatus !== 'match' && rowStatus !== 'diff' && rowStatus !== 'api_empty');
                 } else {
-                    matchesStatus = (rowStatus === type);
+                    matchesStatus = (rowStatus === statusFilter);
                 }
             }
+
+            // Source Filter Check (Spreadsheet vs API)
+            let matchesSource = (sourceFilter === 'all') || (rowSource === sourceFilter);
+
+            // Search Text Check
             let matchesSearch = (!searchQuery || tnum.includes(searchQuery) || title.includes(searchQuery));
 
-            if (matchesStatus && matchesSearch) {
+            if (matchesStatus && matchesSource && matchesSearch) {
                 $(this).removeClass('d-filtered-out').addClass('d-flex');
             } else {
                 $(this).addClass('d-filtered-out').removeClass('d-flex');
@@ -851,7 +917,7 @@
                                     <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sumber: ${res.source_type}
                                 </span>
                                 <a href="${exportUrl}" target="_blank" class="btn btn-sm btn-success fw-bold rounded-pill px-3 py-2 shadow-xs">
-                                    <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Berita Acara (.xlsx)
+                                    <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Laporan Validasi (.xlsx)
                                 </a>
                             </div>
                         </div>
@@ -872,7 +938,7 @@
                                         <i class="bi bi-shield-check me-1"></i> Terverifikasi Bersih
                                     </span>
                                     <a href="${exportUrl}" target="_blank" class="btn btn-sm btn-success fw-semibold rounded-pill px-3 py-1-5 shadow-xs" style="font-size: 0.78rem;">
-                                        <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Berita Acara (.xlsx)
+                                        <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Laporan Validasi (.xlsx)
                                     </a>
                                 </div>
                             </div>
@@ -1144,13 +1210,13 @@
                                 <div class="d-inline-flex align-items-center justify-content-center bg-warning-subtle text-warning rounded-circle mb-3 shadow-xs" style="width: 72px; height: 72px;">
                                     <i class="bi bi-database-slash" style="font-size: 2.2rem;"></i>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-2">Tidak Ada Data dalam API</h5>
+                                <h5 class="fw-bold text-dark mb-2">Data Kosong</h5>
                                 <p class="text-muted small mx-auto mb-3" style="max-width: 480px;">
-                                    Server API Satu Data Jawa Tengah belum memuat data untuk tabel ini atau tabel masih kosong di database pusat.
+                                    Sumber database belum memuat data untuk tabel ini atau data masih kosong di database pusat.
                                 </p>
                                 <div class="d-inline-flex align-items-center gap-2 px-3 py-1 bg-light border rounded-pill text-muted small">
                                     <i class="bi bi-info-circle text-primary"></i>
-                                    <span>Tabel tidak dapat divalidasi karena sumber data API belum tersedia.</span>
+                                    <span>Tabel tidak dapat divalidasi karena sumber data belum tersedia atau masih kosong.</span>
                                 </div>
                             </div>
                         `);

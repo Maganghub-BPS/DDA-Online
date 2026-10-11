@@ -2818,6 +2818,26 @@ class Admin extends BaseController
 				$masterData['db_json_path'] = $dbJson;
 				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
 				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
+
+				// Pastikan setiap tabel matched memiliki link_tabel dan source_type
+				if (file_exists($dbJson)) {
+					$dbMap = [];
+					$dbList = json_decode(@file_get_contents($dbJson), true) ?? [];
+					foreach ($dbList as $dRow) {
+						if (!empty($dRow['nomor_tabel'])) {
+							$dbMap[trim($dRow['nomor_tabel'])] = $dRow['link_tabel'] ?? '';
+						}
+					}
+					$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+					foreach ($masterData[$listKey] as &$mItem) {
+						if (empty($mItem['link_tabel'])) {
+							$mItem['link_tabel'] = $dbMap[trim($mItem['nomor_tabel'] ?? '')] ?? '';
+						}
+						$linkLower = strtolower($mItem['link_tabel'] ?? '');
+						$mItem['source_type'] = (strpos($linkLower, 'docs.google.com') !== false || strpos($linkLower, 'spreadsheet') !== false) ? 'spreadsheet' : 'api';
+					}
+					unset($mItem);
+				}
 			}
 		}
 
@@ -3033,6 +3053,49 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Nomor tabel tidak valid']);
 		}
 
+		// AUTO-SYNC: Selalu perbarui link_tabel untuk nomor tabel ini dari database ke file JSON snapshot
+		$ta = $this->session->get('admin_ta') ?? '2026';
+		if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
+			$ta = $mYear[1];
+		}
+		if (file_exists($dbJsonPath)) {
+			$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomor_tabel));
+			$cleanNo = rtrim($cleanNo, '.');
+			
+			$rowDb = $this->db->query("
+				SELECT t.link_tabel 
+				FROM t_tahun_tabel t 
+				WHERE t.tahun = ? AND (
+					TRIM(t.no_tabel) = ? OR 
+					TRIM(t.no_tabel) = ? OR 
+					TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?
+				)
+				LIMIT 1
+			", [$ta, $nomor_tabel, $cleanNo, $cleanNo])->getRow();
+
+			if ($rowDb && !empty($rowDb->link_tabel)) {
+				$rawJson = @file_get_contents($dbJsonPath);
+				$listTables = json_decode($rawJson, true);
+				if (is_array($listTables)) {
+					$isUpdated = false;
+					foreach ($listTables as &$item) {
+						$curClean = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $item['nomor_tabel'] ?? ''));
+						$curClean = rtrim($curClean, '.');
+						if ($curClean === $cleanNo) {
+							if (($item['link_tabel'] ?? '') !== $rowDb->link_tabel) {
+								$item['link_tabel'] = $rowDb->link_tabel;
+								$isUpdated = true;
+							}
+							break;
+						}
+					}
+					if ($isUpdated) {
+						@file_put_contents($dbJsonPath, json_encode($listTables, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+					}
+				}
+			}
+		}
+
 		$pythonScript = FCPATH . "../python_engine/compare_table.py";
 		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($tolerance) . " 2>&1";
 		$output = shell_exec($command);
@@ -3120,6 +3183,39 @@ class Admin extends BaseController
 
 		if (!file_exists($pdfPath) || !file_exists($matchedJson) || !file_exists($dbJson)) {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
+		}
+
+		// AUTO-SYNC ALL LINKS: Sinkronkan seluruh link_tabel dari MySQL ke dda_db_{ta}.json
+		if (file_exists($dbJson)) {
+			$rawJson = @file_get_contents($dbJson);
+			$listTables = json_decode($rawJson, true);
+			if (is_array($listTables)) {
+				$dbRows = $this->db->query("
+					SELECT t.no_tabel, t.link_tabel 
+					FROM t_tahun_tabel t 
+					WHERE t.tahun = ? AND t.link_tabel IS NOT NULL AND t.link_tabel != ''
+				", [$ta])->getResultArray();
+				$linkMap = [];
+				foreach ($dbRows as $dr) {
+					$cNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $dr['no_tabel'] ?? ''));
+					$cNo = rtrim($cNo, '.');
+					if ($cNo !== '') {
+						$linkMap[$cNo] = $dr['link_tabel'];
+					}
+				}
+				$isUpdated = false;
+				foreach ($listTables as &$item) {
+					$cNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $item['nomor_tabel'] ?? ''));
+					$cNo = rtrim($cNo, '.');
+					if (isset($linkMap[$cNo]) && ($item['link_tabel'] ?? '') !== $linkMap[$cNo]) {
+						$item['link_tabel'] = $linkMap[$cNo];
+						$isUpdated = true;
+					}
+				}
+				if ($isUpdated) {
+					@file_put_contents($dbJson, json_encode($listTables, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+				}
+			}
 		}
 
 		// Bersihkan stop file jika ada
@@ -3251,10 +3347,10 @@ class Admin extends BaseController
 	}
 
 	/**
-	 * Mengekspor Berita Acara Rekonsiliasi Tabel ke file Excel (.xlsx).
+	 * Mengekspor Laporan Validasi Data Tabel ke file Excel (.xlsx).
 	 *
 	 * Menggunakan Python script `export_excel.py` dengan format lembar kerja resmi:
-	 * memuat ringkasan KPI, tabel perbandingan nilai, selisih data, serta kolom tanda tangan.
+	 * memuat ringkasan KPI, tabel perbandingan nilai, selisih data, serta status validasi.
 	 *
 	 * @return \CodeIgniter\HTTP\ResponseInterface Download stream berkas Excel
 	 */
@@ -3270,7 +3366,7 @@ class Admin extends BaseController
 		}
 
 		$cleanTable = preg_replace('/[^a-zA-Z0-9_\.]/', '_', $nomor_tabel);
-		$outputFileName = "Rekonsiliasi_Tabel_" . $cleanTable . "_" . time() . ".xlsx";
+		$outputFileName = "Laporan_Validasi_Tabel_" . $cleanTable . "_" . time() . ".xlsx";
 		$outputPath = WRITEPATH . "uploads/" . $outputFileName;
 
 		$pythonScript = FCPATH . "../python_engine/export_excel.py";
@@ -3278,7 +3374,7 @@ class Admin extends BaseController
 		$output = shell_exec($command);
 
 		if (file_exists($outputPath)) {
-			return $this->response->download($outputPath, null)->setFileName("Rekonsiliasi_Tabel_" . $cleanTable . ".xlsx");
+			return $this->response->download($outputPath, null)->setFileName("Laporan_Validasi_Tabel_" . $cleanTable . ".xlsx");
 		} else {
 			return $this->response->setStatusCode(500)->setBody("Gagal membuat file Excel: " . $output);
 		}
