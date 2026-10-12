@@ -949,9 +949,6 @@
                                     <span class="badge bg-white text-success border border-success-subtle px-3 py-1-5 rounded-pill fw-semibold shadow-xs" style="font-size: 0.78rem;">
                                         <i class="bi bi-shield-check me-1"></i> Terverifikasi Bersih
                                     </span>
-                                    <a href="${exportUrl}" target="_blank" class="btn btn-sm btn-success fw-semibold rounded-pill px-3 py-1-5 shadow-xs" style="font-size: 0.78rem;">
-                                        <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Laporan Validasi (.xlsx)
-                                    </a>
                                 </div>
                             </div>
                         `;
