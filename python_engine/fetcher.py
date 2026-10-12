@@ -28,6 +28,31 @@ def expand_merged_cells_row(row):
         new_row.append(cell)
     return new_row
 
+def unpack_multiline_rows(rows):
+    if not isinstance(rows, list): return rows
+    unpacked = []
+    for row in rows:
+        if not isinstance(row, list):
+            unpacked.append(row)
+            continue
+        row_cleaned = [str(c).strip() if c is not None else "" for c in row]
+        multiline_cells = [c for c in row_cleaned if '\n' in c]
+        if len(multiline_cells) >= 2:
+            split_cells = [c.split('\n') for c in row_cleaned]
+            max_lines = max(len(sc) for sc in split_cells)
+            if max_lines >= 2 and all(len(sc) == max_lines or len(sc) == 1 for sc in split_cells):
+                first_cell = str(row_cleaned[0]).lower()
+                if not any(k in first_cell for k in ['tabel', 'table', 'kabupaten', 'kota', 'regency']):
+                    for line_idx in range(max_lines):
+                        new_r = []
+                        for sc in split_cells:
+                            val = sc[line_idx].strip() if line_idx < len(sc) else (sc[0].strip() if len(sc) == 1 else '')
+                            new_r.append(val)
+                        unpacked.append(expand_merged_cells_row(new_r))
+                    continue
+        unpacked.append(expand_merged_cells_row(row_cleaned))
+    return unpacked
+
 def fetch_data_from_link(link: str):
     if not link or not isinstance(link, str):
         return {"error": "Tautan data kosong", "is_link_empty": True}
@@ -58,10 +83,8 @@ def fetch_data_from_link(link: str):
                             sheet = wb[sn]
                             break
                 
-                rows = []
-                for row in sheet.iter_rows(values_only=True):
-                    rows.append(expand_merged_cells_row([str(c).strip() if c is not None else "" for c in row]))
-                return rows
+                rows = [row for row in sheet.iter_rows(values_only=True)]
+                return unpack_multiline_rows(rows)
             except Exception as e:
                 return {"error": f"Gagal membaca file Excel lokal: {str(e)}"}
 
@@ -99,7 +122,7 @@ def fetch_data_from_link(link: str):
                                 last_err = "Mendapat respon HTML/Sinkhole dari jaringan, bukan CSV"
                                 break
                             reader = csv.reader(StringIO(csv_data))
-                            return [expand_merged_cells_row(row) for row in reader]
+                            return unpack_multiline_rows([row for row in reader])
                     except Exception as e:
                         last_err = e
                         if attempt < max_retries - 1:

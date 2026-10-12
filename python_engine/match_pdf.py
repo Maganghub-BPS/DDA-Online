@@ -193,6 +193,10 @@ def match_tables(toc, db_tables, min_score=65):
         db_id = str(item.get("id_db", item.get("id", ""))).strip()
         title = item.get("judul_tabel", item.get("judul_ind", ""))
         
+        link = item.get("link_tabel", "")
+        link_lower = link.lower()
+        source_type = "spreadsheet" if ("docs.google.com" in link_lower or "spreadsheet" in link_lower) else "api"
+        
         if t_num and t_num in toc:
             used.add(t_num)
             matched.append({
@@ -201,7 +205,9 @@ def match_tables(toc, db_tables, min_score=65):
                 "judul_db": title,
                 "judul_pdf": toc[t_num]["judul_pdf"],
                 "pages": toc[t_num]["pages"],
-                "similarity": 100.0
+                "similarity": 100.0,
+                "link_tabel": link,
+                "source_type": source_type
             })
         else:
             unmatched_db.append((item, db_id, title))
@@ -233,6 +239,9 @@ def match_tables(toc, db_tables, min_score=65):
                 item, db_id, title = unmatched_db[r_idx]
                 t_num = item.get("nomor_tabel", "").strip()
                 best_k = avail_toc[c_idx]
+                link = item.get("link_tabel", "")
+                link_lower = link.lower()
+                source_type = "spreadsheet" if ("docs.google.com" in link_lower or "spreadsheet" in link_lower) else "api"
                 
                 if best_score >= min_score:
                     used.add(best_k)
@@ -243,7 +252,9 @@ def match_tables(toc, db_tables, min_score=65):
                         "judul_db": title,
                         "judul_pdf": toc[best_k]["judul_pdf"],
                         "pages": toc[best_k]["pages"],
-                        "similarity": round(float(best_score), 1)
+                        "similarity": round(float(best_score), 1),
+                        "link_tabel": link,
+                        "source_type": source_type
                     })
                 else:
                     still_missing.append({

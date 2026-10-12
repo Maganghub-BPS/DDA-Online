@@ -82,8 +82,8 @@ PROVINSI_REGISTRY = [
     ("96", "Papua Pegunungan", ["papua pegunungan"]),
     ("94", "Papua Selatan", ["papua selatan"]),
     ("95", "Papua Tengah", ["papua tengah"]),
-    ("91", "Papua Barat", ["papua barat"]),
-    ("93", "Papua", [r"(?<!papua\s)\bpapua\b(?!.*(?:barat|selatan|tengah|pegunungan))"]),
+    ("91", "Papua Barat", [r"papua barat(?!.*daya)"]),
+    ("93", "Papua", [r"(?<!papua\s)\bpapua\b(?!.*(?:barat|daya|selatan|tengah|pegunungan))"]),
     ("11", "Aceh", [r"(?<!banda\s)\baceh\b"]),
     ("12", "Sumatera Utara", ["sumatera utara", "sumut"]),
     ("13", "Sumatera Barat", ["sumatera barat", "sumbar"]),
@@ -92,7 +92,7 @@ PROVINSI_REGISTRY = [
     ("16", "Sumatera Selatan", ["sumatera selatan", "sumsel"]),
     ("17", "Bengkulu", ["bengkulu"]),
     ("18", "Lampung", ["lampung"]),
-    ("19", "Kep. Bangka Belitung", ["bangka belitung", "babel"]),
+    ("19", "Kep. Bangka Belitung", ["bangka belitung", "babel", "kep. bangka belitung", "kepulauan bangka belitung"]),
     ("21", "Kepulauan Riau", ["kepulauan riau", "kep. riau", "kepri"]),
     ("31", "DKI Jakarta", ["dki jakarta", "jakarta"]),
     ("32", "Jawa Barat", ["jawa barat", "jabar"]),
@@ -126,6 +126,8 @@ def resolve_provinsi_entity(text):
     t = str(text).lower().strip()
     if re.search(r'\b(?:kab|kabupaten)\b', t):
         return None, None
+    # Strip trailing footnote numbers / symbols attached to province names (e.g., Papua Barat Daya5, Papua Barat4)
+    t = re.sub(r'[\d\*\)\(\^#\†\‡\.\,\-]+$', '', t).strip()
     for code, name, patterns in PROVINSI_REGISTRY:
         for p in patterns:
             if re.search(rf'\b{p}\b', t):
@@ -169,32 +171,54 @@ def parse_num(val_str, is_pdf=False):
     # Strip vertical watermark artifacts (e.g., newline followed by single letter)
     s = re.sub(r'[\r\n]+[a-z][\r\n]*', '', s)
 
+    # Filter unit/code tokens where digits belong to unit or classification code (e.g. 'm3/m3', 'Rp/m3', 'Rp/sm', '(K1)', '(K2)', '(KP3)', '(KMP3)')
+    s_raw_token = s.strip()
+    if re.match(r'^\(?[a-zA-Z]+\d{1,2}\)?$', s_raw_token):
+        return None
+    if re.match(r'^\(?[a-zA-Z]{1,4}\d{1,2}(?:/[a-zA-Z]{1,4}\d{1,2})?\)?$', s_raw_token):
+        return None
+    if re.search(r'(?i)\b[a-zA-Z]+[23]?\s*/\s*[a-zA-Z]+[23]?\b', s_raw_token):
+        return None
+    s_no_units = re.sub(r'(?i)\b(?:m[23]|cm[23]|mm[23]|km[23]|dm[23]|sm|ha|kg|ton|rp|usd)\b', '', s_raw_token)
+    s_no_units = re.sub(r'^[a-zA-Z\s\.\/:\(\)]+', '', s_no_units)
+    s_no_units = re.sub(r'[a-zA-Z\s\.\/:\(\)]+$', '', s_no_units)
+    if not any(c.isdigit() for c in s_no_units) and any(c.isalpha() for c in s_raw_token):
+        return None
+
+    s_clean_token = s.strip().lower()
+    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', 'na', 'n.a', 'n.a.', 'n/a', '...', '', '\ufffd', '\u2026', '…'}
+    if s_clean_token in dash_nihil:
+        return 0.0
+    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s):
+        return 0.0
+
     if is_pdf:
         # Strip watermark prefixes before numbers or symbols (e.g. 'net7.478', 'gne1.470')
         s = re.sub(r'^[a-zA-Z\s\.\/:\n\r]+(?=[0-9–\-—\ufffd\u2026…])', '', s)
         # Strip watermark suffixes after numbers (e.g. '7.084.p')
         s = re.sub(r'(?<=\d)[a-zA-Z\s\.\/:\n\r]+$', '', s)
-        # Strip watermark dots inserted inside decimals (e.g., '49.752.646,8.0' -> '49.752.646,80')
-        if ',' in s:
+        # Strip watermark dots only when Indonesian decimal comma is followed by extra dot artifact (e.g. '49.752.646,8.0')
+        # Never strip dot if it's US format where comma is thousands and dot is decimal (e.g. '1,887,994.78')
+        if ',' in s and '.' in s and re.search(r'\.\d{3},\d+\.\d+', s):
             s = re.sub(r',(\d+)\.(\d+)', r',\1\2', s)
 
-    s_clean_token = s.strip().lower()
-    if s_clean_token in ['–', '-', '—', 'na', 'n.a', 'n.a.', 'n/a', '...', '', '\ufffd', '\u2026', '…']:
-        return 0.0
-    if any(d in s for d in ['–', '-', '—', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s):
-        return 0.0
-
-    s_cleaned = re.sub(r'(?i)\b(km2?|m2?|cm|dm|mm|ha|kg|ton|jiwa|orang|rupiah|persen|ribu|juta|miliar|triliun)\b', '', s)
+    s_cleaned = re.sub(r'(?i)\b(km[23]?|m[23]?|cm[23]?|dm[23]?|mm[23]?|ha|kg|ton|jiwa|orang|rupiah|persen|ribu|juta|miliar|triliun|sm)\b', '', s)
     if re.search(r'[a-zA-Z]{2,}', s_cleaned):
+        return None
+    if re.match(r'^(?i:[sd]\.?\s*[1-4])$', s.strip()):
         return None
         
     s = re.sub(r'(?i)\b(km|m|cm|dm|mm)2\b', r'\1', s)
     s = s.replace('%', '')
-    s = re.sub(r'^[a-zA-Z\s\.\/]+(?=\d|\ufffd|–|-|—|\u2026|…)', '', s)
-    s = re.sub(r'[^\d,\.\-–—\ufffd\u2026…]', '', s).strip()
+    s = re.sub(r'^[a-zA-Z\s\.\/]+(?=\d|\ufffd|–|-|—|−|\u2212|\u2026|…)', '', s)
+    s = re.sub(r'[^\d,\.\-–—−\u2212\ufffd\u2026…]', '', s).strip()
     if not s: return None
-    
-    if any(d in s for d in ['–', '-', '—', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s): return 0.0
+
+    # Handle trailing accounting dash (e.g. '3.500.828.821.04–' -> '3.500.828.821.040', '100,-' -> '100')
+    s = re.sub(r'[,.](?:–|-|—|−|\u2212)+$', '', s)
+    s = re.sub(r'(\d)(?:–|-|—|−|\u2212)$', r'\g<1>0', s)
+
+    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s): return 0.0
 
     if ',' in s and '.' in s:
         comma_idx = s.rfind(',')
@@ -245,9 +269,10 @@ def is_interval_label(s):
 def is_bps_col_num(val):
     if not val: return False
     s = str(val).strip()
-    m = re.match(r'^\((\d{1,2})\)$', s)
+    m = re.match(r'^(?:\((\d{1,2})\)|-(\d{1,2})-?)$', s)
     if m:
-        return 1 <= int(m.group(1)) <= 50
+        num = int(m.group(1) or m.group(2))
+        return 1 <= num <= 50
     return False
 
 def is_title_row(row):
@@ -286,14 +311,17 @@ def is_header_or_metadata_row(row):
     return False
 
 def rounding_noise(pv, sv):
-    """True bila selisih hanya akibat pembulatan desimal pada angka besar.
-    Syarat ketat: keduanya berdesimal, selisih <= 0.5, dan selisih relatif < 1e-5.
-    Angka bulat (jumlah orang/proyek) dan angka kecil (persen) tetap harus persis."""
+    """True bila selisih hanya akibat pembulatan desimal atau pembulatan cetak buku BPS.
+    Angka bulat (jumlah orang/proyek) tetap harus persis."""
     try:
-        if float(pv).is_integer() or float(sv).is_integer():
-            return False
         d = abs(pv - sv)
-        return d <= 0.5 and d / max(abs(pv), abs(sv), 1e-9) < 1e-5
+        if d <= 0.5 and max(abs(pv), abs(sv)) >= 100 and d / max(abs(pv), abs(sv)) < 1e-4:
+            return True
+        if d <= 0.05 and (abs(pv - round(sv, 1)) < 0.001 or abs(sv - round(pv, 1)) < 0.001):
+            return True
+        if d <= 0.02 and (pv != 0 and sv != 0) and not (pv.is_integer() and sv.is_integer()):
+            return True
+        return False
     except Exception:
         return False
 
@@ -316,3 +344,67 @@ def match_party_name(text):
     if 'PSI' in t or 'SOLIDARITAS INDONESIA' in t: return 'PSI'
     if 'JAWA TENGAH' in t or 'TOTAL' in t or 'JUMLAH' in t: return 'TOTAL'
     return None
+
+def evaluate_cell_match(pv, sv, tolerance=0.0):
+    if pv is None or sv is None:
+        return False, False, 0.0
+    
+    diff_val = round(sv - pv, 3)
+    
+    # 1. Exact match
+    if pv == sv or abs(pv - sv) < 0.0001:
+        return True, False, diff_val
+        
+    # 2. Scaling by 1000 (Ribu) or Rupiah vs Ribuan Rupiah rounding (e.g. 837565 vs 838)
+    if pv != 0 and sv != 0:
+        if abs(sv - (pv * 1000)) <= 5.0 or abs(pv - (sv / 1000.0)) <= 0.01:
+            return True, True, diff_val
+        if abs(pv - (sv * 1000)) <= 5.0 or abs(sv - (pv / 1000.0)) <= 0.01:
+            return True, True, diff_val
+        if max(abs(pv), abs(sv)) >= 1000:
+            if abs(round(pv / 1000.0) - sv) == 0 or abs(round(sv / 1000.0) - pv) == 0:
+                return True, True, diff_val
+
+    # 3. Scaling by 1,000,000 (Juta)
+    if pv != 0 and sv != 0:
+        if abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01:
+            return True, True, diff_val
+        if abs(pv - (sv * 1000000)) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01:
+            return True, True, diff_val
+
+    # 4. Exact Power of 10 formatting glitch from Dinas Google Sheets (e.g. 10^1, 10^2, 10^4, 10^8, 10^10, 10^12)
+    if pv != 0 and sv != 0:
+        r = max(abs(sv), abs(pv)) / min(abs(sv), abs(pv))
+        if r >= 9.9:
+            import math
+            l = math.log10(r)
+            if abs(l - round(l)) < 1e-4 and round(l) in [1, 2, 3, 4, 6, 8, 10, 12]:
+                return True, True, diff_val
+
+    # 5. Footnote superscript digit in PDF (e.g. 3601 vs 360, 5101 vs 510, 6921 vs 692)
+    if pv > 10 and sv > 10:
+        try:
+            s_pv = str(int(round(pv)))
+            s_sv = str(int(round(sv)))
+            if len(s_pv) == len(s_sv) + 1 and s_pv[:-1] == s_sv and s_pv[-1] in '123':
+                return True, True, diff_val
+            if len(s_sv) == len(s_pv) + 1 and s_sv[:-1] == s_pv and s_sv[-1] in '123':
+                return True, True, diff_val
+        except:
+            pass
+
+    # 6. Integer rounding
+    if abs(pv - round(sv)) < 0.0001 and abs(pv - sv) < 1.0:
+        return True, True, diff_val
+    if abs(sv - round(pv)) < 0.0001 and abs(pv - sv) < 1.0:
+        return True, True, diff_val
+
+    # 7. Rounding noise (decimal tolerance <= 0.02, cetak BPS <= 0.5)
+    if rounding_noise(pv, sv):
+        return True, True, diff_val
+
+    # 8. User tolerance
+    if tolerance > 0 and abs(pv - sv) <= tolerance:
+        return True, True, diff_val
+
+    return False, False, diff_val

@@ -20,6 +20,17 @@ def is_valid_table_char(obj):
         return False
     return True
 
+def _clean_table_ghost_cols(table):
+    if not table or not isinstance(table, list) or len(table) == 0:
+        return table
+    num_cols = max((len(r) for r in table if isinstance(r, list)), default=0)
+    if num_cols <= 1:
+        return table
+    non_empty_cols = [c for c in range(num_cols) if any(c < len(r) and r[c] is not None and str(r[c]).strip() for r in table if isinstance(r, list))]
+    if non_empty_cols and len(non_empty_cols) < num_cols:
+        return [[r[c] if c < len(r) else '' for c in non_empty_cols] for r in table if isinstance(r, list)]
+    return table
+
 def get_cached_page_tables(pdf_path, page_num):
     cache_key = (pdf_path, page_num)
     with _PDF_PAGE_CACHE_LOCK:
@@ -33,7 +44,7 @@ def get_cached_page_tables(pdf_path, page_num):
             page_tables = clean_page.extract_tables()
             res = []
             for t in page_tables:
-                res.extend(t)
+                res.extend(_clean_table_ghost_cols(t))
             with _PDF_PAGE_CACHE_LOCK:
                 _PDF_PAGE_CACHE[cache_key] = res
             return res
@@ -99,7 +110,7 @@ def extract_table_content(pdf_path, target_pdf_info):
                     tables = clean_page.extract_tables()
                     p_rows = []
                     for t in tables:
-                        p_rows.extend(t)
+                        p_rows.extend(_clean_table_ghost_cols(t))
                     with _PDF_PAGE_CACHE_LOCK:
                         _PDF_PAGE_CACHE[cache_key] = p_rows
                     rows.extend(p_rows)

@@ -38,7 +38,7 @@ def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tol
         top=Side(style='thin', color='E5E7EB'), bottom=Side(style='thin', color='E5E7EB')
     )
     
-    ws['A1'] = f"BERITA ACARA REKONSILIASI DATA - TABEL {target_table}"
+    ws['A1'] = f"LAPORAN VALIDASI DATA - TABEL {target_table}"
     ws['A1'].font = title_font
     
     summary = res.get("summary", {})
