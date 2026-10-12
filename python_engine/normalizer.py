@@ -189,7 +189,7 @@ def parse_num(val_str, is_pdf=False):
     dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', 'na', 'n.a', 'n.a.', 'n/a', '...', '', '\ufffd', '\u2026', '…'}
     if s_clean_token in dash_nihil:
         return 0.0
-    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s):
+    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isalnum() for c in s):
         return 0.0
 
     if is_pdf:
@@ -300,14 +300,15 @@ def is_header_or_metadata_row(row):
         
     if any(k in ctx for k in ['tabel', 'table', 'sumber', 'source', 'catatan', 'note', 'perubahan data', 'diakses']): return True
 
-    if sum(1 for c in non_empty if parse_num(c) is not None and not is_bps_col_num(str(c).strip())) >= 2:
+    num_non_years = sum(1 for c in non_empty if parse_num(c) is not None and not is_bps_col_num(str(c).strip()) and not re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', re.sub(r'[\*\^#\s\†\‡]', '', str(c))))
+    if num_non_years >= 2:
         return False
         
     if any(k in ctx for k in ['laki-laki', 'perempuan', 'female', 'male', 'jenis kelamin', 'sex', 'pangkat', 'golongan', 'tingkat pendidikan']):
         if not any(parse_num(c) is not None for c in non_empty if not is_bps_col_num(str(c).strip())): return True
 
-    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps']):
-        if not any(parse_num(c) is not None for c in non_empty if not is_bps_col_num(str(c).strip())): return True
+    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit']):
+        if not any(parse_num(c) is not None and not is_bps_col_num(str(c).strip()) and not re.match(r'^(?:19|20)\d{2}', str(c).strip()) for c in non_empty): return True
     return False
 
 def rounding_noise(pv, sv):

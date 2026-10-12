@@ -2999,7 +2999,7 @@ class Admin extends BaseController
 				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
 				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
 
-				// Pastikan setiap tabel matched memiliki link_tabel dan source_type
+				// Pastikan setiap tabel matched memiliki link_tabel dan source_type yang sinkron dengan database terbaru
 				if (file_exists($dbJson)) {
 					$dbMap = [];
 					$dbList = json_decode(@file_get_contents($dbJson), true) ?? [];
@@ -3009,14 +3009,27 @@ class Admin extends BaseController
 						}
 					}
 					$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+					$hasMatchedChanged = false;
 					foreach ($masterData[$listKey] as &$mItem) {
-						if (empty($mItem['link_tabel'])) {
-							$mItem['link_tabel'] = $dbMap[trim($mItem['nomor_tabel'] ?? '')] ?? '';
+						$tNum = trim($mItem['nomor_tabel'] ?? '');
+						if (isset($dbMap[$tNum]) && !empty($dbMap[$tNum])) {
+							if (($mItem['link_tabel'] ?? '') !== $dbMap[$tNum]) {
+								$mItem['link_tabel'] = $dbMap[$tNum];
+								$hasMatchedChanged = true;
+							}
 						}
 						$linkLower = strtolower($mItem['link_tabel'] ?? '');
-						$mItem['source_type'] = (strpos($linkLower, 'docs.google.com') !== false || strpos($linkLower, 'spreadsheet') !== false) ? 'spreadsheet' : 'api';
+						$newSourceType = (strpos($linkLower, 'docs.google.com') !== false || strpos($linkLower, 'spreadsheet') !== false) ? 'spreadsheet' : 'api';
+						if (($mItem['source_type'] ?? '') !== $newSourceType) {
+							$mItem['source_type'] = $newSourceType;
+							$hasMatchedChanged = true;
+						}
 					}
 					unset($mItem);
+
+					if ($hasMatchedChanged) {
+						@file_put_contents($matchedJson, json_encode($masterData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+					}
 				}
 			}
 		}
@@ -3313,11 +3326,18 @@ class Admin extends BaseController
 			if (isset($res['status']) && $res['status'] === 'success') {
 				$totalDiffs = isset($res['summary']) ? $res['summary']['total_diffs'] : (isset($res['diffs']) ? count($res['diffs']) : 0);
 				$totalMatches = isset($res['summary']) ? $res['summary']['total_matches'] : (isset($res['matches']) ? count($res['matches']) : 0);
+				$totalPdfOnly = isset($res['summary']) ? $res['summary']['total_pdf_only'] : (isset($res['pdf_only']) ? count($res['pdf_only']) : 0);
 				if ($totalDiffs > 0) {
 					$status = 'diff';
 					$diff_count = $totalDiffs;
+					$match_count = $totalMatches;
+				} else if ($totalMatches == 0) {
+					$status = 'diff';
+					$diff_count = ($totalPdfOnly > 0) ? $totalPdfOnly : '!';
+					$match_count = 0;
 				} else {
 					$status = 'match';
+					$diff_count = 0;
 					$match_count = $totalMatches;
 				}
 			} else if (isset($res['is_api_empty']) && $res['is_api_empty']) {
@@ -3394,6 +3414,38 @@ class Admin extends BaseController
 				}
 				if ($isUpdated) {
 					@file_put_contents($dbJson, json_encode($listTables, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+				}
+
+				// Sync juga ke dda_matched_{ta}.json agar batch worker membaca link & source_type terbaru
+				if (file_exists($matchedJson)) {
+					$rawMatched = @file_get_contents($matchedJson);
+					$matchedObj = json_decode($rawMatched, true);
+					if (is_array($matchedObj)) {
+						$mKey = isset($matchedObj['matched_in_pdf']) ? 'matched_in_pdf' : (isset($matchedObj['matched_tables']) ? 'matched_tables' : null);
+						if ($mKey && is_array($matchedObj[$mKey])) {
+							$isMatchedUpdated = false;
+							foreach ($matchedObj[$mKey] as &$mItem) {
+								$cNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $mItem['nomor_tabel'] ?? ''));
+								$cNo = rtrim($cNo, '.');
+								if (isset($linkMap[$cNo])) {
+									if (($mItem['link_tabel'] ?? '') !== $linkMap[$cNo]) {
+										$mItem['link_tabel'] = $linkMap[$cNo];
+										$isMatchedUpdated = true;
+									}
+								}
+								$linkLower = strtolower($mItem['link_tabel'] ?? '');
+								$st = (strpos($linkLower, 'docs.google.com') !== false || strpos($linkLower, 'spreadsheet') !== false) ? 'spreadsheet' : 'api';
+								if (($mItem['source_type'] ?? '') !== $st) {
+									$mItem['source_type'] = $st;
+									$isMatchedUpdated = true;
+								}
+							}
+							unset($mItem);
+							if ($isMatchedUpdated) {
+								@file_put_contents($matchedJson, json_encode($matchedObj, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+							}
+						}
+					}
 				}
 			}
 		}

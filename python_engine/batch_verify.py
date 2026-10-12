@@ -152,18 +152,27 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
                 summary = res.get("summary", {})
                 total_diffs = int(summary.get("total_diffs", len(res.get("diffs", []))))
                 total_matches = int(summary.get("total_matches", len(res.get("matches", []))))
+                total_pdf_only = int(summary.get("total_pdf_only", len(res.get("pdf_only", []))))
                 
                 link_str = str(table_item.get("link_tabel", "") or "")
                 is_api = "portal" in link_str.lower() or "api" in link_str.lower() or res.get("source_type") == "API Satudata"
                 
-                if total_matches == 0 and total_diffs == 0:
-                    if is_api or res.get("is_api_empty"):
+                if total_diffs > 0:
+                    status = "diff"
+                    diff_count = total_diffs
+                elif total_matches == 0:
+                    if total_pdf_only > 0:
+                        status = "diff"
+                        diff_count = total_pdf_only
+                    elif is_api or res.get("is_api_empty"):
                         status = "api_empty"
+                        diff_count = 0
                     else:
-                        status = "match"
+                        status = "diff"
+                        diff_count = "!"
                 else:
-                    status = "diff" if total_diffs > 0 else "match"
-                diff_count = total_diffs
+                    status = "match"
+                    diff_count = 0
                 match_count = total_matches
             elif res.get("is_api_empty") or res.get("is_link_empty") or "tidak ada link" in res.get("message", "").lower() or "tidak ada data dalam api" in res.get("message", "").lower():
                 status = "api_empty"
