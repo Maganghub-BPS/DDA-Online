@@ -1585,8 +1585,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
                 results["summary"] = {
                     "total_matches": len(results["matches"]),
-                    "total_diffs": len(results["diffs"])
+                    "total_diffs": len(results["diffs"]),
+                    "total_pdf_only": len(results.get("pdf_only", []))
                 }
+                results["mismatches"] = results["diffs"] + results.get("pdf_only", [])
+                results["replace_count"] = len(results["diffs"])
+                results["delete_count"] = len(results.get("pdf_only", []))
+                results["pdf_count"] = len(results["diffs"]) + len(results["matches"]) + len(results.get("pdf_only", []))
+                results["source_count"] = len(results["diffs"]) + len(results["matches"])
                 if len(results["matches"]) > 0 or len(results["diffs"]) > 0:
                     return results
 
@@ -1676,8 +1682,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             if len(results["matches"]) > 0 or len(results["diffs"]) > 0:
                 results["summary"] = {
                     "total_matches": len(results["matches"]),
-                    "total_diffs": len(results["diffs"])
+                    "total_diffs": len(results["diffs"]),
+                    "total_pdf_only": len(results.get("pdf_only", []))
                 }
+                results["mismatches"] = results["diffs"] + results.get("pdf_only", [])
+                results["replace_count"] = len(results["diffs"])
+                results["delete_count"] = len(results.get("pdf_only", []))
+                results["pdf_count"] = len(results["diffs"]) + len(results["matches"]) + len(results.get("pdf_only", []))
+                results["source_count"] = len(results["diffs"]) + len(results["matches"])
                 return results
 
         # Fallback / General API Normalizer: convert dict list into 2D grid and let CASE 2 process it!

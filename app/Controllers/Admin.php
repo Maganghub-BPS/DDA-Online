@@ -3324,9 +3324,9 @@ class Admin extends BaseController
 			$match_count = 0;
 
 			if (isset($res['status']) && $res['status'] === 'success') {
-				$totalDiffs = isset($res['summary']) ? $res['summary']['total_diffs'] : (isset($res['diffs']) ? count($res['diffs']) : 0);
-				$totalMatches = isset($res['summary']) ? $res['summary']['total_matches'] : (isset($res['matches']) ? count($res['matches']) : 0);
-				$totalPdfOnly = isset($res['summary']) ? $res['summary']['total_pdf_only'] : (isset($res['pdf_only']) ? count($res['pdf_only']) : 0);
+				$totalDiffs = $res['summary']['total_diffs'] ?? (isset($res['diffs']) ? count($res['diffs']) : 0);
+				$totalMatches = $res['summary']['total_matches'] ?? (isset($res['matches']) ? count($res['matches']) : 0);
+				$totalPdfOnly = $res['summary']['total_pdf_only'] ?? (isset($res['pdf_only']) ? count($res['pdf_only']) : 0);
 				if ($totalDiffs > 0) {
 					$status = 'diff';
 					$diff_count = $totalDiffs;
