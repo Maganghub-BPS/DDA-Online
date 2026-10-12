@@ -1707,6 +1707,30 @@ class Admin extends BaseController
 		return redirect()->back();
 	}
 
+	public function batal_verif($id)
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		// Keamanan: Hanya akun BPS yang berwenang membatalkan verifikasi
+		if ($this->session->get('admin_unitkerja') != 'bps') {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Hanya BPS yang berwenang membatalkan verifikasi data.</div>');
+			return redirect()->back();
+		}
+
+		$id = (int)$id;
+		$data = array(
+			'is_confirm' => '0',
+			'catatan'    => '-',
+			'is_publish' => '0' // Otomatis kembalikan ke Draft demi keamanan data publik
+		);
+		$this->db->table('t_tahun_tabel')->where('id', $id)->update($data);
+
+		$this->session->setFlashdata('k', '<div class="alert alert-warning border-0 shadow-sm rounded-3 d-flex align-items-center mb-3" id="alert" style="background-color: #fff3cd; color: #664d03;"><i class="bi bi-exclamation-triangle-fill fs-5 me-2 flex-shrink-0 text-warning"></i><div><strong>Status Diperbarui:</strong> Verifikasi data berhasil dibatalkan. Tabel otomatis dikembalikan ke status <b>Draft</b>.</div></div>');
+		return redirect()->back();
+	}
+
 	/**
 	 * AJAX endpoint to toggle publish status of a table to the public frontend
 	 */

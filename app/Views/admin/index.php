@@ -31,6 +31,8 @@
 
     <!-- Bootstrap 5 JS Bundle (includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         :root {
@@ -698,7 +700,7 @@
         </main>
     </div>
 
-    <!-- Sidebar Toggle Script -->
+    <!-- Sidebar Toggle & Global UI Handler Script -->
     <script>
         $(document).ready(function() {
             $('#sidebarCollapse').on('click', function() {
@@ -709,8 +711,71 @@
             setTimeout(function() {
                 $("#alert").fadeOut(800);
             }, 5000);
+
+            // Global Handler: SweetAlert2 Konfirmasi Batal Verifikasi
+            $(document).on('click', '.btn-batal-verif', function(e) {
+                e.preventDefault();
+                var url = $(this).attr('href');
+
+                Swal.fire({
+                    title: 'Batalkan Verifikasi?',
+                    text: 'Status data akan kembali ke Menunggu Cek dan publikasi tabel otomatis kembali ke Draft.',
+                    icon: 'warning',
+                    iconColor: '#ff6d1f',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Batalkan',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    focusCancel: true,
+                    width: '390px',
+                    customClass: {
+                        popup: 'rounded-4 shadow border-0 p-4',
+                        title: 'fs-5 fw-bold text-dark mb-1',
+                        htmlContainer: 'text-muted small m-0 mb-3',
+                        actions: 'gap-2 mt-1 w-100 justify-content-center',
+                        confirmButton: 'btn btn-danger px-3 py-2 rounded-3 fw-medium',
+                        cancelButton: 'btn btn-light border px-3 py-2 rounded-3 text-secondary fw-medium'
+                    },
+                    buttonsStyling: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = url;
+                    }
+                });
+            });
+
+            // Global Handler: SweetAlert2 Konfirmasi Batal Status Pengisian
+            $(document).on('click', '.btn-batal-isi', function(e) {
+                e.preventDefault();
+                var url = $(this).attr('href');
+
+                Swal.fire({
+                    title: 'Batalkan Pengisian?',
+                    text: 'Status pengisian OPD untuk tabel ini akan dikembalikan ke Belum Diisi.',
+                    icon: 'question',
+                    iconColor: '#ff6d1f',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, Batalkan',
+                    cancelButtonText: 'Batal',
+                    reverseButtons: true,
+                    focusCancel: true,
+                    width: '390px',
+                    customClass: {
+                        popup: 'rounded-4 shadow border-0 p-4',
+                        title: 'fs-5 fw-bold text-dark mb-1',
+                        htmlContainer: 'text-muted small m-0 mb-3',
+                        actions: 'gap-2 mt-1 w-100 justify-content-center',
+                        confirmButton: 'btn btn-danger px-3 py-2 rounded-3 fw-medium',
+                        cancelButton: 'btn btn-light border px-3 py-2 rounded-3 text-secondary fw-medium'
+                    },
+                    buttonsStyling: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = url;
+                    }
+                });
+            });
         });
     </script>
 </body>
-
 </html>
