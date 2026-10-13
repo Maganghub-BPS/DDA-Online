@@ -1729,7 +1729,7 @@ if ($primary_result):
                     <?php endif; ?>
 
                     <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;">
-                        <div><b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $api_result['id_api'] ?? ''; ?>)</div>
+                        <div><b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah</div>
                         <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($api_result['unitkerja_ind'] ?? '-'); ?></i></div>
                     </div>
                 </div>
