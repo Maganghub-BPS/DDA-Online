@@ -54,10 +54,14 @@
             box-sizing: border-box;
         }
 
+        html,
         body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             font-family: 'Public Sans', sans-serif;
             background: var(--content-bg);
-            overflow-x: hidden;
         }
 
         /* ===== OVERRIDE BOOTSTRAP PRIMARY ===== */
@@ -142,22 +146,25 @@
         /* ===== WRAPPER LAYOUT ===== */
         #wrapper {
             display: flex;
-            min-height: 100vh;
+            height: 100vh;
+            width: 100%;
+            max-width: 100vw;
+            overflow: hidden;
         }
 
-        /* ===== SIDEBAR ===== */
+        /* ===== SIDEBAR (FIXED / TIDAK IKUT TERSCROLL) ===== */
         #sidebar {
             min-width: var(--sidebar-width);
             max-width: var(--sidebar-width);
+            width: var(--sidebar-width);
             background: var(--sidebar-bg);
             border-right: 1px solid #e2e8f0;
             box-shadow: 2px 0 8px rgba(0, 0, 0, 0.03);
             transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            position: sticky;
-            top: 0;
             height: 100vh;
+            flex-shrink: 0;
             z-index: 1000;
         }
 
@@ -269,13 +276,36 @@
             border-radius: 6px;
         }
 
-        /* ===== MAIN CONTENT AREA ===== */
+        /* ===== MAIN CONTENT AREA (HANYA SECTION INI YANG SCROLLABLE) ===== */
         #content {
-            flex-grow: 1;
+            flex: 1 1 0%;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            height: 100vh;
+            min-width: 0;
+            max-width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
             transition: all 0.35s ease;
+            position: relative;
+        }
+
+        #content::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        #content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        #content::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        #content::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
 
         /* ===== TOP NAVBAR ===== */
@@ -291,6 +321,7 @@
             top: 0;
             z-index: 999;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
         }
 
         .sidebar-toggle {
@@ -354,6 +385,17 @@
         .main-content {
             flex-grow: 1;
             padding: 30px;
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            min-height: calc(100vh - 70px + 60px);
+        }
+
+        .content-body {
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
         }
 
         .breadcrumb-container {
@@ -384,7 +426,7 @@
             color: var(--primary-color);
         }
 
-        /* ===== FOOTER ===== */
+        /* ===== FOOTER (HANYA MUNCUL KETIKA SCROLL PALING BAWAH) ===== */
         .footer {
             padding: 16px 30px;
             text-align: center;
@@ -392,6 +434,8 @@
             color: #94a3b8;
             border-top: 1px solid #e2e8f0;
             background: #ffffff;
+            flex-shrink: 0;
+            display: none;
         }
 
         /* ===== DESKTOP SIDEBAR COLLAPSE ===== */
@@ -399,6 +443,7 @@
             #sidebar.active {
                 min-width: var(--sidebar-collapsed-width);
                 max-width: var(--sidebar-collapsed-width);
+                width: var(--sidebar-collapsed-width);
             }
 
             #sidebar.active .link-text,
@@ -493,6 +538,7 @@
         'l_dda_new'      => 'Input Data DDA Baru',
         'l_dda_periksa'  => 'Pemeriksaan Data DDA',
         'l_master_tabel' => 'Master Tabel DDA',
+        'l_master_dimensi' => 'Master Dimensi Tabel Dinamis',
         'l_master_tabel_opd' => 'Master Tabel OPD',
         'l_unitkerja'    => 'Manajemen OPD',
         'l_manage_admin' => 'Manajemen Admin',
@@ -507,6 +553,7 @@
         'f_passwod'      => 'Ganti Password',
         'v_portal_tabel' => 'View Portal Tabel',
         'v_preview_bulk' => 'Preview Bulk Update',
+        'f_generator_tabel' => 'Generator Indikator Tabel & Matriks Dinamis',
     ];
 
     $page_key = is_scalar($page) ? $page : 'dashboard';
@@ -569,6 +616,11 @@
                     <a href="<?php echo base_url(); ?>admin/master_tabel/" class="sidebar-link <?php echo (strpos($page, 'master_tabel') !== false) ? 'active' : ''; ?>">
                         <i class="bi bi-table"></i>
                         <span class="link-text">Master Tabel</span>
+                    </a>
+
+                    <a href="<?php echo base_url(); ?>admin/master_dimensi/" class="sidebar-link <?php echo (strpos($page, 'dimensi') !== false) ? 'active' : ''; ?>">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                        <span class="link-text">Master Dimensi Tabel</span>
                     </a>
 
                     <?php if ($user == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin'): ?>
@@ -706,6 +758,29 @@
             $('#sidebarCollapse').on('click', function() {
                 $('#sidebar').toggleClass('active');
             });
+
+            // Handler: Footer hanya muncul ketika scroll berada di paling bawah
+            function handleFooterVisibility() {
+                var contentEl = document.getElementById('content');
+                if (!contentEl) return;
+
+                var scrollTop = contentEl.scrollTop;
+                var scrollHeight = contentEl.scrollHeight;
+                var clientHeight = contentEl.clientHeight;
+
+                // Cek apakah user telah melakukan scroll dan berada di dekat dasar (jarak <= 40px)
+                var isAtBottom = (scrollHeight - scrollTop - clientHeight) <= 40 && scrollTop > 20;
+
+                if (isAtBottom) {
+                    $('.footer').stop(true, true).fadeIn(200);
+                } else {
+                    $('.footer').stop(true, true).fadeOut(150);
+                }
+            }
+
+            $('#content').on('scroll', handleFooterVisibility);
+            $(window).on('resize', handleFooterVisibility);
+            handleFooterVisibility();
 
             // Auto-dismiss alerts
             setTimeout(function() {
