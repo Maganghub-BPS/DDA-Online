@@ -3,6 +3,7 @@ $uri = uri_string();
 $isHome = ($uri == '' || $uri == '/' || strpos($uri, 'search') !== false || strpos($uri, 'instansi') !== false);
 $isBeranda = ($uri == '' || $uri == '/' || $uri == 'home' || $uri == 'home/index' || current_url() == base_url() || current_url() == base_url('home'));
 $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search') !== false);
+$isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !== false);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -217,6 +218,64 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             opacity: 1;
         }
 
+        /* ===== SOLID NAVY BLUE LOGIN CTA BUTTON (SIMPLE & CLEAN) ===== */
+        .navbar-custom .btn-nav-login {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 22px !important;
+            font-family: 'Inter', "Inter Fallback", sans-serif;
+            font-weight: 700;
+            font-size: 0.93rem;
+            line-height: 1.2;
+            color: #ffffff !important;
+            text-decoration: none;
+            background: var(--bps-blue) !important;
+            border: none !important;
+            border-radius: 50px;
+            box-shadow: 0 2px 6px rgba(21, 70, 121, 0.2);
+            transition: background-color 0.15s ease, opacity 0.15s ease !important;
+            cursor: pointer;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login i {
+            font-size: 0.92rem;
+            color: #ffffff !important;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login span {
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #ffffff !important;
+        }
+
+        .navbar-custom .btn-nav-login:hover {
+            background: #113861 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(21, 70, 121, 0.25) !important;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login:active {
+            opacity: 0.9 !important;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login.active {
+            background: #113861 !important;
+        }
+
+        .navbar-custom.scrolled .btn-nav-login {
+            background: var(--bps-blue) !important;
+        }
+
+        .navbar-custom.scrolled .btn-nav-login:hover {
+            background: #113861 !important;
+        }
+
         /* Mobile Navbar */
         .navbar-custom .navbar-toggler i { color: var(--bps-blue) !important; }
 
@@ -234,6 +293,12 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                 width: 32px;
                 right: auto;
                 bottom: 2px;
+            }
+            .navbar-custom .btn-nav-login {
+                width: 100%;
+                justify-content: center;
+                padding: 9px 20px 9px 12px !important;
+                margin-top: 6px;
             }
         }
 
@@ -650,6 +715,12 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                     <li class="nav-item">
                         <a class="nav-link <?= $isSearch ? 'active' : '' ?>" id="nav-link-jelajah" href="<?= base_url('home/search') ?>">
                             <i class="fa-solid fa-compass me-1"></i> Jelajah Data
+                        </a>
+                    </li>
+                    <li class="nav-item ms-lg-2">
+                        <a class="btn-nav-login <?= $isLogin ? 'active' : '' ?>" id="nav-link-login" href="<?= base_url('admin/login') ?>" title="Login Portal Pengelola">
+                            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                            <span>Login</span>
                         </a>
                     </li>
                 </ul>

@@ -1157,8 +1157,8 @@
     <div class="container hero-container position-relative" style="z-index: 2; width: 100%; max-width: 960px;">
         <!-- JUDUL -->
         <h1 class="hero-title mx-auto mb-3" style="font-size: clamp(2.9rem, 5.4vw, 4.4rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.14; max-width: 920px; color: #0d2c4d;">
-            Satu Data Daerah <br>
-            <span style="background: linear-gradient(135deg, #F26522 0%, #D65518 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Dalam Angka</span>
+            Satu Data <br>
+            <span style="background: linear-gradient(135deg, #F26522 0%, #D65518 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Daerah Dalam Angka</span>
         </h1>
         
         <!-- SUB JUDUL -->
