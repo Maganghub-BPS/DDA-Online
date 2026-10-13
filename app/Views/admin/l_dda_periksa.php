@@ -204,8 +204,8 @@
                                     <?php if(!$is_portal): ?>
                                         <div class="action-group">
                                             <a href="<?php echo base_url(); ?>admin/batal_isi/<?php echo $b->id; ?>" 
-                                               class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger" 
-                                               onclick="return confirm('Batalkan status pengisian?')"
+                                               class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-isi" 
+                                               data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
                                                title="Batalkan Status">
                                                 <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
                                             </a>
@@ -238,6 +238,16 @@
                                     <div class="note-text">
                                         <i class="bi bi-chat-right-text me-1 opacity-50"></i> <?php echo (!empty($b->catatan)) ? htmlspecialchars($b->catatan) : 'Tanpa catatan'; ?>
                                     </div>
+                                    <?php if(session()->get('admin_unitkerja') == 'bps'): ?>
+                                        <div class="action-group">
+                                            <a href="<?php echo base_url(); ?>admin/batal_verif/<?php echo $b->id; ?>" 
+                                               class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-verif" 
+                                               data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                               title="Batalkan Verifikasi">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Batal Verif
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <span class="badge bg-warning-subtle text-warning border-0 align-self-start status-badge">
                                         <i class="bi bi-clock-history me-1"></i> MENUNGGU CEK

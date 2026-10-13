@@ -180,8 +180,10 @@ if (empty($data)) {
             
             <?php if(!$is_portal): ?>
             <div class="mt-2 text-end">
-                <a href="<?php echo base_url(); ?>index.php/admin/batal_isi/<?php echo $b->id; ?>" 
-                class="btn btn-sm btn-outline-danger py-0" style="font-size: 0.7rem;" onclick="return confirm('Batalkan status?')">
+                <a href="<?php echo base_url(); ?>admin/batal_isi/<?php echo $b->id; ?>" 
+                class="btn btn-sm btn-outline-danger py-0 btn-batal-isi" style="font-size: 0.7rem;"
+                data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                title="Batalkan status">
                     <i class="bi bi-x-circle me-1"></i>Batal
                 </a>
             </div>
@@ -203,7 +205,7 @@ if (empty($data)) {
     <!-- STATUS PEMERIKSAAN -->
     <td>
         <?php
-        if ($b->is_confirm == '2') {
+        if ($b->is_confirm != '1') {
             echo '<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass-split me-1"></i>Belum Dicek</span>';
         } else {
             echo '<span class="badge bg-info-subtle text-info"><i class="bi bi-check2-all me-1"></i>Sudah Dicek</span>';
@@ -212,15 +214,29 @@ if (empty($data)) {
             }
         }
 
-        if(session()->get('admin_unitkerja') == 'bps' and $b->is_confirm=='2') {
-            $id_konfirm = $b->id;
+        if(session()->get('admin_unitkerja') == 'bps') {
+            if($b->is_confirm != '1') {
+                $id_konfirm = $b->id;
         ?>
-            <div class="mt-1">
-                <a href="#" class="konfirmasi_modal btn btn-sm btn-outline-info" style="font-size: 0.75rem; padding: 3px 10px;" id="<?php echo $id_konfirm; ?>" title="Cek Data">
-                    <i class="bi bi-clipboard-check me-1"></i>Cek Data
-                </a>
-            </div>
+                <div class="mt-1">
+                    <a href="#" class="konfirmasi_modal btn btn-sm btn-outline-info" style="font-size: 0.75rem; padding: 3px 10px;" id="<?php echo $id_konfirm; ?>" title="Cek Data">
+                        <i class="bi bi-clipboard-check me-1"></i>Cek Data
+                    </a>
+                </div>
         <?php
+            } else {
+        ?>
+                <div class="mt-1">
+                    <a href="<?php echo base_url(); ?>admin/batal_verif/<?php echo $b->id; ?>" 
+                       class="btn btn-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-verif" 
+                       style="font-size: 0.75rem; padding: 2px 8px;"
+                       data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                       title="Batalkan Verifikasi">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Batal Cek
+                    </a>
+                </div>
+        <?php
+            }
         }
         ?>
     </td>
