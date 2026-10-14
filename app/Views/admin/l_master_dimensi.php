@@ -1133,8 +1133,8 @@
                     <div class="border rounded-3 p-3 bg-light shadow-inner">
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <div>
-                                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-eye-fill text-success me-1"></i> Live Visual Header Preview (Posisi Periode di Bawah Kolom)</h6>
-                                <div class="text-muted" style="font-size: 11px;">Simulasi posisi sub-kolom periode waktu di bawah kolom karakteristik tabel seperti dalam publikasi BPS</div>
+                                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-eye-fill text-success me-1"></i> Live Visual Header Preview</h6>
+                                <div class="text-muted" style="font-size: 11px;">Simulasi posisi kolom periode waktu pada tabel seperti dalam publikasi BPS</div>
                             </div>
                             <span class="badge bg-success-subtle text-success border small px-2 py-1"><i class="bi bi-translate me-1"></i> Dwibahasa (ID / EN)</span>
                         </div>
@@ -1227,8 +1227,8 @@
                     <div class="border rounded-3 p-3 bg-light shadow-inner">
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <div>
-                                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-eye-fill text-success me-1"></i> Live Visual Header Preview (Posisi Periode di Bawah Kolom)</h6>
-                                <div class="text-muted" style="font-size: 11px;">Simulasi posisi sub-kolom periode waktu di bawah kolom karakteristik tabel seperti dalam publikasi BPS</div>
+                                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-eye-fill text-success me-1"></i> Live Visual Header Preview</h6>
+                                <div class="text-muted" style="font-size: 11px;">Simulasi posisi kolom periode waktu pada tabel seperti dalam publikasi BPS</div>
                             </div>
                             <span class="badge bg-success-subtle text-success border small px-2 py-1"><i class="bi bi-translate me-1"></i> Dwibahasa (ID / EN)</span>
                         </div>
@@ -2300,32 +2300,16 @@ $(document).ready(function() {
         const barisTitle = formatLabel('Baris', 'Row', langMode);
         const count = items.length;
 
-        // Row 1: Header Induk
-        let tr1 = $('<tr style="background: #f8fafc; font-weight: bold; border-bottom: 1px solid #cbd5e1;"></tr>');
-        tr1.append('<th rowspan="2" style="width: 140px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px;">' + barisTitle + '</th>');
+        // Header: Kolom Baris + langsung Kolom-kolom Periode
+        let trHead = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 2px solid #cbd5e1;"></tr>');
+        trHead.append('<th style="width: 160px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px; color: #1e293b;">' + barisTitle + '</th>');
 
-        const sampleColLabels = [
-            { ind: 'Kolom 1', en: 'Column 1' },
-            { ind: 'Kolom 2', en: 'Column 2' },
-            { ind: 'Kolom 3', en: 'Column 3' }
-        ];
-
-        sampleColLabels.forEach(function(col) {
-            let colLbl = formatLabel(col.ind, col.en, langMode);
-            tr1.append('<th colspan="' + count + '" style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 8px 12px; color: #1e293b;">' + colLbl + '</th>');
+        items.forEach(function(item) {
+            let pLbl = formatLabel(item.nama_periode_ind, item.nama_periode_en, langMode);
+            trHead.append('<th style="border: 1px solid #cbd5e1; padding: 8px 14px; font-size: 13px; background: #ffffff; color: #1e293b;">' + pLbl + '</th>');
         });
 
-        // Row 2: Sub-Header Periode
-        let tr2 = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 2px solid #cbd5e1;"></tr>');
-        sampleColLabels.forEach(function() {
-            items.forEach(function(item) {
-                let pLbl = formatLabel(item.nama_periode_ind, item.nama_periode_en, langMode);
-                tr2.append('<th style="border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 13px; background: #ffffff;">' + pLbl + '</th>');
-            });
-        });
-
-        thead.append(tr1);
-        thead.append(tr2);
+        thead.append(trHead);
         $table.append(thead);
 
         let tbody = $('<tbody></tbody>');
@@ -2333,7 +2317,7 @@ $(document).ready(function() {
             let trBody = $('<tr></tr>');
             let bLbl = formatLabel(bName, 'Row ' + (bIdx + 1), langMode);
             trBody.append('<td class="text-start py-2 px-3 fw-semibold text-secondary" style="background: #fafafa; border: 1px solid #e2e8f0;">' + bLbl + '</td>');
-            for (let i = 0; i < sampleColLabels.length * count; i++) {
+            for (let i = 0; i < count; i++) {
                 trBody.append('<td class="text-center text-muted small py-2" style="border: 1px solid #e2e8f0;">...</td>');
             }
             tbody.append(trBody);
