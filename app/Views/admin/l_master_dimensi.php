@@ -299,11 +299,16 @@
                         <h5 class="fw-bold mb-1 text-dark">Daftar Kelompok Judul Baris (Dimensi Baris)</h5>
                         <p class="text-muted small mb-0">Mendukung baris bertingkat dengan indentasi (Level 0, 1, 2) dan tipe baris (Kategori, Data, Subtotal, Grand Total) dwibahasa.</p>
                     </div>
-                    <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-bold d-inline-flex align-items-center gap-2"
-                            style="background: linear-gradient(45deg, #2563EB, #3b82f6); border: none;"
-                            data-bs-toggle="modal" data-bs-target="#modalAddBaris">
-                        <i class="bi bi-plus-circle"></i> Tambah Kelompok Baris
-                    </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-success btn-sm px-3 py-2 rounded-3 fw-bold d-inline-flex align-items-center gap-2 btn-open-import-modal shadow-xs" data-target-builder="add_direct">
+                            <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Impor Spreadsheet / CSV
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-bold d-inline-flex align-items-center gap-2"
+                                style="background: linear-gradient(45deg, #2563EB, #3b82f6); border: none;"
+                                data-bs-toggle="modal" data-bs-target="#modalAddBaris">
+                            <i class="bi bi-plus-circle"></i> Tambah Kelompok Baris
+                        </button>
+                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -654,11 +659,14 @@
                             <!-- Quick Action Toolbar: Bulk Paste & Presets -->
                             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 bg-light border rounded-2">
                                 <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1 btn-open-import-modal" data-target-builder="add">
+                                        <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Impor Spreadsheet / CSV
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-primary py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1" id="btn_toggle_add_bulk">
-                                        <i class="bi bi-clipboard2-plus-fill"></i> Mode Cepat (Paste Teks Banyak)
+                                        <i class="bi bi-clipboard2-plus-fill"></i> Mode Cepat (Paste Teks)
                                     </button>
                                     <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold dropdown-toggle shadow-xs d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+                                        <button class="btn btn-sm btn-light border py-1 px-3 text-xxs fw-bold dropdown-toggle shadow-xs d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
                                             <i class="bi bi-lightning-charge-fill text-warning"></i> Template Siap Pakai
                                         </button>
                                         <ul class="dropdown-menu shadow-sm">
@@ -849,11 +857,14 @@
                             <!-- Quick Action Toolbar: Bulk Paste & Presets (Manage) -->
                             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 bg-light border rounded-2">
                                 <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1 btn-open-import-modal" data-target-builder="manage">
+                                        <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Impor Spreadsheet / CSV
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-primary py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1" id="btn_toggle_manage_bulk">
-                                        <i class="bi bi-clipboard2-plus-fill"></i> Mode Cepat (Paste Teks Banyak)
+                                        <i class="bi bi-clipboard2-plus-fill"></i> Mode Cepat (Paste Teks)
                                     </button>
                                     <div class="dropdown">
-                                        <button class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold dropdown-toggle shadow-xs d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+                                        <button class="btn btn-sm btn-light border py-1 px-3 text-xxs fw-bold dropdown-toggle shadow-xs d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
                                             <i class="bi bi-lightning-charge-fill text-warning"></i> Template Siap Pakai
                                         </button>
                                         <ul class="dropdown-menu shadow-sm">
@@ -974,6 +985,204 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- 6B. MODAL IMPOR BARIS DARI SPREADSHEET / EXCEL / CSV -->
+<div class="modal fade" id="modalImportSpreadsheet" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom py-3 px-4" style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 p-2 bg-white text-success shadow-xs">
+                        <i class="bi bi-file-earmark-spreadsheet-fill fs-4"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Impor Judul Baris dari Spreadsheet / Excel / CSV</h5>
+                        <div class="small text-muted" style="font-size: 0.8rem;">Pilih kolom teks secara spesifik, otomatis buang kolom angka di sampingnya, dan hilangkan duplikasi baris berulang</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- STEP 1: PILIH SUMBER DATA -->
+                <div class="card border mb-3 shadow-xs" style="border-radius: 12px; border-color: #cbd5e1 !important;">
+                    <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark text-xs d-flex align-items-center gap-2">
+                            <span class="badge bg-primary rounded-circle" style="width: 20px; height: 20px; padding: 2px;">1</span>
+                            SUMBER DATA
+                        </span>
+                        <ul class="nav nav-pills card-header-pills text-xxs" id="importSourceTabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active py-1 px-3 fw-semibold rounded-pill" id="tab_gsheet_link" data-bs-toggle="pill" href="#pane_gsheet" role="tab">
+                                    <i class="bi bi-google me-1 text-danger"></i> Google Spreadsheet URL
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link py-1 px-3 fw-semibold rounded-pill" id="tab_file_upload" data-bs-toggle="pill" href="#pane_upload" role="tab">
+                                    <i class="bi bi-file-earmark-arrow-up me-1 text-success"></i> Upload File (Excel / CSV)
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="tab-content" id="importSourceTabContent">
+                            <!-- Tab 1: Google Sheets -->
+                            <div class="tab-pane fade show active" id="pane_gsheet" role="tabpanel">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-9">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light text-muted"><i class="bi bi-link-45deg fs-5"></i></span>
+                                            <input type="url" class="form-control" id="import_input_url" placeholder="Paste link Google Spreadsheet di sini (contoh: https://docs.google.com/spreadsheets/d/.../edit)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-primary w-100 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs" id="btn_inspect_gsheet">
+                                            <i class="bi bi-search"></i> Periksa Sumber
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-text text-muted text-xxs mt-2">
+                                    <i class="bi bi-shield-check text-success me-1"></i> Pastikan setelan berbagi spreadsheet diatur ke <b>"Siapa saja yang memiliki tautan dapat melihat"</b> (Anyone with the link can view).
+                                </div>
+                            </div>
+                            <!-- Tab 2: Upload File -->
+                            <div class="tab-pane fade" id="pane_upload" role="tabpanel">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-9">
+                                        <input type="file" class="form-control" id="import_input_file" accept=".xlsx, .xls, .csv">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-success w-100 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs" id="btn_inspect_file">
+                                            <i class="bi bi-upload"></i> Unggah & Baca
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-text text-muted text-xxs mt-2">
+                                    <i class="bi bi-info-circle text-primary me-1"></i> Mendukung format Excel Workbook (<b>.xlsx, .xls</b>) dengan banyak sheet atau file <b>.csv</b>.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LOADING SPINNER -->
+                <div id="import_loading" class="text-center py-4 my-2" style="display: none;">
+                    <div class="spinner-border text-primary" role="status" style="width: 2.2rem; height: 2.2rem;">
+                        <span class="visually-hidden">Memuat...</span>
+                    </div>
+                    <div class="text-dark fw-bold mt-2 small" id="import_loading_text">Sedang memindai lembar kerja dan kolom...</div>
+                </div>
+
+                <!-- ERROR ALERT -->
+                <div id="import_error_box" class="alert alert-danger py-2 px-3 small my-2" style="display: none;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> <span id="import_error_msg"></span>
+                </div>
+
+                <!-- STEP 2 & 3: CONFIG & LIVE PREVIEW (Shown after inspect) -->
+                <div id="import_config_section" style="display: none;">
+                    <div class="card border mb-3 shadow-xs" style="border-radius: 12px; border-color: #cbd5e1 !important; background: #fafafa;">
+                        <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-dark text-xs d-flex align-items-center gap-2">
+                                <span class="badge bg-success rounded-circle" style="width: 20px; height: 20px; padding: 2px;">2</span>
+                                PILIH LEMBAR KERJA (SHEET) & KOLOM TARGET
+                            </span>
+                            <span class="badge bg-light text-secondary border text-xxs" id="import_meta_badge">Total Data</span>
+                        </div>
+                        <div class="card-body p-3 bg-white">
+                            <div class="row g-3">
+                                <!-- Pilihan Sheet (Jika Workbook memiliki sheet) -->
+                                <div class="col-md-4" id="box_sheet_select">
+                                    <label class="form-label fw-bold text-dark small mb-1">
+                                        <i class="bi bi-layers-fill text-primary me-1"></i> Lembar Kerja (Sheet):
+                                    </label>
+                                    <select class="form-select form-select-sm" id="import_sheet_dropdown"></select>
+                                </div>
+
+                                <!-- Pilihan Kolom Indonesia (Wajib) -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold text-dark small mb-1">
+                                        <i class="bi bi-flag-fill text-danger me-1"></i> Kolom Judul Baris (Indonesia) <span class="text-danger">*</span>:
+                                    </label>
+                                    <select class="form-select form-select-sm border-primary" id="import_col_ind_select"></select>
+                                    <div class="text-muted text-xxs mt-1">Hanya kolom ini yang diambil ke bawah, kolom angka di sampingnya otomatis dibuang.</div>
+                                </div>
+
+                                <!-- Pilihan Kolom English (Opsional) -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold text-dark small mb-1">
+                                        <i class="bi bi-globe text-primary me-1"></i> Kolom Judul (English / Opsional):
+                                    </label>
+                                    <select class="form-select form-select-sm" id="import_col_en_select"></select>
+                                    <div class="text-muted text-xxs mt-1">Pilih jika ada kolom terjemahan bahasa Inggris di file.</div>
+                                </div>
+                            </div>
+
+                            <!-- Opsi Pembersihan & Cerdas -->
+                            <div class="mt-3 pt-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                <div class="d-flex flex-wrap align-items-center gap-3">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="import_opt_dedup" checked>
+                                        <label class="form-check-label text-dark fw-bold text-xxs" for="import_opt_dedup">
+                                            Hapus Baris Duplikat (Deduplikasi)
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="import_opt_clean_header" checked>
+                                        <label class="form-check-label text-dark fw-bold text-xxs" for="import_opt_clean_header">
+                                            Buang Header Tabel & Angka Kolom (1), (2)
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="import_opt_translate_month" checked>
+                                        <label class="form-check-label text-dark fw-bold text-xxs" for="import_opt_translate_month">
+                                            Auto-Translate Bulan ke Inggris
+                                        </label>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1" id="btn_refresh_preview">
+                                    <i class="bi bi-arrow-clockwise"></i> Perbarui Preview
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: LIVE PREVIEW EKSTRAKSI -->
+                    <div class="card border shadow-xs" style="border-radius: 12px; border-color: #cbd5e1 !important;">
+                        <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-dark text-xs d-flex align-items-center gap-2">
+                                <span class="badge bg-info text-white rounded-circle" style="width: 20px; height: 20px; padding: 2px;">3</span>
+                                HASIL EKSTRAKSI & PRATINJAU BARIS
+                            </span>
+                            <span class="badge bg-primary-soft text-primary border text-xxs fw-bold px-2 py-1" id="import_result_count_badge">0 Baris Terdeteksi</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+                                <table class="table table-sm table-hover align-middle mb-0" id="table_import_preview">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th width="8%" class="text-center text-xxs">No</th>
+                                            <th width="46%" class="text-xxs">Judul Baris (Indonesia)</th>
+                                            <th width="34%" class="text-xxs">Judul Baris (English)</th>
+                                            <th width="12%" class="text-center text-xxs">Hierarki</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table_import_preview_tbody">
+                                        <tr><td colspan="4" class="text-center py-3 text-muted text-xxs">Pilih kolom di atas untuk melihat hasil ekstraksi.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary btn-sm px-4 rounded-3" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold d-inline-flex align-items-center gap-2 shadow-xs" id="btn_apply_import_to_tree" disabled style="background: linear-gradient(45deg, #2563EB, #3b82f6); border: none;">
+                    <i class="bi bi-arrow-down-circle-fill"></i> Terapkan ke Tree Builder
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -2266,6 +2475,316 @@ Jawa Tengah // Central Java`;
         });
     });
 
+    // =========================================================================
+    // FITUR CERDAS: IMPOR JUDUL BARIS DARI SPREADSHEET / EXCEL / CSV
+    // =========================================================================
+    let currentImportTarget = 'add'; // 'add', 'manage', or 'add_direct'
+    let currentInspectData = null;
+    let currentExtractedItems = [];
+    let currentTempFilePath = '';
+
+    // Buka Modal Impor dari berbagai tombol trigger
+    $(document).on('click', '.btn-open-import-modal', function() {
+        currentImportTarget = $(this).data('target-builder') || 'add';
+        $('#modalImportSpreadsheet').modal('show');
+    });
+
+    // 1. Eksekusi Periksa Sumber Google Sheets
+    $('#btn_inspect_gsheet').on('click', function() {
+        const url = $('#import_input_url').val().trim();
+        if (!url) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'URL Belum Diisi',
+                text: 'Silakan paste link Google Spreadsheet terlebih dahulu.',
+                confirmButtonColor: '#2563EB'
+            });
+            return;
+        }
+        currentTempFilePath = '';
+        executeInspectSource({ url_source: url });
+    });
+
+    // 2. Eksekusi Periksa File Upload
+    $('#btn_inspect_file').on('click', function() {
+        const fileInput = document.getElementById('import_input_file');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'File Belum Dipilih',
+                text: 'Silakan pilih file Excel (.xlsx, .xls) atau .csv terlebih dahulu.',
+                confirmButtonColor: '#16A34A'
+            });
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file_source', fileInput.files[0]);
+        currentTempFilePath = '';
+        executeInspectSource(formData, true);
+    });
+
+    function executeInspectSource(postData, isFormData = false) {
+        $('#import_loading').show();
+        $('#import_loading_text').text('Sedang memindai lembar kerja dan struktur kolom...');
+        $('#import_error_box').hide();
+        $('#import_config_section').hide();
+        $('#btn_apply_import_to_tree').prop('disabled', true);
+
+        const ajaxOptions = {
+            url: '<?= base_url('admin/master_dimensi/ajax_inspect_dimension_source'); ?>',
+            type: 'POST',
+            data: postData,
+            dataType: 'json',
+            success: function(res) {
+                $('#import_loading').hide();
+                if (res.status === 'success') {
+                    currentInspectData = res;
+                    if (res.temp_filepath) {
+                        currentTempFilePath = res.temp_filepath;
+                    }
+                    renderInspectResult(res);
+                } else {
+                    $('#import_error_msg').text(res.message || 'Gagal membaca sumber data.');
+                    $('#import_error_box').show();
+                }
+            },
+            error: function(xhr, status, err) {
+                $('#import_loading').hide();
+                $('#import_error_msg').text('Terjadi kesalahan koneksi server: ' + err);
+                $('#import_error_box').show();
+            }
+        };
+
+        if (isFormData) {
+            ajaxOptions.processData = false;
+            ajaxOptions.contentType = false;
+        }
+
+        $.ajax(ajaxOptions);
+    }
+
+    function renderInspectResult(data) {
+        // Render Sheet Dropdown
+        const $sheetDropdown = $('#import_sheet_dropdown');
+        $sheetDropdown.empty();
+        if (data.sheets && data.sheets.length > 0) {
+            data.sheets.forEach(function(sh) {
+                const isSelected = (sh === data.current_sheet) ? 'selected' : '';
+                $sheetDropdown.append(`<option value="${escapeHtml(sh)}" ${isSelected}>${escapeHtml(sh)}</option>`);
+            });
+            $('#box_sheet_select').show();
+        } else {
+            $('#box_sheet_select').hide();
+        }
+
+        const validCols = (data.columns || []).filter(c => c.sample_count > 0).length;
+        $('#import_meta_badge').text(`${data.total_rows} baris data | ${validCols} kolom terisi`);
+
+        // Render Column Dropdowns
+        populateColumnDropdowns(data.columns || []);
+
+        $('#import_config_section').slideDown(250);
+
+        // Otomatis picu ekstraksi pertama
+        triggerExtractRows();
+    }
+
+    function populateColumnDropdowns(columns) {
+        const $indSelect = $('#import_col_ind_select');
+        const $enSelect = $('#import_col_en_select');
+
+        $indSelect.empty();
+        $enSelect.empty();
+
+        $enSelect.append('<option value="-1">[ Otomatis Terjemahkan Bulan / Ikuti Indonesia ]</option>');
+
+        let defaultIndIdx = 0;
+        let defaultEnIdx = -1;
+
+        columns.forEach(function(col) {
+            const hasData = col.sample_count > 0;
+            const previewText = (col.preview && col.preview.length > 0) ? ` (Contoh: ${col.preview.slice(0, 3).join(', ')})` : (hasData ? '' : ' [Kosong]');
+            const label = `Kolom ${col.letter} - ${col.header}${previewText}`;
+
+            $indSelect.append(`<option value="${col.index}" ${!hasData ? 'class="text-muted"' : ''}>${escapeHtml(label)}</option>`);
+            $enSelect.append(`<option value="${col.index}" ${!hasData ? 'class="text-muted"' : ''}>${escapeHtml(label)}</option>`);
+
+            const hLower = (col.header || '').toLowerCase();
+            if (hLower.includes('en') || hLower.includes('english') || hLower.includes('inggris')) {
+                defaultEnIdx = col.index;
+            }
+        });
+
+        $indSelect.val(defaultIndIdx);
+        if (defaultEnIdx >= 0) {
+            $enSelect.val(defaultEnIdx);
+        }
+    }
+
+    // Jika ganti sheet
+    $('#import_sheet_dropdown').on('change', function() {
+        const sheetName = $(this).val();
+        const payload = {
+            sheet_name: sheetName
+        };
+        if (currentTempFilePath) {
+            payload.temp_filepath = currentTempFilePath;
+        } else {
+            payload.url_source = $('#import_input_url').val().trim();
+        }
+        executeInspectSource(payload);
+    });
+
+    // Jika ganti kolom atau opsi pembersihan
+    $('#import_col_ind_select, #import_col_en_select, #import_opt_dedup, #import_opt_clean_header, #import_opt_translate_month').on('change', function() {
+        triggerExtractRows();
+    });
+
+    $('#btn_refresh_preview').on('click', function() {
+        triggerExtractRows();
+    });
+
+    function triggerExtractRows() {
+        const indCol = $('#import_col_ind_select').val();
+        if (indCol === null || indCol === undefined) return;
+
+        const enCol = $('#import_col_en_select').val();
+        const dedup = $('#import_opt_dedup').is(':checked') ? 1 : 0;
+        const cleanHdr = $('#import_opt_clean_header').is(':checked') ? 1 : 0;
+        const autoTrans = $('#import_opt_translate_month').is(':checked') ? 1 : 0;
+        const sheetName = $('#import_sheet_dropdown').val() || '';
+
+        const payload = {
+            ind_col: indCol,
+            en_col: enCol,
+            deduplicate: dedup,
+            clean_headers: cleanHdr,
+            auto_translate_month: autoTrans,
+            sheet_name: sheetName
+        };
+
+        if (currentTempFilePath) {
+            payload.temp_filepath = currentTempFilePath;
+        } else {
+            payload.url_source = $('#import_input_url').val().trim();
+        }
+
+        $('#import_result_count_badge').html('<span class="spinner-border spinner-border-sm text-primary me-1" role="status"></span> Mengambil data...');
+        $('#btn_apply_import_to_tree').prop('disabled', true);
+
+        $.ajax({
+            url: '<?= base_url('admin/master_dimensi/ajax_extract_dimension_source'); ?>',
+            type: 'POST',
+            data: payload,
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    currentExtractedItems = res.items || [];
+                    renderExtractPreview(currentExtractedItems);
+                    $('#btn_apply_import_to_tree').prop('disabled', currentExtractedItems.length === 0);
+                } else {
+                    $('#table_import_preview_tbody').html(`<tr><td colspan="4" class="text-center py-3 text-danger small">${escapeHtml(res.message || 'Gagal mengekstrak data.')}</td></tr>`);
+                    $('#import_result_count_badge').text('0 Baris');
+                }
+            },
+            error: function(xhr, status, err) {
+                $('#table_import_preview_tbody').html(`<tr><td colspan="4" class="text-center py-3 text-danger small">Error: ${escapeHtml(err)}</td></tr>`);
+                $('#import_result_count_badge').text('0 Baris');
+            }
+        });
+    }
+
+    function renderExtractPreview(items) {
+        const $tbody = $('#table_import_preview_tbody');
+        $tbody.empty();
+
+        $('#import_result_count_badge').text(`${items.length} Baris Siap Diimpor`);
+
+        if (!items || items.length === 0) {
+            $tbody.html('<tr><td colspan="4" class="text-center py-3 text-muted text-xxs">Tidak ada data baris yang ditemukan dengan kriteria saat ini.</td></tr>');
+            return;
+        }
+
+        items.forEach(function(it, idx) {
+            let lvlBadge = '<span class="badge bg-light text-primary border text-xxs">Bab (L0)</span>';
+            let indentPx = 0;
+            if (it.level === 1) {
+                lvlBadge = '<span class="badge bg-light text-info border text-xxs">Sub Bab (L1)</span>';
+                indentPx = 16;
+            } else if (it.level === 2) {
+                lvlBadge = '<span class="badge bg-light text-success border text-xxs">Sub-Sub (L2)</span>';
+                indentPx = 32;
+            }
+
+            const tr = $(`
+                <tr>
+                    <td class="text-center text-muted text-xxs">${idx + 1}</td>
+                    <td class="text-xxs fw-semibold text-dark" style="padding-left: ${10 + indentPx}px;">
+                        ${it.level > 0 ? '<i class="bi bi-arrow-return-right text-muted me-1"></i>' : ''}${escapeHtml(it.ind)}
+                    </td>
+                    <td class="text-xxs text-secondary fst-italic">${escapeHtml(it.en || it.ind)}</td>
+                    <td class="text-center">${lvlBadge}</td>
+                </tr>
+            `);
+            $tbody.append(tr);
+        });
+    }
+
+    // TERAPKAN KE TREE BUILDER
+    $('#btn_apply_import_to_tree').on('click', function() {
+        if (!currentExtractedItems || currentExtractedItems.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Data Kosong',
+                text: 'Tidak ada data baris yang diekstrak untuk diterapkan.',
+                confirmButtonColor: '#2563EB'
+            });
+            return;
+        }
+
+        // Konversi item ekstraksi menjadi treeItems yang siap dipakai TreeDimensionManager
+        const treeItems = [];
+        const levelParents = {};
+        let idSeq = 0;
+
+        currentExtractedItems.forEach(function(it) {
+            const lvl = parseInt(it.level, 10) || 0;
+            const parentId = lvl > 0 ? (levelParents[lvl - 1] ? levelParents[lvl - 1].id : null) : null;
+            const node = {
+                id: 'node_' + (++idSeq),
+                parentId: parentId,
+                level: lvl,
+                ind: it.ind,
+                en: it.en || it.ind
+            };
+            levelParents[lvl] = node;
+            treeItems.push(node);
+        });
+
+        // Tutup modal impor
+        $('#modalImportSpreadsheet').modal('hide');
+
+        if (currentImportTarget === 'manage') {
+            manageBarisBuilder.setItems(treeItems);
+            $('#modalManageBaris').modal('show');
+        } else if (currentImportTarget === 'add_direct') {
+            addBarisBuilder.setItems(treeItems);
+            $('#modalAddBaris').modal('show');
+        } else {
+            // Target 'add'
+            addBarisBuilder.setItems(treeItems);
+            $('#modalAddBaris').modal('show');
+        }
+
+        // Tampilkan konfirmasi sukses
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil Diimpor!',
+            text: `${treeItems.length} judul baris telah berhasil dimasukkan ke Tree Builder.`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    });
 
     // -------------------------------------------------------------------------
     // 3. ENGINE PREVIEW PERIODE WAKTU (TANPA SUB-BAB)

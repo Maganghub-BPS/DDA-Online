@@ -4057,6 +4057,121 @@ class Admin extends BaseController
 			]);
 		}
 
+		// =====================================================================
+		// FITUR CERDAS: IMPOR DIMENSI DARI SPREADSHEET / EXCEL / CSV
+		// =====================================================================
+		if ($action === 'ajax_inspect_dimension_source') {
+			$urlSource = trim((string)$this->request->getPost('url_source'));
+			$sheetName = trim((string)$this->request->getPost('sheet_name'));
+			$fileSource = $this->request->getFile('file_source');
+
+			$targetPath = '';
+			$isUploaded = false;
+
+			if ($fileSource && $fileSource->isValid() && !$fileSource->hasMoved()) {
+				$ext = strtolower($fileSource->getClientExtension());
+				if (!in_array($ext, ['xlsx', 'xls', 'csv'])) {
+					return $this->response->setJSON(['status' => 'error', 'message' => 'Format file harus berupa Excel (.xlsx, .xls) atau .csv']);
+				}
+				$uploadDir = WRITEPATH . 'uploads/tmp_dimension/';
+				if (!is_dir($uploadDir)) {
+					@mkdir($uploadDir, 0777, true);
+				}
+				$newName = 'dim_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+				$fileSource->move($uploadDir, $newName);
+				$targetPath = $uploadDir . $newName;
+				$isUploaded = true;
+			} elseif (!empty($urlSource)) {
+				$targetPath = $urlSource;
+			} else {
+				// Cek apakah ada file temporary sebelumnya yang di-request ulang dengan sheet berbeda
+				$existingTemp = trim((string)$this->request->getPost('temp_filepath'));
+				if (!empty($existingTemp) && file_exists($existingTemp)) {
+					$targetPath = $existingTemp;
+					$isUploaded = true;
+				} else {
+					return $this->response->setJSON(['status' => 'error', 'message' => 'Silakan pilih file Excel/CSV atau masukkan URL Google Spreadsheet.']);
+				}
+			}
+
+			$pyScript = FCPATH . '../python_engine/parse_dimension_source.py';
+			$cmd = "python " . escapeshellarg($pyScript) . " inspect " . escapeshellarg($targetPath);
+			if (!empty($sheetName)) {
+				$cmd .= " " . escapeshellarg($sheetName);
+			}
+			$cmd .= " 2>&1";
+
+			$output = shell_exec($cmd);
+			$data = json_decode($output, true);
+
+			if (!$data || !is_array($data)) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Gagal membaca sumber data. Output: ' . mb_substr($output ?? '', 0, 300)
+				]);
+			}
+
+			if (isset($data['error'])) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => $data['error']
+				]);
+			}
+
+			// Tambahkan info filepath jika file di-upload agar bisa dipakai untuk extract berikutnya
+			if ($isUploaded) {
+				$data['temp_filepath'] = $targetPath;
+			}
+
+			return $this->response->setJSON($data);
+		}
+
+		if ($action === 'ajax_extract_dimension_source') {
+			$urlSource     = trim((string)$this->request->getPost('url_source'));
+			$tempFilepath  = trim((string)$this->request->getPost('temp_filepath'));
+			$sheetName     = trim((string)$this->request->getPost('sheet_name'));
+			$indCol        = (int)($this->request->getPost('ind_col') ?? 0);
+			$enColRaw      = $this->request->getPost('en_col');
+			$enCol         = ($enColRaw !== null && $enColRaw !== '' && (int)$enColRaw >= 0) ? (int)$enColRaw : 'None';
+			$dedup         = (int)($this->request->getPost('deduplicate') ?? 1);
+			$cleanHeaders  = (int)($this->request->getPost('clean_headers') ?? 1);
+			$autoTranslate = (int)($this->request->getPost('auto_translate_month') ?? 1);
+
+			$targetPath = !empty($tempFilepath) && file_exists($tempFilepath) ? $tempFilepath : $urlSource;
+			if (empty($targetPath)) {
+				return $this->response->setJSON(['status' => 'error', 'message' => 'Sumber data tidak ditemukan.']);
+			}
+
+			$pyScript = FCPATH . '../python_engine/parse_dimension_source.py';
+			$cmd = "python " . escapeshellarg($pyScript) . " extract " . escapeshellarg($targetPath);
+			$cmd .= " " . escapeshellarg(!empty($sheetName) ? $sheetName : "None");
+			$cmd .= " " . escapeshellarg($indCol);
+			$cmd .= " " . escapeshellarg($enCol);
+			$cmd .= " " . escapeshellarg($dedup ? "1" : "0");
+			$cmd .= " " . escapeshellarg($cleanHeaders ? "1" : "0");
+			$cmd .= " " . escapeshellarg($autoTranslate ? "1" : "0");
+			$cmd .= " 2>&1";
+
+			$output = shell_exec($cmd);
+			$data = json_decode($output, true);
+
+			if (!$data || !is_array($data)) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Gagal mengekstrak data baris. Output: ' . mb_substr($output ?? '', 0, 300)
+				]);
+			}
+
+			if (isset($data['error'])) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => $data['error']
+				]);
+			}
+
+			return $this->response->setJSON($data);
+		}
+
 		// ---------------------------------------------------------------------
 		// AKSI: PERIODE WAKTU
 		// ---------------------------------------------------------------------
