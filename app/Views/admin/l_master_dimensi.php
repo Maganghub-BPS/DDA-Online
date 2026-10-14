@@ -224,11 +224,16 @@
                         <h5 class="fw-bold mb-1 text-dark">Daftar Kelompok Karakteristik (Dimensi Kolom)</h5>
                         <p class="text-muted small mb-0">Mendukung kolom bertingkat asimetris dengan notasi <code>Induk || Anak</code> serta kolom mandiri dalam dwibahasa (Indonesia & English).</p>
                     </div>
-                    <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-bold d-inline-flex align-items-center gap-2"
-                            style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
-                            data-bs-toggle="modal" data-bs-target="#modalAddKarakteristik">
-                        <i class="bi bi-plus-circle"></i> Tambah Kelompok Kolom
-                    </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-success btn-sm px-3 py-2 rounded-3 fw-bold d-inline-flex align-items-center gap-2 btn-open-import-kolom shadow-xs" data-target-builder="add_direct">
+                            <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Impor Spreadsheet / CSV
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-bold d-inline-flex align-items-center gap-2"
+                                style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
+                                data-bs-toggle="modal" data-bs-target="#modalAddKarakteristik">
+                            <i class="bi bi-plus-circle"></i> Tambah Kelompok Kolom
+                        </button>
+                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -489,6 +494,18 @@
                             <span class="badge bg-primary-soft text-primary-orange border" id="add_kolom_count">0 Kolom</span>
                         </div>
                         <div class="tree-builder-card">
+                            <!-- Quick Action Toolbar: Impor Spreadsheet -->
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 bg-light border rounded-2">
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1 btn-open-import-kolom" data-target-builder="add">
+                                        <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Impor Spreadsheet / CSV
+                                    </button>
+                                </div>
+                                <div class="text-muted small" style="font-size: 0.72rem;">
+                                    <i class="bi bi-magic me-1 text-primary"></i>Pilih kolom data dari tabel tanpa mengikutkan judul baris
+                                </div>
+                            </div>
+
                             <div class="tree-builder-header d-flex justify-content-between align-items-center">
                                 <div style="flex: 1;"><i class="bi bi-flag-fill text-danger me-1"></i> Item Kolom (Indonesia)</div>
                                 <div style="flex: 1; margin-left: 8px;"><i class="bi bi-globe text-primary me-1"></i> Item Kolom (Inggris)</div>
@@ -583,6 +600,18 @@
                             <span class="badge bg-primary-soft text-primary-orange border" id="manage_kolom_count">0 Kolom</span>
                         </div>
                         <div class="tree-builder-card">
+                            <!-- Quick Action Toolbar: Impor Spreadsheet -->
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 bg-light border rounded-2">
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1 btn-open-import-kolom" data-target-builder="manage">
+                                        <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Impor Spreadsheet / CSV
+                                    </button>
+                                </div>
+                                <div class="text-muted small" style="font-size: 0.72rem;">
+                                    <i class="bi bi-magic me-1 text-primary"></i>Pilih kolom data dari tabel tanpa mengikutkan judul baris
+                                </div>
+                            </div>
+
                             <div class="tree-builder-header d-flex justify-content-between align-items-center">
                                 <div style="flex: 1;"><i class="bi bi-flag-fill text-danger me-1"></i> Item Kolom (Indonesia)</div>
                                 <div style="flex: 1; margin-left: 8px;"><i class="bi bi-globe text-primary me-1"></i> Item Kolom (Inggris)</div>
@@ -1181,6 +1210,176 @@
                 <button type="button" class="btn btn-secondary btn-sm px-4 rounded-3" data-bs-dismiss="modal">Batal</button>
                 <button type="button" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold d-inline-flex align-items-center gap-2 shadow-xs" id="btn_apply_import_to_tree" disabled style="background: linear-gradient(45deg, #2563EB, #3b82f6); border: none;">
                     <i class="bi bi-arrow-down-circle-fill"></i> Terapkan ke Tree Builder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 6C. MODAL IMPOR KARAKTERISTIK KOLOM DARI SPREADSHEET / EXCEL / CSV -->
+<div class="modal fade" id="modalImportKolom" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom py-3 px-4" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 p-2 bg-white text-primary-orange shadow-xs">
+                        <i class="bi bi-layout-three-columns fs-4" style="color: #FF6D1F;"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0">Impor Karakteristik Kolom dari Spreadsheet / Excel / CSV</h5>
+                        <div class="small text-muted" style="font-size: 0.8rem;">Pilih kolom data dari tabel. Kolom identitas baris (seperti Bulan, Kabupaten/Kota, No) otomatis dilewati.</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- STEP 1: PILIH SUMBER DATA -->
+                <div class="card border mb-3 shadow-xs" style="border-radius: 12px; border-color: #fed7aa !important;">
+                    <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark text-xs d-flex align-items-center gap-2">
+                            <span class="badge rounded-circle text-white" style="width: 20px; height: 20px; padding: 2px; background: #FF6D1F;">1</span>
+                            SUMBER DATA TABEL
+                        </span>
+                        <ul class="nav nav-pills card-header-pills text-xxs" id="importKolomSourceTabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active py-1 px-3 fw-semibold rounded-pill" id="tab_kolom_gsheet" data-bs-toggle="pill" href="#pane_kolom_gsheet" role="tab">
+                                    <i class="bi bi-google me-1 text-danger"></i> Google Spreadsheet URL
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link py-1 px-3 fw-semibold rounded-pill" id="tab_kolom_upload" data-bs-toggle="pill" href="#pane_kolom_upload" role="tab">
+                                    <i class="bi bi-file-earmark-arrow-up me-1 text-success"></i> Upload File (Excel / CSV)
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="tab-content" id="importKolomTabContent">
+                            <!-- Tab 1: Google Sheets -->
+                            <div class="tab-pane fade show active" id="pane_kolom_gsheet" role="tabpanel">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-9">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light text-muted"><i class="bi bi-link-45deg fs-5"></i></span>
+                                            <input type="url" class="form-control" id="import_kolom_input_url" placeholder="Paste link Google Spreadsheet di sini (contoh: https://docs.google.com/spreadsheets/d/.../edit)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn w-100 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs text-white" style="background: #FF6D1F; border: none;" id="btn_inspect_kolom_gsheet">
+                                            <i class="bi bi-search"></i> Periksa Sumber
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-text text-muted text-xxs mt-2">
+                                    <i class="bi bi-shield-check text-success me-1"></i> Pastikan tautan disetel <b>"Siapa saja yang memiliki link dapat melihat"</b>.
+                                </div>
+                            </div>
+                            <!-- Tab 2: Upload File -->
+                            <div class="tab-pane fade" id="pane_kolom_upload" role="tabpanel">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-9">
+                                        <input type="file" class="form-control" id="import_kolom_input_file" accept=".xlsx, .xls, .csv">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-success w-100 fw-bold d-flex align-items-center justify-content-center gap-1 shadow-xs" id="btn_inspect_kolom_file">
+                                            <i class="bi bi-upload"></i> Unggah & Baca
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-text text-muted text-xxs mt-2">
+                                    <i class="bi bi-info-circle text-primary me-1"></i> Mendukung format Excel Workbook (<b>.xlsx, .xls</b>) multi-sheet atau <b>.csv</b>.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LOADING SPINNER -->
+                <div id="import_kolom_loading" class="text-center py-4 my-2" style="display: none;">
+                    <div class="spinner-border" role="status" style="width: 2.2rem; height: 2.2rem; color: #FF6D1F;">
+                        <span class="visually-hidden">Memuat...</span>
+                    </div>
+                    <div class="text-dark fw-bold mt-2 small" id="import_kolom_loading_text">Sedang memindai kolom lembar kerja...</div>
+                </div>
+
+                <!-- ERROR ALERT -->
+                <div id="import_kolom_error_box" class="alert alert-danger py-2 px-3 small my-2" style="display: none;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> <span id="import_kolom_error_msg"></span>
+                </div>
+
+                <!-- STEP 2: CHECKLIST KOLOM KARAKTERISTIK (FITUR 1 & 2) -->
+                <div id="import_kolom_config_section" style="display: none;">
+                    <div class="card border mb-3 shadow-xs" style="border-radius: 12px; border-color: #cbd5e1 !important;">
+                        <div class="card-header bg-white py-2 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <span class="fw-bold text-dark text-xs d-flex align-items-center gap-2">
+                                <span class="badge bg-success rounded-circle" style="width: 20px; height: 20px; padding: 2px;">2</span>
+                                PILIH KOLOM DATA (CHECKLIST)
+                            </span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-light text-secondary border text-xxs" id="import_kolom_meta_badge">0 Kolom</span>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2 text-xxs fw-bold" id="btn_kolom_check_all">
+                                        <i class="bi bi-check-all"></i> Centang Semua Data
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 text-xxs" id="btn_kolom_uncheck_all">
+                                        <i class="bi bi-dash-circle"></i> Bersihkan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-3 bg-light">
+                            <!-- Multi-sheet dropdown (jika ada) -->
+                            <div class="row g-2 align-items-center mb-3" id="box_kolom_sheet_select" style="display: none;">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold text-dark text-xxs mb-0">
+                                        <i class="bi bi-layers-fill text-primary me-1"></i> Lembar Kerja (Sheet):
+                                    </label>
+                                </div>
+                                <div class="col-md-9">
+                                    <select class="form-select form-select-sm" id="import_kolom_sheet_dropdown"></select>
+                                </div>
+                            </div>
+
+                            <!-- Petunjuk Fitur 1: Kolom Baris Dilewati -->
+                            <div class="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-3 shadow-xs" style="font-size: 0.78rem; border-left: 4px solid #f59e0b !important;">
+                                <i class="bi bi-shield-exclamation fs-5 text-warning"></i>
+                                <div>
+                                    <b>Fitur Cerdas Otomatis (Fitur 1):</b> Kolom identitas baris (seperti <code>Bulan</code>, <code>Kabupaten/Kota</code>, <code>Wilayah</code>, atau <code>No</code>) <b>otomatis dilewati dan tidak dicentang</b> agar tidak menduplikasi form judul baris.
+                                </div>
+                            </div>
+
+                            <!-- Daftar Kolom Checklist (Fitur 2) -->
+                            <div class="row g-2" id="container_kolom_checklist" style="max-height: 280px; overflow-y: auto;">
+                                <!-- Item checklist dinamis -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: LIVE PREVIEW TABEL KOLOM -->
+                    <div class="card border shadow-xs" style="border-radius: 12px; border-color: #cbd5e1 !important;">
+                        <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-dark text-xs d-flex align-items-center gap-2">
+                                <span class="badge bg-info text-white rounded-circle" style="width: 20px; height: 20px; padding: 2px;">3</span>
+                                LIVE PREVIEW STRUKTUR HEADER KOLOM
+                            </span>
+                            <span class="badge bg-primary-soft text-primary-orange border text-xxs fw-bold px-2 py-1" id="import_kolom_count_badge">0 Kolom Terpilih</span>
+                        </div>
+                        <div class="card-body p-3 bg-white">
+                            <div class="table-responsive bg-white rounded-2 border" style="min-height: 80px; overflow-x: auto;">
+                                <table class="table table-bordered text-center align-middle mb-0" id="table_preview_import_kolom">
+                                    <thead>
+                                        <tr><th class="py-3 text-muted fst-italic text-xs">Centang kolom di atas untuk melihat preview visual otomatis...</th></tr>
+                                    </thead>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary btn-sm px-4 rounded-3" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold d-inline-flex align-items-center gap-2 shadow-xs" id="btn_apply_import_kolom_to_tree" disabled style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                    <i class="bi bi-arrow-down-circle-fill"></i> Terapkan ke Tree Builder Kolom
                 </button>
             </div>
         </div>
@@ -2781,6 +2980,285 @@ Jawa Tengah // Central Java`;
             icon: 'success',
             title: 'Berhasil Diimpor!',
             text: `${treeItems.length} judul baris telah berhasil dimasukkan ke Tree Builder.`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    });
+
+    // =========================================================================
+    // FITUR CERDAS: IMPOR KARAKTERISTIK KOLOM (FITUR 1 & FITUR 2)
+    // =========================================================================
+    let currentKolomImportTarget = 'add'; // 'add', 'manage', or 'add_direct'
+    let currentKolomInspectData = null;
+    let currentKolomTempFilePath = '';
+
+    // Buka Modal Impor Kolom
+    $(document).on('click', '.btn-open-import-kolom', function() {
+        currentKolomImportTarget = $(this).data('target-builder') || 'add';
+        $('#modalImportKolom').modal('show');
+    });
+
+    // 1. Periksa Google Sheets untuk Kolom
+    $('#btn_inspect_kolom_gsheet').on('click', function() {
+        const url = $('#import_kolom_input_url').val().trim();
+        if (!url) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'URL Belum Diisi',
+                text: 'Silakan paste link Google Spreadsheet terlebih dahulu.',
+                confirmButtonColor: '#FF6D1F'
+            });
+            return;
+        }
+        currentKolomTempFilePath = '';
+        executeInspectKolomSource({ url_source: url });
+    });
+
+    // 2. Periksa Upload File untuk Kolom
+    $('#btn_inspect_kolom_file').on('click', function() {
+        const fileInput = document.getElementById('import_kolom_input_file');
+        if (!fileInput.files || fileInput.files.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'File Belum Dipilih',
+                text: 'Silakan pilih file Excel (.xlsx, .xls) atau .csv terlebih dahulu.',
+                confirmButtonColor: '#16A34A'
+            });
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file_source', fileInput.files[0]);
+        currentKolomTempFilePath = '';
+        executeInspectKolomSource(formData, true);
+    });
+
+    function executeInspectKolomSource(postData, isFormData = false) {
+        $('#import_kolom_loading').show();
+        $('#import_kolom_error_box').hide();
+        $('#import_kolom_config_section').hide();
+        $('#btn_apply_import_kolom_to_tree').prop('disabled', true);
+
+        const ajaxOptions = {
+            url: '<?= base_url('admin/master_dimensi/ajax_inspect_dimension_source'); ?>',
+            type: 'POST',
+            data: postData,
+            dataType: 'json',
+            success: function(res) {
+                $('#import_kolom_loading').hide();
+                if (res.status === 'success') {
+                    currentKolomInspectData = res;
+                    if (res.temp_filepath) {
+                        currentKolomTempFilePath = res.temp_filepath;
+                    }
+                    renderInspectKolomResult(res);
+                } else {
+                    $('#import_kolom_error_msg').text(res.message || 'Gagal membaca sumber data.');
+                    $('#import_kolom_error_box').show();
+                }
+            },
+            error: function(xhr, status, err) {
+                $('#import_kolom_loading').hide();
+                $('#import_kolom_error_msg').text('Terjadi kesalahan koneksi server: ' + err);
+                $('#import_kolom_error_box').show();
+            }
+        };
+
+        if (isFormData) {
+            ajaxOptions.processData = false;
+            ajaxOptions.contentType = false;
+        }
+
+        $.ajax(ajaxOptions);
+    }
+
+    function renderInspectKolomResult(data) {
+        // Render Sheet Dropdown
+        const $sheetDropdown = $('#import_kolom_sheet_dropdown');
+        $sheetDropdown.empty();
+        if (data.sheets && data.sheets.length > 0) {
+            data.sheets.forEach(function(sh) {
+                const isSelected = (sh === data.current_sheet) ? 'selected' : '';
+                $sheetDropdown.append(`<option value="${escapeHtml(sh)}" ${isSelected}>${escapeHtml(sh)}</option>`);
+            });
+            $('#box_kolom_sheet_select').show();
+        } else {
+            $('#box_kolom_sheet_select').hide();
+        }
+
+        const validCols = (data.columns || []).filter(c => c.sample_count > 0).length;
+        $('#import_kolom_meta_badge').text(`${data.total_rows} baris | ${validCols} kolom data`);
+
+        // Render Checklist Kolom (FITUR 1 & FITUR 2)
+        renderKolomChecklist(data.columns || []);
+
+        $('#import_kolom_config_section').slideDown(250);
+
+        // Update live preview
+        updateKolomImportPreview();
+    }
+
+    function renderKolomChecklist(columns) {
+        const $container = $('#container_kolom_checklist');
+        $container.empty();
+
+        if (!columns || columns.length === 0) {
+            $container.html('<div class="col-12 text-center py-3 text-muted">Tidak ditemukan kolom.</div>');
+            return;
+        }
+
+        columns.forEach(function(col) {
+            const hasData = col.sample_count > 0;
+            const isRowId = col.is_row_identifier === true;
+            // FITUR 1: Jika is_row_identifier, default UNCHECKED! Kalau bukan dan ada data, CHECKED!
+            const isChecked = (!isRowId && hasData);
+
+            const cardBorder = isRowId ? 'border-warning bg-warning-subtle' : (hasData ? 'border-light-subtle bg-white' : 'border-light bg-light opacity-50');
+            const previewText = (col.preview && col.preview.length > 0) ? col.preview.slice(0, 3).join(', ') : 'Tidak ada data sampel';
+
+            const colCard = $(`
+                <div class="col-md-6 mb-2">
+                    <div class="p-2 border rounded-2 d-flex align-items-start gap-2 shadow-xs ${cardBorder}">
+                        <div class="form-check mt-1">
+                            <input class="form-check-input import-kolom-chk" type="checkbox" 
+                                   value="${col.index}" 
+                                   data-header="${escapeHtml(col.header)}" 
+                                   data-is-row-id="${isRowId ? '1' : '0'}"
+                                   id="chk_col_${col.index}" 
+                                   ${isChecked ? 'checked' : ''}>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <label class="form-check-label fw-bold text-xxs text-dark d-flex flex-wrap align-items-center gap-1 mb-0" for="chk_col_${col.index}" style="cursor: pointer;">
+                                <span>Kolom ${col.letter}: ${escapeHtml(col.header)}</span>
+                                ${isRowId ? '<span class="badge bg-warning text-dark text-xxs ms-1"><i class="bi bi-info-circle me-1"></i>Identitas Baris (Dilewati)</span>' : ''}
+                            </label>
+                            <div class="text-muted text-xxs text-truncate mt-1" style="font-size: 0.72rem;">
+                                Sampel: ${escapeHtml(previewText)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+
+            $container.append(colCard);
+        });
+
+        // Event listener saat checkbox diubah
+        $('.import-kolom-chk').on('change', function() {
+            updateKolomImportPreview();
+        });
+    }
+
+    // Ganti Sheet Kolom
+    $('#import_kolom_sheet_dropdown').on('change', function() {
+        const sheetName = $(this).val();
+        const payload = { sheet_name: sheetName };
+        if (currentKolomTempFilePath) {
+            payload.temp_filepath = currentKolomTempFilePath;
+        } else {
+            payload.url_source = $('#import_kolom_input_url').val().trim();
+        }
+        executeInspectKolomSource(payload);
+    });
+
+    // Quick Buttons: Centang Semua Data (hanya yang bukan row id) & Bersihkan
+    $('#btn_kolom_check_all').on('click', function() {
+        $('.import-kolom-chk').each(function() {
+            if ($(this).data('is-row-id') == '0') {
+                $(this).prop('checked', true);
+            }
+        });
+        updateKolomImportPreview();
+    });
+
+    $('#btn_kolom_uncheck_all').on('click', function() {
+        $('.import-kolom-chk').prop('checked', false);
+        updateKolomImportPreview();
+    });
+
+    function getSelectedKolomHeaders() {
+        const selected = [];
+        $('.import-kolom-chk:checked').each(function() {
+            const h = $(this).data('header');
+            if (h && h.trim()) {
+                selected.push(h.trim());
+            }
+        });
+        return selected;
+    }
+
+    function updateKolomImportPreview() {
+        const selectedHeaders = getSelectedKolomHeaders();
+        const count = selectedHeaders.length;
+
+        $('#import_kolom_count_badge').text(`${count} Kolom Terpilih`);
+        $('#btn_apply_import_kolom_to_tree').prop('disabled', count === 0);
+
+        const $table = $('#table_preview_import_kolom');
+        $table.empty();
+
+        if (count === 0) {
+            $table.html('<thead><tr><th class="py-3 text-muted fst-italic text-xs">Belum ada kolom yang dicentang. Silakan centang kolom di atas.</th></tr></thead>');
+            return;
+        }
+
+        const thead = $('<thead></thead>');
+        const tr = $('<tr style="background: #FFF4ED; font-weight: bold; border-bottom: 2px solid #FF6D1F;"></tr>');
+        
+        // Kolom Baris dummy di awal
+        tr.append('<th style="width: 130px; background: #fed7aa; color: #9a3412; border: 1px solid #fdba74; vertical-align: middle; padding: 8px;">(Judul Baris)</th>');
+
+        selectedHeaders.forEach(function(h) {
+            tr.append(`<th style="background: #ffffff; border: 1px solid #fed7aa; padding: 8px 12px; color: #1e293b; font-size: 13px;">${escapeHtml(h)}</th>`);
+        });
+
+        thead.append(tr);
+        $table.append(thead);
+    }
+
+    // Terapkan Kolom Terpilih ke Tree Builder Kolom
+    $('#btn_apply_import_kolom_to_tree').on('click', function() {
+        const selectedHeaders = getSelectedKolomHeaders();
+        if (selectedHeaders.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Belum Ada Kolom',
+                text: 'Silakan centang minimal satu kolom data.',
+                confirmButtonColor: '#FF6D1F'
+            });
+            return;
+        }
+
+        const treeItems = [];
+        let idSeq = 0;
+
+        selectedHeaders.forEach(function(headerText) {
+            treeItems.push({
+                id: 'node_' + (++idSeq),
+                parentId: null,
+                level: 0,
+                ind: headerText,
+                en: headerText
+            });
+        });
+
+        // Tutup modal
+        $('#modalImportKolom').modal('hide');
+
+        if (currentKolomImportTarget === 'manage') {
+            manageKolomBuilder.setItems(treeItems);
+            $('#modalManageKolom').modal('show');
+        } else if (currentKolomImportTarget === 'add_direct') {
+            addKolomBuilder.setItems(treeItems);
+            $('#modalAddKarakteristik').modal('show');
+        } else {
+            addKolomBuilder.setItems(treeItems);
+            $('#modalAddKarakteristik').modal('show');
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil Diimpor!',
+            text: `${treeItems.length} karakteristik kolom telah berhasil dimasukkan ke Tree Builder.`,
             timer: 2000,
             showConfirmButton: false
         });

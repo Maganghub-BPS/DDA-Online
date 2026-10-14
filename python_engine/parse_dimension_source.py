@@ -168,12 +168,26 @@ def inspect_source(source, sheet_name=None):
 
         preview_vals = [v for v in col_vals if v != header_name and not re.match(r'^\([0-9]+\)$', v)][:6]
 
+        # Deteksi apakah kolom ini adalah identitas/judul baris (seperti Bulan, No, Wilayah)
+        header_lower = header_name.lower().strip()
+        row_id_keywords = {
+            'no', 'nomor', 'no.', 'bulan', 'month', 'kabupaten/kota', 'kab/kota',
+            'kabupaten', 'kota', 'wilayah', 'daerah', 'nama', 'uraian', 'rincian',
+            'keterangan', 'kecamatan', 'desa', 'stasiun', 'station', 'pos'
+        }
+        is_row_id = False
+        if c_idx == 0:
+            is_row_id = True
+        elif header_lower in row_id_keywords or any(kw in header_lower for kw in ['bulan', 'kabupaten', 'wilayah', 'kecamatan']):
+            is_row_id = True
+
         columns_info.append({
             "index": c_idx,
             "letter": col_letter,
             "header": header_name,
             "preview": preview_vals,
-            "sample_count": len(col_vals)
+            "sample_count": len(col_vals),
+            "is_row_identifier": is_row_id
         })
 
     return {
