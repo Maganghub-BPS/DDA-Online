@@ -72,6 +72,23 @@ if (empty($data)) {
                                 <i class="bi bi-pencil me-2 text-secondary"></i> Edit Detail
                             </a>
                         </li>
+                        <?php if (!empty($b->is_dynamic)): ?>
+                        <li>
+                            <a href="<?php echo base_url('admin/view_tabel_dinamis/' . $b->id); ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold" target="_blank">
+                                <i class="bi bi-eye me-2"></i> Lihat Tabel Dinamis
+                            </a>
+                        </li>
+                        <li>
+                            <a href="<?php echo base_url('admin/generator_tabel/' . $b->id); ?>" class="dropdown-item border-radius-md py-2 text-sm text-primary fw-semibold">
+                                <i class="bi bi-boxes me-2"></i> Konfigurasi Matriks
+                            </a>
+                        </li>
+                        <li>
+                            <a href="<?php echo base_url('admin/download_template_tabel/' . $b->id); ?>" class="dropdown-item border-radius-md py-2 text-sm text-success fw-semibold">
+                                <i class="bi bi-file-earmark-excel me-2"></i> Unduh Template Excel
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <li>
                             <hr class="dropdown-divider opacity-5 mt-1">
                         </li>
