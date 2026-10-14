@@ -246,6 +246,109 @@
     padding: 5px 10px;
     border-radius: 6px;
 }
+
+/* Toolbar Penomoran Otomatis Baris */
+.auto-prefix-toolbar {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+.auto-prefix-group {
+    width: auto;
+    border-radius: 8px !important;
+    overflow: hidden;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+.auto-prefix-group:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.auto-prefix-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0 10px;
+    height: 30px;
+    border: none;
+    border-right: 1px solid #e2e8f0;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+}
+.auto-prefix-label-bab {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+.auto-prefix-label-subbab {
+    background: #f0fdfa;
+    color: #0f766e;
+}
+.auto-prefix-label-subsub {
+    background: #f0fdf4;
+    color: #15803d;
+}
+.auto-prefix-select {
+    height: 30px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #1e293b;
+    border: none !important;
+    background-color: #ffffff;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 9px;
+    padding-right: 28px !important; /* Ruang lega agar teks tidak bertabrakan dengan panah dropdown */
+    width: auto;
+    min-width: 140px;
+    cursor: pointer;
+}
+.auto-prefix-select:focus {
+    box-shadow: none;
+    border: none;
+    background-color: #ffffff;
+}
+.btn-prefix-generate {
+    background: linear-gradient(135deg, #FF6D1F, #ff8c42);
+    border: none;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    height: 30px;
+    padding: 0 12px;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+.btn-prefix-generate:hover,
+.btn-prefix-generate:active {
+    background: linear-gradient(135deg, #e55a10, #ff7a26);
+    color: #ffffff;
+}
+.btn-prefix-clean {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 500;
+    height: 30px;
+    padding: 0 10px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+.btn-prefix-clean:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
 </style>
 
     <!-- 3 Dimension Cards -->
@@ -830,44 +933,46 @@
                         </div>
                         <div class="tree-builder-card">
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
-                            <div class="auto-prefix-toolbar bg-white border rounded-2 p-2 mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
-                                <div class="d-flex align-items-center gap-1 text-xxs fw-bold text-secondary">
-                                    <i class="bi bi-sort-numeric-down text-primary fs-6"></i>
-                                    <span>Penomoran Otomatis:</span>
+                            <div class="auto-prefix-toolbar mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-white text-secondary border shadow-xs d-inline-flex align-items-center gap-1 py-1 px-2" style="font-size: 0.75rem; height: 30px;">
+                                        <i class="bi bi-sort-numeric-down text-primary fs-6"></i>
+                                        <span class="fw-bold text-dark">Penomoran Otomatis:</span>
+                                    </span>
                                 </div>
                                 <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-light text-primary border" style="font-size: 0.68rem;">Bab:</span>
-                                        <select class="form-select form-select-sm py-0 px-2 text-xxs" style="height: 25px; width: auto;" id="add_prefix_bab">
+                                    <div class="input-group input-group-sm auto-prefix-group shadow-xs">
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-bab">Bab</span>
+                                        <select class="form-select form-select-sm auto-prefix-select" id="add_prefix_bab">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kapital">Huruf (A, B, C...)</option>
                                             <option value="romawi_kapital">Romawi (I, II, III...)</option>
                                             <option value="angka">Angka (1, 2, 3...)</option>
                                         </select>
                                     </div>
-                                    <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-light text-info border" style="font-size: 0.68rem;">Sub Bab:</span>
-                                        <select class="form-select form-select-sm py-0 px-2 text-xxs" style="height: 25px; width: auto;" id="add_prefix_subbab">
-                                            <option value="angka" selected>Angka (1, 2, 3...)</option>
+                                    <div class="input-group input-group-sm auto-prefix-group shadow-xs">
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subbab">Sub Bab</span>
+                                        <select class="form-select form-select-sm auto-prefix-select" id="add_prefix_subbab">
+                                            <option value="none" selected>Tanpa Nomor</option>
+                                            <option value="angka">Angka (1, 2, 3...)</option>
                                             <option value="huruf_kecil">Huruf (a, b, c...)</option>
                                             <option value="angka_kurung">Kurung (1), 2)...)</option>
-                                            <option value="none">Tanpa Nomor</option>
                                         </select>
                                     </div>
-                                    <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-light text-success border" style="font-size: 0.68rem;">Sub-Sub:</span>
-                                        <select class="form-select form-select-sm py-0 px-2 text-xxs" style="height: 25px; width: auto;" id="add_prefix_subsub">
+                                    <div class="input-group input-group-sm auto-prefix-group shadow-xs">
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subsub">Sub-Sub</span>
+                                        <select class="form-select form-select-sm auto-prefix-select" id="add_prefix_subsub">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kecil">Huruf (a, b, c...)</option>
                                             <option value="romawi_kecil">Romawi (i, ii, iii...)</option>
                                             <option value="angka_kurung">Kurung (1), 2)...)</option>
                                         </select>
                                     </div>
-                                    <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-primary btn-sm py-0 px-2 text-xxs fw-bold d-inline-flex align-items-center gap-1 shadow-xs" id="btn_add_apply_prefix" style="height: 25px;">
+                                    <div class="btn-group btn-group-sm shadow-xs">
+                                        <button type="button" class="btn btn-prefix-generate" id="btn_add_apply_prefix" title="Terapkan penomoran otomatis ke item">
                                             <i class="bi bi-magic"></i> Generate
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 text-xxs d-inline-flex align-items-center gap-1 shadow-xs" id="btn_add_clean_prefix" style="height: 25px;" title="Bersihkan nomor / huruf">
+                                        <button type="button" class="btn btn-prefix-clean" id="btn_add_clean_prefix" title="Bersihkan nomor / huruf">
                                             <i class="bi bi-eraser"></i> Bersihkan
                                         </button>
                                     </div>
@@ -987,44 +1092,46 @@
                         </div>
                         <div class="tree-builder-card">
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
-                            <div class="auto-prefix-toolbar bg-white border rounded-2 p-2 mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
-                                <div class="d-flex align-items-center gap-1 text-xxs fw-bold text-secondary">
-                                    <i class="bi bi-sort-numeric-down text-primary fs-6"></i>
-                                    <span>Penomoran Otomatis:</span>
+                            <div class="auto-prefix-toolbar mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-white text-secondary border shadow-xs d-inline-flex align-items-center gap-1 py-1 px-2" style="font-size: 0.75rem; height: 30px;">
+                                        <i class="bi bi-sort-numeric-down text-primary fs-6"></i>
+                                        <span class="fw-bold text-dark">Penomoran Otomatis:</span>
+                                    </span>
                                 </div>
                                 <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-light text-primary border" style="font-size: 0.68rem;">Bab:</span>
-                                        <select class="form-select form-select-sm py-0 px-2 text-xxs" style="height: 25px; width: auto;" id="manage_prefix_bab">
+                                    <div class="input-group input-group-sm auto-prefix-group shadow-xs">
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-bab">Bab</span>
+                                        <select class="form-select form-select-sm auto-prefix-select" id="manage_prefix_bab">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kapital">Huruf (A, B, C...)</option>
                                             <option value="romawi_kapital">Romawi (I, II, III...)</option>
                                             <option value="angka">Angka (1, 2, 3...)</option>
                                         </select>
                                     </div>
-                                    <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-light text-info border" style="font-size: 0.68rem;">Sub Bab:</span>
-                                        <select class="form-select form-select-sm py-0 px-2 text-xxs" style="height: 25px; width: auto;" id="manage_prefix_subbab">
-                                            <option value="angka" selected>Angka (1, 2, 3...)</option>
+                                    <div class="input-group input-group-sm auto-prefix-group shadow-xs">
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subbab">Sub Bab</span>
+                                        <select class="form-select form-select-sm auto-prefix-select" id="manage_prefix_subbab">
+                                            <option value="none" selected>Tanpa Nomor</option>
+                                            <option value="angka">Angka (1, 2, 3...)</option>
                                             <option value="huruf_kecil">Huruf (a, b, c...)</option>
                                             <option value="angka_kurung">Kurung (1), 2)...)</option>
-                                            <option value="none">Tanpa Nomor</option>
                                         </select>
                                     </div>
-                                    <div class="d-flex align-items-center gap-1">
-                                        <span class="badge bg-light text-success border" style="font-size: 0.68rem;">Sub-Sub:</span>
-                                        <select class="form-select form-select-sm py-0 px-2 text-xxs" style="height: 25px; width: auto;" id="manage_prefix_subsub">
+                                    <div class="input-group input-group-sm auto-prefix-group shadow-xs">
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subsub">Sub-Sub</span>
+                                        <select class="form-select form-select-sm auto-prefix-select" id="manage_prefix_subsub">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kecil">Huruf (a, b, c...)</option>
                                             <option value="romawi_kecil">Romawi (i, ii, iii...)</option>
                                             <option value="angka_kurung">Kurung (1), 2)...)</option>
                                         </select>
                                     </div>
-                                    <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-primary btn-sm py-0 px-2 text-xxs fw-bold d-inline-flex align-items-center gap-1 shadow-xs" id="btn_manage_apply_prefix" style="height: 25px;">
+                                    <div class="btn-group btn-group-sm shadow-xs">
+                                        <button type="button" class="btn btn-prefix-generate" id="btn_manage_apply_prefix" title="Terapkan penomoran otomatis ke item">
                                             <i class="bi bi-magic"></i> Generate
                                         </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 text-xxs d-inline-flex align-items-center gap-1 shadow-xs" id="btn_manage_clean_prefix" style="height: 25px;" title="Bersihkan nomor / huruf">
+                                        <button type="button" class="btn btn-prefix-clean" id="btn_manage_clean_prefix" title="Bersihkan nomor / huruf">
                                             <i class="bi bi-eraser"></i> Bersihkan
                                         </button>
                                     </div>
