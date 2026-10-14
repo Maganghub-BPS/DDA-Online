@@ -11,7 +11,8 @@
     },
     "require": {
         "php": "^8.2",
-        "codeigniter4/framework": "^4.7.0"
+        "codeigniter4/framework": "^4.7.0",
+        "phpoffice/phpspreadsheet": "^5.10"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9",
@@ -41,11 +42,5 @@
         "test": "phpunit"
     },
     "minimum-stability": "dev",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/codeigniter4/codeigniter4"
-        }
-    ]
+    "prefer-stable": true
 }

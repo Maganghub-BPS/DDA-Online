@@ -6,6 +6,7 @@ use CodeIgniter\Model;
 
 class M_tabeldinamis extends Model
 {
+    protected $DBGroup          = 'default';
     protected $table            = 'm_indikator_tabel';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
@@ -20,6 +21,8 @@ class M_tabeldinamis extends Model
         'id_sub_karakteristik_kelompok',
         'id_baris_kelompok',
         'id_periode_kelompok',
+        'posisi_hirarki',
+        'tingkat_kolom',
         'satuan',
         'desimal',
         'grafik_default',
@@ -117,33 +120,42 @@ class M_tabeldinamis extends Model
                 $raw_en  = $parts_lang[1] ?? '';
             }
 
-            // Ekstraksi notasi Induk || Anak jika ada
+            // Ekstraksi notasi Induk || Anak hingga 3 tingkatan (Tingkat 1 || Tingkat 2 || Tingkat 3)
             $grup_induk_ind = null;
             $grup_induk_en  = null;
+            $grup_sub_ind   = null;
+            $grup_sub_en    = null;
             $item_ind = $raw_ind;
             $item_en  = $raw_en !== '' ? $raw_en : $raw_ind;
             $is_standalone = 0;
 
             if (strpos($raw_ind, '||') !== false) {
-                $parts_ind = array_map('trim', explode('||', $raw_ind, 2));
-                $grup_induk_ind = $parts_ind[0];
-                $item_ind       = $parts_ind[1] ?? $parts_ind[0];
+                $parts_ind = array_map('trim', explode('||', $raw_ind));
+                $parts_en  = (!empty($raw_en) && strpos($raw_en, '||') !== false) 
+                    ? array_map('trim', explode('||', $raw_en)) 
+                    : [];
 
-                if (!empty($raw_en) && strpos($raw_en, '||') !== false) {
-                    $parts_en = array_map('trim', explode('||', $raw_en, 2));
-                    $grup_induk_en = $parts_en[0];
-                    $item_en       = $parts_en[1] ?? $parts_en[0];
-                } elseif (!empty($raw_en)) {
-                    $grup_induk_en = $grup_induk_ind;
-                    $item_en       = $raw_en;
+                if (count($parts_ind) >= 3) {
+                    $grup_induk_ind = $parts_ind[0];
+                    $grup_sub_ind   = $parts_ind[1];
+                    $item_ind       = $parts_ind[2];
+
+                    $grup_induk_en  = $parts_en[0] ?? $grup_induk_ind;
+                    $grup_sub_en    = $parts_en[1] ?? $grup_sub_ind;
+                    $item_en        = $parts_en[2] ?? ($parts_en[0] ?? $item_ind);
+                } elseif (count($parts_ind) === 2) {
+                    $grup_induk_ind = $parts_ind[0];
+                    $grup_sub_ind   = null;
+                    $item_ind       = $parts_ind[1];
+
+                    $grup_induk_en  = $parts_en[0] ?? $grup_induk_ind;
+                    $grup_sub_en    = null;
+                    $item_en        = $parts_en[1] ?? ($parts_en[0] ?? $item_ind);
+                } else {
+                    $item_ind       = $parts_ind[0];
+                    $item_en        = $parts_en[0] ?? $item_ind;
                 }
             } else {
-                if (!empty($raw_en) && strpos($raw_en, '||') !== false) {
-                    $parts_en = array_map('trim', explode('||', $raw_en, 2));
-                    $grup_induk_en = $parts_en[0];
-                    $item_en       = $parts_en[1] ?? $parts_en[0];
-                }
-                
                 $lower_ind = strtolower($raw_ind);
                 $lower_en  = strtolower($raw_en ?? '');
                 if ($lower_ind === 'total' || $lower_ind === 'jumlah' || $lower_en === 'total') {
@@ -156,6 +168,8 @@ class M_tabeldinamis extends Model
                 'parent_id'      => !empty($item['parent_id']) ? (int)$item['parent_id'] : null,
                 'grup_induk_ind' => $grup_induk_ind,
                 'grup_induk_en'  => $grup_induk_en,
+                'grup_sub_ind'   => $grup_sub_ind,
+                'grup_sub_en'    => $grup_sub_en,
                 'item_ind'       => $item_ind,
                 'item_en'        => $item_en,
                 'no_urut'        => (int)($item['no_urut'] ?? $no),
@@ -175,35 +189,96 @@ class M_tabeldinamis extends Model
 
     public function buildColumnStructure(array $items): array
     {
-        $groups = [];
         $hasGroupHeaders = false;
+        $maxDepth = 1;
 
+        // Cek kedalaman maksimum hirarki kolom (1, 2, atau 3)
         foreach ($items as $item) {
-            $parentName = $item->grup_induk_ind ?: ($item->is_standalone ? '' : null);
-
-            if (!empty($parentName)) {
+            if (!empty($item->grup_sub_ind)) {
+                $maxDepth = 3;
                 $hasGroupHeaders = true;
-                if (!isset($groups[$parentName])) {
-                    $groups[$parentName] = [
-                        'type'      => 'group',
-                        'title_ind' => $parentName,
-                        'title_en'  => $item->grup_induk_en ?? $parentName,
-                        'children'  => [],
+                break;
+            } elseif (!empty($item->grup_induk_ind)) {
+                $maxDepth = 2;
+                $hasGroupHeaders = true;
+            }
+        }
+
+        $groups = [];
+
+        if ($maxDepth === 3) {
+            foreach ($items as $item) {
+                $l1 = $item->grup_induk_ind;
+                $l2 = $item->grup_sub_ind;
+
+                if (!empty($l1)) {
+                    if (!isset($groups[$l1])) {
+                        $groups[$l1] = [
+                            'type'      => 'group',
+                            'title_ind' => $l1,
+                            'title_en'  => $item->grup_induk_en ?? $l1,
+                            'subgroups' => [],
+                            'children'  => [],
+                        ];
+                    }
+                    $groups[$l1]['children'][] = $item;
+
+                    $subKey = !empty($l2) ? $l2 : '__standalone_' . $item->id;
+                    if (!isset($groups[$l1]['subgroups'][$subKey])) {
+                        $groups[$l1]['subgroups'][$subKey] = [
+                            'type'      => !empty($l2) ? 'subgroup' : 'standalone',
+                            'title_ind' => !empty($l2) ? $l2 : $item->item_ind,
+                            'title_en'  => !empty($l2) ? ($item->grup_sub_en ?? $l2) : ($item->item_en ?? $item->item_ind),
+                            'children'  => [],
+                        ];
+                    }
+                    $groups[$l1]['subgroups'][$subKey]['children'][] = $item;
+                } else {
+                    $groups['__standalone_' . $item->id] = [
+                        'type'      => 'standalone',
+                        'title_ind' => $item->item_ind,
+                        'title_en'  => $item->item_en ?? $item->item_ind,
+                        'subgroups' => [],
+                        'children'  => [$item],
                     ];
                 }
-                $groups[$parentName]['children'][] = $item;
-            } else {
-                $groups['__standalone_' . $item->id] = [
-                    'type'      => 'standalone',
-                    'title_ind' => $item->item_ind,
-                    'title_en'  => $item->item_en,
-                    'item'      => $item,
-                    'children'  => [$item],
-                ];
+            }
+
+            foreach ($groups as &$grp) {
+                if (!empty($grp['subgroups'])) {
+                    $grp['subgroups'] = array_values($grp['subgroups']);
+                }
+            }
+            unset($grp);
+        } else {
+            // maxDepth 1 atau 2
+            foreach ($items as $item) {
+                $parentName = $item->grup_induk_ind ?: ($item->is_standalone ? '' : null);
+
+                if (!empty($parentName)) {
+                    if (!isset($groups[$parentName])) {
+                        $groups[$parentName] = [
+                            'type'      => 'group',
+                            'title_ind' => $parentName,
+                            'title_en'  => $item->grup_induk_en ?? $parentName,
+                            'children'  => [],
+                        ];
+                    }
+                    $groups[$parentName]['children'][] = $item;
+                } else {
+                    $groups['__standalone_' . $item->id] = [
+                        'type'      => 'standalone',
+                        'title_ind' => $item->item_ind,
+                        'title_en'  => $item->item_en,
+                        'item'      => $item,
+                        'children'  => [$item],
+                    ];
+                }
             }
         }
 
         return [
+            'max_depth'  => $maxDepth,
             'has_groups' => $hasGroupHeaders,
             'groups'     => array_values($groups),
             'flat_items' => $items,
@@ -306,17 +381,17 @@ class M_tabeldinamis extends Model
                 continue;
             }
 
-            $tipe_baris = $item['tipe_baris'] ?? 'data';
+            $tipe_baris = $item['tipe_baris'] ?? '';
             $validTypes = ['kategori', 'data', 'subtotal', 'total'];
-            if (!in_array($tipe_baris, $validTypes, true)) {
-                $lower = strtolower($nama_ind);
-                if (strpos($lower, 'sub total') !== false || strpos($lower, 'subtotal') !== false) {
-                    $tipe_baris = 'subtotal';
-                } elseif (strpos($lower, 'total') !== false || strpos($lower, 'jumlah') !== false) {
-                    $tipe_baris = 'total';
-                } else {
-                    $tipe_baris = 'data';
-                }
+            
+            // Evaluasi tipe baris cerdas & hormati penandaan is_total / tipe_baris dari pengguna
+            $is_user_total = (!empty($item['is_total']) || $tipe_baris === 'total');
+            $detectedTipe  = $this->detectTipeBaris($nama_ind, (int)($item['level_indentasi'] ?? 0));
+
+            if ($is_user_total || $detectedTipe === 'total') {
+                $tipe_baris = 'total';
+            } elseif (!in_array($tipe_baris, $validTypes, true) || empty($tipe_baris) || $tipe_baris === 'data') {
+                $tipe_baris = $detectedTipe;
             }
 
             $level_indentasi = (int)($item['level_indentasi'] ?? 0);
@@ -342,6 +417,89 @@ class M_tabeldinamis extends Model
         }
 
         return true;
+    }
+
+    public function detectTipeBaris(string $namaInd, int $indent = 0, bool $hasChildren = false): string
+    {
+        $clean = trim(preg_replace('/^(\(?[A-Za-z0-9]+\)[\.\)]?|[A-Za-z0-9]+[\.\)]|[IVXLCDMivxlcdm]+[\.\)]|[–\-\•])\s+/', '', $namaInd));
+        $lower = strtolower($clean);
+
+        // 1. Cek pengecualian nama indikator/variabel statistik: "jumlah curah hujan", "jumlah hari hujan", dsb.
+        if (strpos($lower, 'curah hujan') !== false || strpos($lower, 'hari hujan') !== false) {
+            return 'data';
+        }
+        if (preg_match('/^jumlah\s+(curah|hari|penduduk|kasus|sekolah|guru|murid|jiwa|balita|kk|desa|kelurahan|sarana|penerima|armada|tindak|kejadian|korban|kelahiran|kematian|pasien|peserta|tenaga)/i', $lower)) {
+            return 'data';
+        }
+
+        // 2. Grand Total: Jawa Tengah, Produk Domestik Regional Bruto (PDRB), Jumlah, Total, dsb.
+        $totalTerms = [
+            'jumlah', 'total', 'grand total', 'grandtotal', 
+            'jumlah total', 'jumlah seluruhnya', 'total seluruhnya', 
+            'produk domestik regional bruto', 'pdrb', 
+            'gross regional domestic product', 'grdp', 'all'
+        ];
+        $base = trim(explode('/', explode('(', $lower)[0])[0]);
+
+        if (
+            $lower === 'jawa tengah' || 
+            strpos($lower, 'jawa tengah') === 0 || 
+            $lower === 'provinsi jawa tengah' || 
+            $lower === 'prov. jawa tengah' || 
+            $lower === 'central java' ||
+            strpos($lower, 'produk domestik regional bruto') === 0 ||
+            strpos($lower, 'pdrb') === 0 ||
+            strpos($lower, 'gross regional domestic product') === 0 ||
+            strpos($lower, 'grdp') === 0 ||
+            in_array($lower, $totalTerms, true) || 
+            in_array($base, $totalTerms, true) ||
+            preg_match('/^(jumlah|total|grand\s*total)\s*(\/|\/\/)\s*(total|grand\s*total|jumlah)$/i', $lower)
+        ) {
+            return 'total';
+        }
+
+        // 3. Subtotal
+        if ($base === 'subtotal' || $base === 'sub total' || $base === 'sub-total' || strpos($lower, 'subtotal') === 0 || strpos($lower, 'sub total') === 0) {
+            return 'subtotal';
+        }
+
+        // 4. Kategori (Pembatas Bab/Kategori)
+        if ($lower === 'kabupaten' || $lower === 'kota' || ($indent === 0 && $hasChildren)) {
+            return 'kategori';
+        }
+
+        return 'data';
+    }
+
+    /**
+     * Sinkronisasi item baris dari array tree manager (menjaga flag is_total yang dipilih pengguna)
+     */
+    public function syncBarisFromTreeItems(int $id_kelompok, array $treeItems): bool
+    {
+        $items = [];
+        $no = 1;
+
+        foreach ($treeItems as $it) {
+            $nama_ind = trim($it['ind'] ?? ($it['nama_baris_ind'] ?? ''));
+            $nama_en  = trim($it['en'] ?? ($it['nama_baris_en'] ?? ''));
+            if ($nama_ind === '') {
+                continue;
+            }
+
+            $lvl = (int)($it['level'] ?? ($it['level_indentasi'] ?? 0));
+            $is_total = !empty($it['is_total']) || (($it['tipe_baris'] ?? '') === 'total');
+
+            $items[] = [
+                'nama_baris_ind'  => $nama_ind,
+                'nama_baris_en'   => !empty($nama_en) ? $nama_en : $nama_ind,
+                'level_indentasi' => $lvl,
+                'tipe_baris'      => $is_total ? 'total' : ($it['tipe_baris'] ?? 'data'),
+                'is_total'        => $is_total ? 1 : 0,
+                'no_urut'         => $no++,
+            ];
+        }
+
+        return $this->syncBarisItems($id_kelompok, $items);
     }
 
     public function parseBarisFromText(int $id_kelompok, string $text, string $text_en = ''): bool

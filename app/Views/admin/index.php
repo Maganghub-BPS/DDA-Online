@@ -554,6 +554,7 @@
         'v_portal_tabel' => 'View Portal Tabel',
         'v_preview_bulk' => 'Preview Bulk Update',
         'f_generator_tabel' => 'Generator Indikator Tabel & Matriks Dinamis',
+        'v_tabel_dinamis' => 'Tabel Dinamis DDA',
     ];
 
     $page_key = is_scalar($page) ? $page : 'dashboard';
