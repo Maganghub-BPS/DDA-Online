@@ -651,6 +651,55 @@
                             <span class="badge bg-primary-soft text-primary border" id="add_baris_count">0 Baris</span>
                         </div>
                         <div class="tree-builder-card">
+                            <!-- Quick Action Toolbar: Bulk Paste & Presets -->
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 bg-light border rounded-2">
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-primary py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1" id="btn_toggle_add_bulk">
+                                        <i class="bi bi-clipboard2-plus-fill"></i> Mode Cepat (Paste Teks Banyak)
+                                    </button>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold dropdown-toggle shadow-xs d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+                                            <i class="bi bi-lightning-charge-fill text-warning"></i> Template Siap Pakai
+                                        </button>
+                                        <ul class="dropdown-menu shadow-sm">
+                                            <li><a class="dropdown-item small py-2 fw-semibold" href="javascript:void(0)" id="preset_add_iklim"><i class="bi bi-cloud-sun text-warning me-2"></i>Unsur Iklim (4 Stasiun Lengkap)</a></li>
+                                            <li><a class="dropdown-item small py-2 fw-semibold" href="javascript:void(0)" id="preset_add_kabkot"><i class="bi bi-geo-alt text-danger me-2"></i>35 Kabupaten / Kota se-Jawa Tengah</a></li>
+                                            <li><a class="dropdown-item small py-2" href="javascript:void(0)" id="preset_add_pangan"><i class="bi bi-basket text-success me-2"></i>Pengeluaran Komoditas (2 Level)</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="text-muted small" style="font-size: 0.72rem;">
+                                    <i class="bi bi-magic me-1 text-primary"></i>Paste puluhan baris sekaligus tanpa klik satu-satu
+                                </div>
+                            </div>
+
+                            <!-- Drawer / Kotak Paste Teks Bulk (Add) -->
+                            <div class="card border-primary p-3 mb-2 bg-white shadow-sm" id="box_add_bulk" style="display: none; border-left: 4px solid #2563EB !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold text-primary mb-0 small d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-textarea-t fs-6"></i> Input Massal / Paste Teks Hierarki
+                                    </h6>
+                                    <button type="button" class="btn-close btn-sm" id="btn_close_add_bulk" aria-label="Tutup"></button>
+                                </div>
+                                <p class="text-muted text-xxs mb-2" style="font-size: 0.75rem;">
+                                    Paste daftar baris bertingkat di bawah. Gunakan awalan <code>-- </code> untuk <b>Sub Bab (Level 1)</b>, <code>---- </code> untuk <b>Sub-Sub (Level 2)</b>, dan <code>//</code> untuk bahasa Inggris (Contoh: <code>Suhu // Temperature</code> atau <code>-- Minimum // Minimum</code>).
+                                </p>
+                                <textarea class="form-control font-monospace text-xxs mb-2 p-2 border" id="textarea_add_bulk" rows="8" placeholder="Contoh:&#10;Stasiun Klimatologi Semarang // Semarang Climatological Station&#10;-- Suhu // Temperature&#10;---- Minimum // Minimum&#10;---- Rata-Rata // Average&#10;---- Maksimum // Maximum&#10;-- Kelembaban (%) // Humidity (%)&#10;..."></textarea>
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-primary btn-sm py-1 px-3 text-xxs fw-bold shadow-xs" id="btn_apply_add_bulk">
+                                            <i class="bi bi-magic me-1"></i> Terapkan ke Tree Builder
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2 text-xxs" id="btn_clear_add_bulk">
+                                            <i class="bi bi-trash me-1"></i> Bersihkan
+                                        </button>
+                                    </div>
+                                    <button type="button" class="btn btn-light btn-sm py-1 px-2 text-xxs text-secondary border" id="btn_copy_current_add_baris">
+                                        <i class="bi bi-clipboard me-1"></i> Salin Data Tree Saat Ini
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
                             <div class="auto-prefix-toolbar bg-white border rounded-2 p-2 mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
                                 <div class="d-flex align-items-center gap-1 text-xxs fw-bold text-secondary">
@@ -797,6 +846,47 @@
                             <span class="badge bg-primary-soft text-primary border" id="manage_baris_count">0 Baris</span>
                         </div>
                         <div class="tree-builder-card">
+                            <!-- Quick Action Toolbar: Bulk Paste & Presets (Manage) -->
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 p-2 bg-light border rounded-2">
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-primary py-1 px-3 text-xxs fw-bold shadow-xs d-inline-flex align-items-center gap-1" id="btn_toggle_manage_bulk">
+                                        <i class="bi bi-clipboard2-plus-fill"></i> Mode Cepat (Paste Teks Banyak)
+                                    </button>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-success py-1 px-3 text-xxs fw-bold dropdown-toggle shadow-xs d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+                                            <i class="bi bi-lightning-charge-fill text-warning"></i> Template Siap Pakai
+                                        </button>
+                                        <ul class="dropdown-menu shadow-sm">
+                                            <li><a class="dropdown-item small py-2 fw-semibold" href="javascript:void(0)" id="preset_manage_iklim"><i class="bi bi-cloud-sun text-warning me-2"></i>Unsur Iklim (4 Stasiun Lengkap)</a></li>
+                                            <li><a class="dropdown-item small py-2 fw-semibold" href="javascript:void(0)" id="preset_manage_kabkot"><i class="bi bi-geo-alt text-danger me-2"></i>35 Kabupaten / Kota se-Jawa Tengah</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-1 px-2 text-xxs shadow-xs" id="btn_copy_current_manage_baris">
+                                    <i class="bi bi-clipboard me-1"></i> Salin Data Tree ke Teks
+                                </button>
+                            </div>
+
+                            <!-- Drawer / Kotak Paste Teks Bulk (Manage) -->
+                            <div class="card border-primary p-3 mb-2 bg-white shadow-sm" id="box_manage_bulk" style="display: none; border-left: 4px solid #2563EB !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold text-primary mb-0 small d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-textarea-t fs-6"></i> Input Massal / Paste Teks Hierarki
+                                    </h6>
+                                    <button type="button" class="btn-close btn-sm" id="btn_close_manage_bulk" aria-label="Tutup"></button>
+                                </div>
+                                <p class="text-muted text-xxs mb-2" style="font-size: 0.75rem;">
+                                    Gunakan awalan <code>-- </code> untuk <b>Sub Bab (Level 1)</b>, <code>---- </code> untuk <b>Sub-Sub (Level 2)</b>, dan <code>//</code> untuk bahasa Inggris.
+                                </p>
+                                <textarea class="form-control font-monospace text-xxs mb-2 p-2 border" id="textarea_manage_bulk" rows="8"></textarea>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary btn-sm py-1 px-3 text-xxs fw-bold shadow-xs" id="btn_apply_manage_bulk">
+                                        <i class="bi bi-magic me-1"></i> Terapkan ke Tree Builder
+                                    </button>
+                                    <button type="button" class="btn btn-light btn-sm py-1 px-2 text-xxs text-secondary border" id="btn_cancel_manage_bulk">Tutup</button>
+                                </div>
+                            </div>
+
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
                             <div class="auto-prefix-toolbar bg-white border rounded-2 p-2 mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
                                 <div class="d-flex align-items-center gap-1 text-xxs fw-bold text-secondary">
@@ -1834,6 +1924,305 @@ $(document).ready(function() {
 
     $('#btn_manage_clean_prefix').on('click', function() {
         manageBarisBuilder.cleanAllPrefix();
+    });
+
+    // -------------------------------------------------------------------------
+    // FITUR CERDAS: BULK TEXT PARSER & PRESET TEMPLATE (MEMPERMUDAH INPUT BARIS BANYAK)
+    // -------------------------------------------------------------------------
+    function parseRawLinesToTreeItems(textRaw) {
+        if (!textRaw) return [];
+        const lines = textRaw.split(/\r?\n/).filter(l => l.trim() !== '');
+        const treeItems = [];
+        const levelParents = {};
+        let idSeq = 0;
+
+        lines.forEach(function(line) {
+            let trimmed = line.trim();
+            if (!trimmed) return;
+
+            let ind = trimmed;
+            let en = '';
+
+            // Format dwibahasa dengan separator //
+            if (trimmed.includes('//')) {
+                const parts = trimmed.split('//').map(s => s.trim());
+                ind = parts[0];
+                en  = parts[1] || '';
+            }
+
+            let lvl = 0;
+            if (ind.startsWith('----')) {
+                lvl = 2;
+                ind = ind.substring(4).trim();
+            } else if (ind.startsWith('--')) {
+                lvl = 1;
+                ind = ind.substring(2).trim();
+            } else {
+                const matchSpace = line.match(/^(\s+)/);
+                if (matchSpace) {
+                    const spaceCount = matchSpace[1].length;
+                    lvl = spaceCount >= 4 ? 2 : 1;
+                }
+            }
+
+            if (en.startsWith('----')) en = en.substring(4).trim();
+            else if (en.startsWith('--')) en = en.substring(2).trim();
+
+            const node = {
+                id: 'node_' + (++idSeq),
+                parentId: lvl > 0 ? (levelParents[lvl - 1] ? levelParents[lvl - 1].id : null) : null,
+                level: lvl,
+                ind: ind,
+                en: en || ind
+            };
+
+            levelParents[lvl] = node;
+            treeItems.push(node);
+        });
+
+        return treeItems;
+    }
+
+    function getPresetUnsurIklim() {
+        return `Stasiun Klimatologi Semarang // Semarang Climatological Station
+-- Suhu // Temperature
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kelembaban (%) // Humidity (%)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kecepatan Angin (km/jam) // Wind Velocity (km/h)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Tekanan Udara (mb) // Atmospheric Pressure (mb)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Jumlah Curah Hujan (mm) // Number of Precipitation (mm)
+-- Jumlah Hari Hujan (hari) // Number of Rainy Days (day)
+-- Penyinaran Matahari (%) // Duration of Sunshine (%)
+Stasiun Klimatologi Cilacap // Cilacap Climatological Station
+-- Suhu // Temperature
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kelembaban (%) // Humidity (%)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kecepatan Angin (km/jam) // Wind Velocity (km/h)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Tekanan Udara (mb) // Atmospheric Pressure (mb)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Jumlah Curah Hujan (mm) // Number of Precipitation (mm)
+-- Jumlah Hari Hujan (hari) // Number of Rainy Days (day)
+-- Penyinaran Matahari (%) // Duration of Sunshine (%)
+Stasiun Klimatologi Tegal // Tegal Climatological Station
+-- Suhu // Temperature
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kelembaban (%) // Humidity (%)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kecepatan Angin (km/jam) // Wind Velocity (km/h)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Tekanan Udara (mb) // Atmospheric Pressure (mb)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Jumlah Curah Hujan (mm) // Number of Precipitation (mm)
+-- Jumlah Hari Hujan (hari) // Number of Rainy Days (day)
+-- Penyinaran Matahari (%) // Duration of Sunshine (%)
+Stasiun Klimatologi Banjarnegara // Banjarnegara Climatological Station
+-- Suhu // Temperature
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kelembaban (%) // Humidity (%)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Kecepatan Angin (m/det) // Wind Velocity (m/sec)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Tekanan Udara (mb) // Atmospheric Pressure (mb)
+---- Minimum // Minimum
+---- Rata-Rata // Average
+---- Maksimum // Maximum
+-- Jumlah Curah Hujan (mm) // Number of Precipitation (mm)
+-- Jumlah Hari Hujan (hari) // Number of Rainy Days (day)
+-- Penyinaran Matahari (%) // Duration of Sunshine (%)`;
+    }
+
+    function getPresetKabupatenKota() {
+        return `Cilacap // Cilacap
+Banyumas // Banyumas
+Purbalingga // Purbalingga
+Banjarnegara // Banjarnegara
+Kebumen // Kebumen
+Purworejo // Purworejo
+Wonosobo // Wonosobo
+Magelang // Magelang
+Boyolali // Boyolali
+Klaten // Klaten
+Sukoharjo // Sukoharjo
+Wonogiri // Wonogiri
+Karanganyar // Karanganyar
+Sragen // Sragen
+Grobogan // Grobogan
+Blora // Blora
+Rembang // Rembang
+Pati // Pati
+Kudus // Kudus
+Jepara // Jepara
+Demak // Demak
+Semarang // Semarang
+Temanggung // Temanggung
+Kendal // Kendal
+Batang // Batang
+Pekalongan // Pekalongan
+Pemalang // Pemalang
+Tegal // Tegal
+Brebes // Brebes
+Kota Magelang // Magelang Municipality
+Kota Surakarta // Surakarta Municipality
+Kota Salatiga // Salatiga Municipality
+Kota Semarang // Semarang Municipality
+Kota Pekalongan // Pekalongan Municipality
+Kota Tegal // Tegal Municipality
+Jawa Tengah // Central Java`;
+    }
+
+    function exportTreeToRawText(builder) {
+        if (!builder || !builder.items) return '';
+        const lines = [];
+        builder.items.forEach(it => {
+            let pfx = '';
+            if (it.level === 2) pfx = '---- ';
+            else if (it.level === 1) pfx = '-- ';
+            let ind = it.ind || '';
+            let en = it.en || '';
+            if (en && en !== ind) {
+                lines.push(pfx + ind + ' // ' + en);
+            } else {
+                lines.push(pfx + ind);
+            }
+        });
+        return lines.join('\n');
+    }
+
+    // Toggle Box Bulk Add Baris
+    $('#btn_toggle_add_bulk').on('click', function() {
+        $('#box_add_bulk').slideToggle(200);
+        $('#textarea_add_bulk').focus();
+    });
+    $('#btn_close_add_bulk, #btn_cancel_add_bulk').on('click', function() {
+        $('#box_add_bulk').slideUp(200);
+    });
+    $('#btn_clear_add_bulk').on('click', function() {
+        $('#textarea_add_bulk').val('').focus();
+    });
+
+    // Apply Bulk ke Add Baris Builder
+    $('#btn_apply_add_bulk').on('click', function() {
+        const raw = $('#textarea_add_bulk').val();
+        if (!raw || !raw.trim()) {
+            alert('Teks masih kosong. Silakan paste daftar baris terlebih dahulu.');
+            return;
+        }
+        const items = parseRawLinesToTreeItems(raw);
+        if (items.length > 0) {
+            addBarisBuilder.setItems(items);
+            $('#box_add_bulk').slideUp(200);
+        } else {
+            alert('Format teks tidak valid.');
+        }
+    });
+
+    // Salin Tree Saat Ini ke Textarea Bulk Add
+    $('#btn_copy_current_add_baris').on('click', function() {
+        const text = exportTreeToRawText(addBarisBuilder);
+        $('#textarea_add_bulk').val(text);
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+            alert('Daftar baris berhasil disalin ke clipboard dan dimuat ke textarea!');
+        }
+    });
+
+    // Template Presets Add Baris
+    $('#preset_add_iklim').on('click', function() {
+        $('#add_baris_nama_ind').val('Unsur Iklim Menurut Stasiun Klimatologi');
+        $('input[name="nama_kelompok_en"]').val('Climate Elements by Climatological Station');
+        const items = parseRawLinesToTreeItems(getPresetUnsurIklim());
+        addBarisBuilder.setItems(items);
+        $('#textarea_add_bulk').val(getPresetUnsurIklim());
+        $('#box_add_bulk').slideUp(200);
+    });
+
+    $('#preset_add_kabkot').on('click', function() {
+        $('#add_baris_nama_ind').val('35 Kabupaten/Kota Jawa Tengah');
+        $('input[name="nama_kelompok_en"]').val('35 Regencies/Cities in Central Java');
+        const items = parseRawLinesToTreeItems(getPresetKabupatenKota());
+        addBarisBuilder.setItems(items);
+        $('#textarea_add_bulk').val(getPresetKabupatenKota());
+        $('#box_add_bulk').slideUp(200);
+    });
+
+    // Manage Baris Handlers
+    $('#btn_toggle_manage_bulk').on('click', function() {
+        $('#box_manage_bulk').slideToggle(200);
+        if (!$('#textarea_manage_bulk').val()) {
+            $('#textarea_manage_bulk').val(exportTreeToRawText(manageBarisBuilder));
+        }
+        $('#textarea_manage_bulk').focus();
+    });
+    $('#btn_close_manage_bulk, #btn_cancel_manage_bulk').on('click', function() {
+        $('#box_manage_bulk').slideUp(200);
+    });
+    $('#btn_apply_manage_bulk').on('click', function() {
+        const raw = $('#textarea_manage_bulk').val();
+        if (!raw || !raw.trim()) {
+            alert('Teks masih kosong.');
+            return;
+        }
+        const items = parseRawLinesToTreeItems(raw);
+        if (items.length > 0) {
+            manageBarisBuilder.setItems(items);
+            $('#box_manage_bulk').slideUp(200);
+        }
+    });
+    $('#btn_copy_current_manage_baris').on('click', function() {
+        const text = exportTreeToRawText(manageBarisBuilder);
+        $('#textarea_manage_bulk').val(text);
+        $('#box_manage_bulk').slideDown(200);
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+            alert('Daftar baris berhasil disalin ke clipboard!');
+        }
+    });
+    $('#preset_manage_iklim').on('click', function() {
+        const items = parseRawLinesToTreeItems(getPresetUnsurIklim());
+        manageBarisBuilder.setItems(items);
+        $('#textarea_manage_bulk').val(getPresetUnsurIklim());
+        $('#box_manage_bulk').slideUp(200);
+    });
+    $('#preset_manage_kabkot').on('click', function() {
+        const items = parseRawLinesToTreeItems(getPresetKabupatenKota());
+        manageBarisBuilder.setItems(items);
+        $('#textarea_manage_bulk').val(getPresetKabupatenKota());
+        $('#box_manage_bulk').slideUp(200);
     });
 
     // Modal Edit Baris
