@@ -205,9 +205,67 @@ class ExcelDataParser
 
             $hasKolom    = !empty($flatKolom);
             $hasPeriode  = !empty($itemsPeriode);
-            $colIdx      = 2; // Mulai kolom B
+            $colIdx      = ($posisi_hirarki === 'periode_baris') ? 3 : 2; // Mulai C jika periode_baris, atau B jika kolom biasa
 
-            if (!$hasKolom && $hasPeriode) {
+            if ($posisi_hirarki === 'periode_baris') {
+                if ($hasKolom) {
+                    foreach ($flatKolom as $ch) {
+                        $colLetter = Coordinate::stringFromColumnIndex($colIdx);
+                        $leafColumns[] = [
+                            'excel_col'  => $colLetter,
+                            'item_id'    => (int)$ch->id,
+                            'periode_id' => 0,
+                        ];
+                        $colIdx++;
+                    }
+                } else {
+                    $colLetter = Coordinate::stringFromColumnIndex($colIdx);
+                    $leafColumns[] = [
+                        'excel_col'  => $colLetter,
+                        'item_id'    => 0,
+                        'periode_id' => 0,
+                    ];
+                    $colIdx++;
+                }
+
+                $startR = (int)($metaPayload['data_start_row'] ?? 7);
+                $currR  = $startR;
+                foreach ($itemsBaris as $bItem) {
+                    $tipe = $bItem->tipe_baris ?? 'data';
+                    if ($tipe === 'kategori') {
+                        $rowItems[] = [
+                            'excel_row'  => $currR,
+                            'id_baris'   => (int)$bItem->id,
+                            'id_periode' => 0,
+                            'tipe'       => 'kategori',
+                            'nama'       => $bItem->nama_baris_ind ?? '',
+                        ];
+                        $currR++;
+                    } else {
+                        if ($hasPeriode) {
+                            foreach ($itemsPeriode as $p) {
+                                $rowItems[] = [
+                                    'excel_row'  => $currR,
+                                    'id_baris'   => (int)$bItem->id,
+                                    'id_periode' => (int)$p->id,
+                                    'tipe'       => $tipe,
+                                    'nama'       => ($bItem->nama_baris_ind ?? '') . ' (' . ($p->nama_periode_ind ?? '') . ')',
+                                ];
+                                $currR++;
+                            }
+                        } else {
+                            $rowItems[] = [
+                                'excel_row'  => $currR,
+                                'id_baris'   => (int)$bItem->id,
+                                'id_periode' => 0,
+                                'tipe'       => $tipe,
+                                'nama'       => $bItem->nama_baris_ind ?? '',
+                            ];
+                            $currR++;
+                        }
+                    }
+                }
+            } elseif (!$hasKolom && $hasPeriode) {
                 foreach ($itemsPeriode as $p) {
                     $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                     $leafColumns[] = [
@@ -255,14 +313,16 @@ class ExcelDataParser
                 }
             }
 
-            $startR = (int)($metaPayload['data_start_row'] ?? 7);
-            foreach ($itemsBaris as $bIdx => $bItem) {
-                $rowItems[] = [
-                    'excel_row' => $startR + $bIdx,
-                    'id_baris'  => (int)$bItem->id,
-                    'tipe'      => $bItem->tipe_baris ?? 'data',
-                    'nama'      => $bItem->nama_baris_ind ?? '',
-                ];
+            if ($posisi_hirarki !== 'periode_baris') {
+                $startR = (int)($metaPayload['data_start_row'] ?? 7);
+                foreach ($itemsBaris as $bIdx => $bItem) {
+                    $rowItems[] = [
+                        'excel_row' => $startR + $bIdx,
+                        'id_baris'  => (int)$bItem->id,
+                        'tipe'      => $bItem->tipe_baris ?? 'data',
+                        'nama'      => $bItem->nama_baris_ind ?? '',
+                    ];
+                }
             }
         }
 
@@ -288,7 +348,7 @@ class ExcelDataParser
             foreach ($leafColumns as $colItem) {
                 $colLetter       = $colItem['excel_col'];
                 $idKarakteristik = (int)$colItem['item_id'];
-                $idPeriode       = (int)($colItem['periode_id'] ?? 0);
+                $idPeriode       = (int)($rItem['id_periode'] ?? ($colItem['periode_id'] ?? 0));
 
                 $cellCoord = "{$colLetter}{$excelRow}";
                 $cell = $dataSheet->getCell($cellCoord);

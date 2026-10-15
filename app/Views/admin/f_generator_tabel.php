@@ -6,6 +6,8 @@
  * Layout: Top-Bottom Stacked (Form di Atas, Live Matrix Preview Lebar Penuh di Bawah)
  */
 $is_dynamic = (int)($tabel->is_dynamic ?? 0);
+$total_nilai = (int)($total_nilai ?? 0);
+$is_locked = $total_nilai > 0;
 $id_indikator_existing = $indikator->id ?? null;
 $sel_karakteristik = $indikator->id_karakteristik_kelompok ?? '';
 $sel_baris = $indikator->id_baris_kelompok ?? '';
@@ -89,8 +91,8 @@ $catatan_val = $indikator->catatan ?? '';
         left: 0 !important;
         z-index: 25 !important;
         background-color: #f8fafc !important;
-        min-width: 250px !important;
-        width: 250px !important;
+        min-width: 240px !important;
+        width: 240px !important;
         border-right: 2px solid #cbd5e1 !important;
         box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
     }
@@ -99,8 +101,8 @@ $catatan_val = $indikator->catatan ?? '';
         left: 0 !important;
         z-index: 15 !important;
         background-color: #ffffff !important;
-        min-width: 250px !important;
-        width: 250px !important;
+        min-width: 240px !important;
+        width: 240px !important;
         border-right: 2px solid #cbd5e1 !important;
         box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
     }
@@ -116,6 +118,39 @@ $catatan_val = $indikator->catatan ?? '';
         font-weight: 800 !important;
     }
     .table-matrix tbody tr:hover td.td-freeze-col {
+        background-color: #f1f5f9 !important;
+    }
+
+    /* Freeze / Sticky Kolom Kedua (Periode Waktu) saat Periode Baris Aktif */
+    .th-freeze-col-2 {
+        position: sticky !important;
+        left: 240px !important;
+        z-index: 24 !important;
+        background-color: #f8fafc !important;
+        min-width: 95px !important;
+        width: 95px !important;
+        border-right: 2px solid #cbd5e1 !important;
+        box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
+    }
+    .table-matrix tbody td.td-freeze-col-2 {
+        position: sticky !important;
+        left: 240px !important;
+        z-index: 14 !important;
+        background-color: #ffffff !important;
+        min-width: 95px !important;
+        width: 95px !important;
+        border-right: 2px solid #cbd5e1 !important;
+        box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
+    }
+    .row-subtotal td.td-freeze-col-2 {
+        background-color: #fffbeb !important;
+    }
+    .row-total td.td-freeze-col-2 {
+        background-color: #fef3c7 !important;
+        color: #92400e !important;
+        font-weight: 800 !important;
+    }
+    .table-matrix tbody tr:hover td.td-freeze-col-2 {
         background-color: #f1f5f9 !important;
     }
 
@@ -416,6 +451,11 @@ $catatan_val = $indikator->catatan ?? '';
         opacity: 0.55;
         pointer-events: none;
     }
+    #btn_unlock_reset_data:hover {
+        background: #fef2f2 !important;
+        border-color: #f87171 !important;
+        color: #b91c1c !important;
+    }
 </style>
 
 <div class="container-fluid py-2 px-0">
@@ -454,20 +494,53 @@ $catatan_val = $indikator->catatan ?? '';
     <!-- ===== FORMULIR KONFIGURASI DIMENSI (CARD MODERN & ELEGAN DENGAN SEARCHABLE SELECT2) ===== -->
     <div class="card border-0 shadow-sm generator-card mb-3" style="border: 1px solid #e2e8f0 !important; background: #ffffff;">
         <div class="card-body p-3 p-md-4">
+
+            <?php if ($is_locked): ?>
+                <!-- SLIM SAFETY LOCK BAR -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 mb-3 rounded-2" 
+                     style="background: #fffbeb; border: 1px solid #fde68a;">
+                    <div class="d-flex align-items-center gap-2 text-xs">
+                        <i class="bi bi-lock-fill text-warning fs-6"></i>
+                        <span class="fw-bold text-dark">Dimensi Terkunci</span>
+                        <span class="badge bg-white text-secondary border px-2 py-0.5 rounded-pill fw-normal text-xxs">
+                            <?= number_format($total_nilai, 0, ',', '.'); ?> nilai terisi
+                        </span>
+                        <span class="text-muted d-none d-md-inline text-xxs">
+                            — Buka kunci untuk mengatur ulang dimensi (data nilai akan direset).
+                        </span>
+                    </div>
+                    <button type="button" class="btn btn-sm text-danger bg-white border border-danger-subtle rounded-pill text-xs fw-semibold d-inline-flex align-items-center gap-1 shadow-xs" id="btn_unlock_reset_data" style="padding: 4px 12px; border-color: #fca5a5 !important;" title="Hapus data nilai untuk membuka kunci dimensi">
+                        <i class="bi bi-unlock-fill"></i> Buka Kunci & Reset Data
+                    </button>
+                </div>
+            <?php endif; ?>
+
             <form action="<?= base_url('admin/save_generator_tabel'); ?>" method="post" id="formGenerator">
                 <input type="hidden" name="id_tahun_tabel" value="<?= $tabel->id_tahun_tabel; ?>">
                 <input type="hidden" name="posisi_hirarki" id="input_posisi_hirarki" value="<?= esc($sel_posisi_hirarki); ?>">
                 <input type="hidden" name="tingkat_kolom" id="input_tingkat_kolom" value="<?= esc($sel_tingkat_kolom); ?>">
+
+                <?php if ($is_locked): ?>
+                    <!-- Hidden inputs untuk mempertahankan dimensi yang terkunci saat form disimpan -->
+                    <input type="hidden" name="id_baris_kelompok" value="<?= $sel_baris; ?>">
+                    <input type="hidden" name="id_karakteristik_kelompok" value="<?= $sel_karakteristik; ?>">
+                    <input type="hidden" name="id_periode_kelompok" value="<?= $sel_periode; ?>">
+                <?php endif; ?>
 
                 <!-- BARIS 1: 3 DIMENSI UTAMA DENGAN SEARCH SELECT2 -->
                 <div class="row g-3">
                     <!-- 1. Judul Baris -->
                     <div class="col-lg-4 col-md-12">
                         <label class="form-label text-xs fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
-                            <span><i class="bi bi-list-nested text-primary me-1"></i> Judul Baris <span class="text-danger">*</span></span>
+                            <span>
+                                <i class="bi bi-list-nested text-primary me-1"></i> Judul Baris <span class="text-danger">*</span>
+                                <?php if ($is_locked): ?>
+                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Dimensi terkunci"></i>
+                                <?php endif; ?>
+                            </span>
                             <span class="badge bg-light text-secondary border text-xxs fw-normal"><?= count($list_baris); ?> Master</span>
                         </label>
-                        <select name="id_baris_kelompok" id="select_baris" class="form-select form-select-sm" required data-placeholder="Cari atau pilih Judul Baris...">
+                        <select name="id_baris_kelompok" id="select_baris" class="form-select form-select-sm" required <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Judul Baris...">
                             <option value="">-- Pilih Judul Baris --</option>
                             <?php foreach ($list_baris as $b): ?>
                                 <option value="<?= $b->id; ?>" <?= ($sel_baris == $b->id) ? 'selected' : ''; ?>
@@ -482,10 +555,15 @@ $catatan_val = $indikator->catatan ?? '';
                     <!-- 2. Karakteristik Kolom -->
                     <div class="col-lg-4 col-md-6">
                         <label class="form-label text-xs fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
-                            <span><i class="bi bi-layout-three-columns text-primary me-1"></i> Karakteristik Kolom</span>
+                            <span>
+                                <i class="bi bi-layout-three-columns text-primary me-1"></i> Karakteristik Kolom
+                                <?php if ($is_locked): ?>
+                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Dimensi terkunci"></i>
+                                <?php endif; ?>
+                            </span>
                             <span class="badge bg-light text-secondary border text-xxs fw-normal"><?= count($list_karakteristik); ?> Master</span>
                         </label>
-                        <select name="id_karakteristik_kelompok" id="select_karakteristik" class="form-select form-select-sm" data-placeholder="Cari atau pilih Karakteristik Kolom...">
+                        <select name="id_karakteristik_kelompok" id="select_karakteristik" class="form-select form-select-sm" <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Karakteristik Kolom...">
                             <option value="">-- Tanpa Karakteristik --</option>
                             <?php foreach ($list_karakteristik as $k): ?>
                                 <option value="<?= $k->id; ?>" <?= ($sel_karakteristik == $k->id) ? 'selected' : ''; ?>>
@@ -498,10 +576,15 @@ $catatan_val = $indikator->catatan ?? '';
                     <!-- 3. Periode Waktu -->
                     <div class="col-lg-4 col-md-6">
                         <label class="form-label text-xs fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
-                            <span><i class="bi bi-calendar3 text-primary me-1"></i> Periode Waktu</span>
+                            <span>
+                                <i class="bi bi-calendar3 text-primary me-1"></i> Periode Waktu
+                                <?php if ($is_locked): ?>
+                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Dimensi terkunci"></i>
+                                <?php endif; ?>
+                            </span>
                             <span class="badge bg-light text-secondary border text-xxs fw-normal"><?= count($list_periode); ?> Master</span>
                         </label>
-                        <select name="id_periode_kelompok" id="select_periode" class="form-select form-select-sm" data-placeholder="Cari atau pilih Periode Waktu...">
+                        <select name="id_periode_kelompok" id="select_periode" class="form-select form-select-sm" <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Periode Waktu...">
                             <option value="">-- Tanpa Periode --</option>
                             <?php foreach ($list_periode as $p): ?>
                                 <option value="<?= $p->id; ?>" <?= ($sel_periode == $p->id) ? 'selected' : ''; ?>>
@@ -561,16 +644,19 @@ $catatan_val = $indikator->catatan ?? '';
                         <div class="vr text-muted opacity-25 d-none d-md-block" style="height: 24px;"></div>
 
                         <!-- Posisi Hirarki Header (Segmented Button Group) -->
-                        <div id="box_posisi_hirarki" class="d-flex align-items-center gap-2" title="Atur apakah Karakteristik Kolom atau Periode Waktu yang berada di baris atas header">
+                        <div id="box_posisi_hirarki" class="d-flex align-items-center gap-2" title="Atur tata letak hirarki kolom atau periode waktu">
                             <span class="text-xs fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">
-                                <i class="bi bi-arrow-down-up text-primary me-1"></i> Posisi Atas:
+                                <i class="bi bi-arrow-down-up text-primary me-1"></i> Posisi:
                             </span>
                             <div class="posisi-segmented-group" id="group_posisi_hirarki">
-                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'kolom_atas') ? 'active' : ''; ?>" data-val="kolom_atas" id="btn_pos_kolom">
+                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'kolom_atas') ? 'active' : ''; ?>" data-val="kolom_atas" id="btn_pos_kolom" title="Karakteristik Kolom di atas, Periode di bawah">
                                     <i class="bi bi-layout-three-columns me-1"></i> Kolom
                                 </button>
-                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'periode_atas') ? 'active' : ''; ?>" data-val="periode_atas" id="btn_pos_periode">
+                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'periode_atas') ? 'active' : ''; ?>" data-val="periode_atas" id="btn_pos_periode" title="Periode di atas, Karakteristik Kolom di bawah">
                                     <i class="bi bi-calendar3 me-1"></i> Periode
+                                </button>
+                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'periode_baris') ? 'active' : ''; ?>" data-val="periode_baris" id="btn_pos_baris" title="Periode menjadi baris vertikal (pivot)">
+                                    <i class="bi bi-layout-sidebar-inset me-1"></i> Baris
                                 </button>
                             </div>
                         </div>
@@ -865,7 +951,13 @@ $(document).ready(function() {
             $('#group_posisi_hirarki').removeClass('disabled').css({'opacity': '1', 'pointer-events': 'auto'});
             const pos = $('#input_posisi_hirarki').val() || 'kolom_atas';
             $('.btn-segmented').removeClass('active');
-            $('#btn_pos_' + (pos === 'periode_atas' ? 'periode' : 'kolom')).addClass('active');
+            if (pos === 'periode_baris') {
+                $('#btn_pos_baris').addClass('active');
+            } else if (pos === 'periode_atas') {
+                $('#btn_pos_periode').addClass('active');
+            } else {
+                $('#btn_pos_kolom').addClass('active');
+            }
         } else {
             $('#group_posisi_hirarki').addClass('disabled').css({'opacity': '0.45', 'pointer-events': 'none'});
             if (hasKolom) {
@@ -937,7 +1029,9 @@ $(document).ready(function() {
      */
     function renderMatrix(data) {
         const isBilingual = $('#toggle_bilingual').is(':checked');
-        const isPeriodeAtas = ($('#input_posisi_hirarki').val() === 'periode_atas');
+        const posHirarki = $('#input_posisi_hirarki').val() || 'kolom_atas';
+        const isPeriodeAtas = (posHirarki === 'periode_atas');
+        const isPeriodeBaris = (posHirarki === 'periode_baris');
         const tingkatKolom = $('#input_tingkat_kolom').val() || 'semua';
 
         const kolomStruct = data.kolom;
@@ -1006,7 +1100,7 @@ $(document).ready(function() {
         // Hitung statistik sel data
         let totalLeafCols = 0;
         if (hasKolom && hasPeriode) {
-            totalLeafCols = flatKolom.length * periodeItems.length;
+            totalLeafCols = isPeriodeBaris ? flatKolom.length : (flatKolom.length * periodeItems.length);
         } else if (hasKolom) {
             totalLeafCols = flatKolom.length;
         } else if (hasPeriode) {
@@ -1014,8 +1108,10 @@ $(document).ready(function() {
         }
 
         const totalDataRows = barisItems.filter(b => b.tipe_baris === 'data').length;
-        const totalCells = totalLeafCols * totalDataRows;
-        $('#stat_total_cells').text(barisItems.length + ' Baris × ' + totalLeafCols + ' Kolom (' + totalCells + ' Sel)');
+        const totalRowsRendered = isPeriodeBaris ? (totalDataRows * (periodeItems.length || 1)) : totalDataRows;
+        const totalCells = totalLeafCols * totalRowsRendered;
+        const displayRowCount = isPeriodeBaris ? (barisItems.length * (periodeItems.length || 1)) : barisItems.length;
+        $('#stat_total_cells').text(displayRowCount + ' Baris × ' + totalLeafCols + ' Kolom (' + totalCells + ' Sel)');
 
         // =====================================================================
         // 1. RENDER THEAD (MULTI-LEVEL HEADER DINAMIS OPSI 2)
@@ -1025,7 +1121,7 @@ $(document).ready(function() {
         // Tentukan jumlah baris header
         let totalHeaderRows = 1;
         if (hasKolom && hasPeriode) {
-            totalHeaderRows = activeLevels.length + 1;
+            totalHeaderRows = isPeriodeBaris ? activeLevels.length : (activeLevels.length + 1);
         } else if (hasKolom) {
             totalHeaderRows = activeLevels.length;
         } else if (hasPeriode) {
@@ -1074,6 +1170,15 @@ $(document).ready(function() {
             } else {
                 titleBarisEn = 'Detail / Region';
             }
+        }
+
+        // Dapatkan Judul Kelompok Periode secara Dinamis
+        const periodeKelompok = data.periode_kelompok;
+        let cleanTitlePeriode = 'Tahun';
+        let cleanTitlePeriodeEn = 'Year';
+        if (periodeKelompok) {
+            cleanTitlePeriode = periodeKelompok.judul_periode_ind || 'Tahun';
+            cleanTitlePeriodeEn = periodeKelompok.judul_periode_en || 'Year';
         }
 
         /**
@@ -1317,7 +1422,36 @@ $(document).ready(function() {
         // KASUS 3: Kedua Dimensi Ada (Kolom DAN Periode)
         // -------------------------------------------------------------
         else if (hasKolom && hasPeriode) {
-            if (isPeriodeAtas) {
+            if (isPeriodeBaris) {
+                // =========================================================
+                // SUB-KASUS 3C: PERIODE MENJADI BARIS (PIVOT KE BARIS)
+                // =========================================================
+                theadHtml += '<tr>';
+                theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-start">';
+                theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
+                if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
+                    theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
+                }
+                theadHtml += '</th>';
+
+                theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col-2 text-center">';
+                theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
+                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                    theadHtml += '<span class="th-en">' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
+                }
+                theadHtml += '</th>';
+
+                theadHtml += getLevelCells(activeLevels[0], 1);
+                theadHtml += '</tr>';
+
+                // Baris berikutnya jika ada tingkat kolom lanjutan
+                for (let idx = 1; idx < activeLevels.length; idx++) {
+                    theadHtml += '<tr>';
+                    theadHtml += getLevelCells(activeLevels[idx], 1);
+                    theadHtml += '</tr>';
+                }
+
+            } else if (isPeriodeAtas) {
                 // =========================================================
                 // SUB-KASUS 3B: PERIODE WAKTU DI ATAS, KOLOM DI BAWAH
                 // =========================================================
@@ -1397,7 +1531,74 @@ $(document).ready(function() {
         const placeholderSimbol = '–'; // Tanda strip standar BPS (data tidak ada)
 
         if (barisItems.length === 0) {
-            tbodyHtml = '<tr><td colspan="' + (totalLeafCols + 1) + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';
+            const emptyColspan = (isPeriodeBaris ? 2 : 1) + totalLeafCols;
+            tbodyHtml = '<tr><td colspan="' + emptyColspan + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';
+        } else if (hasKolom && hasPeriode && isPeriodeBaris) {
+            // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (NESTED PIVOT)
+            barisItems.forEach(function(baris) {
+                let tipe = baris.tipe_baris || 'data';
+                let lowerNama = (baris.nama_baris_ind || '').toLowerCase();
+                if (tipe === 'data' || !tipe) {
+                    if (
+                        lowerNama === 'jumlah' || lowerNama === 'total' || 
+                        lowerNama.includes('jawa tengah') || 
+                        lowerNama.includes('produk domestik regional bruto') || 
+                        lowerNama === 'pdrb' || 
+                        lowerNama.includes('gross regional domestic product') || 
+                        lowerNama === 'grdp'
+                    ) {
+                        if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan')) {
+                            tipe = 'total';
+                        }
+                    }
+                }
+                const level = parseInt(baris.level_indentasi) || 0;
+                let rowClass = 'row-' + tipe;
+                let indentClass = 'indent-level-' + Math.min(level, 2);
+                let textClass = ' fw-bold text-dark';
+
+                if (tipe === 'kategori') {
+                    // Kategori Pembatas (misal: "Kabupaten", "Kota"): Bentang penuh seluruh kolom
+                    tbodyHtml += '<tr class="' + rowClass + '">';
+                    tbodyHtml += '<td colspan="' + (2 + totalLeafCols) + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #ff6d1f !important;">';
+                    tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
+                    if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
+                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
+                    }
+                    tbodyHtml += '</td>';
+                    tbodyHtml += '</tr>';
+                } else {
+                    const pCount = periodeItems.length;
+                    periodeItems.forEach(function(p, pIdx) {
+                        tbodyHtml += '<tr class="' + rowClass + '">';
+
+                        // Sel Kolom 1 (Nama Wilayah / Baris): Hanya di baris periode pertama dengan rowspan
+                        if (pIdx === 0) {
+                            tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col ' + indentClass + textClass + '" style="vertical-align: middle;">';
+                            tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
+                            if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
+                                tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
+                            }
+                            tbodyHtml += '</td>';
+                        }
+
+                        // Sel Kolom 2 (Periode): Selalu muncul di setiap baris periode
+                        tbodyHtml += '<td class="td-freeze-col-2 text-center fw-semibold text-secondary" style="vertical-align: middle; font-size: 0.82rem;">';
+                        tbodyHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
+                        if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
+                            tbodyHtml += '<span class="th-en" style="font-size: 0.72rem;">' + escapeHtml(p.nama_periode_en) + '</span>';
+                        }
+                        tbodyHtml += '</td>';
+
+                        // Sel-sel Data Kolom (Placeholder Strip)
+                        for (let i = 0; i < totalLeafCols; i++) {
+                            tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
+                        }
+
+                        tbodyHtml += '</tr>';
+                    });
+                }
+            });
         } else {
             barisItems.forEach(function(baris) {
                 let tipe = baris.tipe_baris || 'data';
@@ -1509,18 +1710,95 @@ $(document).ready(function() {
         });
     }
 
+    // Handler Buka Kunci & Reset Data Sel Matriks
+    $('#btn_unlock_reset_data').on('click', function(e) {
+        e.preventDefault();
+        Swal.fire({
+            title: 'Buka Kunci & Reset Data?',
+            html: `
+                <div class="text-start text-sm">
+                    <p class="mb-2">Tabel ini saat ini memiliki <b><?= number_format($total_nilai, 0, ',', '.'); ?> data nilai sel</b> yang tersimpan di database.</p>
+                    <div class="alert alert-danger py-2 px-3 text-xs mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <b>PERHATIAN:</b> Mengubah dimensi baris, kolom, atau periode akan merusak relasi koordinat data yang lama.
+                    </div>
+                    <p class="mb-0 text-xs text-muted">
+                        Jika Anda membuka kunci, <b>seluruh <?= number_format($total_nilai, 0, ',', '.'); ?> data nilai sel pada tabel ini akan dihapus secara permanen</b> dari database. Setelah itu Anda dapat memilih ulang dimensi dan mengunggah/mengisi data baru.
+                    </p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '<i class="bi bi-trash-fill me-1"></i> Ya, Hapus Data & Buka Kunci',
+            cancelButtonText: 'Batal',
+            focusCancel: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Memproses Reset Data...',
+                    text: 'Mohon tunggu sebentar, sedang membersihkan sel matriks.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                $.ajax({
+                    url: '<?= base_url('admin/ajax_reset_nilai_tabel'); ?>',
+                    type: 'POST',
+                    data: {
+                        id_tahun_tabel: <?= (int)$tabel->id_tahun_tabel; ?>
+                    },
+                    dataType: 'json',
+                    success: function(res) {
+                        if (res.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Kunci Dibuka!',
+                                text: res.message || 'Data berhasil direset. Halaman akan dimuat ulang.',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire('Gagal', res.message || 'Terjadi kesalahan saat mereset data.', 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        let errMsg = 'Gagal menghubungi server.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errMsg = xhr.responseJSON.message;
+                        }
+                        Swal.fire('Error', errMsg, 'error');
+                    }
+                });
+            }
+        });
+    });
+
     // Handler Konfirmasi SweetAlert2 saat melepas status dinamis
     $('.btn-unlink-dinamis').on('click', function(e) {
         e.preventDefault();
         const url = $(this).attr('href');
+        const hasData = <?= $total_nilai > 0 ? 'true' : 'false'; ?>;
+        const totalData = '<?= number_format($total_nilai, 0, ',', '.'); ?>';
+
+        let warningHtml = '<p class="text-xs mb-1">Tabel akan dikembalikan ke format non-dinamis (spreadsheet biasa). Konfigurasi dimensi akan dihapus.</p>';
+        if (hasData) {
+            warningHtml += `<div class="alert alert-danger py-2 px-3 text-xs mt-2 text-start"><i class="bi bi-exclamation-triangle-fill me-1"></i><b>Perhatian:</b> Sebanyak <b>${totalData} data nilai sel</b> yang tersimpan di tabel ini juga akan ikut dihapus secara permanen.</div>`;
+        }
+
         Swal.fire({
             title: 'Lepas Status Tabel Dinamis?',
-            text: 'Tabel akan dikembalikan ke format non-dinamis (spreadsheet biasa). Konfigurasi dimensi akan dihapus.',
+            html: warningHtml,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Kembalikan',
+            confirmButtonText: 'Ya, Lepas Status Dinamis',
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {

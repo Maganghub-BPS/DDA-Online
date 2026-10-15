@@ -4071,9 +4071,20 @@ class Admin extends BaseController
 				return redirect()->to('admin/master_dimensi?tab=periode');
 			}
 
+			$judul_ind  = trim((string)$this->request->getPost('judul_periode_ind'));
+			$judul_en   = trim((string)$this->request->getPost('judul_periode_en'));
+			if (empty($judul_ind)) {
+				$judul_ind = 'Tahun';
+			}
+			if (empty($judul_en)) {
+				$judul_en = !empty($nama_en) ? $nama_en : 'Year';
+			}
+
 			$idKelompok = $mTabelDinamis->savePeriodeKelompok([
 				'nama_kelompok_ind' => $nama_ind,
 				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+				'judul_periode_ind' => $judul_ind,
+				'judul_periode_en'  => $judul_en,
 			]);
 
 			if (!empty($items_ind)) {
@@ -4103,9 +4114,20 @@ class Admin extends BaseController
 				return redirect()->to('admin/master_dimensi?tab=periode');
 			}
 
+			$judul_ind = trim((string)$this->request->getPost('judul_periode_ind'));
+			$judul_en  = trim((string)$this->request->getPost('judul_periode_en'));
+			if (empty($judul_ind)) {
+				$judul_ind = 'Tahun';
+			}
+			if (empty($judul_en)) {
+				$judul_en = 'Year';
+			}
+
 			$mTabelDinamis->savePeriodeKelompok([
 				'nama_kelompok_ind' => $nama_ind,
 				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+				'judul_periode_ind' => $judul_ind,
+				'judul_periode_en'  => $judul_en,
 			], $id);
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Periode berhasil diperbarui!</div>");
@@ -4248,9 +4270,18 @@ class Admin extends BaseController
 		// Cek apakah indikator untuk tabel ini sudah pernah dirakit
 		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
 
+		// Hitung jumlah data nilai sel dinamis yang sudah tersimpan
+		$total_nilai = 0;
+		if ($indikator) {
+			$total_nilai = (int)$this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id)
+				->countAllResults();
+		}
+
 		// Ambil seluruh kamus dimensi master untuk dropdown
 		$a['tabel']              = $tabel;
 		$a['indikator']          = $indikator;
+		$a['total_nilai']        = $total_nilai;
 		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
 		$a['list_baris']         = $mTabelDinamis->getBarisKelompokAll();
 		$a['list_periode']       = $mTabelDinamis->getPeriodeKelompokAll();
@@ -4309,19 +4340,59 @@ class Admin extends BaseController
 			$itemsBaris    = $mTabelDinamis->getBarisItems($id_baris);
 		}
 
-		$itemsPeriode = [];
+		$itemsPeriode    = [];
+		$kelompokPeriode = null;
 		if ($id_periode > 0) {
-			$itemsPeriode = $mTabelDinamis->getPeriodeItems($id_periode);
+			$kelompokPeriode = $this->db->table('m_periode_kelompok')->where('id', $id_periode)->get()->getRow();
+			$itemsPeriode    = $mTabelDinamis->getPeriodeItems($id_periode);
 		}
 
 		return $this->response->setJSON([
-			'status'         => 'success',
-			'kolom'          => $structureKolom,
-			'kolom_raw'      => $itemsKolom,
-			'baris'          => $itemsBaris,
-			'baris_kelompok' => $kelompokBaris,
-			'periode'        => $itemsPeriode,
-			'tingkat_kolom'  => $tingkat_kolom
+			'status'           => 'success',
+			'kolom'            => $structureKolom,
+			'kolom_raw'        => $itemsKolom,
+			'baris'            => $itemsBaris,
+			'baris_kelompok'   => $kelompokBaris,
+			'periode'          => $itemsPeriode,
+			'periode_kelompok' => $kelompokPeriode,
+			'tingkat_kolom'    => $tingkat_kolom
+		]);
+	}
+
+	/**
+	 * AJAX Endpoint: Reset/Hapus seluruh nilai matriks dinamis (t_nilai_dinamis)
+	 * untuk membuka kunci konfigurasi dimensi tabel
+	 */
+	public function ajax_reset_nilai_tabel()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		// Hak akses: hanya untuk akun BPS
+		$unitkerjalogin = $this->session->get('admin_unitkerja');
+		if ($unitkerjalogin != 'bps') {
+			return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Fitur ini hanya untuk Admin BPS.']);
+		}
+
+		$id_tahun_tabel = (int)$this->request->getPost('id_tahun_tabel');
+		if (empty($id_tahun_tabel)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'ID Tabel tidak valid.']);
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+		if (!$indikator) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Konfigurasi indikator tabel tidak ditemukan.']);
+		}
+
+		$countDeleted = (int)$this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults();
+		$mTabelDinamis->clearNilai((int)$indikator->id);
+
+		return $this->response->setJSON([
+			'status'       => 'success',
+			'message'      => 'Berhasil menghapus ' . number_format($countDeleted, 0, ',', '.') . ' data nilai sel. Kunci dimensi telah dibuka dan Anda dapat memilih ulang dimensi tabel.',
+			'deleted_rows' => $countDeleted
 		]);
 	}
 
@@ -4339,7 +4410,7 @@ class Admin extends BaseController
 		$id_baris             = (int)$this->request->getPost('id_baris_kelompok');
 		$id_periode           = (int)($this->request->getPost('id_periode_kelompok') ?: 0);
 		$posisi_hirarki       = trim((string)$this->request->getPost('posisi_hirarki'));
-		if ($posisi_hirarki !== 'periode_atas') {
+		if (!in_array($posisi_hirarki, ['kolom_atas', 'periode_atas', 'periode_baris'], true)) {
 			$posisi_hirarki = 'kolom_atas';
 		}
 		$tingkat_kolom        = trim((string)$this->request->getPost('tingkat_kolom'));
@@ -4369,6 +4440,19 @@ class Admin extends BaseController
 
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$existing = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+
+		// Safety Lock: Jika tabel sudah memiliki data nilai sel dinamis, kunci dimensi tidak boleh diubah
+		if ($existing) {
+			$total_nilai = (int)$this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$existing->id)
+				->countAllResults();
+			if ($total_nilai > 0) {
+				// Paksa menggunakan dimensi existing agar integritas koordinat tetap terjaga
+				$id_baris         = (int)$existing->id_baris_kelompok;
+				$id_karakteristik = (int)($existing->id_karakteristik_kelompok ?: 0);
+				$id_periode       = (int)($existing->id_periode_kelompok ?: 0);
+			}
+		}
 
 		// Sumber dan catatan: jika tidak dikirim dalam form (karena UI compact), pertahankan data existing atau default instansi
 		$hasPostSumber  = $this->request->getPost('sumber') !== null;
@@ -4535,7 +4619,8 @@ class Admin extends BaseController
 			}
 
 			if (!empty($indikator->id_periode_kelompok)) {
-				$itemsPeriode = $mTabelDinamis->getPeriodeItems((int)$indikator->id_periode_kelompok);
+				$kelompokPeriode = $mTabelDinamis->getPeriodeKelompok((int)$indikator->id_periode_kelompok);
+				$itemsPeriode    = $mTabelDinamis->getPeriodeItems((int)$indikator->id_periode_kelompok);
 			}
 
 			// Ambil nilai sel dari t_nilai_dinamis
@@ -4552,17 +4637,18 @@ class Admin extends BaseController
 			}
 		}
 
-		$a['page']           = 'v_tabel_dinamis';
-		$a['page_title']     = 'Pratinjau Tabel Dinamis';
-		$a['tabel']          = $tabel;
-		$a['indikator']      = $indikator;
-		$a['structureKolom'] = $structureKolom;
-		$a['itemsKolom']     = $itemsKolom;
-		$a['itemsBaris']     = $itemsBaris;
-		$a['kelompokBaris']  = $kelompokBaris;
-		$a['itemsPeriode']   = $itemsPeriode;
-		$a['nilaiMap']       = $nilaiMap;
-		$a['is_admin_bps']   = ($this->session->get('admin_unitkerja') == 'bps');
+		$a['page']            = 'v_tabel_dinamis';
+		$a['page_title']      = 'Pratinjau Tabel Dinamis';
+		$a['tabel']           = $tabel;
+		$a['indikator']       = $indikator;
+		$a['structureKolom']  = $structureKolom;
+		$a['itemsKolom']      = $itemsKolom;
+		$a['itemsBaris']      = $itemsBaris;
+		$a['kelompokBaris']   = $kelompokBaris;
+		$a['itemsPeriode']    = $itemsPeriode;
+		$a['kelompokPeriode'] = $kelompokPeriode ?? null;
+		$a['nilaiMap']        = $nilaiMap;
+		$a['is_admin_bps']    = ($this->session->get('admin_unitkerja') == 'bps');
 
 		return view('admin/index', $a);
 	}

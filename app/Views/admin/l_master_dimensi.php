@@ -667,8 +667,16 @@
                                         <td class="text-center fw-semibold text-muted"><?= $no++; ?></td>
                                         <td>
                                             <div class="item-title"><?= esc($p->nama_kelompok_ind); ?></div>
+                                            <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
+                                                <span class="badge bg-light text-dark border small px-2 py-0" style="font-size: 0.75rem;" title="Judul Header jika periode dijadikan baris pada tabel">
+                                                    <i class="bi bi-table me-1 text-success"></i>Header: <strong><?= esc($p->judul_periode_ind ?: 'Tahun'); ?></strong>
+                                                    <?php if (!empty($p->judul_periode_en)): ?>
+                                                        <span class="text-muted fst-italic">/ <?= esc($p->judul_periode_en); ?></span>
+                                                    <?php endif; ?>
+                                                </span>
+                                            </div>
                                             <?php if (!empty($p->nama_kelompok_en)): ?>
-                                                <div class="text-success item-sub"><i class="bi bi-translate me-1"></i><?= esc($p->nama_kelompok_en); ?></div>
+                                                <div class="text-success item-sub mt-1"><i class="bi bi-translate me-1"></i><?= esc($p->nama_kelompok_en); ?></div>
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-center">
@@ -686,6 +694,8 @@
                                                 <button type="button" class="btn btn-sm btn-light border rounded-3 btn-action-dimensi btn-edit-periode"
                                                         data-id="<?= $p->id; ?>" data-ind="<?= esc($p->nama_kelompok_ind); ?>"
                                                         data-en="<?= esc($p->nama_kelompok_en ?? ''); ?>"
+                                                        data-judul-ind="<?= esc($p->judul_periode_ind ?? 'Tahun'); ?>"
+                                                        data-judul-en="<?= esc($p->judul_periode_en ?? 'Year'); ?>"
                                                         title="Edit Nama Kelompok">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
@@ -1202,10 +1212,30 @@
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small mb-1">Nama Kelompok (Bahasa Indonesia) <span class="text-danger">*</span></label>
                             <input type="text" name="nama_kelompok_ind" id="add_periode_nama_ind" class="form-control" placeholder="Contoh: Triwulanan 2025, atau Tahunan 2021-2025" required>
+                            <div class="text-xxs text-muted mt-1">Nama untuk pilihan dropdown di aplikasi.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small mb-1">Nama Kelompok (English)</label>
                             <input type="text" name="nama_kelompok_en" id="add_periode_nama_en" class="form-control" placeholder="Contoh: Quarterly 2025, atau Annual 2021-2025">
+                            <div class="text-xxs text-muted mt-1">Label kelompok bahasa Inggris (opsional).</div>
+                        </div>
+                    </div>
+
+                    <!-- Baris 1b: Judul Kolom Periode di Tabel -->
+                    <div class="row g-3 mb-3 p-2 rounded-3 border" style="background: #f8fafc;">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small mb-1">
+                                <i class="bi bi-table text-success me-1"></i> Judul Kolom Header (Indonesia) <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="judul_periode_ind" id="add_periode_judul_ind" class="form-control form-control-sm" value="Tahun" placeholder="Contoh: Tahun, Triwulan, Bulan" required>
+                            <div class="text-xxs text-muted mt-1">Teks header tabel jika periode dijadikan kolom/baris (misal: <b>Tahun</b>).</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-dark small mb-1">
+                                <i class="bi bi-translate text-primary me-1"></i> Judul Kolom Header (English)
+                            </label>
+                            <input type="text" name="judul_periode_en" id="add_periode_judul_en" class="form-control form-control-sm" value="Year" placeholder="Contoh: Year, Quarter, Month">
+                            <div class="text-xxs text-muted mt-1">Label header bahasa Inggris (misal: <b>Year</b>).</div>
                         </div>
                     </div>
 
@@ -1281,6 +1311,16 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Nama Kelompok (English)</label>
                         <input type="text" name="nama_kelompok_en" id="edit_periode_en" class="form-control">
+                    </div>
+                    <div class="row g-2 p-2 rounded-3 border bg-light mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small mb-1"><i class="bi bi-table text-success me-1"></i>Judul Kolom Header (ID) <span class="text-danger">*</span></label>
+                            <input type="text" name="judul_periode_ind" id="edit_periode_judul_ind" class="form-control form-control-sm" placeholder="Contoh: Tahun" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small mb-1"><i class="bi bi-translate text-primary me-1"></i>Judul Kolom Header (EN)</label>
+                            <input type="text" name="judul_periode_en" id="edit_periode_judul_en" class="form-control form-control-sm" placeholder="Contoh: Year">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light">
@@ -2481,6 +2521,8 @@ $(document).ready(function() {
         $('#edit_periode_id').val($(this).data('id'));
         $('#edit_periode_ind').val($(this).data('ind'));
         $('#edit_periode_en').val($(this).data('en'));
+        $('#edit_periode_judul_ind').val($(this).data('judul-ind') || 'Tahun');
+        $('#edit_periode_judul_en').val($(this).data('judul-en') || 'Year');
         $('#modalEditPeriode').modal('show');
     });
 
