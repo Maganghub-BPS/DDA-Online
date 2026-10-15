@@ -849,6 +849,21 @@ class ExcelTemplateGenerator
                 $tipeBaris = 'kategori';
             }
 
+            // Pengaturan Override Baris Total (Jawa Tengah vs Jumlah vs Sembunyikan vs Kustom)
+            $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+            if ($tipeBaris === 'total') {
+                if ($cfgTotal === 'none') {
+                    continue; // Sembunyikan baris total dari template Excel
+                }
+                if ($cfgTotal === 'jawa_tengah') {
+                    $namaBaris = 'Jawa Tengah';
+                } elseif ($cfgTotal === 'jumlah') {
+                    $namaBaris = 'Jumlah';
+                } elseif ($cfgTotal === 'kustom' && !empty($indikator->label_total_kustom)) {
+                    $namaBaris = $indikator->label_total_kustom;
+                }
+            }
+
             $level     = (int)($baris->level_indentasi ?? 0);
             $isBold    = ((int)($baris->is_bold ?? 0) === 1 || $tipeBaris === 'total' || $tipeBaris === 'kategori');
 

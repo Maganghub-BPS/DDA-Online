@@ -267,8 +267,28 @@ class ExcelDataParser
                 $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {
                     $tipe = $bItem->tipe_baris ?? 'data';
+                    $lowerBaris = strtolower(trim($bItem->nama_baris_ind ?? ''));
+                    if ($tipe !== 'total') {
+                        if (
+                            $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
+                            strpos($lowerBaris, 'jawa tengah') !== false || 
+                            strpos($lowerBaris, 'produk domestik regional bruto') !== false || 
+                            $lowerBaris === 'pdrb' || 
+                            strpos($lowerBaris, 'gross regional domestic product') !== false || 
+                            $lowerBaris === 'grdp'
+                        ) {
+                            if (strpos($lowerBaris, 'curah hujan') === false && strpos($lowerBaris, 'hari hujan') === false) {
+                                $tipe = 'total';
+                            }
+                        }
+                    }
                     if ($isParentBaris($bIdx, $itemsBaris)) {
                         $tipe = 'kategori';
+                    }
+
+                    $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+                    if ($tipe === 'total' && $cfgTotal === 'none') {
+                        continue;
                     }
 
                     if ($tipe === 'kategori') {
@@ -354,17 +374,40 @@ class ExcelDataParser
 
             if ($posisi_hirarki !== 'periode_baris') {
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
+                $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {
                     $tipe = $bItem->tipe_baris ?? 'data';
+                    $lowerBaris = strtolower(trim($bItem->nama_baris_ind ?? ''));
+                    if ($tipe !== 'total') {
+                        if (
+                            $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
+                            strpos($lowerBaris, 'jawa tengah') !== false || 
+                            strpos($lowerBaris, 'produk domestik regional bruto') !== false || 
+                            $lowerBaris === 'pdrb' || 
+                            strpos($lowerBaris, 'gross regional domestic product') !== false || 
+                            $lowerBaris === 'grdp'
+                        ) {
+                            if (strpos($lowerBaris, 'curah hujan') === false && strpos($lowerBaris, 'hari hujan') === false) {
+                                $tipe = 'total';
+                            }
+                        }
+                    }
                     if ($isParentBaris($bIdx, $itemsBaris)) {
                         $tipe = 'kategori';
                     }
+
+                    $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+                    if ($tipe === 'total' && $cfgTotal === 'none') {
+                        continue;
+                    }
+
                     $rowItems[] = [
-                        'excel_row' => $startR + $bIdx,
+                        'excel_row' => $currR,
                         'id_baris'  => (int)$bItem->id,
                         'tipe'      => $tipe,
                         'nama'      => $bItem->nama_baris_ind ?? '',
                     ];
+                    $currR++;
                 }
             }
         }

@@ -4417,6 +4417,14 @@ class Admin extends BaseController
 		if (empty($tingkat_kolom)) {
 			$tingkat_kolom = 'semua';
 		}
+		$konfigurasi_total    = trim((string)$this->request->getPost('konfigurasi_total'));
+		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom'], true)) {
+			$konfigurasi_total = 'default';
+		}
+		$label_total_kustom   = trim((string)$this->request->getPost('label_total_kustom'));
+		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
+			$label_total_kustom = null;
+		}
 		$sumber               = trim((string)$this->request->getPost('sumber'));
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
@@ -4480,6 +4488,8 @@ class Admin extends BaseController
 			'id_periode_kelompok'           => !empty($id_periode) ? $id_periode : null,
 			'posisi_hirarki'                => $posisi_hirarki,
 			'tingkat_kolom'                 => $tingkat_kolom,
+			'konfigurasi_total'             => $konfigurasi_total,
+			'label_total_kustom'            => $label_total_kustom,
 			'satuan'                        => null,
 			'desimal'                       => 0,
 			'grafik_default'                => 'bar',

@@ -1003,13 +1003,26 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
                         <?php
                             // 3. Deteksi Baris Grand Total (JUMLAH / JAWA TENGAH / PRODUK DOMESTIK REGIONAL BRUTO)
                             elseif ($isTotalRow):
-                                $totalLabel = $rawNamaInd;
-                                if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd && strtolower($rawNamaEn) !== 'jawa tengah') {
-                                    $totalLabel .= ' / ' . $rawNamaEn;
-                                } elseif ($lowerNamaInd === 'jumlah') {
-                                    $totalLabel .= ' / Total';
-                                } elseif ($lowerNamaInd === 'total') {
-                                    $totalLabel .= ' / Total';
+                                $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+                                if ($cfgTotal === 'none') {
+                                    continue; // Lewati baris total jika dikonfigurasi Tanpa Total
+                                }
+
+                                if ($cfgTotal === 'jawa_tengah') {
+                                    $totalLabel = 'Jawa Tengah / Central Java';
+                                } elseif ($cfgTotal === 'jumlah') {
+                                    $totalLabel = 'Jumlah / Total';
+                                } elseif ($cfgTotal === 'kustom' && !empty($indikator->label_total_kustom)) {
+                                    $totalLabel = $indikator->label_total_kustom;
+                                } else {
+                                    $totalLabel = $rawNamaInd;
+                                    if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd && strtolower($rawNamaEn) !== 'jawa tengah') {
+                                        $totalLabel .= ' / ' . $rawNamaEn;
+                                    } elseif ($lowerNamaInd === 'jumlah') {
+                                        $totalLabel .= ' / Total';
+                                    } elseif ($lowerNamaInd === 'total') {
+                                        $totalLabel .= ' / Total';
+                                    }
                                 }
 
                                 if ($posisi_hirarki === 'periode_baris'):

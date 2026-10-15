@@ -23,6 +23,8 @@ class M_tabeldinamis extends Model
         'id_periode_kelompok',
         'posisi_hirarki',
         'tingkat_kolom',
+        'konfigurasi_total',
+        'label_total_kustom',
         'satuan',
         'desimal',
         'grafik_default',
