@@ -4102,7 +4102,13 @@ class Admin extends BaseController
 			$cmd .= " 2>&1";
 
 			$output = shell_exec($cmd);
+			$output = trim((string)$output);
+			$output = preg_replace('/^[\xEF\xBB\xBF\s]+/', '', $output);
 			$data = json_decode($output, true);
+			if ((!$data || !is_array($data)) && json_last_error() === JSON_ERROR_UTF8) {
+				$outputClean = mb_convert_encoding($output, 'UTF-8', 'auto');
+				$data = json_decode($outputClean, true);
+			}
 
 			if (!$data || !is_array($data)) {
 				return $this->response->setJSON([
@@ -4153,7 +4159,13 @@ class Admin extends BaseController
 			$cmd .= " 2>&1";
 
 			$output = shell_exec($cmd);
+			$output = trim((string)$output);
+			$output = preg_replace('/^[\xEF\xBB\xBF\s]+/', '', $output);
 			$data = json_decode($output, true);
+			if ((!$data || !is_array($data)) && json_last_error() === JSON_ERROR_UTF8) {
+				$outputClean = mb_convert_encoding($output, 'UTF-8', 'auto');
+				$data = json_decode($outputClean, true);
+			}
 
 			if (!$data || !is_array($data)) {
 				return $this->response->setJSON([
@@ -4170,6 +4182,164 @@ class Admin extends BaseController
 			}
 
 			return $this->response->setJSON($data);
+		}
+
+		// ---------------------------------------------------------------------
+		// AKSI: SIMPAN TERPADU (KOLOM & BARIS SEKALIGUS DARI 1 FILE EXCEL/SHEET)
+		// ---------------------------------------------------------------------
+		if ($action === 'save_terpadu_dimensi') {
+			$saveKolom   = (string)$this->request->getPost('save_kolom') === '1';
+			$saveBaris   = (string)$this->request->getPost('save_baris') === '1';
+			$savePeriode = (string)$this->request->getPost('save_periode') === '1';
+
+			if (!$saveKolom && !$saveBaris && !$savePeriode) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Pilih minimal satu dimensi untuk disimpan (Karakteristik Kolom, Judul Baris, atau Periode Waktu).'
+				]);
+			}
+
+			$savedParts = [];
+
+			// 1. Simpan Karakteristik Kolom jika dipilih
+			if ($saveKolom) {
+				$namaKolomInd = trim((string)$this->request->getPost('nama_kolom_ind'));
+				$namaKolomEn  = trim((string)$this->request->getPost('nama_kolom_en'));
+				$itemsKolomInd = trim((string)$this->request->getPost('items_kolom_ind'));
+				$itemsKolomEn  = trim((string)$this->request->getPost('items_kolom_en'));
+
+				if (empty($namaKolomInd)) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => 'Nama Kelompok Karakteristik (Kolom) Bahasa Indonesia wajib diisi!'
+					]);
+				}
+
+				// Cek duplikasi cerdas
+				$dupKolom = $this->checkDuplicateDimensi('m_karakteristik_kelompok', $namaKolomInd);
+				if ($dupKolom) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => "Gagal: Nama Kelompok Karakteristik '{$namaKolomInd}' sudah ada / serupa dengan '{$dupKolom['existing_name']}'!"
+					]);
+				}
+
+				$idKelompokKolom = $mTabelDinamis->saveKarakteristikKelompok([
+					'nama_kelompok_ind' => $namaKolomInd,
+					'nama_kelompok_en'  => !empty($namaKolomEn) ? $namaKolomEn : null,
+				]);
+
+				$kolomCount = 0;
+				if (!empty($itemsKolomInd)) {
+					$lines_ind = preg_split('/\r\n|\r|\n/', $itemsKolomInd);
+					$lines_en  = !empty($itemsKolomEn) ? preg_split('/\r\n|\r|\n/', $itemsKolomEn) : [];
+					$items = [];
+					$no = 1;
+
+					foreach ($lines_ind as $idx => $l_ind) {
+						$l_ind = trim($l_ind);
+						if ($l_ind === '') continue;
+						$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+						$items[] = [
+							'item_ind' => $l_ind,
+							'item_en'  => $l_en,
+							'no_urut'  => $no++,
+						];
+					}
+					$mTabelDinamis->syncKarakteristikItems($idKelompokKolom, $items);
+					$kolomCount = count($items);
+				}
+				$savedParts[] = "Karakteristik Kolom '<strong>" . esc($namaKolomInd) . "</strong>' ({$kolomCount} kolom)";
+			}
+
+			// 2. Simpan Judul Baris jika dipilih
+			if ($saveBaris) {
+				$namaBarisInd = trim((string)$this->request->getPost('nama_baris_ind'));
+				$namaBarisEn  = trim((string)$this->request->getPost('nama_baris_en'));
+				$itemsBarisInd = trim((string)$this->request->getPost('items_baris_ind'));
+				$itemsBarisEn  = trim((string)$this->request->getPost('items_baris_en'));
+
+				if (empty($namaBarisInd)) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => 'Nama Kelompok Judul Baris Bahasa Indonesia wajib diisi!'
+					]);
+				}
+
+				// Cek duplikasi cerdas
+				$dupBaris = $this->checkDuplicateDimensi('m_baris_kelompok', $namaBarisInd);
+				if ($dupBaris) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => "Gagal: Nama Kelompok Baris '{$namaBarisInd}' sudah ada / serupa dengan '{$dupBaris['existing_name']}'!"
+					]);
+				}
+
+				$idKelompokBaris = $mTabelDinamis->saveBarisKelompok([
+					'nama_kelompok_ind' => $namaBarisInd,
+					'nama_kelompok_en'  => !empty($namaBarisEn) ? $namaBarisEn : null,
+				]);
+
+				if (!empty($itemsBarisInd)) {
+					$mTabelDinamis->parseBarisFromText($idKelompokBaris, $itemsBarisInd, $itemsBarisEn);
+				}
+				$savedParts[] = "Judul Baris '<strong>" . esc($namaBarisInd) . "</strong>'";
+			}
+
+			// 3. Simpan Periode Waktu jika dipilih
+			if ($savePeriode) {
+				$namaPeriodeInd = trim((string)$this->request->getPost('nama_periode_ind'));
+				$namaPeriodeEn  = trim((string)$this->request->getPost('nama_periode_en'));
+				$itemsPeriodeInd = trim((string)$this->request->getPost('items_periode_ind'));
+				$itemsPeriodeEn  = trim((string)$this->request->getPost('items_periode_en'));
+
+				if (empty($namaPeriodeInd)) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => 'Nama Kelompok Periode Waktu Bahasa Indonesia wajib diisi!'
+					]);
+				}
+
+				// Cek duplikasi cerdas
+				$dupPeriode = $this->checkDuplicateDimensi('m_periode_kelompok', $namaPeriodeInd);
+				if ($dupPeriode) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => "Gagal: Nama Kelompok Periode '{$namaPeriodeInd}' sudah ada / serupa dengan '{$dupPeriode['existing_name']}'!"
+					]);
+				}
+
+				$idKelompokPeriode = $mTabelDinamis->savePeriodeKelompok([
+					'nama_kelompok_ind' => $namaPeriodeInd,
+					'nama_kelompok_en'  => !empty($namaPeriodeEn) ? $namaPeriodeEn : null,
+				]);
+
+				$periodeCount = 0;
+				if (!empty($itemsPeriodeInd)) {
+					$mTabelDinamis->parsePeriodeFromText($idKelompokPeriode, $itemsPeriodeInd, $itemsPeriodeEn);
+					$lines_p = preg_split('/\r\n|\r|\n/', trim($itemsPeriodeInd));
+					$periodeCount = count(array_filter($lines_p, fn($v) => trim($v) !== ''));
+				}
+				$savedParts[] = "Periode Waktu '<strong>" . esc($namaPeriodeInd) . "</strong>' ({$periodeCount} periode)";
+			}
+
+			$summaryMsg = "Impor Terpadu Berhasil! " . implode(', ', $savedParts) . " berhasil disimpan.";
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">{$summaryMsg}</div>");
+
+			$redirectTab = 'karakteristik';
+			if ($saveKolom) {
+				$redirectTab = 'karakteristik';
+			} elseif ($saveBaris) {
+				$redirectTab = 'baris';
+			} elseif ($savePeriode) {
+				$redirectTab = 'periode';
+			}
+
+			return $this->response->setJSON([
+				'status'   => 'success',
+				'message'  => $summaryMsg,
+				'redirect' => base_url('admin/master_dimensi?tab=' . $redirectTab)
+			]);
 		}
 
 		// ---------------------------------------------------------------------
