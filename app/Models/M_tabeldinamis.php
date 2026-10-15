@@ -398,17 +398,15 @@ class M_tabeldinamis extends Model
             $is_user_total = (!empty($item['is_total']) || $tipe_baris === 'total');
             $detectedTipe  = $this->detectTipeBaris($nama_ind, $level_indentasi);
 
-            if ($is_user_total || $detectedTipe === 'total') {
+            if (!empty($tipe_baris) && in_array($tipe_baris, $validTypes, true)) {
+                // Prioritas tertinggi: pertahankan tipe fungsional yang eksplisit dipilih pengguna
+                if (!empty($item['is_total']) && $tipe_baris !== 'data' && $tipe_baris !== 'kategori') {
+                    $tipe_baris = 'total';
+                }
+            } elseif ($is_user_total || $detectedTipe === 'total') {
                 $tipe_baris = 'total';
-            } elseif (!empty($tipe_baris) && in_array($tipe_baris, $validTypes, true)) {
-                // Pertahankan tipe fungsional yang eksplisit dipilih pengguna (kategori, data, subtotal, total)
             } else {
                 $tipe_baris = $detectedTipe;
-            }
-
-            // Jika seluruh kelompok flat (maxLevel == 0), tidak boleh ada tipe 'kategori'
-            if ($maxLevel === 0 && $tipe_baris === 'kategori') {
-                $tipe_baris = 'data';
             }
 
             $is_bold = !empty($item['is_bold']) ? 1 : ($tipe_baris === 'total' || $tipe_baris === 'kategori' ? 1 : 0);

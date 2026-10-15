@@ -217,38 +217,40 @@ class ExcelDataParser
             }
 
             $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
-                // Jika seluruh kelompok baris ber-level 0 (daftar flat), tidak ada baris yang merupakan parent banner!
+                $cur = $items[$idx];
+                $tipe = strtolower(trim($cur->tipe_baris ?? ''));
+
+                // 1. Sesuai role badge di Master Dimensi
+                if ($tipe === 'kategori') {
+                    return true;
+                }
+                if ($tipe === 'data' || $tipe === 'total' || $tipe === 'subtotal') {
+                    return false;
+                }
+
+                // 2. Fallback untuk data lawas jika belum terisi
                 if ($maxBarisGroupLevel === 0) {
                     return false;
                 }
 
-                $cur = $items[$idx];
-                $tipe = $cur->tipe_baris ?? 'data';
                 $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ''));
-                if ($tipe !== 'total') {
-                    if (
-                        $lowerNama === 'jumlah' || $lowerNama === 'total' || 
-                        strpos($lowerNama, 'jawa tengah') !== false || 
-                        strpos($lowerNama, 'produk domestik regional bruto') !== false || 
-                        $lowerNama === 'pdrb' || 
-                        strpos($lowerNama, 'gross regional domestic product') !== false || 
-                        $lowerNama === 'grdp'
-                    ) {
-                        if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
-                            $tipe = 'total';
-                        }
+                if (
+                    $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                    strpos($lowerNama, 'jawa tengah') !== false || 
+                    strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                    $lowerNama === 'pdrb' || 
+                    strpos($lowerNama, 'gross regional domestic product') !== false || 
+                    $lowerNama === 'grdp'
+                ) {
+                    if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                        return false;
                     }
                 }
-                if ($tipe === 'total' || $tipe === 'subtotal') {
-                    return false;
-                }
 
-                // Baris hanya menjadi banner kategori tanpa sel data JIKA tipe_baris === 'kategori' atau kata kunci khusus pembatas wilayah
-                if ($tipe === 'kategori' || $lowerNama === 'kabupaten' || $lowerNama === 'kota') {
+                if ($lowerNama === 'kabupaten' || $lowerNama === 'kota') {
                     return true;
                 }
 
-                // Baris bertipe 'data' (meskipun memiliki sub-level/hierarki di bawahnya seperti PDRB) tetap memiliki sel data angka
                 return false;
             };
 
@@ -276,9 +278,9 @@ class ExcelDataParser
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {
-                    $tipe = $bItem->tipe_baris ?? 'data';
+                    $tipe = strtolower(trim($bItem->tipe_baris ?? ''));
                     $lowerBaris = strtolower(trim($bItem->nama_baris_ind ?? ''));
-                    if ($tipe !== 'total') {
+                    if (!$tipe) {
                         if (
                             $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
                             strpos($lowerBaris, 'jawa tengah') !== false || 
@@ -291,6 +293,7 @@ class ExcelDataParser
                                 $tipe = 'total';
                             }
                         }
+                        if (!$tipe) $tipe = 'data';
                     }
                     if ($isParentBaris($bIdx, $itemsBaris)) {
                         $tipe = 'kategori';
@@ -386,9 +389,9 @@ class ExcelDataParser
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {
-                    $tipe = $bItem->tipe_baris ?? 'data';
+                    $tipe = strtolower(trim($bItem->tipe_baris ?? ''));
                     $lowerBaris = strtolower(trim($bItem->nama_baris_ind ?? ''));
-                    if ($tipe !== 'total') {
+                    if (!$tipe) {
                         if (
                             $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
                             strpos($lowerBaris, 'jawa tengah') !== false || 
@@ -401,6 +404,7 @@ class ExcelDataParser
                                 $tipe = 'total';
                             }
                         }
+                        if (!$tipe) $tipe = 'data';
                     }
                     if ($isParentBaris($bIdx, $itemsBaris)) {
                         $tipe = 'kategori';

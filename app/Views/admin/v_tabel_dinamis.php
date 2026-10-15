@@ -936,60 +936,68 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
 
                         // Helper untuk mendeteksi apakah baris adalah Parent / Header Banner (kategori melintang tanpa sel data)
                         $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
-                            // Jika seluruh kelompok baris ber-level 0 (daftar flat), tidak ada baris yang merupakan parent banner!
+                            $cur = $items[$idx];
+                            $tipe = strtolower(trim($cur->tipe_baris ?? ''));
+
+                            // 1. Sesuai role badge di Master Dimensi
+                            if ($tipe === 'kategori') {
+                                return true; // Kategori: banner pemisah sekat tanpa sel data
+                            }
+                            if ($tipe === 'data' || $tipe === 'total' || $tipe === 'subtotal') {
+                                return false; // Data / Total: baris fungsional dengan sel data
+                            }
+
+                            // 2. Fallback untuk data lawas jika belum terisi
                             if ($maxBarisGroupLevel === 0) {
                                 return false;
                             }
 
-                            $cur = $items[$idx];
-                            $tipe = $cur->tipe_baris ?? 'data';
                             $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ''));
-                            if ($tipe !== 'total') {
-                                if (
-                                    $lowerNama === 'jumlah' || $lowerNama === 'total' || 
-                                    strpos($lowerNama, 'jawa tengah') !== false || 
-                                    strpos($lowerNama, 'produk domestik regional bruto') !== false || 
-                                    $lowerNama === 'pdrb' || 
-                                    strpos($lowerNama, 'gross regional domestic product') !== false || 
-                                    $lowerNama === 'grdp'
-                                ) {
-                                    if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
-                                        $tipe = 'total';
-                                    }
+                            if (
+                                $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                                strpos($lowerNama, 'jawa tengah') !== false || 
+                                strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                                $lowerNama === 'pdrb' || 
+                                strpos($lowerNama, 'gross regional domestic product') !== false || 
+                                $lowerNama === 'grdp'
+                            ) {
+                                if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                                    return false;
                                 }
                             }
-                            if ($tipe === 'total' || $tipe === 'subtotal') {
-                                return false;
-                            }
 
-                            // Baris hanya menjadi banner kategori tanpa sel data JIKA tipe_baris === 'kategori' atau kata kunci khusus pembatas wilayah
-                            if ($tipe === 'kategori' || $lowerNama === 'kabupaten' || $lowerNama === 'kota') {
+                            if ($lowerNama === 'kabupaten' || $lowerNama === 'kota') {
                                 return true;
                             }
 
-                            // Baris bertipe 'data' (meskipun memiliki sub-level/hierarki di bawahnya seperti PDRB) tetap memiliki sel data angka
                             return false;
                         };
 
                         foreach ($itemsBaris as $bIdx => $baris):
-                            $tipe         = $baris->tipe_baris ?: 'data';
+                            $tipe         = strtolower(trim($baris->tipe_baris ?? ''));
                             $rawNamaInd   = trim($baris->nama_baris_ind);
                             $rawNamaEn    = trim($baris->nama_baris_en ?: '');
                             $lowerNamaInd = strtolower($rawNamaInd);
 
                             // 1. Deteksi Baris Grand Total (tipe === 'total' atau nama PDRB, Jawa Tengah, Jumlah, dsb.)
-                            $isTotalRow = (
-                                $tipe === 'total' || 
-                                $lowerNamaInd === 'jumlah' || 
-                                $lowerNamaInd === 'total' || 
-                                strpos($lowerNamaInd, 'jawa tengah') !== false ||
-                                strpos($lowerNamaInd, 'produk domestik regional bruto') !== false ||
-                                $lowerNamaInd === 'pdrb' ||
-                                strpos($lowerNamaInd, 'gross regional domestic product') !== false ||
-                                $lowerNamaInd === 'grdp'
-                            )
-                            && strpos($lowerNamaInd, 'curah hujan') === false
-                            && strpos($lowerNamaInd, 'hari hujan') === false;
+                            $isTotalRow = false;
+                            if ($tipe === 'total') {
+                                $isTotalRow = true;
+                            } elseif ($tipe === 'data' || $tipe === 'kategori') {
+                                $isTotalRow = false;
+                            } else {
+                                $isTotalRow = (
+                                    $lowerNamaInd === 'jumlah' || 
+                                    $lowerNamaInd === 'total' || 
+                                    strpos($lowerNamaInd, 'jawa tengah') !== false || 
+                                    strpos($lowerNamaInd, 'produk domestik regional bruto') !== false || 
+                                    $lowerNamaInd === 'pdrb' || 
+                                    strpos($lowerNamaInd, 'gross regional domestic product') !== false || 
+                                    $lowerNamaInd === 'grdp'
+                                )
+                                && strpos($lowerNamaInd, 'curah hujan') === false
+                                && strpos($lowerNamaInd, 'hari hujan') === false;
+                            }
 
                             // 2. Deteksi Baris Pembatas Kategori / Parent Header Level Atas
                             $isCategoryDivider = !$isTotalRow && $isParentBaris($bIdx, $itemsBaris);

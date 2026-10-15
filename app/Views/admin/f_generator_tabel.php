@@ -1189,9 +1189,9 @@ $(document).ready(function() {
         // Deteksi apakah master baris memiliki item total untuk menyesuaikan label dropdown
         let masterTotalItem = null;
         barisItems.forEach(function(b) {
-            let t = b.tipe_baris || 'data';
+            let t = (b.tipe_baris || '').toLowerCase().trim();
             let l = (b.nama_baris_ind || '').toLowerCase().trim();
-            if (t === 'total' || l === 'jumlah' || l === 'total' || l.includes('jawa tengah') || l.includes('produk domestik regional bruto') || l === 'pdrb' || l.includes('gross regional domestic product') || l === 'grdp') {
+            if (t === 'total' || (!t && (l === 'jumlah' || l === 'total' || l.includes('jawa tengah') || l.includes('produk domestik regional bruto') || l === 'pdrb' || l.includes('gross regional domestic product') || l === 'grdp'))) {
                 if (!l.includes('curah hujan') && !l.includes('hari hujan')) {
                     masterTotalItem = b;
                 }
@@ -1271,40 +1271,41 @@ $(document).ready(function() {
 
         // Helper untuk mendeteksi apakah suatu baris merupakan Parent/Header (bukan level terakhir/leaf)
         function isParentBaris(idx, items) {
-            // Jika seluruh kelompok baris ber-level 0 (daftar datar / flat),
-            // TIDAK ADA baris yang merupakan parent banner! Semua baris adalah baris data biasa.
+            const cur = items[idx];
+            if (!cur) return false;
+            let tipe = (cur.tipe_baris || '').toLowerCase().trim();
+
+            // 1. Prioritas Utama: Sesuai role fungsional yang dipilih pengguna di Master Dimensi
+            if (tipe === 'kategori') {
+                return true; // Kategori: banner pemisah sekat (tanpa sel data)
+            }
+            if (tipe === 'data' || tipe === 'total' || tipe === 'subtotal') {
+                return false; // Data / Total: baris fungsional (bisa diisi sel datanya)
+            }
+
+            // 2. Fallback untuk data lawas yang tipe_baris-nya belum tersimpan di DB
             if (maxBarisGroupLevel === 0) {
                 return false;
             }
 
-            const cur = items[idx];
-            if (!cur) return false;
-            let tipe = cur.tipe_baris || 'data';
             let lowerNama = (cur.nama_baris_ind || '').toLowerCase().trim();
-            if (tipe === 'data' || !tipe) {
-                if (
-                    lowerNama === 'jumlah' || lowerNama === 'total' || 
-                    lowerNama.includes('jawa tengah') || 
-                    lowerNama.includes('produk domestik regional bruto') || 
-                    lowerNama === 'pdrb' || 
-                    lowerNama.includes('gross regional domestic product') || 
-                    lowerNama === 'grdp'
-                ) {
-                    if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan')) {
-                        tipe = 'total';
-                    }
+            if (
+                lowerNama === 'jumlah' || lowerNama === 'total' || 
+                lowerNama.includes('jawa tengah') || 
+                lowerNama.includes('produk domestik regional bruto') || 
+                lowerNama === 'pdrb' || 
+                lowerNama.includes('gross regional domestic product') || 
+                lowerNama === 'grdp'
+            ) {
+                if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan')) {
+                    return false;
                 }
             }
-            if (tipe === 'total' || tipe === 'subtotal') {
-                return false;
-            }
 
-            // Baris hanya menjadi banner kategori tanpa sel data JIKA tipe_baris === 'kategori' atau kata kunci khusus pembatas wilayah
-            if (tipe === 'kategori' || lowerNama === 'kabupaten' || lowerNama === 'kota') {
+            if (lowerNama === 'kabupaten' || lowerNama === 'kota') {
                 return true;
             }
 
-            // Baris bertipe 'data' (meskipun memiliki sub-level/anak seperti di PDRB) tetap memiliki sel data angka
             return false;
         }
 
@@ -1752,9 +1753,9 @@ $(document).ready(function() {
         } else if (hasKolom && hasPeriode && isPeriodeBaris) {
             // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (NESTED PIVOT)
             barisItems.forEach(function(baris, bIdx) {
-                let tipe = baris.tipe_baris || 'data';
-                let lowerNama = (baris.nama_baris_ind || '').toLowerCase();
-                if (tipe === 'data' || !tipe) {
+                let tipe = (baris.tipe_baris || '').toLowerCase().trim();
+                let lowerNama = (baris.nama_baris_ind || '').toLowerCase().trim();
+                if (!tipe) {
                     if (
                         lowerNama === 'jumlah' || lowerNama === 'total' || 
                         lowerNama.includes('jawa tengah') || 
@@ -1767,6 +1768,7 @@ $(document).ready(function() {
                             tipe = 'total';
                         }
                     }
+                    if (!tipe) tipe = 'data';
                 }
 
                 // Pengaturan baris total (sembunyikan jika opsi 'none' dipilih)
@@ -1778,7 +1780,8 @@ $(document).ready(function() {
                 const level = parseInt(baris.level_indentasi) || 0;
                 let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
                 let indentClass = 'indent-level-' + Math.min(level, 2);
-                let textClass = ' fw-bold text-dark';
+                let isBold = (parseInt(baris.is_bold) === 1 || tipe === 'total' || isParent);
+                let textClass = isBold ? ' fw-bold text-dark' : ' text-dark';
 
                 // Tentukan nama tampilan (override jika baris total)
                 let namaBarisInd = baris.nama_baris_ind;
@@ -1841,9 +1844,9 @@ $(document).ready(function() {
             });
         } else {
             barisItems.forEach(function(baris, bIdx) {
-                let tipe = baris.tipe_baris || 'data';
-                let lowerNama = (baris.nama_baris_ind || '').toLowerCase();
-                if (tipe === 'data' || !tipe) {
+                let tipe = (baris.tipe_baris || '').toLowerCase().trim();
+                let lowerNama = (baris.nama_baris_ind || '').toLowerCase().trim();
+                if (!tipe) {
                     if (
                         lowerNama === 'jumlah' || lowerNama === 'total' || 
                         lowerNama.includes('jawa tengah') || 
@@ -1856,6 +1859,7 @@ $(document).ready(function() {
                             tipe = 'total';
                         }
                     }
+                    if (!tipe) tipe = 'data';
                 }
 
                 // Pengaturan baris total (sembunyikan jika opsi 'none' dipilih)
@@ -1867,7 +1871,8 @@ $(document).ready(function() {
                 const level = parseInt(baris.level_indentasi) || 0;
                 let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
                 let indentClass = 'indent-level-' + Math.min(level, 2);
-                let textClass = ' fw-bold text-dark';
+                let isBold = (parseInt(baris.is_bold) === 1 || tipe === 'total' || isParent);
+                let textClass = isBold ? ' fw-bold text-dark' : ' text-dark';
 
                 // Tentukan nama tampilan (override jika baris total)
                 let namaBarisInd = baris.nama_baris_ind;
