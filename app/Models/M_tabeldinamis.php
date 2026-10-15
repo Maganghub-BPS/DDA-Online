@@ -381,6 +381,7 @@ class M_tabeldinamis extends Model
             }
         }
 
+        $no = 1;
         foreach ($items as $item) {
             $nama_ind = trim($item['nama_baris_ind'] ?? '');
             $nama_en  = trim($item['nama_baris_en'] ?? '');
