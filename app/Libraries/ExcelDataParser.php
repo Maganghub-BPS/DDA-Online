@@ -207,7 +207,21 @@ class ExcelDataParser
             $hasPeriode  = !empty($itemsPeriode);
             $colIdx      = ($posisi_hirarki === 'periode_baris') ? 3 : 2; // Mulai C jika periode_baris, atau B jika kolom biasa
 
-            $isParentBaris = function(int $idx, array $items): bool {
+            // Hitung level maksimum pada seluruh kelompok baris
+            $maxBarisGroupLevel = 0;
+            foreach ($itemsBaris as $b) {
+                $lvl = (int)($b->level_indentasi ?? 0);
+                if ($lvl > $maxBarisGroupLevel) {
+                    $maxBarisGroupLevel = $lvl;
+                }
+            }
+
+            $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
+                // Jika seluruh kelompok baris ber-level 0 (daftar flat), tidak ada baris yang merupakan parent banner!
+                if ($maxBarisGroupLevel === 0) {
+                    return false;
+                }
+
                 $cur = $items[$idx];
                 $tipe = $cur->tipe_baris ?? 'data';
                 $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ''));
@@ -228,17 +242,25 @@ class ExcelDataParser
                 if ($tipe === 'total' || $tipe === 'subtotal') {
                     return false;
                 }
-                if ($tipe === 'kategori') {
-                    return true;
-                }
+
                 $curLevel = (int)($cur->level_indentasi ?? 0);
+                $hasChild = false;
                 if ($idx + 1 < count($items)) {
                     $next = $items[$idx + 1];
                     $nextLevel = (int)($next->level_indentasi ?? 0);
                     if ($nextLevel > $curLevel) {
-                        return true;
+                        $hasChild = true;
                     }
                 }
+
+                if ($hasChild) {
+                    return true;
+                }
+
+                if ($tipe === 'kategori' && ($lowerNama === 'kabupaten' || $lowerNama === 'kota')) {
+                    return true;
+                }
+
                 return false;
             };
 

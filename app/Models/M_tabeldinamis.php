@@ -373,7 +373,13 @@ class M_tabeldinamis extends Model
 
         $now = date('Y-m-d H:i:s');
         $insertData = [];
-        $no = 1;
+        $maxLevel = 0;
+        foreach ($items as $it) {
+            $lvl = (int)($it['level_indentasi'] ?? ($it['level'] ?? 0));
+            if ($lvl > $maxLevel) {
+                $maxLevel = $lvl;
+            }
+        }
 
         foreach ($items as $item) {
             $nama_ind = trim($item['nama_baris_ind'] ?? '');
@@ -383,12 +389,13 @@ class M_tabeldinamis extends Model
                 continue;
             }
 
+            $level_indentasi = (int)($item['level_indentasi'] ?? ($item['level'] ?? 0));
             $tipe_baris = $item['tipe_baris'] ?? '';
             $validTypes = ['kategori', 'data', 'subtotal', 'total'];
             
             // Evaluasi tipe baris cerdas & hormati penandaan is_total / tipe_baris dari pengguna
             $is_user_total = (!empty($item['is_total']) || $tipe_baris === 'total');
-            $detectedTipe  = $this->detectTipeBaris($nama_ind, (int)($item['level_indentasi'] ?? 0));
+            $detectedTipe  = $this->detectTipeBaris($nama_ind, $level_indentasi);
 
             if ($is_user_total || $detectedTipe === 'total') {
                 $tipe_baris = 'total';
@@ -396,7 +403,11 @@ class M_tabeldinamis extends Model
                 $tipe_baris = $detectedTipe;
             }
 
-            $level_indentasi = (int)($item['level_indentasi'] ?? 0);
+            // Jika seluruh kelompok flat (maxLevel == 0), tidak boleh ada tipe 'kategori'
+            if ($maxLevel === 0 && $tipe_baris === 'kategori') {
+                $tipe_baris = 'data';
+            }
+
             $is_bold = !empty($item['is_bold']) ? 1 : ($tipe_baris === 'total' || $tipe_baris === 'kategori' ? 1 : 0);
 
             $insertData[] = [

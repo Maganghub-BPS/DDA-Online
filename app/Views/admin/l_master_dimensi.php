@@ -1835,15 +1835,33 @@ $(document).ready(function() {
             this.hiddenEn.val(textEn);
 
             // Serialisasi data JSON lengkap dengan flag is_total & tipe_baris
-            const jsonPayload = this.items.map(it => ({
-                id: it.id,
-                parentId: it.parentId,
-                level: it.level,
-                ind: it.ind,
-                en: it.en,
-                is_total: it.isTotal ? 1 : 0,
-                tipe_baris: it.isTotal ? 'total' : (it.level === 0 ? 'kategori' : 'data')
-            }));
+            const itemsList = this.items;
+            const jsonPayload = itemsList.map((it, idx) => {
+                let tipe = 'data';
+                if (it.isTotal) {
+                    tipe = 'total';
+                } else {
+                    const lower = (it.ind || '').toLowerCase().trim();
+                    let hasChild = false;
+                    if (idx + 1 < itemsList.length && itemsList[idx + 1].level > it.level) {
+                        hasChild = true;
+                    }
+                    if (hasChild || lower === 'kabupaten' || lower === 'kota') {
+                        tipe = 'kategori';
+                    } else {
+                        tipe = 'data';
+                    }
+                }
+                return {
+                    id: it.id,
+                    parentId: it.parentId,
+                    level: it.level,
+                    ind: it.ind,
+                    en: it.en,
+                    is_total: it.isTotal ? 1 : 0,
+                    tipe_baris: tipe
+                };
+            });
             this.hiddenJson.val(JSON.stringify(jsonPayload));
 
             const count = (this.type === 'kolom') ? linesInd.length : this.items.length;
@@ -2179,31 +2197,39 @@ $(document).ready(function() {
                 namaEn = namaEn.substring(2).trim();
             }
 
-            let tipe = 'data';
-            let lower = namaInd.toLowerCase();
-
             // Cek apakah item ditandai sebagai total oleh tree manager
             const matchingTreeItem = treeItems ? (treeItems[idx] || null) : null;
             const isExplicitTotal = matchingTreeItem ? Boolean(matchingTreeItem.is_total || matchingTreeItem.isTotal) : false;
-
-            if (isExplicitTotal || isBarisTotal(namaInd)) {
-                tipe = 'total';
-            } else if (isBarisSubtotal(namaInd)) {
-                tipe = 'subtotal';
-            } else if (indent === 0 && !lower.includes('kabupaten') && !lower.includes('kota')) {
-                tipe = 'kategori';
-            } else {
-                tipe = 'data';
-            }
 
             items.push({
                 no_urut: idx + 1,
                 nama_baris_ind: namaInd,
                 nama_baris_en: namaEn || namaInd,
                 level_indentasi: indent,
-                tipe_baris: tipe,
-                is_bold: (tipe === 'total' || tipe === 'kategori' || tipe === 'subtotal') ? 1 : 0
+                isExplicitTotal: isExplicitTotal
             });
+        });
+
+        items.forEach(function(item, idx) {
+            let tipe = 'data';
+            let lower = item.nama_baris_ind.toLowerCase().trim();
+
+            if (item.isExplicitTotal || isBarisTotal(item.nama_baris_ind)) {
+                tipe = 'total';
+            } else if (isBarisSubtotal(item.nama_baris_ind)) {
+                tipe = 'subtotal';
+            } else {
+                let hasChild = (idx + 1 < items.length && items[idx + 1].level_indentasi > item.level_indentasi);
+                if (hasChild || lower === 'kabupaten' || lower === 'kota') {
+                    tipe = 'kategori';
+                } else {
+                    tipe = 'data';
+                }
+            }
+
+            item.tipe_baris = tipe;
+            item.is_bold = (tipe === 'total' || tipe === 'kategori' || tipe === 'subtotal') ? 1 : 0;
+            delete item.isExplicitTotal;
         });
 
         return items;

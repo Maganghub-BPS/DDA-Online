@@ -1262,8 +1262,21 @@ $(document).ready(function() {
         const hasKolom = (flatKolom && flatKolom.length > 0);
         const hasPeriode = (periodeItems && periodeItems.length > 0);
 
+        // Hitung level maksimum pada seluruh kelompok baris
+        let maxBarisGroupLevel = 0;
+        for (let i = 0; i < barisItems.length; i++) {
+            const lvl = parseInt(barisItems[i].level_indentasi) || 0;
+            if (lvl > maxBarisGroupLevel) maxBarisGroupLevel = lvl;
+        }
+
         // Helper untuk mendeteksi apakah suatu baris merupakan Parent/Header (bukan level terakhir/leaf)
         function isParentBaris(idx, items) {
+            // Jika seluruh kelompok baris ber-level 0 (daftar datar / flat),
+            // TIDAK ADA baris yang merupakan parent banner! Semua baris adalah baris data biasa.
+            if (maxBarisGroupLevel === 0) {
+                return false;
+            }
+
             const cur = items[idx];
             if (!cur) return false;
             let tipe = cur.tipe_baris || 'data';
@@ -1285,17 +1298,25 @@ $(document).ready(function() {
             if (tipe === 'total' || tipe === 'subtotal') {
                 return false;
             }
-            if (tipe === 'kategori') {
-                return true;
-            }
+
             const curLevel = parseInt(cur.level_indentasi) || 0;
+            let hasChild = false;
             if (idx + 1 < items.length) {
                 const next = items[idx + 1];
                 const nextLevel = parseInt(next.level_indentasi) || 0;
                 if (nextLevel > curLevel) {
-                    return true;
+                    hasChild = true;
                 }
             }
+
+            if (hasChild) {
+                return true;
+            }
+
+            if (tipe === 'kategori' && (lowerNama === 'kabupaten' || lowerNama === 'kota')) {
+                return true;
+            }
+
             return false;
         }
 
