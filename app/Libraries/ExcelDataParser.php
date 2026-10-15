@@ -207,6 +207,41 @@ class ExcelDataParser
             $hasPeriode  = !empty($itemsPeriode);
             $colIdx      = ($posisi_hirarki === 'periode_baris') ? 3 : 2; // Mulai C jika periode_baris, atau B jika kolom biasa
 
+            $isParentBaris = function(int $idx, array $items): bool {
+                $cur = $items[$idx];
+                $tipe = $cur->tipe_baris ?? 'data';
+                $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ''));
+                if ($tipe !== 'total') {
+                    if (
+                        $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                        strpos($lowerNama, 'jawa tengah') !== false || 
+                        strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                        $lowerNama === 'pdrb' || 
+                        strpos($lowerNama, 'gross regional domestic product') !== false || 
+                        $lowerNama === 'grdp'
+                    ) {
+                        if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                            $tipe = 'total';
+                        }
+                    }
+                }
+                if ($tipe === 'total' || $tipe === 'subtotal') {
+                    return false;
+                }
+                if ($tipe === 'kategori') {
+                    return true;
+                }
+                $curLevel = (int)($cur->level_indentasi ?? 0);
+                if ($idx + 1 < count($items)) {
+                    $next = $items[$idx + 1];
+                    $nextLevel = (int)($next->level_indentasi ?? 0);
+                    if ($nextLevel > $curLevel) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
             if ($posisi_hirarki === 'periode_baris') {
                 if ($hasKolom) {
                     foreach ($flatKolom as $ch) {
@@ -230,8 +265,12 @@ class ExcelDataParser
 
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 $currR  = $startR;
-                foreach ($itemsBaris as $bItem) {
+                foreach ($itemsBaris as $bIdx => $bItem) {
                     $tipe = $bItem->tipe_baris ?? 'data';
+                    if ($isParentBaris($bIdx, $itemsBaris)) {
+                        $tipe = 'kategori';
+                    }
+
                     if ($tipe === 'kategori') {
                         $rowItems[] = [
                             'excel_row'  => $currR,
@@ -316,10 +355,14 @@ class ExcelDataParser
             if ($posisi_hirarki !== 'periode_baris') {
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 foreach ($itemsBaris as $bIdx => $bItem) {
+                    $tipe = $bItem->tipe_baris ?? 'data';
+                    if ($isParentBaris($bIdx, $itemsBaris)) {
+                        $tipe = 'kategori';
+                    }
                     $rowItems[] = [
                         'excel_row' => $startR + $bIdx,
                         'id_baris'  => (int)$bItem->id,
-                        'tipe'      => $bItem->tipe_baris ?? 'data',
+                        'tipe'      => $tipe,
                         'nama'      => $bItem->nama_baris_ind ?? '',
                     ];
                 }

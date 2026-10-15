@@ -789,7 +789,42 @@ class ExcelTemplateGenerator
 
         $rowItemsMeta = [];
 
-        foreach ($itemsBaris as $baris) {
+        $isParentBaris = function(int $idx, array $items): bool {
+            $cur = $items[$idx];
+            $tipe = $cur->tipe_baris ?? 'data';
+            $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ($cur->item_ind ?? '')));
+            if ($tipe !== 'total') {
+                if (
+                    $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                    strpos($lowerNama, 'jawa tengah') !== false || 
+                    strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                    $lowerNama === 'pdrb' || 
+                    strpos($lowerNama, 'gross regional domestic product') !== false || 
+                    $lowerNama === 'grdp'
+                ) {
+                    if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                        $tipe = 'total';
+                    }
+                }
+            }
+            if ($tipe === 'total' || $tipe === 'subtotal') {
+                return false;
+            }
+            if ($tipe === 'kategori') {
+                return true;
+            }
+            $curLevel = (int)($cur->level_indentasi ?? 0);
+            if ($idx + 1 < count($items)) {
+                $next = $items[$idx + 1];
+                $nextLevel = (int)($next->level_indentasi ?? 0);
+                if ($nextLevel > $curLevel) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        foreach ($itemsBaris as $bIdx => $baris) {
             $tipeBaris = $baris->tipe_baris ?? 'data';
             $namaBaris = $baris->nama_baris_ind ?? ($baris->item_ind ?? '');
             $lowerBaris = strtolower(trim($namaBaris));
@@ -799,14 +834,19 @@ class ExcelTemplateGenerator
                     $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
                     strpos($lowerBaris, 'jawa tengah') !== false || 
                     strpos($lowerBaris, 'produk domestik regional bruto') !== false || 
-                    $lowerBaris === 'pdrb' ||
-                    strpos($lowerBaris, 'gross regional domestic product') !== false ||
+                    $lowerBaris === 'pdrb' || 
+                    strpos($lowerBaris, 'gross regional domestic product') !== false || 
                     $lowerBaris === 'grdp'
                 ) {
                     if (strpos($lowerBaris, 'curah hujan') === false && strpos($lowerBaris, 'hari hujan') === false) {
                         $tipeBaris = 'total';
                     }
                 }
+            }
+
+            $isParent = $isParentBaris($bIdx, $itemsBaris);
+            if ($isParent) {
+                $tipeBaris = 'kategori';
             }
 
             $level     = (int)($baris->level_indentasi ?? 0);
@@ -932,7 +972,8 @@ class ExcelTemplateGenerator
 
                 // Atur Style Baris Ini
                 if ($tipeBaris === 'kategori') {
-                    // Baris Kategori / Induk: Beri warna latar abu-abu lembut
+                    // Baris Kategori / Induk: Merge penuh seluruh kolom dan beri warna latar abu-abu lembut
+                    $sheet->mergeCells("A{$curRow}:{$lastColLetter}{$curRow}");
                     $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
                         'fill' => [

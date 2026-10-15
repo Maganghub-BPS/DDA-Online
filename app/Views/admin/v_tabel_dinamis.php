@@ -925,7 +925,43 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
                         $desimal = (int)($indikator->desimal ?? 2);
                         $dataRowCounter = 0;
 
-                        foreach ($itemsBaris as $baris):
+                        // Helper untuk mendeteksi apakah baris adalah Parent / Header (memiliki anak di bawahnya)
+                        $isParentBaris = function(int $idx, array $items): bool {
+                            $cur = $items[$idx];
+                            $tipe = $cur->tipe_baris ?? 'data';
+                            $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ''));
+                            if ($tipe !== 'total') {
+                                if (
+                                    $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                                    strpos($lowerNama, 'jawa tengah') !== false || 
+                                    strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                                    $lowerNama === 'pdrb' || 
+                                    strpos($lowerNama, 'gross regional domestic product') !== false || 
+                                    $lowerNama === 'grdp'
+                                ) {
+                                    if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                                        $tipe = 'total';
+                                    }
+                                }
+                            }
+                            if ($tipe === 'total' || $tipe === 'subtotal') {
+                                return false;
+                            }
+                            if ($tipe === 'kategori') {
+                                return true;
+                            }
+                            $curLevel = (int)($cur->level_indentasi ?? 0);
+                            if ($idx + 1 < count($items)) {
+                                $next = $items[$idx + 1];
+                                $nextLevel = (int)($next->level_indentasi ?? 0);
+                                if ($nextLevel > $curLevel) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        };
+
+                        foreach ($itemsBaris as $bIdx => $baris):
                             $tipe         = $baris->tipe_baris ?: 'data';
                             $rawNamaInd   = trim($baris->nama_baris_ind);
                             $rawNamaEn    = trim($baris->nama_baris_en ?: '');
@@ -945,8 +981,8 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
                             && strpos($lowerNamaInd, 'curah hujan') === false
                             && strpos($lowerNamaInd, 'hari hujan') === false;
 
-                            // 2. Deteksi Baris Pembatas Kategori (Kabupaten / Kota / dsb.) - Bukan Baris Total
-                            $isCategoryDivider = !$isTotalRow && ($tipe === 'kategori' || $lowerNamaInd === 'kabupaten' || $lowerNamaInd === 'kota') && ($lowerNamaInd !== 'jawa tengah');
+                            // 2. Deteksi Baris Pembatas Kategori / Parent Header Level Atas
+                            $isCategoryDivider = !$isTotalRow && $isParentBaris($bIdx, $itemsBaris);
 
                             if ($isCategoryDivider):
                                 $dividerText = $rawNamaInd;

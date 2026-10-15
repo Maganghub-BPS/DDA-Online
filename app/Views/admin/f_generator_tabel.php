@@ -1097,7 +1097,44 @@ $(document).ready(function() {
         const hasKolom = (flatKolom && flatKolom.length > 0);
         const hasPeriode = (periodeItems && periodeItems.length > 0);
 
-        // Hitung statistik sel data
+        // Helper untuk mendeteksi apakah suatu baris merupakan Parent/Header (bukan level terakhir/leaf)
+        function isParentBaris(idx, items) {
+            const cur = items[idx];
+            if (!cur) return false;
+            let tipe = cur.tipe_baris || 'data';
+            let lowerNama = (cur.nama_baris_ind || '').toLowerCase().trim();
+            if (tipe === 'data' || !tipe) {
+                if (
+                    lowerNama === 'jumlah' || lowerNama === 'total' || 
+                    lowerNama.includes('jawa tengah') || 
+                    lowerNama.includes('produk domestik regional bruto') || 
+                    lowerNama === 'pdrb' || 
+                    lowerNama.includes('gross regional domestic product') || 
+                    lowerNama === 'grdp'
+                ) {
+                    if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan')) {
+                        tipe = 'total';
+                    }
+                }
+            }
+            if (tipe === 'total' || tipe === 'subtotal') {
+                return false;
+            }
+            if (tipe === 'kategori') {
+                return true;
+            }
+            const curLevel = parseInt(cur.level_indentasi) || 0;
+            if (idx + 1 < items.length) {
+                const next = items[idx + 1];
+                const nextLevel = parseInt(next.level_indentasi) || 0;
+                if (nextLevel > curLevel) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Hitung statistik sel data (hanya menghitung baris leaf / data ril)
         let totalLeafCols = 0;
         if (hasKolom && hasPeriode) {
             totalLeafCols = isPeriodeBaris ? flatKolom.length : (flatKolom.length * periodeItems.length);
@@ -1107,10 +1144,15 @@ $(document).ready(function() {
             totalLeafCols = periodeItems.length;
         }
 
-        const totalDataRows = barisItems.filter(b => b.tipe_baris === 'data').length;
-        const totalRowsRendered = isPeriodeBaris ? (totalDataRows * (periodeItems.length || 1)) : totalDataRows;
-        const totalCells = totalLeafCols * totalRowsRendered;
-        const displayRowCount = isPeriodeBaris ? (barisItems.length * (periodeItems.length || 1)) : barisItems.length;
+        const leafDataRows = barisItems.filter((b, idx) => !isParentBaris(idx, barisItems));
+        const parentRowsCount = barisItems.length - leafDataRows.length;
+        const totalRowsRendered = isPeriodeBaris 
+            ? (parentRowsCount + leafDataRows.length * (periodeItems.length || 1)) 
+            : barisItems.length;
+        const totalCells = totalLeafCols * (leafDataRows.length * (isPeriodeBaris ? 1 : 1));
+        const displayRowCount = isPeriodeBaris 
+            ? (parentRowsCount + leafDataRows.length * (periodeItems.length || 1)) 
+            : barisItems.length;
         $('#stat_total_cells').text(displayRowCount + ' Baris × ' + totalLeafCols + ' Kolom (' + totalCells + ' Sel)');
 
         // =====================================================================
@@ -1535,7 +1577,7 @@ $(document).ready(function() {
             tbodyHtml = '<tr><td colspan="' + emptyColspan + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';
         } else if (hasKolom && hasPeriode && isPeriodeBaris) {
             // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (NESTED PIVOT)
-            barisItems.forEach(function(baris) {
+            barisItems.forEach(function(baris, bIdx) {
                 let tipe = baris.tipe_baris || 'data';
                 let lowerNama = (baris.nama_baris_ind || '').toLowerCase();
                 if (tipe === 'data' || !tipe) {
@@ -1552,13 +1594,14 @@ $(document).ready(function() {
                         }
                     }
                 }
+                const isParent = isParentBaris(bIdx, barisItems);
                 const level = parseInt(baris.level_indentasi) || 0;
-                let rowClass = 'row-' + tipe;
+                let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
                 let indentClass = 'indent-level-' + Math.min(level, 2);
                 let textClass = ' fw-bold text-dark';
 
-                if (tipe === 'kategori') {
-                    // Kategori Pembatas (misal: "Kabupaten", "Kota"): Bentang penuh seluruh kolom
+                if (isParent) {
+                    // Baris Induk / Header Level Atas (misal: "Kabupaten", "Kota", "Suhu"): Bentang penuh seluruh kolom tanpa kolom periode
                     tbodyHtml += '<tr class="' + rowClass + '">';
                     tbodyHtml += '<td colspan="' + (2 + totalLeafCols) + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #ff6d1f !important;">';
                     tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
@@ -1568,6 +1611,7 @@ $(document).ready(function() {
                     tbodyHtml += '</td>';
                     tbodyHtml += '</tr>';
                 } else {
+                    // Baris Rincian Daun (Leaf / Level Terakhir): Memiliki kolom kedua periode dan sel data
                     const pCount = periodeItems.length;
                     periodeItems.forEach(function(p, pIdx) {
                         tbodyHtml += '<tr class="' + rowClass + '">';
@@ -1600,7 +1644,7 @@ $(document).ready(function() {
                 }
             });
         } else {
-            barisItems.forEach(function(baris) {
+            barisItems.forEach(function(baris, bIdx) {
                 let tipe = baris.tipe_baris || 'data';
                 let lowerNama = (baris.nama_baris_ind || '').toLowerCase();
                 if (tipe === 'data' || !tipe) {
@@ -1617,34 +1661,40 @@ $(document).ready(function() {
                         }
                     }
                 }
+                const isParent = isParentBaris(bIdx, barisItems);
                 const level = parseInt(baris.level_indentasi) || 0;
-                const isBold = true; // Sesuai tabel API BPS: rincian/wilayah dicetak tebal
-                let rowClass = 'row-' + tipe;
+                let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
                 let indentClass = 'indent-level-' + Math.min(level, 2);
                 let textClass = ' fw-bold text-dark';
 
-                tbodyHtml += '<tr class="' + rowClass + '">';
+                if (isParent) {
+                    // Baris Induk / Header Level Atas: Bentang penuh seluruh kolom
+                    tbodyHtml += '<tr class="' + rowClass + '">';
+                    tbodyHtml += '<td colspan="' + (1 + totalLeafCols) + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #ff6d1f !important;">';
+                    tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
+                    if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
+                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
+                    }
+                    tbodyHtml += '</td>';
+                    tbodyHtml += '</tr>';
+                } else {
+                    tbodyHtml += '<tr class="' + rowClass + '">';
 
-                // Kolom Judul Baris (Sticky Freeze di Kiri - Bahasa Inggris di samping memakai /)
-                tbodyHtml += '<td class="td-freeze-col ' + indentClass + textClass + '">';
-                tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
-                if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
-                    tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
-                }
-                tbodyHtml += '</td>';
+                    // Kolom Judul Baris (Sticky Freeze di Kiri)
+                    tbodyHtml += '<td class="td-freeze-col ' + indentClass + textClass + '">';
+                    tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
+                    if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
+                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
+                    }
+                    tbodyHtml += '</td>';
 
-                // Sel Data Kolom (Seluruh sel menampilkan tanda strip standar BPS, tidak kosong bolong)
-                for (let i = 0; i < totalLeafCols; i++) {
-                    if (tipe === 'kategori') {
-                        // Kategori Bab (Kabupaten / Kota): tanda strip di tengah
-                        tbodyHtml += '<td class="cell-hatched text-center">–</td>';
-                    } else {
-                        // Data item, subtotal, atau total: tanda strip di tengah
+                    // Sel Data Kolom (Seluruh sel menampilkan tanda strip standar BPS)
+                    for (let i = 0; i < totalLeafCols; i++) {
                         tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
                     }
-                }
 
-                tbodyHtml += '</tr>';
+                    tbodyHtml += '</tr>';
+                }
             });
         }
 
