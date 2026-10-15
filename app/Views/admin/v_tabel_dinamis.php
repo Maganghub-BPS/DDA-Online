@@ -934,7 +934,7 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
                             }
                         }
 
-                        // Helper untuk mendeteksi apakah baris adalah Parent / Header (memiliki anak di bawahnya)
+                        // Helper untuk mendeteksi apakah baris adalah Parent / Header Banner (kategori melintang tanpa sel data)
                         $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
                             // Jika seluruh kelompok baris ber-level 0 (daftar flat), tidak ada baris yang merupakan parent banner!
                             if ($maxBarisGroupLevel === 0) {
@@ -962,24 +962,12 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
                                 return false;
                             }
 
-                            $curLevel = (int)($cur->level_indentasi ?? 0);
-                            $hasChild = false;
-                            if ($idx + 1 < count($items)) {
-                                $next = $items[$idx + 1];
-                                $nextLevel = (int)($next->level_indentasi ?? 0);
-                                if ($nextLevel > $curLevel) {
-                                    $hasChild = true;
-                                }
-                            }
-
-                            if ($hasChild) {
+                            // Baris hanya menjadi banner kategori tanpa sel data JIKA tipe_baris === 'kategori' atau kata kunci khusus pembatas wilayah
+                            if ($tipe === 'kategori' || $lowerNama === 'kabupaten' || $lowerNama === 'kota') {
                                 return true;
                             }
 
-                            if ($tipe === 'kategori' && ($lowerNama === 'kabupaten' || $lowerNama === 'kota')) {
-                                return true;
-                            }
-
+                            // Baris bertipe 'data' (meskipun memiliki sub-level/hierarki di bawahnya seperti PDRB) tetap memiliki sel data angka
                             return false;
                         };
 

@@ -399,7 +399,9 @@ class M_tabeldinamis extends Model
 
             if ($is_user_total || $detectedTipe === 'total') {
                 $tipe_baris = 'total';
-            } elseif (!in_array($tipe_baris, $validTypes, true) || empty($tipe_baris) || $tipe_baris === 'data') {
+            } elseif (!empty($tipe_baris) && in_array($tipe_baris, $validTypes, true)) {
+                // Pertahankan tipe fungsional yang eksplisit dipilih pengguna (kategori, data, subtotal, total)
+            } else {
                 $tipe_baris = $detectedTipe;
             }
 
@@ -476,8 +478,8 @@ class M_tabeldinamis extends Model
             return 'subtotal';
         }
 
-        // 4. Kategori (Pembatas Bab/Kategori)
-        if ($lower === 'kabupaten' || $lower === 'kota' || ($indent === 0 && $hasChildren)) {
+        // 4. Kategori (Pembatas Bab/Kategori - khusus pembatas wilayah Kabupaten/Kota atau banner judul murni)
+        if ($lower === 'kabupaten' || $lower === 'kota') {
             return 'kategori';
         }
 

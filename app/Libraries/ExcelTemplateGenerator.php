@@ -825,24 +825,12 @@ class ExcelTemplateGenerator
                 return false;
             }
 
-            $curLevel = (int)($cur->level_indentasi ?? 0);
-            $hasChild = false;
-            if ($idx + 1 < count($items)) {
-                $next = $items[$idx + 1];
-                $nextLevel = (int)($next->level_indentasi ?? 0);
-                if ($nextLevel > $curLevel) {
-                    $hasChild = true;
-                }
-            }
-
-            if ($hasChild) {
+            // Baris hanya menjadi banner kategori tanpa sel data JIKA tipe_baris === 'kategori' atau kata kunci khusus pembatas wilayah
+            if ($tipe === 'kategori' || $lowerNama === 'kabupaten' || $lowerNama === 'kota') {
                 return true;
             }
 
-            if ($tipe === 'kategori' && ($lowerNama === 'kabupaten' || $lowerNama === 'kota')) {
-                return true;
-            }
-
+            // Baris bertipe 'data' (meskipun memiliki sub-level/hierarki di bawahnya seperti PDRB) tetap memiliki sel data angka
             return false;
         };
 

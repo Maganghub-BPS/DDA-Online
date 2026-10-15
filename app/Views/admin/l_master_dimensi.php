@@ -136,6 +136,86 @@
     border-left: 4px solid #f59e0b !important;
     box-shadow: 0 2px 6px rgba(245, 158, 11, 0.12) !important;
 }
+.tree-item-row.is-kategori-row {
+    background-color: #fffaf5 !important;
+    border-color: #fed7aa !important;
+    border-left: 4px solid #ff6d1f !important;
+    box-shadow: 0 2px 6px rgba(255, 109, 31, 0.08) !important;
+}
+.tree-item-row:has(.dropdown.show) {
+    z-index: 25;
+}
+
+/* Badge Status Fungsional Baris */
+.btn-role-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 82px;
+    height: 27px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.btn-role-badge.dropdown-toggle::after {
+    margin-left: 5px;
+    vertical-align: 0.15em;
+    font-size: 0.70rem;
+}
+.btn-role-badge.role-data {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+.btn-role-badge.role-data:hover,
+.btn-role-badge.role-data:focus {
+    background: #dcfce7;
+    color: #14532d;
+    border-color: #86efac;
+}
+.btn-role-badge.role-kategori {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+.btn-role-badge.role-kategori:hover,
+.btn-role-badge.role-kategori:focus {
+    background: #ffedd5;
+    color: #9a3412;
+    border-color: #fdba74;
+}
+.btn-role-badge.role-total {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fde68a;
+    font-weight: 700;
+}
+.btn-role-badge.role-total:hover,
+.btn-role-badge.role-total:focus {
+    background: #fde68a;
+    color: #92400e;
+    border-color: #fcd34d;
+}
+.role-dropdown-menu {
+    border-radius: 8px;
+    min-width: 215px;
+    font-size: 0.78rem;
+    border: 1px solid #e2e8f0;
+    z-index: 1060;
+}
+.role-dropdown-menu .dropdown-item {
+    padding: 6px 12px;
+}
+.role-dropdown-menu .dropdown-item.active {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
 .btn-total-pill {
     font-size: 0.72rem;
     font-weight: 600;
@@ -952,7 +1032,7 @@
                                 </div>
                                 <div class="d-flex flex-wrap align-items-center gap-2">
                                     <div class="input-group input-group-sm auto-prefix-group shadow-xs">
-                                        <span class="input-group-text auto-prefix-label auto-prefix-label-bab">Bab</span>
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-bab">Level 1</span>
                                         <select class="form-select form-select-sm auto-prefix-select" id="add_prefix_bab">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kapital">Huruf (A, B, C...)</option>
@@ -961,7 +1041,7 @@
                                         </select>
                                     </div>
                                     <div class="input-group input-group-sm auto-prefix-group shadow-xs">
-                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subbab">Sub Bab</span>
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subbab">Level 2</span>
                                         <select class="form-select form-select-sm auto-prefix-select" id="add_prefix_subbab">
                                             <option value="none" selected>Tanpa Nomor</option>
                                             <option value="angka">Angka (1, 2, 3...)</option>
@@ -970,7 +1050,7 @@
                                         </select>
                                     </div>
                                     <div class="input-group input-group-sm auto-prefix-group shadow-xs">
-                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subsub">Sub-Sub</span>
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subsub">Level 3</span>
                                         <select class="form-select form-select-sm auto-prefix-select" id="add_prefix_subsub">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kecil">Huruf (a, b, c...)</option>
@@ -1111,7 +1191,7 @@
                                 </div>
                                 <div class="d-flex flex-wrap align-items-center gap-2">
                                     <div class="input-group input-group-sm auto-prefix-group shadow-xs">
-                                        <span class="input-group-text auto-prefix-label auto-prefix-label-bab">Bab</span>
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-bab">Level 1</span>
                                         <select class="form-select form-select-sm auto-prefix-select" id="manage_prefix_bab">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kapital">Huruf (A, B, C...)</option>
@@ -1120,7 +1200,7 @@
                                         </select>
                                     </div>
                                     <div class="input-group input-group-sm auto-prefix-group shadow-xs">
-                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subbab">Sub Bab</span>
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subbab">Level 2</span>
                                         <select class="form-select form-select-sm auto-prefix-select" id="manage_prefix_subbab">
                                             <option value="none" selected>Tanpa Nomor</option>
                                             <option value="angka">Angka (1, 2, 3...)</option>
@@ -1129,7 +1209,7 @@
                                         </select>
                                     </div>
                                     <div class="input-group input-group-sm auto-prefix-group shadow-xs">
-                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subsub">Sub-Sub</span>
+                                        <span class="input-group-text auto-prefix-label auto-prefix-label-subsub">Level 3</span>
                                         <select class="form-select form-select-sm auto-prefix-select" id="manage_prefix_subsub">
                                             <option value="none">Tanpa Nomor</option>
                                             <option value="huruf_kecil">Huruf (a, b, c...)</option>
@@ -1593,16 +1673,27 @@ $(document).ready(function() {
             });
         }
 
-        addItem(parentId = null, level = 0, ind = '', en = '', isTotal = null) {
+        addItem(parentId = null, level = 0, ind = '', en = '', isTotal = null, tipe_baris = null) {
             const autoTotal = (this.type === 'baris') ? isBarisTotal(ind) : false;
+            let role = tipe_baris;
+            if (!role) {
+                if (isTotal !== null) {
+                    role = Boolean(isTotal) ? 'total' : 'data';
+                } else if (autoTotal) {
+                    role = 'total';
+                } else {
+                    role = 'data';
+                }
+            }
             const item = {
                 id: 'node_' + (++this.idSeq),
                 parentId: parentId,
                 level: level,
                 ind: ind,
                 en: en,
-                isTotal: (isTotal !== null) ? Boolean(isTotal) : autoTotal,
-                isUserToggled: (isTotal !== null)
+                tipe_baris: role,
+                isTotal: (role === 'total'),
+                isUserToggled: (tipe_baris !== null || isTotal !== null)
             };
 
             if (parentId === null) {
@@ -1652,16 +1743,26 @@ $(document).ready(function() {
         setItems(items) {
             const self = this;
             this.items = (items || []).map(it => {
-                const autoTotal = (self.type === 'baris') ? isBarisTotal(it.ind) : false;
-                const isTot = it.isTotal !== undefined ? Boolean(it.isTotal) : (it.tipe_baris === 'total' || autoTotal);
+                const autoTotal = (self.type === 'baris') ? isBarisTotal(it.ind || '') : false;
+                let role = it.tipe_baris;
+                if (!role) {
+                    if (it.isTotal !== undefined && Boolean(it.isTotal)) {
+                        role = 'total';
+                    } else if (autoTotal) {
+                        role = 'total';
+                    } else {
+                        role = 'data';
+                    }
+                }
                 return {
                     id: it.id || ('node_' + (++self.idSeq)),
                     parentId: it.parentId !== undefined ? it.parentId : null,
                     level: parseInt(it.level, 10) || 0,
                     ind: it.ind || '',
                     en: it.en || '',
-                    isTotal: isTot,
-                    isUserToggled: it.isUserToggled !== undefined ? it.isUserToggled : (it.tipe_baris === 'total')
+                    tipe_baris: role,
+                    isTotal: (role === 'total'),
+                    isUserToggled: it.isUserToggled !== undefined ? it.isUserToggled : (it.tipe_baris !== undefined)
                 };
             });
             this.idSeq = this.items.length;
@@ -1681,83 +1782,142 @@ $(document).ready(function() {
             this.items.forEach(function(item) {
                 let placeholderInd = 'Indonesia';
                 let placeholderEn  = 'English (opsional)';
-                let levelBadge = '';
+                let leftBadgeHtml  = '';
 
-                const isTotalActive = (self.type === 'baris' && item.isTotal);
+                if (self.type === 'baris') {
+                    // Konsep B: Role Badge Dropdown Interaktif
+                    const currentRole = item.tipe_baris || (item.isTotal ? 'total' : 'data');
+                    let roleIcon = '📊';
+                    let roleLabel = 'Data';
+                    let roleClass = 'role-data';
 
-                if (self.allowSub) {
-                    if (isTotalActive) {
+                    if (currentRole === 'kategori') {
+                        roleIcon = '🏷️';
+                        roleLabel = 'Kategori';
+                        roleClass = 'role-kategori';
+                        placeholderInd = 'Judul Kategori / Sekat (Indonesia)';
+                        placeholderEn  = 'Category Header (English)';
+                    } else if (currentRole === 'total') {
+                        roleIcon = '∑';
+                        roleLabel = 'Total';
+                        roleClass = 'role-total';
                         placeholderInd = 'Grand Total (Indonesia)';
                         placeholderEn  = 'Grand Total (English)';
-                        levelBadge = `<span class="badge badge-total-row rounded-pill shadow-xs" title="Baris Agregat / Grand Total"><i class="bi bi-star-fill text-warning"></i> Total</span>`;
-                    } else if (item.level === 0) {
-                        placeholderInd = 'Bab (Indonesia)';
-                        placeholderEn  = 'Bab (English)';
-                        levelBadge = `<span class="badge bg-light text-primary border small" style="font-size: 0.72rem; min-width: 46px; text-align: center;">Bab</span>`;
-                    } else if (item.level === 1) {
-                        placeholderInd = 'Sub Bab (Indonesia)';
-                        placeholderEn  = 'Sub Bab (English)';
-                        levelBadge = `<span class="badge bg-light text-info border small" style="font-size: 0.72rem; min-width: 46px; text-align: center;">Sub Bab</span>`;
-                    } else if (item.level === 2) {
-                        placeholderInd = 'Sub Sub Bab (Indonesia)';
-                        placeholderEn  = 'Sub Sub Bab (English)';
-                        levelBadge = `<span class="badge bg-light text-success border small" style="font-size: 0.72rem; min-width: 46px; text-align: center;">Sub-Sub</span>`;
-                    }
-                }
-
-                // Tombol Chip Toggle Total (Hanya untuk tipe baris)
-                let totalToggleBtn = '';
-                if (self.type === 'baris') {
-                    if (isTotalActive) {
-                        totalToggleBtn = `<button type="button" class="btn-total-pill active btn-toggle-total" title="Nonaktifkan status Grand Total"><i class="bi bi-check-circle-fill"></i> Total</button>`;
                     } else {
-                        totalToggleBtn = `<button type="button" class="btn-total-pill btn-toggle-total" title="Tandai sebagai baris Grand Total (Jawa Tengah, PDRB, Jumlah)"><span style="font-size: 0.85em;">∑</span> Total</button>`;
+                        roleIcon = '📊';
+                        roleLabel = 'Data';
+                        roleClass = 'role-data';
+                        placeholderInd = `Level ${item.level + 1} (Indonesia)`;
+                        placeholderEn  = `Level ${item.level + 1} (English)`;
+                    }
+
+                    leftBadgeHtml = `
+                        <div class="dropdown d-inline-block">
+                            <button type="button" class="btn btn-role-badge ${roleClass} dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Ubah status fungsional baris">
+                                <span>${roleIcon}</span> <span class="ms-1">${roleLabel}</span>
+                            </button>
+                            <ul class="dropdown-menu role-dropdown-menu shadow-sm">
+                                <li><h6 class="dropdown-header text-xs text-uppercase fw-bold text-muted py-1">Tipe Fungsional Baris</h6></li>
+                                <li>
+                                    <a class="dropdown-item ${currentRole === 'data' ? 'active fw-bold' : ''} set-role" data-role="data" href="#">
+                                        <i class="bi bi-bar-chart-fill text-success me-2"></i>
+                                        <div>
+                                            <div class="fw-semibold">Baris Data</div>
+                                            <div class="text-xxs text-muted">Memiliki sel input angka statistik</div>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item ${currentRole === 'kategori' ? 'active fw-bold' : ''} set-role" data-role="kategori" href="#">
+                                        <i class="bi bi-tag-fill text-warning me-2"></i>
+                                        <div>
+                                            <div class="fw-semibold">Banner Kategori</div>
+                                            <div class="text-xxs text-muted">Judul sekat melintang tanpa sel angka</div>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <a class="dropdown-item ${currentRole === 'total' ? 'active fw-bold' : ''} set-role" data-role="total" href="#">
+                                        <i class="bi bi-calculator-fill text-danger me-2"></i>
+                                        <div>
+                                            <div class="fw-semibold">Grand Total / Agregat</div>
+                                            <div class="text-xxs text-muted">Jumlah total / PDRB agregasi</div>
+                                        </div>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    `;
+                } else if (self.allowSub) {
+                    // Untuk kolom atau builder bertingkat non-baris: Level 1, Level 2, Level 3
+                    if (item.level === 0) {
+                        placeholderInd = 'Level 1 (Indonesia)';
+                        placeholderEn  = 'Level 1 (English)';
+                        leftBadgeHtml  = `<span class="badge bg-light text-primary border small" style="font-size: 0.72rem; min-width: 52px; text-align: center;">Level 1</span>`;
+                    } else if (item.level === 1) {
+                        placeholderInd = 'Level 2 (Indonesia)';
+                        placeholderEn  = 'Level 2 (English)';
+                        leftBadgeHtml  = `<span class="badge bg-light text-info border small" style="font-size: 0.72rem; min-width: 52px; text-align: center;">Level 2</span>`;
+                    } else if (item.level === 2) {
+                        placeholderInd = 'Level 3 (Indonesia)';
+                        placeholderEn  = 'Level 3 (English)';
+                        leftBadgeHtml  = `<span class="badge bg-light text-success border small" style="font-size: 0.72rem; min-width: 52px; text-align: center;">Level 3</span>`;
                     }
                 }
 
-                const rowClass = `tree-item-row level-${item.level} ${self.theme} ${isTotalActive ? 'is-total-row' : ''}`;
+                const isTotalActive = (self.type === 'baris' && item.tipe_baris === 'total');
+                const isKategoriActive = (self.type === 'baris' && item.tipe_baris === 'kategori');
+
+                let rowExtraClass = '';
+                if (isTotalActive) rowExtraClass = 'is-total-row';
+                else if (isKategoriActive) rowExtraClass = 'is-kategori-row';
+
+                const rowClass = `tree-item-row level-${item.level} ${self.theme} ${rowExtraClass}`;
 
                 const row = $(`
                     <div class="${rowClass}" data-id="${item.id}">
                         <div class="d-flex align-items-center gap-2">
-                            <div class="tree-badge-container">${levelBadge}</div>
+                            <div class="tree-badge-container">${leftBadgeHtml}</div>
                             <div class="tree-item-inputs">
-                                <input type="text" class="form-control form-control-sm item-input-ind ${isTotalActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderInd}" value="${escapeHtml(item.ind)}">
-                                <input type="text" class="form-control form-control-sm item-input-en ${isTotalActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderEn}" value="${escapeHtml(item.en)}">
+                                <input type="text" class="form-control form-control-sm item-input-ind ${isTotalActive || isKategoriActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderInd}" value="${escapeHtml(item.ind)}">
+                                <input type="text" class="form-control form-control-sm item-input-en ${isTotalActive || isKategoriActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderEn}" value="${escapeHtml(item.en)}">
                             </div>
                             <div class="tree-item-actions">
-                                ${totalToggleBtn}
-                                ${(self.allowSub && item.level < self.maxDepth && !isTotalActive) ? `<button type="button" class="btn btn-sm btn-sub-badge btn-add-sub" title="Tambah Sub"><i class="bi bi-plus-lg"></i> Sub</button>` : ''}
+                                ${(self.allowSub && item.level < self.maxDepth && !isTotalActive) ? `<button type="button" class="btn btn-sm btn-sub-badge btn-add-sub" title="Tambah Sub-Level"><i class="bi bi-plus-lg"></i> Sub</button>` : ''}
                                 <button type="button" class="btn btn-sm btn-delete-item btn-remove" title="Hapus"><i class="bi bi-x-lg"></i></button>
                             </div>
                         </div>
                     </div>
                 `);
 
+                // Event listener ganti peran fungsional baris (Konsep B)
+                row.find('.set-role').on('click', function(e) {
+                    e.preventDefault();
+                    const newRole = $(this).data('role');
+                    item.tipe_baris = newRole;
+                    item.isTotal = (newRole === 'total');
+                    item.isUserToggled = true;
+                    self.render();
+                    self.notify();
+                });
+
                 row.find('.item-input-ind').on('input', function() {
                     item.ind = $(this).val();
                     if (self.type === 'baris' && !item.isUserToggled) {
                         const autoTotal = isBarisTotal(item.ind);
-                        if (item.isTotal !== autoTotal) {
-                            item.isTotal = autoTotal;
-                            const $r = self.listEl.find(`[data-id="${item.id}"]`);
-                            if (item.isTotal) {
-                                $r.addClass('is-total-row');
-                                $r.find('.tree-badge-container').html(`<span class="badge badge-total-row rounded-pill shadow-xs" title="Baris Agregat / Grand Total"><i class="bi bi-star-fill text-warning"></i> Total</span>`);
-                                $r.find('.btn-toggle-total').addClass('active').attr('title', 'Nonaktifkan status Grand Total').html('<i class="bi bi-check-circle-fill"></i> Total');
-                                $r.find('.btn-add-sub').hide();
-                                $r.find('.item-input-ind, .item-input-en').addClass('fw-bold text-dark');
-                            } else {
-                                $r.removeClass('is-total-row');
-                                let lBadge = '';
-                                if (item.level === 0) lBadge = `<span class="badge bg-light text-primary border small" style="font-size: 0.72rem; min-width: 46px; text-align: center;">Bab</span>`;
-                                else if (item.level === 1) lBadge = `<span class="badge bg-light text-info border small" style="font-size: 0.72rem; min-width: 46px; text-align: center;">Sub Bab</span>`;
-                                else if (item.level === 2) lBadge = `<span class="badge bg-light text-success border small" style="font-size: 0.72rem; min-width: 46px; text-align: center;">Sub-Sub</span>`;
-                                $r.find('.tree-badge-container').html(lBadge);
-                                $r.find('.btn-toggle-total').removeClass('active').attr('title', 'Tandai sebagai baris Grand Total (Jawa Tengah, PDRB, Jumlah)').html('<span style="font-size: 0.85em;">∑</span> Total');
-                                $r.find('.btn-add-sub').show();
-                                $r.find('.item-input-ind, .item-input-en').removeClass('fw-bold text-dark');
-                            }
+                        const lower = (item.ind || '').toLowerCase().trim();
+                        let detectedRole = 'data';
+                        if (autoTotal) {
+                            detectedRole = 'total';
+                        } else if (lower === 'kabupaten' || lower === 'kota') {
+                            detectedRole = 'kategori';
+                        }
+                        if (item.tipe_baris !== detectedRole) {
+                            item.tipe_baris = detectedRole;
+                            item.isTotal = (detectedRole === 'total');
+                            self.render();
+                            self.listEl.find(`[data-id="${item.id}"] .item-input-ind`).focus();
                         }
                     }
                     self.notify();
@@ -1765,14 +1925,6 @@ $(document).ready(function() {
 
                 row.find('.item-input-en').on('input', function() {
                     item.en = $(this).val();
-                    self.notify();
-                });
-
-                row.find('.btn-toggle-total').on('click', function(e) {
-                    e.preventDefault();
-                    item.isTotal = !item.isTotal;
-                    item.isUserToggled = true;
-                    self.render();
                     self.notify();
                 });
 
@@ -1837,20 +1989,9 @@ $(document).ready(function() {
             // Serialisasi data JSON lengkap dengan flag is_total & tipe_baris
             const itemsList = this.items;
             const jsonPayload = itemsList.map((it, idx) => {
-                let tipe = 'data';
+                let tipe = it.tipe_baris || 'data';
                 if (it.isTotal) {
                     tipe = 'total';
-                } else {
-                    const lower = (it.ind || '').toLowerCase().trim();
-                    let hasChild = false;
-                    if (idx + 1 < itemsList.length && itemsList[idx + 1].level > it.level) {
-                        hasChild = true;
-                    }
-                    if (hasChild || lower === 'kabupaten' || lower === 'kota') {
-                        tipe = 'kategori';
-                    } else {
-                        tipe = 'data';
-                    }
                 }
                 return {
                     id: it.id,
@@ -1858,7 +1999,7 @@ $(document).ready(function() {
                     level: it.level,
                     ind: it.ind,
                     en: it.en,
-                    is_total: it.isTotal ? 1 : 0,
+                    is_total: (tipe === 'total') ? 1 : 0,
                     tipe_baris: tipe
                 };
             });
@@ -2219,8 +2360,10 @@ $(document).ready(function() {
             } else if (isBarisSubtotal(item.nama_baris_ind)) {
                 tipe = 'subtotal';
             } else {
-                let hasChild = (idx + 1 < items.length && items[idx + 1].level_indentasi > item.level_indentasi);
-                if (hasChild || lower === 'kabupaten' || lower === 'kota') {
+                const matchingTree = treeItems ? (treeItems[idx] || null) : null;
+                if (matchingTree && matchingTree.tipe_baris) {
+                    tipe = matchingTree.tipe_baris;
+                } else if (lower === 'kabupaten' || lower === 'kota') {
                     tipe = 'kategori';
                 } else {
                     tipe = 'data';
@@ -2228,7 +2371,7 @@ $(document).ready(function() {
             }
 
             item.tipe_baris = tipe;
-            item.is_bold = (tipe === 'total' || tipe === 'kategori' || tipe === 'subtotal') ? 1 : 0;
+            item.is_bold = (tipe === 'total' || tipe === 'kategori' || tipe === 'subtotal' || item.level_indentasi === 0) ? 1 : 0;
             delete item.isExplicitTotal;
         });
 
@@ -2252,27 +2395,27 @@ $(document).ready(function() {
             let badgeText = 'Data';
 
             if (item.tipe_baris === 'kategori') {
-                bg = 'background-color: #f8fafc;';
-                badgeClass = 'bg-primary-soft text-primary border border-primary-subtle';
-                badgeText = 'Bab (L0)';
+                bg = 'background-color: #fffaf5; border-left: 3px solid #ff6d1f;';
+                badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold';
+                badgeText = '🏷️ Kategori';
             } else if (item.tipe_baris === 'total') {
                 bg = 'background-color: #fef3c7; border-top: 2px solid #d97706; border-bottom: 3px double #d97706;';
                 badgeClass = 'bg-warning text-dark fw-bold';
-                badgeText = 'Grand Total';
+                badgeText = '∑ Grand Total';
             } else if (item.tipe_baris === 'subtotal') {
                 bg = 'background-color: #f1f5f9; border-top: 1px solid #cbd5e1;';
                 badgeClass = 'bg-secondary text-white';
-                badgeText = 'Subtotal';
+                badgeText = '∑ Subtotal';
             } else {
                 if (item.level_indentasi === 1) {
-                    badgeText = 'Sub Bab (L1)';
+                    badgeText = '📊 Data (L2)';
                     badgeClass = 'bg-info-subtle text-info-emphasis border border-info-subtle';
                 } else if (item.level_indentasi === 2) {
-                    badgeText = 'Sub Sub Bab (L2)';
+                    badgeText = '📊 Data (L3)';
                     badgeClass = 'bg-success-subtle text-success-emphasis border border-success-subtle';
                 } else {
-                    badgeText = 'Data (L0)';
-                    badgeClass = 'bg-light text-secondary border';
+                    badgeText = '📊 Data (L1)';
+                    badgeClass = 'bg-success-subtle text-success-emphasis border border-success-subtle';
                 }
             }
 
@@ -2413,14 +2556,16 @@ $(document).ready(function() {
                     const lvl = parseInt(it.level_indentasi, 10) || 0;
                     const parentId = lvl > 0 ? (levelParents[lvl - 1] ? levelParents[lvl - 1].id : null) : null;
                     const isTotal = (it.tipe_baris === 'total' || isBarisTotal(it.nama_baris_ind));
+                    const role = it.tipe_baris || (isTotal ? 'total' : 'data');
                     const node = {
                         id: 'node_' + (++idSeq),
                         parentId: parentId,
                         level: lvl,
                         ind: it.nama_baris_ind,
                         en: it.nama_baris_en || it.nama_baris_ind,
-                        isTotal: isTotal,
-                        isUserToggled: (it.tipe_baris === 'total' || it.tipe_baris === 'kategori' || it.tipe_baris === 'data')
+                        isTotal: (role === 'total'),
+                        tipe_baris: role,
+                        isUserToggled: Boolean(it.tipe_baris)
                     };
                     levelParents[lvl] = node;
                     treeItems.push(node);

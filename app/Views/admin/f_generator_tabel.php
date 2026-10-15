@@ -1299,24 +1299,12 @@ $(document).ready(function() {
                 return false;
             }
 
-            const curLevel = parseInt(cur.level_indentasi) || 0;
-            let hasChild = false;
-            if (idx + 1 < items.length) {
-                const next = items[idx + 1];
-                const nextLevel = parseInt(next.level_indentasi) || 0;
-                if (nextLevel > curLevel) {
-                    hasChild = true;
-                }
-            }
-
-            if (hasChild) {
+            // Baris hanya menjadi banner kategori tanpa sel data JIKA tipe_baris === 'kategori' atau kata kunci khusus pembatas wilayah
+            if (tipe === 'kategori' || lowerNama === 'kabupaten' || lowerNama === 'kota') {
                 return true;
             }
 
-            if (tipe === 'kategori' && (lowerNama === 'kabupaten' || lowerNama === 'kota')) {
-                return true;
-            }
-
+            // Baris bertipe 'data' (meskipun memiliki sub-level/anak seperti di PDRB) tetap memiliki sel data angka
             return false;
         }
 
