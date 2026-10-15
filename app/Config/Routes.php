@@ -17,4 +17,5 @@ $routes->get('admin/download_template_tabel/(:num)', 'Admin::download_template_t
 $routes->get('admin/view_tabel_dinamis/(:num)', 'Admin::view_tabel_dinamis/$1');
 $routes->post('admin/upload_excel_dinamis', 'Admin::upload_excel_dinamis');
 $routes->post('admin/simpan_catatan_tabel', 'Admin::simpan_catatan_tabel');
+$routes->post('admin/ajax_reset_nilai_tabel', 'Admin::ajax_reset_nilai_tabel');
 
