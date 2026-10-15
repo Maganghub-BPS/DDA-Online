@@ -475,7 +475,13 @@ $catatan_val = $indikator->catatan ?? '';
         height: 22px;
         background-color: #cbd5e1;
         opacity: 0.7;
-        margin: 0 2px;
+        margin: 0 4px;
+    }
+    .matrix-settings-ribbon {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px;
     }
     @media (max-width: 991px) {
         .toolbar-divider {
@@ -483,72 +489,134 @@ $catatan_val = $indikator->catatan ?? '';
         }
     }
 
-    /* ===== TOTAL SELECT PILL STYLING ===== */
-    .total-select-wrapper {
+    /* ===== CUSTOM TOTAL DROPDOWN MODERN (BPS STYLE - PENGGANTI UI GAMBAR 3) ===== */
+    .custom-total-dropdown {
         position: relative;
+        display: inline-block;
+    }
+    .btn-total-toggle {
         display: inline-flex;
         align-items: center;
+        gap: 8px;
         background: #f1f5f9;
         border: 1px solid #cbd5e1;
         border-radius: 50px;
-        padding: 4px 26px 4px 12px;
-        transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        padding: 4px 14px 4px 14px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #1e293b;
         cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        user-select: none;
+        white-space: nowrap;
+        outline: none;
     }
-    .total-select-wrapper:hover {
+    .btn-total-toggle:hover {
         background: #ffffff;
         border-color: #94a3b8;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
     }
-    .total-select-wrapper:focus-within {
+    .custom-total-dropdown.open .btn-total-toggle,
+    .btn-total-toggle:focus {
         background: #ffffff;
         border-color: #FF6D1F;
         box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.15);
+        color: #FF6D1F;
     }
-    .total-select-input {
-        border: none !important;
-        background: transparent !important;
-        outline: none !important;
-        box-shadow: none !important;
-        font-size: 0.78rem !important;
-        font-weight: 600 !important;
-        color: #1e293b !important;
-        cursor: pointer;
-        padding: 0 !important;
-        margin: 0 !important;
-        line-height: 1.25 !important;
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-    }
-    .total-select-wrapper .select-chevron {
-        position: absolute;
-        right: 9px;
-        pointer-events: none;
+    .toggle-chevron {
         font-size: 0.72rem;
         color: #64748b;
         transition: transform 0.2s ease;
     }
-    .total-select-wrapper:focus-within .select-chevron {
-        color: #FF6D1F;
+    .custom-total-dropdown.open .toggle-chevron {
         transform: rotate(180deg);
+        color: #FF6D1F;
     }
-    .total-kustom-input {
-        border: 1px solid #cbd5e1 !important;
-        background: #ffffff !important;
-        border-radius: 50px !important;
-        padding: 3px 12px !important;
+    .custom-total-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 1050;
+        min-width: 220px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 6px 10px -6px rgba(0, 0, 0, 0.05);
+        padding: 5px;
+        margin: 0;
+        list-style: none;
+        display: none;
+        animation: fadeInMenu 0.15s ease-out;
+    }
+    @keyframes fadeInMenu {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .custom-total-dropdown.open .custom-total-menu {
+        display: block;
+    }
+    .custom-total-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 11px;
+        border-radius: 6px;
+        font-size: 0.79rem;
+        font-weight: 500;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+    .custom-total-item:hover {
+        background: #f8fafc;
+        color: #0f172a;
+    }
+    .custom-total-item.active {
+        background: #FFF5ED;
+        color: #FF6D1F;
+        font-weight: 600;
+    }
+    .custom-total-item .item-check {
+        font-size: 0.85rem;
+        color: #FF6D1F;
+        display: none;
+    }
+    .custom-total-item.active .item-check {
+        display: inline-block;
+    }
+    .custom-total-divider {
+        height: 1px;
+        background: #f1f5f9;
+        margin: 4px 5px;
+    }
+    .custom-total-input-wrap {
+        padding: 4px 6px 6px 6px;
+        margin-top: 2px;
+        animation: fadeInMenu 0.15s ease-out;
+    }
+    .total-popover-input {
         font-size: 0.78rem !important;
-        font-weight: 500 !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px 0 0 6px !important;
+        padding: 4px 9px !important;
         color: #1e293b !important;
-        width: 125px !important;
-        height: 29px !important;
-        outline: none !important;
-        transition: all 0.2s ease;
+        background: #ffffff !important;
     }
-    .total-kustom-input:focus {
+    .total-popover-input:focus {
         border-color: #FF6D1F !important;
-        background: #FFF5ED !important;
-        box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.15) !important;
+        box-shadow: 0 0 0 2px rgba(255, 109, 31, 0.15) !important;
+    }
+    .btn-total-apply {
+        background: #FF6D1F !important;
+        border-color: #FF6D1F !important;
+        color: #ffffff !important;
+        border-radius: 0 6px 6px 0 !important;
+        padding: 4px 10px !important;
+        font-size: 0.8rem !important;
+    }
+    .btn-total-apply:hover {
+        background: #e05d15 !important;
     }
     #btn_unlock_reset_data:hover {
         background: #fef2f2 !important;
@@ -694,10 +762,9 @@ $catatan_val = $indikator->catatan ?? '';
                     </div>
                 </div>
 
-                <!-- BARIS 2: PENGATURAN TINGKAT KOLOM, POSISI HEADER, BARIS TOTAL, & TOMBOL AKSI -->
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 gap-md-3 pt-3 mt-3 border-top">
-                    <!-- Kiri: Pengaturan Matriks (Tingkat Kolom, Posisi, Baris Total) -->
-                    <div class="d-flex flex-wrap align-items-center gap-2 gap-xl-3">
+                <!-- BARIS 2: PENGATURAN MATRIKS (TINGKAT KOLOM, POSISI HEADER, BARIS TOTAL) -->
+                <div class="matrix-settings-ribbon mt-3">
+                    <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
                         <!-- 1. Tingkat Kolom (Opsi 2 Adaptif Pill Chips) -->
                         <div id="box_tingkat_kolom" class="toolbar-setting-item" title="Pilih tingkat kolom yang ingin ditampilkan pada tabel">
                             <span class="toolbar-setting-label">
@@ -707,7 +774,7 @@ $catatan_val = $indikator->catatan ?? '';
                                 <?php 
                                     $curDepth = $init_max_depth ?? 1;
                                     $actL = [];
-                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua') {
+                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua' || ($sel_tingkat_kolom === '1' && $curDepth > 1)) {
                                         $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                     } elseif ($sel_tingkat_kolom === 'sub_bab') {
                                         $actL = ($curDepth === 3) ? ['2', '3'] : ['2'];
@@ -717,9 +784,21 @@ $catatan_val = $indikator->catatan ?? '';
                                         $actL = array_filter(array_map('trim', explode(',', $sel_tingkat_kolom)), function($l) use ($curDepth) {
                                             return (int)$l >= 1 && (int)$l <= $curDepth;
                                         });
-                                        if (empty($actL)) {
+                                        if (empty($actL) || ($curDepth > 1 && count($actL) === 1 && in_array('1', $actL) && empty($indikator->tingkat_kolom))) {
                                             $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                         }
+                                    }
+
+                                    // Label display awal untuk toggle button baris total
+                                    $total_label_display = 'Sesuai Master';
+                                    if ($sel_konfigurasi_total === 'jawa_tengah') {
+                                        $total_label_display = 'Jawa Tengah';
+                                    } elseif ($sel_konfigurasi_total === 'jumlah') {
+                                        $total_label_display = 'Jumlah';
+                                    } elseif ($sel_konfigurasi_total === 'none') {
+                                        $total_label_display = 'Tanpa Total (Sembunyikan)';
+                                    } elseif ($sel_konfigurasi_total === 'kustom') {
+                                        $total_label_display = !empty($sel_label_total_kustom) ? esc($sel_label_total_kustom) : 'Kustom...';
                                     }
                                 ?>
                                 <?php if ($curDepth <= 1): ?>
@@ -763,32 +842,70 @@ $catatan_val = $indikator->catatan ?? '';
                         <!-- Divider halus vertikal -->
                         <div class="toolbar-divider d-none d-md-block"></div>
 
-                        <!-- 3. Penyajian Baris Total (Grand Total Presentation) -->
+                        <!-- 3. Penyajian Baris Total (Custom Modern Popover Dropdown) -->
                         <div id="box_konfigurasi_total" class="toolbar-setting-item" title="Atur label penyajian baris total atau sembunyikan untuk tabel rasio/pertumbuhan">
                             <span class="toolbar-setting-label">
                                 <i class="bi bi-calculator text-primary me-1"></i> Baris Total:
                             </span>
-                            <div class="d-flex align-items-center gap-1">
-                                <div class="total-select-wrapper">
-                                    <select name="konfigurasi_total" id="select_konfigurasi_total" class="total-select-input">
-                                        <option value="default" <?= ($sel_konfigurasi_total === 'default') ? 'selected' : ''; ?>>Sesuai Master</option>
-                                        <option value="jawa_tengah" <?= ($sel_konfigurasi_total === 'jawa_tengah') ? 'selected' : ''; ?>>Jawa Tengah</option>
-                                        <option value="jumlah" <?= ($sel_konfigurasi_total === 'jumlah') ? 'selected' : ''; ?>>Jumlah</option>
-                                        <option value="none" <?= ($sel_konfigurasi_total === 'none') ? 'selected' : ''; ?>>Tanpa Total (Sembunyikan)</option>
-                                        <option value="kustom" <?= ($sel_konfigurasi_total === 'kustom') ? 'selected' : ''; ?>>Kustom...</option>
-                                    </select>
-                                    <i class="bi bi-chevron-down select-chevron"></i>
+                            <div class="custom-total-dropdown" id="dropdown_total_menu_wrap">
+                                <button type="button" class="btn-total-toggle" id="btn_total_toggle">
+                                    <span id="selected_total_label"><?= esc($total_label_display); ?></span>
+                                    <i class="bi bi-chevron-down toggle-chevron"></i>
+                                </button>
+                                <input type="hidden" name="konfigurasi_total" id="select_konfigurasi_total" value="<?= esc($sel_konfigurasi_total); ?>">
+                                
+                                <!-- Menu popover melayang modern: Sederhana & Clean -->
+                                <div class="custom-total-menu" id="menu_total_options">
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'default') ? 'active' : ''; ?>" data-val="default">
+                                        <span class="item-title" id="label_item_default_text">Sesuai Master</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'jawa_tengah') ? 'active' : ''; ?>" data-val="jawa_tengah">
+                                        <span class="item-title">Jawa Tengah</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'jumlah') ? 'active' : ''; ?>" data-val="jumlah">
+                                        <span class="item-title">Jumlah</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-divider"></div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'none') ? 'active' : ''; ?>" data-val="none">
+                                        <span class="item-title text-muted">Tanpa Total (Sembunyikan)</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-divider"></div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'kustom') ? 'active' : ''; ?>" data-val="kustom">
+                                        <span class="item-title">Kustom...</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    
+                                    <!-- Input label kustom langsung di dalam menu dropdown popover -->
+                                    <div class="custom-total-input-wrap <?= ($sel_konfigurasi_total === 'kustom') ? '' : 'd-none'; ?>" id="box_popover_kustom_input">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" name="label_total_kustom" id="input_label_total_kustom" 
+                                                   class="form-control form-control-sm total-popover-input" 
+                                                   value="<?= esc($sel_label_total_kustom); ?>" 
+                                                   placeholder="Ketik label kustom...">
+                                            <button type="button" class="btn btn-sm btn-total-apply" id="btn_apply_kustom" title="Terapkan dan tutup">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <input type="text" name="label_total_kustom" id="input_label_total_kustom" 
-                                       class="total-kustom-input <?= ($sel_konfigurasi_total === 'kustom') ? '' : 'd-none'; ?>" 
-                                       value="<?= esc($sel_label_total_kustom); ?>" 
-                                       placeholder="Label kustom...">
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- BARIS 3: FOOTER AKSI & STATUS (TOMBOL FIX DI KANAN) -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 mt-3 border-top">
+                    <div class="d-flex align-items-center gap-2 text-muted text-xs">
+                        <i class="bi bi-info-circle text-primary"></i>
+                        <span>Pratinjau matriks di bawah otomatis menyesuaikan konfigurasi yang dipilih.</span>
+                    </div>
 
                     <!-- Kanan: Tombol Aksi (Unduh Template, Lepas, Simpan Matriks) -->
-                    <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+                    <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
                         <?php if ($is_dynamic): ?>
                             <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id_tahun_tabel); ?>" class="btn btn-outline-success btn-sm px-3 py-1-5 rounded-pill text-xs fw-semibold shadow-xs d-inline-flex align-items-center gap-1" title="Unduh Template Excel (.xlsx) Berstandar BPS">
                                 <i class="bi bi-file-earmark-excel"></i> Unduh Template
@@ -933,7 +1050,13 @@ $(document).ready(function() {
     updateHirarkiSwitchState();
 
     // Trigger pembaruan preview saat input dimensi berubah (Select2 & native change)
-    $('#select_karakteristik, #select_baris, #select_periode').on('select2:select select2:clear change', function() {
+    $('#select_karakteristik').on('select2:select select2:clear change', function() {
+        $('#input_tingkat_kolom').val('semua'); // Pastikan selalu reset ke semua tingkat saat ganti karakteristik!
+        updateHirarkiSwitchState();
+        fetchDimensiData();
+    });
+
+    $('#select_baris, #select_periode').on('select2:select select2:clear change', function() {
         updateHirarkiSwitchState();
         fetchDimensiData();
     });
@@ -944,23 +1067,81 @@ $(document).ready(function() {
         }
     });
 
-    // Handler konfigurasi baris total (Jawa Tengah vs Jumlah vs Sembunyikan vs Kustom)
-    $('#select_konfigurasi_total').on('change', function() {
-        const val = $(this).val();
+    // ===== HANDLER CUSTOM DROPDOWN MODERN BARIS TOTAL (PENGGANTI GAMBAR 3) =====
+    // Toggle buka-tutup menu dropdown
+    $('#btn_total_toggle').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const $wrap = $('#dropdown_total_menu_wrap');
+        $wrap.toggleClass('open');
+        if ($wrap.hasClass('open') && $('#select_konfigurasi_total').val() === 'kustom') {
+            setTimeout(function() {
+                $('#input_label_total_kustom').focus().select();
+            }, 60);
+        }
+    });
+
+    // Tutup menu dropdown jika pengguna mengklik area luar
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#dropdown_total_menu_wrap').length) {
+            $('#dropdown_total_menu_wrap').removeClass('open');
+        }
+    });
+
+    // Event saat opsi pada menu dropdown diklik
+    $(document).on('click', '.custom-total-item', function(e) {
+        e.preventDefault();
+        const val = $(this).data('val');
+        const label = $(this).find('.item-title').text();
+
+        $('#select_konfigurasi_total').val(val);
+        $('.custom-total-item').removeClass('active');
+        $(this).addClass('active');
+
         if (val === 'kustom') {
-            $('#input_label_total_kustom').removeClass('d-none').focus();
+            // Tampilkan input inline di dalam popover dan fokuskan
+            $('#box_popover_kustom_input').removeClass('d-none');
+            const customVal = $('#input_label_total_kustom').val().trim();
+            $('#selected_total_label').text(customVal ? customVal : 'Kustom...');
+            setTimeout(function() {
+                $('#input_label_total_kustom').focus().select();
+            }, 60);
         } else {
-            $('#input_label_total_kustom').addClass('d-none');
+            // Sembunyikan input kustom dan tutup menu dropdown
+            $('#box_popover_kustom_input').addClass('d-none');
+            $('#selected_total_label').text(label);
+            $('#dropdown_total_menu_wrap').removeClass('open');
+        }
+
+        if (currentData) {
+            renderMatrix(currentData);
+        }
+    });
+
+    // Handler input real-time label kustom di dalam popover
+    $('#input_label_total_kustom').on('input', function() {
+        const val = $(this).val().trim();
+        if ($('#select_konfigurasi_total').val() === 'kustom') {
+            $('#selected_total_label').text(val ? val : 'Kustom...');
         }
         if (currentData) {
             renderMatrix(currentData);
         }
     });
 
-    $('#input_label_total_kustom').on('input', function() {
-        if (currentData) {
-            renderMatrix(currentData);
+    // Tekan tombol Enter pada input kustom -> tutup dropdown
+    $('#input_label_total_kustom').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $('#dropdown_total_menu_wrap').removeClass('open');
         }
+    });
+
+    // Tombol centang Apply pada input kustom di popover
+    $('#btn_apply_kustom').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $('#dropdown_total_menu_wrap').removeClass('open');
     });
 
     // Handler switch hirarki segmented buttons: Kolom di Atas vs Periode di Atas
@@ -978,7 +1159,7 @@ $(document).ready(function() {
     });
 
     function parseActiveLevels(tingkatKolom, maxDepth) {
-        if (!tingkatKolom || tingkatKolom === 'semua') {
+        if (!tingkatKolom || tingkatKolom === 'semua' || (tingkatKolom === '1' && maxDepth > 1)) {
             return (maxDepth === 3) ? ['1', '2', '3'] : ((maxDepth === 2) ? ['1', '2'] : ['1']);
         }
         if (tingkatKolom === 'sub_bab') {
@@ -994,7 +1175,12 @@ $(document).ready(function() {
 
     function updateTingkatKolomUI(maxDepth) {
         const $container = $('#container_tingkat_kolom');
-        const savedVal = $('#input_tingkat_kolom').val();
+        let savedVal = $('#input_tingkat_kolom').val();
+        // Default tercentang semua jika baru dibuka atau kedalaman kolom bertingkat
+        if (!savedVal || savedVal === 'semua' || (savedVal === '1' && maxDepth > 1)) {
+            savedVal = (maxDepth === 3) ? '1,2,3' : ((maxDepth === 2) ? '1,2' : '1');
+            $('#input_tingkat_kolom').val(savedVal);
+        }
         const active = parseActiveLevels(savedVal, maxDepth);
 
         if (maxDepth <= 1) {
@@ -1200,9 +1386,16 @@ $(document).ready(function() {
 
         if (masterTotalItem) {
             const origLabel = masterTotalItem.nama_baris_ind || 'Jumlah';
-            $('#select_konfigurasi_total option[value="default"]').text('Sesuai Master (' + origLabel + ')');
+            const masterLabelText = 'Sesuai Master (' + origLabel + ')';
+            $('#label_item_default_text').text(masterLabelText);
+            if ($('#select_konfigurasi_total').val() === 'default') {
+                $('#selected_total_label').text(masterLabelText);
+            }
         } else {
-            $('#select_konfigurasi_total option[value="default"]').text('Sesuai Master');
+            $('#label_item_default_text').text('Sesuai Master');
+            if ($('#select_konfigurasi_total').val() === 'default') {
+                $('#selected_total_label').text('Sesuai Master');
+            }
         }
 
         // Parse tingkat aktif menjadi array angka [1, 2, 3] dsb
