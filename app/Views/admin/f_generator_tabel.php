@@ -378,10 +378,10 @@ $catatan_val = $indikator->catatan ?? '';
     .tingkat-pill-content {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 5px 14px;
+        gap: 5px;
+        padding: 4px 12px;
         border-radius: 50px;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 600;
         border: 1.5px solid #cbd5e1;
         background: #ffffff;
@@ -404,12 +404,12 @@ $catatan_val = $indikator->catatan ?? '';
     .tingkat-pill-item .icon-checked {
         display: none;
         color: #FF6D1F;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     .tingkat-pill-item .icon-unchecked {
         display: inline-block;
         color: #94a3b8;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     .tingkat-pill-item input[type="checkbox"]:checked + .tingkat-pill-content .icon-checked {
         display: inline-block;
@@ -429,8 +429,8 @@ $catatan_val = $indikator->catatan ?? '';
     .btn-segmented {
         border: none;
         background: transparent;
-        padding: 5px 14px;
-        font-size: 0.8rem;
+        padding: 4px 11px;
+        font-size: 0.78rem;
         font-weight: 600;
         color: #64748b;
         border-radius: 50px;
@@ -452,6 +452,103 @@ $catatan_val = $indikator->catatan ?? '';
     .posisi-segmented-group.disabled {
         opacity: 0.55;
         pointer-events: none;
+    }
+
+    /* ===== TOOLBAR PENGATURAN MATRIKS (TINGKAT, POSISI, TOTAL) ===== */
+    .toolbar-setting-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .toolbar-setting-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        color: #64748b;
+        text-transform: uppercase;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+    }
+    .toolbar-divider {
+        width: 1px;
+        height: 22px;
+        background-color: #cbd5e1;
+        opacity: 0.7;
+        margin: 0 2px;
+    }
+    @media (max-width: 991px) {
+        .toolbar-divider {
+            display: none;
+        }
+    }
+
+    /* ===== TOTAL SELECT PILL STYLING ===== */
+    .total-select-wrapper {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 50px;
+        padding: 4px 26px 4px 12px;
+        transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        cursor: pointer;
+    }
+    .total-select-wrapper:hover {
+        background: #ffffff;
+        border-color: #94a3b8;
+    }
+    .total-select-wrapper:focus-within {
+        background: #ffffff;
+        border-color: #FF6D1F;
+        box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.15);
+    }
+    .total-select-input {
+        border: none !important;
+        background: transparent !important;
+        outline: none !important;
+        box-shadow: none !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+        cursor: pointer;
+        padding: 0 !important;
+        margin: 0 !important;
+        line-height: 1.25 !important;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+    }
+    .total-select-wrapper .select-chevron {
+        position: absolute;
+        right: 9px;
+        pointer-events: none;
+        font-size: 0.72rem;
+        color: #64748b;
+        transition: transform 0.2s ease;
+    }
+    .total-select-wrapper:focus-within .select-chevron {
+        color: #FF6D1F;
+        transform: rotate(180deg);
+    }
+    .total-kustom-input {
+        border: 1px solid #cbd5e1 !important;
+        background: #ffffff !important;
+        border-radius: 50px !important;
+        padding: 3px 12px !important;
+        font-size: 0.78rem !important;
+        font-weight: 500 !important;
+        color: #1e293b !important;
+        width: 125px !important;
+        height: 29px !important;
+        outline: none !important;
+        transition: all 0.2s ease;
+    }
+    .total-kustom-input:focus {
+        border-color: #FF6D1F !important;
+        background: #FFF5ED !important;
+        box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.15) !important;
     }
     #btn_unlock_reset_data:hover {
         background: #fef2f2 !important;
@@ -597,16 +694,16 @@ $catatan_val = $indikator->catatan ?? '';
                     </div>
                 </div>
 
-                <!-- BARIS 2: PENGATURAN TINGKAT KOLOM, POSISI HEADER, & TOMBOL AKSI -->
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 mt-3 border-top">
-                    <!-- Kiri: Tingkat Kolom & Posisi Header -->
-                    <div class="d-flex flex-wrap align-items-center gap-3">
-                        <!-- Tingkat Kolom (Opsi 2 Adaptif Pill Chips) -->
-                        <div id="box_tingkat_kolom" class="d-flex align-items-center gap-2" title="Pilih tingkat kolom yang ingin ditampilkan pada tabel">
-                            <span class="text-xs fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">
-                                <i class="bi bi-layers text-primary me-1"></i> Tingkat Kolom:
+                <!-- BARIS 2: PENGATURAN TINGKAT KOLOM, POSISI HEADER, BARIS TOTAL, & TOMBOL AKSI -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 gap-md-3 pt-3 mt-3 border-top">
+                    <!-- Kiri: Pengaturan Matriks (Tingkat Kolom, Posisi, Baris Total) -->
+                    <div class="d-flex flex-wrap align-items-center gap-2 gap-xl-3">
+                        <!-- 1. Tingkat Kolom (Opsi 2 Adaptif Pill Chips) -->
+                        <div id="box_tingkat_kolom" class="toolbar-setting-item" title="Pilih tingkat kolom yang ingin ditampilkan pada tabel">
+                            <span class="toolbar-setting-label">
+                                <i class="bi bi-layers text-primary me-1"></i> Tingkat:
                             </span>
-                            <div id="container_tingkat_kolom" class="d-flex align-items-center gap-2 flex-wrap">
+                            <div id="container_tingkat_kolom" class="d-flex align-items-center gap-1 flex-wrap">
                                 <?php 
                                     $curDepth = $init_max_depth ?? 1;
                                     $actL = [];
@@ -626,7 +723,7 @@ $catatan_val = $indikator->catatan ?? '';
                                     }
                                 ?>
                                 <?php if ($curDepth <= 1): ?>
-                                    <span class="badge bg-light text-muted border px-2 py-1 text-xxs rounded-pill"><i class="bi bi-dash-circle me-1"></i>1 Tingkat (Rata)</span>
+                                    <span class="badge bg-light text-secondary border px-2-5 py-1 rounded-pill fw-semibold" style="font-size: 0.76rem; border-color: #cbd5e1 !important;"><i class="bi bi-dash-circle me-1 text-muted"></i>1 Tingkat (Rata)</span>
                                 <?php else: ?>
                                     <?php for ($i = 1; $i <= $curDepth; $i++): ?>
                                         <label class="tingkat-pill-item" title="Tampilkan atau sembunyikan Tingkat <?= $i; ?>">
@@ -643,11 +740,11 @@ $catatan_val = $indikator->catatan ?? '';
                         </div>
 
                         <!-- Divider halus vertikal -->
-                        <div class="vr text-muted opacity-25 d-none d-md-block" style="height: 24px;"></div>
+                        <div class="toolbar-divider d-none d-md-block"></div>
 
-                        <!-- Posisi Hirarki Header (Segmented Button Group) -->
-                        <div id="box_posisi_hirarki" class="d-flex align-items-center gap-2" title="Atur tata letak hirarki kolom atau periode waktu">
-                            <span class="text-xs fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">
+                        <!-- 2. Posisi Hirarki Header (Segmented Button Group) -->
+                        <div id="box_posisi_hirarki" class="toolbar-setting-item" title="Atur tata letak hirarki kolom atau periode waktu">
+                            <span class="toolbar-setting-label">
                                 <i class="bi bi-arrow-down-up text-primary me-1"></i> Posisi:
                             </span>
                             <div class="posisi-segmented-group" id="group_posisi_hirarki">
@@ -664,26 +761,28 @@ $catatan_val = $indikator->catatan ?? '';
                         </div>
 
                         <!-- Divider halus vertikal -->
-                        <div class="vr text-muted opacity-25 d-none d-md-block" style="height: 24px;"></div>
+                        <div class="toolbar-divider d-none d-md-block"></div>
 
-                        <!-- Penyajian Baris Total (Grand Total Presentation) -->
-                        <div id="box_konfigurasi_total" class="d-flex align-items-center gap-2" title="Atur label penyajian baris total atau sembunyikan untuk tabel rasio/pertumbuhan">
-                            <span class="text-xs fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">
+                        <!-- 3. Penyajian Baris Total (Grand Total Presentation) -->
+                        <div id="box_konfigurasi_total" class="toolbar-setting-item" title="Atur label penyajian baris total atau sembunyikan untuk tabel rasio/pertumbuhan">
+                            <span class="toolbar-setting-label">
                                 <i class="bi bi-calculator text-primary me-1"></i> Baris Total:
                             </span>
                             <div class="d-flex align-items-center gap-1">
-                                <select name="konfigurasi_total" id="select_konfigurasi_total" class="form-select form-select-sm" style="font-size: 0.8rem; min-height: 31px; height: 31px; border-radius: 6px; padding: 2px 24px 2px 8px; width: auto; font-weight: 500;">
-                                    <option value="default" <?= ($sel_konfigurasi_total === 'default') ? 'selected' : ''; ?>>Sesuai Master</option>
-                                    <option value="jawa_tengah" <?= ($sel_konfigurasi_total === 'jawa_tengah') ? 'selected' : ''; ?>>Jawa Tengah</option>
-                                    <option value="jumlah" <?= ($sel_konfigurasi_total === 'jumlah') ? 'selected' : ''; ?>>Jumlah</option>
-                                    <option value="none" <?= ($sel_konfigurasi_total === 'none') ? 'selected' : ''; ?>>Tanpa Total (Sembunyikan)</option>
-                                    <option value="kustom" <?= ($sel_konfigurasi_total === 'kustom') ? 'selected' : ''; ?>>Kustom...</option>
-                                </select>
+                                <div class="total-select-wrapper">
+                                    <select name="konfigurasi_total" id="select_konfigurasi_total" class="total-select-input">
+                                        <option value="default" <?= ($sel_konfigurasi_total === 'default') ? 'selected' : ''; ?>>Sesuai Master</option>
+                                        <option value="jawa_tengah" <?= ($sel_konfigurasi_total === 'jawa_tengah') ? 'selected' : ''; ?>>Jawa Tengah</option>
+                                        <option value="jumlah" <?= ($sel_konfigurasi_total === 'jumlah') ? 'selected' : ''; ?>>Jumlah</option>
+                                        <option value="none" <?= ($sel_konfigurasi_total === 'none') ? 'selected' : ''; ?>>Tanpa Total (Sembunyikan)</option>
+                                        <option value="kustom" <?= ($sel_konfigurasi_total === 'kustom') ? 'selected' : ''; ?>>Kustom...</option>
+                                    </select>
+                                    <i class="bi bi-chevron-down select-chevron"></i>
+                                </div>
                                 <input type="text" name="label_total_kustom" id="input_label_total_kustom" 
-                                       class="form-control form-control-sm <?= ($sel_konfigurasi_total === 'kustom') ? '' : 'd-none'; ?>" 
+                                       class="total-kustom-input <?= ($sel_konfigurasi_total === 'kustom') ? '' : 'd-none'; ?>" 
                                        value="<?= esc($sel_label_total_kustom); ?>" 
-                                       placeholder="Label kustom..." 
-                                       style="font-size: 0.8rem; min-height: 31px; height: 31px; width: 130px; border-radius: 6px;">
+                                       placeholder="Label kustom...">
                             </div>
                         </div>
                     </div>
@@ -899,7 +998,7 @@ $(document).ready(function() {
         const active = parseActiveLevels(savedVal, maxDepth);
 
         if (maxDepth <= 1) {
-            $container.html('<span class="badge bg-light text-muted border px-2 py-1 text-xxs rounded-pill"><i class="bi bi-dash-circle me-1"></i>1 Tingkat (Rata)</span>');
+            $container.html('<span class="badge bg-light text-secondary border px-2-5 py-1 rounded-pill fw-semibold" style="font-size: 0.76rem; border-color: #cbd5e1 !important;"><i class="bi bi-dash-circle me-1 text-muted"></i>1 Tingkat (Rata)</span>');
             $('#input_tingkat_kolom').val('1');
             return;
         }
