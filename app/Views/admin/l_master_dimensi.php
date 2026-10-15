@@ -204,17 +204,28 @@
 }
 .role-dropdown-menu {
     border-radius: 8px;
-    min-width: 215px;
+    min-width: 140px;
     font-size: 0.78rem;
     border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08) !important;
+    padding: 4px;
     z-index: 1060;
 }
 .role-dropdown-menu .dropdown-item {
-    padding: 6px 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 500;
+    color: #334155;
+    transition: all 0.12s ease;
 }
-.role-dropdown-menu .dropdown-item.active {
+.role-dropdown-menu .dropdown-item:hover {
     background-color: #f1f5f9;
     color: #0f172a;
+}
+.role-dropdown-menu .dropdown-item.active {
+    background-color: #f8fafc;
+    color: #0f172a;
+    font-weight: 600;
 }
 .btn-total-pill {
     font-size: 0.72rem;
@@ -1817,33 +1828,25 @@ $(document).ready(function() {
                                 <span>${roleIcon}</span> <span class="ms-1">${roleLabel}</span>
                             </button>
                             <ul class="dropdown-menu role-dropdown-menu shadow-sm">
-                                <li><h6 class="dropdown-header text-xs text-uppercase fw-bold text-muted py-1">Tipe Fungsional Baris</h6></li>
                                 <li>
-                                    <a class="dropdown-item ${currentRole === 'data' ? 'active fw-bold' : ''} set-role" data-role="data" href="#">
-                                        <i class="bi bi-bar-chart-fill text-success me-2"></i>
-                                        <div>
-                                            <div class="fw-semibold">Baris Data</div>
-                                            <div class="text-xxs text-muted">Memiliki sel input angka statistik</div>
-                                        </div>
+                                    <a class="dropdown-item ${currentRole === 'data' ? 'active' : ''} set-role d-flex align-items-center gap-2" data-role="data" href="#">
+                                        <span>📊</span>
+                                        <span>Baris Data</span>
+                                        ${currentRole === 'data' ? '<i class="bi bi-check2 ms-auto text-success fw-bold"></i>' : ''}
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item ${currentRole === 'kategori' ? 'active fw-bold' : ''} set-role" data-role="kategori" href="#">
-                                        <i class="bi bi-tag-fill text-warning me-2"></i>
-                                        <div>
-                                            <div class="fw-semibold">Banner Kategori</div>
-                                            <div class="text-xxs text-muted">Judul sekat melintang tanpa sel angka</div>
-                                        </div>
+                                    <a class="dropdown-item ${currentRole === 'kategori' ? 'active' : ''} set-role d-flex align-items-center gap-2" data-role="kategori" href="#">
+                                        <span>🏷️</span>
+                                        <span>Kategori</span>
+                                        ${currentRole === 'kategori' ? '<i class="bi bi-check2 ms-auto text-warning fw-bold"></i>' : ''}
                                     </a>
                                 </li>
-                                <li><hr class="dropdown-divider my-1"></li>
                                 <li>
-                                    <a class="dropdown-item ${currentRole === 'total' ? 'active fw-bold' : ''} set-role" data-role="total" href="#">
-                                        <i class="bi bi-calculator-fill text-danger me-2"></i>
-                                        <div>
-                                            <div class="fw-semibold">Grand Total / Agregat</div>
-                                            <div class="text-xxs text-muted">Jumlah total / PDRB agregasi</div>
-                                        </div>
+                                    <a class="dropdown-item ${currentRole === 'total' ? 'active' : ''} set-role d-flex align-items-center gap-2" data-role="total" href="#">
+                                        <span class="fw-bold" style="font-size: 0.95em;">∑</span>
+                                        <span>Total</span>
+                                        ${currentRole === 'total' ? '<i class="bi bi-check2 ms-auto text-danger fw-bold"></i>' : ''}
                                     </a>
                                 </li>
                             </ul>
