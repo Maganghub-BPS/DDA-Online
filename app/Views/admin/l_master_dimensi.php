@@ -1486,6 +1486,12 @@
                                         </label>
                                     </div>
                                     <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="import_opt_auto_hierarchy" checked>
+                                        <label class="form-check-label text-dark fw-bold text-xxs" for="import_opt_auto_hierarchy">
+                                            Deteksi Bab & Sub Bab (Romawi / Angka / Huruf)
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-switch mb-0">
                                         <input class="form-check-input" type="checkbox" id="import_opt_translate_month" checked>
                                         <label class="form-check-label text-dark fw-bold text-xxs" for="import_opt_translate_month">
                                             Auto-Translate Bulan ke Inggris
@@ -1513,10 +1519,10 @@
                                 <table class="table table-sm table-hover align-middle mb-0" id="table_import_preview">
                                     <thead class="table-light sticky-top">
                                         <tr>
-                                            <th width="8%" class="text-center text-xxs">No</th>
-                                            <th width="46%" class="text-xxs">Judul Baris (Indonesia)</th>
-                                            <th width="34%" class="text-xxs">Judul Baris (English)</th>
-                                            <th width="12%" class="text-center text-xxs">Hierarki</th>
+                                            <th width="6%" class="text-center text-xxs">No</th>
+                                            <th width="44%" class="text-xxs">Judul Baris (Indonesia)</th>
+                                            <th width="32%" class="text-xxs">Judul Baris (English)</th>
+                                            <th width="18%" class="text-center text-xxs">Hierarki Level</th>
                                         </tr>
                                     </thead>
                                     <tbody id="table_import_preview_tbody">
@@ -1900,18 +1906,41 @@
                                         </div>
                                     </div>
 
-                                    <!-- Form Nama Kelompok Baris -->
-                                    <div class="mb-2">
-                                        <label class="form-label fw-bold text-dark text-xxs mb-1">
-                                            Nama Kelompok Baris (ID) <span class="text-danger">*</span>
-                                        </label>
-                                        <input type="text" class="form-control form-control-sm" id="terpadu_nama_baris_ind" placeholder="Contoh: Kelompok Umur" required>
+                                    <!-- Form Kelompok Baris: Nama Pilihan Master (Dropdown) & Judul Header Tabel -->
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <label class="form-label fw-bold text-dark text-xxs mb-1">
+                                                <i class="bi bi-tag-fill text-primary me-1"></i>Nama Pilihan (ID) <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="text" class="form-control form-control-sm" id="terpadu_nama_baris_ind" placeholder="Contoh: Kabupaten/Kota" required>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label fw-bold text-dark text-xxs mb-1">
+                                                <i class="bi bi-globe text-primary me-1"></i>Nama Pilihan (EN)
+                                            </label>
+                                            <input type="text" class="form-control form-control-sm" id="terpadu_nama_baris_en" placeholder="Contoh: Regency/Municipality">
+                                        </div>
+                                        <div class="col-12 mt-0">
+                                            <div class="text-muted" style="font-size: 0.68rem; line-height: 1.1;">Label pilihan master dropdown (harus unik).</div>
+                                        </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-dark text-xxs mb-1">
-                                            Nama Kelompok Baris (EN)
-                                        </label>
-                                        <input type="text" class="form-control form-control-sm" id="terpadu_nama_baris_en" placeholder="Contoh: Age Group">
+
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label class="form-label fw-bold text-dark text-xxs mb-1">
+                                                <i class="bi bi-table text-primary-orange me-1"></i>Judul Header (ID) <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="text" class="form-control form-control-sm" id="terpadu_judul_baris_ind" placeholder="Contoh: Kabupaten/Kota" required>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label fw-bold text-dark text-xxs mb-1">
+                                                <i class="bi bi-translate text-primary-orange me-1"></i>Judul Header (EN)
+                                            </label>
+                                            <input type="text" class="form-control form-control-sm" id="terpadu_judul_baris_en" placeholder="Contoh: Regency/Municipality">
+                                        </div>
+                                        <div class="col-12 mt-0">
+                                            <div class="text-muted" style="font-size: 0.68rem; line-height: 1.1;">Judul di kepala kolom baris tabel publikasi & Excel.</div>
+                                        </div>
                                     </div>
 
                                     <!-- Preview Ringkas Baris -->
@@ -2908,8 +2937,13 @@ $(document).ready(function() {
 
                 res.items.forEach(function(it) {
                     const isStandalone = parseInt(it.is_standalone, 10) === 1;
-                    const pInd = (it.grup_induk_ind && !isStandalone) ? it.grup_induk_ind.trim() : null;
-                    const pEn  = (it.grup_induk_en && !isStandalone) ? it.grup_induk_en.trim() : pInd;
+                    let pInd = (it.grup_induk_ind && !isStandalone) ? it.grup_induk_ind.trim() : null;
+                    let pEn  = (it.grup_induk_en && !isStandalone) ? it.grup_induk_en.trim() : pInd;
+
+                    if (pInd && it.grup_sub_ind && it.grup_sub_ind.trim() && !isStandalone) {
+                        pInd += ' || ' + it.grup_sub_ind.trim();
+                        pEn  += ' || ' + (it.grup_sub_en ? it.grup_sub_en.trim() : it.grup_sub_ind.trim());
+                    }
 
                     if (pInd) {
                         const partsInd = pInd.split('||').map(s => s.trim()).filter(Boolean);
@@ -3686,7 +3720,7 @@ Jawa Tengah // Central Java`;
     });
 
     // Jika ganti kolom atau opsi pembersihan
-    $('#import_col_ind_select, #import_col_en_select, #import_opt_dedup, #import_opt_clean_header, #import_opt_translate_month').on('change', function() {
+    $('#import_col_ind_select, #import_col_en_select, #import_opt_dedup, #import_opt_clean_header, #import_opt_translate_month, #import_opt_auto_hierarchy').on('change', function() {
         triggerExtractRows();
     });
 
@@ -3702,6 +3736,7 @@ Jawa Tengah // Central Java`;
         const dedup = $('#import_opt_dedup').is(':checked') ? 1 : 0;
         const cleanHdr = $('#import_opt_clean_header').is(':checked') ? 1 : 0;
         const autoTrans = $('#import_opt_translate_month').is(':checked') ? 1 : 0;
+        const autoHier = $('#import_opt_auto_hierarchy').is(':checked') ? 1 : 0;
         const sheetName = $('#import_sheet_dropdown').val() || '';
 
         const payload = {
@@ -3710,6 +3745,7 @@ Jawa Tengah // Central Java`;
             deduplicate: dedup,
             clean_headers: cleanHdr,
             auto_translate_month: autoTrans,
+            auto_hierarchy: autoHier,
             sheet_name: sheetName
         };
 
@@ -3756,29 +3792,50 @@ Jawa Tengah // Central Java`;
         }
 
         items.forEach(function(it, idx) {
-            let lvlBadge = '<span class="badge bg-light text-primary border text-xxs">Bab (L0)</span>';
+            const lvl = parseInt(it.level, 10) || 0;
             let indentPx = 0;
-            if (it.level === 1) {
-                lvlBadge = '<span class="badge bg-light text-info border text-xxs">Sub Bab (L1)</span>';
+            let iconIndent = '';
+            if (lvl === 1) {
                 indentPx = 16;
-            } else if (it.level === 2) {
-                lvlBadge = '<span class="badge bg-light text-success border text-xxs">Sub-Sub (L2)</span>';
+                iconIndent = '<i class="bi bi-arrow-return-right text-info me-1"></i>';
+            } else if (lvl === 2) {
                 indentPx = 32;
+                iconIndent = '<i class="bi bi-arrow-return-right text-success me-1 ms-1"></i>';
             }
+
+            const borderClass = lvl === 0 ? 'border-primary text-primary' : (lvl === 1 ? 'border-info text-info' : 'border-success text-success');
+
+            const lvlSelect = `
+                <select class="form-select form-select-xs py-0 px-2 fw-bold select-row-hierarchy ${borderClass}" data-row-idx="${idx}" style="font-size: 0.72rem; height: 26px; border-radius: 6px; cursor: pointer; background-color: #ffffff;">
+                    <option value="0" class="text-primary fw-bold" ${lvl === 0 ? 'selected' : ''}>Bab (L0)</option>
+                    <option value="1" class="text-info fw-bold" ${lvl === 1 ? 'selected' : ''}>Sub Bab (L1)</option>
+                    <option value="2" class="text-success fw-bold" ${lvl === 2 ? 'selected' : ''}>Sub-Sub (L2)</option>
+                </select>
+            `;
 
             const tr = $(`
                 <tr>
                     <td class="text-center text-muted text-xxs">${idx + 1}</td>
                     <td class="text-xxs fw-semibold text-dark" style="padding-left: ${10 + indentPx}px;">
-                        ${it.level > 0 ? '<i class="bi bi-arrow-return-right text-muted me-1"></i>' : ''}${escapeHtml(it.ind)}
+                        ${iconIndent}${escapeHtml(it.ind)}
                     </td>
                     <td class="text-xxs text-secondary fst-italic">${escapeHtml(it.en || it.ind)}</td>
-                    <td class="text-center">${lvlBadge}</td>
+                    <td class="text-center py-1">${lvlSelect}</td>
                 </tr>
             `);
             $tbody.append(tr);
         });
     }
+
+    // Ubah hierarki baris manual secara interaktif langsung dari tabel preview
+    $(document).on('change', '.select-row-hierarchy', function() {
+        const idx = $(this).data('row-idx');
+        const newLvl = parseInt($(this).val(), 10) || 0;
+        if (currentExtractedItems && currentExtractedItems[idx]) {
+            currentExtractedItems[idx].level = newLvl;
+            renderExtractPreview(currentExtractedItems);
+        }
+    });
 
     // TERAPKAN KE TREE BUILDER
     $('#btn_apply_import_to_tree').on('click', function() {
@@ -3988,10 +4045,15 @@ Jawa Tengah // Central Java`;
                         <div class="form-check mt-1">
                             <input class="form-check-input import-kolom-chk" type="checkbox" 
                                    value="${col.index}" 
-                                   data-header-ind="${escapeHtml(col.header)}" 
-                                   data-header-en="${escapeHtml(col.header_en || col.header)}"
+                                   data-header-ind="${escapeHtml(col.header || '')}" 
+                                   data-header-en="${escapeHtml(col.header_en || col.header || '')}"
                                    data-sub-header="${escapeHtml(col.sub_header || '')}"
-                                   data-full-title="${escapeHtml(col.full_title || col.header)}"
+                                   data-sub-header-en="${escapeHtml(col.sub_header_en || col.sub_header || '')}"
+                                   data-sub-sub-header="${escapeHtml(col.sub_sub_header || '')}"
+                                   data-sub-sub-header-en="${escapeHtml(col.sub_sub_header_en || col.sub_sub_header || '')}"
+                                   data-tree-notation-ind="${escapeHtml(col.tree_notation_ind || '')}"
+                                   data-tree-notation-en="${escapeHtml(col.tree_notation_en || '')}"
+                                   data-full-title="${escapeHtml(col.full_title || col.header || '')}"
                                    data-is-row-id="${isRowId ? '1' : '0'}"
                                    id="chk_col_${col.index}" 
                                    ${isChecked ? 'checked' : ''}>
@@ -4074,6 +4136,11 @@ Jawa Tengah // Central Java`;
                     header: $(this).data('header-ind'),
                     header_en: $(this).data('header-en'),
                     sub_header: $(this).data('sub-header'),
+                    sub_header_en: $(this).data('sub-header-en'),
+                    sub_sub_header: $(this).data('sub-sub-header'),
+                    sub_sub_header_en: $(this).data('sub-sub-header-en'),
+                    tree_notation_ind: $(this).data('tree-notation-ind'),
+                    tree_notation_en: $(this).data('tree-notation-en'),
                     full_title: $(this).data('full-title')
                 });
             }
@@ -4253,45 +4320,54 @@ Jawa Tengah // Central Java`;
                 });
             });
         } else {
-            // Mode: Struktur Hierarki Tree Bab & Sub-Bab (Deduplikasi Parent Cerdas)
-            const seenParentsMap = new Map();
-            const seenChildrenSet = new Set();
+            // Mode: Struktur Hierarki Tree Bab, Sub-Bab & Sub-Sub-Bab (Mendukung hingga 3 Tingkatan Kolom)
+            const nodeMap = new Map();
 
             checkedCols.forEach(function(col) {
-                const pName = (col.header || '').trim();
-                const pEn   = (col.header_en && col.header_en.trim()) ? col.header_en.trim() : pName;
-                const subInd = (col.sub_header || '').trim();
-                const subEn  = (col.sub_header || '').trim();
-
-                const pKey = pName.toLowerCase();
-
-                let parentNode = seenParentsMap.get(pKey);
-                if (!parentNode) {
-                    parentNode = {
-                        id: 'node_' + Date.now() + '_' + (++idSeq),
-                        parentId: null,
-                        level: 0,
-                        ind: pName,
-                        en: pEn
-                    };
-                    seenParentsMap.set(pKey, parentNode);
-                    treeItems.push(parentNode);
-                }
-
-                // Tambahkan node anak jika ada sub_header dan belum pernah ada di parent ini
-                if (subInd && subInd.toLowerCase() !== pKey) {
-                    const childKey = `${parentNode.id}::${subInd.toLowerCase()}`;
-                    if (!seenChildrenSet.has(childKey)) {
-                        seenChildrenSet.add(childKey);
-                        treeItems.push({
-                            id: 'node_' + Date.now() + '_' + (++idSeq),
-                            parentId: parentNode.id,
-                            level: 1,
-                            ind: subInd,
-                            en: subEn
-                        });
+                let levels = [];
+                if (col.levels && Array.isArray(col.levels) && col.levels.length > 0) {
+                    levels = col.levels.filter(l => l && l.ind && l.ind.trim() !== '');
+                } else {
+                    if (col.header && col.header.trim()) {
+                        levels.push({ ind: col.header.trim(), en: (col.header_en && col.header_en.trim()) ? col.header_en.trim() : col.header.trim() });
+                    }
+                    if (col.sub_header && col.sub_header.trim()) {
+                        levels.push({ ind: col.sub_header.trim(), en: (col.sub_header_en && col.sub_header_en.trim()) ? col.sub_header_en.trim() : col.sub_header.trim() });
+                    }
+                    if (col.sub_sub_header && col.sub_sub_header.trim()) {
+                        levels.push({ ind: col.sub_sub_header.trim(), en: (col.sub_sub_header_en && col.sub_sub_header_en.trim()) ? col.sub_sub_header_en.trim() : col.sub_sub_header.trim() });
                     }
                 }
+
+                if (levels.length === 0) {
+                    const fallbackName = col.full_title || col.header || 'Kolom';
+                    levels.push({ ind: fallbackName, en: fallbackName });
+                }
+
+                const maxAllowedDepth = 3;
+                let currentParentId = null;
+                let pathKey = '';
+
+                levels.slice(0, maxAllowedDepth).forEach(function(lvl, depthIdx) {
+                    const indName = lvl.ind.trim();
+                    const enName  = (lvl.en && lvl.en.trim()) ? lvl.en.trim() : indName;
+                    
+                    pathKey = pathKey ? `${pathKey} > ${indName.toLowerCase()}` : indName.toLowerCase();
+
+                    let node = nodeMap.get(pathKey);
+                    if (!node) {
+                        node = {
+                            id: 'node_' + Date.now() + '_' + (++idSeq),
+                            parentId: currentParentId,
+                            level: depthIdx,
+                            ind: indName,
+                            en: enName
+                        };
+                        nodeMap.set(pathKey, node);
+                        treeItems.push(node);
+                    }
+                    currentParentId = node.id;
+                });
             });
         }
 
@@ -4644,6 +4720,31 @@ Jawa Tengah // Central Java`;
     const validatorBarisTerpadu   = setupTerpaduFieldValidator('#terpadu_nama_baris_ind', 'baris');
     const validatorPeriodeTerpadu = setupTerpaduFieldValidator('#terpadu_nama_periode_ind', 'periode');
 
+    // Auto-sync Judul Header Baris dari Nama Pilihan Master (Impor Terpadu)
+    let isTerpaduJudulIndTouched = false;
+    let isTerpaduJudulEnTouched  = false;
+
+    $('#terpadu_judul_baris_ind').on('input change', function() {
+        isTerpaduJudulIndTouched = true;
+    });
+    $('#terpadu_judul_baris_en').on('input change', function() {
+        isTerpaduJudulEnTouched = true;
+    });
+
+    $('#terpadu_nama_baris_ind').on('input', function() {
+        if (!isTerpaduJudulIndTouched) {
+            let clean = $(this).val().replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
+            $('#terpadu_judul_baris_ind').val(clean || $(this).val());
+        }
+    });
+
+    $('#terpadu_nama_baris_en').on('input', function() {
+        if (!isTerpaduJudulEnTouched) {
+            let clean = $(this).val().replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
+            $('#terpadu_judul_baris_en').val(clean || $(this).val());
+        }
+    });
+
     $('#modalImportTerpadu').on('show.bs.modal', function() {
         resetTerpaduModal();
     });
@@ -4668,6 +4769,10 @@ Jawa Tengah // Central Java`;
         $('#terpadu_nama_kolom_en').val('');
         $('#terpadu_nama_baris_ind').val('');
         $('#terpadu_nama_baris_en').val('');
+        $('#terpadu_judul_baris_ind').val('');
+        $('#terpadu_judul_baris_en').val('');
+        isTerpaduJudulIndTouched = false;
+        isTerpaduJudulEnTouched = false;
         $('#terpadu_nama_periode_ind').val('');
         $('#terpadu_nama_periode_en').val('');
         $('#terpadu_kolom_preview_list').empty();
@@ -4862,12 +4967,24 @@ Jawa Tengah // Central Java`;
         const autoRows = data.auto_rows || [];
         $('#terpadu_baris_count_badge').text(`${autoRows.length} Baris Terdeteksi`);
 
-        // Isi Usulan Nama Kelompok Baris
+        // Isi Usulan Nama Kelompok Baris (Pilihan Master) & Judul Header Tabel Baris
+        const suggBarisInd = data.suggested_baris_ind || 'Kabupaten/Kota';
+        const suggBarisEn  = data.suggested_baris_en || (suggBarisInd === 'Kabupaten/Kota' ? 'Regency/Municipality' : '');
+
         if (!$('#terpadu_nama_baris_ind').val().trim()) {
-            $('#terpadu_nama_baris_ind').val(data.suggested_baris_ind || 'Kabupaten/Kota');
+            $('#terpadu_nama_baris_ind').val(suggBarisInd);
         }
         if (!$('#terpadu_nama_baris_en').val().trim()) {
-            $('#terpadu_nama_baris_en').val(data.suggested_baris_en || '');
+            $('#terpadu_nama_baris_en').val(suggBarisEn);
+        }
+
+        if (!isTerpaduJudulIndTouched || !$('#terpadu_judul_baris_ind').val().trim()) {
+            let cleanInd = suggBarisInd.replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
+            $('#terpadu_judul_baris_ind').val(cleanInd || suggBarisInd);
+        }
+        if (!isTerpaduJudulEnTouched || !$('#terpadu_judul_baris_en').val().trim()) {
+            let cleanEn = suggBarisEn.replace(/\s*[\(\[].*?[\)\]]/g, '').trim();
+            $('#terpadu_judul_baris_en').val(cleanEn || suggBarisEn);
         }
 
         renderTerpaduBarisPreview(autoRows);
@@ -4918,30 +5035,48 @@ Jawa Tengah // Central Java`;
         const format = $('input[name="terpadu_kolom_format"]:checked').val() || 'parent';
 
         if (format === 'tree') {
-            let lastPKey = null;
+            const seenPaths = new Set();
             validCols.forEach(function(c) {
-                const pName = (c.header || '').trim();
-                const pKey = pName.toLowerCase();
-                const sub = (c.sub_header || '').trim();
-
-                if (pKey !== lastPKey) {
-                    lastPKey = pKey;
-                    $list.append(`
-                        <div class="fw-bold text-dark d-flex align-items-center gap-1 mt-1 pt-1 border-top" style="font-size: 0.76rem;">
-                            <span class="badge bg-primary-soft text-primary-orange border" style="font-size: 0.68rem;">Bab</span>
-                            <span>${escapeHtml(pName)}</span>
-                        </div>
-                    `);
+                let levels = [];
+                if (c.levels && Array.isArray(c.levels) && c.levels.length > 0) {
+                    levels = c.levels;
+                } else {
+                    if (c.header && c.header.trim()) levels.push({ ind: c.header.trim(), en: c.header_en || c.header });
+                    if (c.sub_header && c.sub_header.trim()) levels.push({ ind: c.sub_header.trim(), en: c.sub_header_en || c.sub_header });
+                    if (c.sub_sub_header && c.sub_sub_header.trim()) levels.push({ ind: c.sub_sub_header.trim(), en: c.sub_sub_header_en || c.sub_sub_header });
                 }
 
-                if (sub && sub.toLowerCase() !== pKey) {
-                    $list.append(`
-                        <div class="text-secondary ms-3 ps-2 border-start border-2 border-info d-flex align-items-center gap-1 my-1" style="font-size: 0.72rem;">
-                            <span class="badge bg-light text-info border" style="font-size: 0.65rem;">Sub</span>
-                            <span>${escapeHtml(sub)}</span>
-                        </div>
-                    `);
-                }
+                let currentPath = '';
+                levels.forEach(function(lvl, lIdx) {
+                    const name = (lvl.ind || '').trim();
+                    if (!name) return;
+                    currentPath = currentPath ? `${currentPath} > ${name.toLowerCase()}` : name.toLowerCase();
+                    if (seenPaths.has(currentPath)) return;
+                    seenPaths.add(currentPath);
+
+                    if (lIdx === 0) {
+                        $list.append(`
+                            <div class="fw-bold text-dark d-flex align-items-center gap-1 mt-1 pt-1 border-top" style="font-size: 0.76rem;">
+                                <span class="badge bg-primary-soft text-primary-orange border" style="font-size: 0.68rem;">Bab</span>
+                                <span>${escapeHtml(name)}</span>
+                            </div>
+                        `);
+                    } else if (lIdx === 1) {
+                        $list.append(`
+                            <div class="text-secondary ms-3 ps-2 border-start border-2 border-info d-flex align-items-center gap-1 my-1" style="font-size: 0.72rem;">
+                                <span class="badge bg-light text-info border" style="font-size: 0.65rem;">Sub</span>
+                                <span>${escapeHtml(name)}</span>
+                            </div>
+                        `);
+                    } else {
+                        $list.append(`
+                            <div class="text-muted ms-4 ps-2 border-start border-2 border-success d-flex align-items-center gap-1 my-1" style="font-size: 0.70rem;">
+                                <span class="badge bg-light text-success border" style="font-size: 0.63rem;">Sub-Sub</span>
+                                <span>${escapeHtml(name)}</span>
+                            </div>
+                        `);
+                    }
+                });
             });
         } else {
             const items = distinctParents.length > 0 ? distinctParents : validCols.map(c => ({ ind: c.header, en: c.header_en }));
@@ -5056,8 +5191,8 @@ Jawa Tengah // Central Java`;
                     const isRowCol = colMeta.is_row_identifier || c === bestRowIdx;
                     const valLower = (val || '').toLowerCase().trim();
                     const isYearOrPeriod = /^(19|20)\d{2}(\s*[\-\/]\s*(19|20)?\d{2})?$/.test(valLower) ||
-                                          /^(triwulan|tw|quarter|q)\s*[1-4ivx]+/i.test(valLower) ||
-                                          /^(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)/i.test(valLower);
+                                          /^(triwulan|tw|quarter|q)\s*[1-4ivx]+\b/i.test(valLower) ||
+                                          /^(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|january|february|march|may|june|july|august|october|december)\b/i.test(valLower);
 
                     let cellBg = '#fff7ed';
                     let cellColor = '#9a3412';
@@ -5133,6 +5268,8 @@ Jawa Tengah // Central Java`;
         const namaKolomEn    = $('#terpadu_nama_kolom_en').val().trim();
         const namaBarisInd   = $('#terpadu_nama_baris_ind').val().trim();
         const namaBarisEn    = $('#terpadu_nama_baris_en').val().trim();
+        const judulBarisInd  = $('#terpadu_judul_baris_ind').val().trim() || namaBarisInd;
+        const judulBarisEn   = $('#terpadu_judul_baris_en').val().trim() || namaBarisEn;
         const namaPeriodeInd = $('#terpadu_nama_periode_ind').val().trim();
         const namaPeriodeEn  = $('#terpadu_nama_periode_en').val().trim();
 
@@ -5161,11 +5298,22 @@ Jawa Tengah // Central Java`;
         if (isBaris && !namaBarisInd) {
             Swal.fire({
                 icon: 'warning',
-                title: 'Nama Kelompok Baris Wajib Diisi',
-                text: 'Silakan isi Nama Kelompok Judul Baris (Bahasa Indonesia).',
+                title: 'Nama Pilihan Baris Wajib Diisi',
+                text: 'Silakan isi Nama Pilihan Kelompok Baris (Bahasa Indonesia).',
                 confirmButtonColor: '#2563EB'
             });
             $('#terpadu_nama_baris_ind').focus();
+            return;
+        }
+
+        if (isBaris && !judulBarisInd) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Judul Header Baris Wajib Diisi',
+                text: 'Silakan isi Judul Header Tabel Baris (Bahasa Indonesia).',
+                confirmButtonColor: '#2563EB'
+            });
+            $('#terpadu_judul_baris_ind').focus();
             return;
         }
 
@@ -5213,18 +5361,29 @@ Jawa Tengah // Central Java`;
             if (format === 'tree') {
                 const seenEntries = new Set();
                 validCols.forEach(function(c) {
-                    const pInd = (c.header || '').trim();
-                    const pEn  = (c.header_en && c.header_en.trim()) ? c.header_en.trim() : pInd;
-                    const sub  = (c.sub_header || '').trim();
+                    let entryInd = '';
+                    let entryEn  = '';
 
-                    let entryInd = pInd;
-                    let entryEn  = pEn;
-                    if (sub && sub.toLowerCase() !== pInd.toLowerCase()) {
-                        entryInd = `${pInd} || ${sub}`;
-                        entryEn  = `${pEn} || ${sub}`;
+                    if (c.tree_notation_ind) {
+                        entryInd = c.tree_notation_ind.trim();
+                        entryEn  = (c.tree_notation_en && c.tree_notation_en.trim()) ? c.tree_notation_en.trim() : entryInd;
+                    } else if (c.levels && Array.isArray(c.levels) && c.levels.length > 0) {
+                        entryInd = c.levels.map(l => l.ind).join(' || ');
+                        entryEn  = c.levels.map(l => l.en || l.ind).join(' || ');
+                    } else {
+                        const pInd = (c.header || '').trim();
+                        const pEn  = (c.header_en && c.header_en.trim()) ? c.header_en.trim() : pInd;
+                        const sub  = (c.sub_header || '').trim();
+                        entryInd = pInd;
+                        entryEn  = pEn;
+                        if (sub && sub.toLowerCase() !== pInd.toLowerCase()) {
+                            entryInd = `${pInd} || ${sub}`;
+                            entryEn  = `${pEn} || ${sub}`;
+                        }
                     }
+
                     const entryKey = entryInd.toLowerCase();
-                    if (!seenEntries.has(entryKey)) {
+                    if (entryInd && !seenEntries.has(entryKey)) {
                         seenEntries.add(entryKey);
                         linesKolomInd.push(entryInd);
                         linesKolomEn.push(entryEn);
@@ -5280,6 +5439,8 @@ Jawa Tengah // Central Java`;
             items_kolom_en: linesKolomEn.join('\n'),
             nama_baris_ind: namaBarisInd,
             nama_baris_en: namaBarisEn,
+            judul_baris_ind: judulBarisInd,
+            judul_baris_en: judulBarisEn,
             items_baris_ind: linesBarisInd.join('\n'),
             items_baris_en: linesBarisEn.join('\n'),
             nama_periode_ind: namaPeriodeInd,

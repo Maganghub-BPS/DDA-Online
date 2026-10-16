@@ -42,6 +42,35 @@ def clean_cell_str(val):
     s = str(val).strip()
     return s
 
+def extract_cell_lang(val):
+    val = (val or "").strip()
+    if not val:
+        return "", ""
+    val_lower = val.lower()
+    if val_lower in ['kabupaten/kota', 'kabupaten / kota', 'kab/kota', 'kab / kota']:
+        return "Kabupaten/Kota", "Regency/Municipality"
+
+    # 1. Separator baris baru (newline)
+    if "\n" in val:
+        parts = [p.strip() for p in val.split("\n") if p.strip()]
+        if len(parts) >= 2:
+            return parts[0], parts[1]
+        return parts[0], parts[0]
+    # 2. Separator garis miring (misal: "Angkatan Kerja/ Economically Active" atau "Angkatan Kerja / Economically Active")
+    if "/" in val and not re.search(r'\d\s*/\s*\d', val):
+        parts = [p.strip() for p in val.split("/") if p.strip()]
+        if len(parts) >= 2:
+            return parts[0], parts[1]
+        return parts[0], parts[0]
+    # 3. Cek kamus istilah umum BPS
+    val_lower = val.lower()
+    if val_lower in KNOWN_EN_TERMS:
+        return KNOWN_EN_TERMS[val_lower], val.title()
+    for en_k, id_v in KNOWN_EN_TERMS.items():
+        if id_v.lower() == val_lower:
+            return val, en_k.title()
+    return val, val
+
 def read_openpyxl_sheet(ws):
     max_r = ws.max_row or 0
     max_c = ws.max_column or 0
@@ -193,14 +222,108 @@ def is_stat_val(v):
         return True
     return False
 
-def is_row_number_str(v):
+def is_bracket_col_num(v):
     v = v.strip()
-    if not v: return False
-    if re.match(r'^0*\d+\.?$', v):
+    if not v:
+        return False
+    # Format penomoran kolom resmi BPS dalam tanda kurung: (1), (2), ( 1 ), (1+2), (1-2), (1)-(2), dll
+    if re.match(r'^\(\s*[0-9]+(\s*[\+\-\*\/]\s*[0-9]+)*\s*\)$', v):
         return True
-    if re.match(r'^\(?[0-9]+\)?$', v):
+    if re.match(r'^\(\s*[0-9]+\s*\)\s*[\+\-\*\/]\s*\(\s*[0-9]+\s*\)$', v):
+        return True
+    if re.match(r'^\(\s*[a-zA-Z]\s*\)$', v):
         return True
     return False
+
+def is_row_number_str(v):
+    v = v.strip()
+    if not v:
+        return False
+    # Angka 0 (jam kerja 0, nilai 0) adalah data baris yang sah, BUKAN nomor urut baris
+    if v == "0" or v == "0.0":
+        return False
+    # Angka dalam tanda kurung seperti (1), (2) adalah penomoran kolom BPS, bukan data baris
+    if is_bracket_col_num(v):
+        return True
+    # Nomor urut baris bertitik murni seperti 1., 2., 3. (tanpa teks kata)
+    if re.match(r'^[1-9]\d*\.$', v):
+        return True
+    return False
+
+ROMAN_REGEX = re.compile(r'^(?:M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{1,3}))[\.\)]\s+', re.I)
+ARABIC_REGEX = re.compile(r'^\d+[\.\)]\s+')
+LOWER_REGEX = re.compile(r'^[a-z][\.\)]\s+')
+UPPER_REGEX = re.compile(r'^[A-Z][\.\)]\s+')
+DASH_REGEX = re.compile(r'^[-–—•]\s+')
+
+def detect_row_hierarchy(raw_rows):
+    """
+    Mendeteksi level hierarki (0: Bab, 1: Sub Bab, 2: Sub-Sub) untuk rangkaian baris teks.
+    Mendukung notasi manual (--/----/spasi) serta pola penomoran resmi BPS:
+    - Romawi (I., II.) -> Bab, Angka (1., 2.) -> Sub Bab, Huruf kecil (a., b.) / dash -> Sub-Sub
+    - Huruf besar (A., B.) -> Bab, Angka (1., 2.) -> Sub Bab
+    - Angka (1., 2.) -> Bab, Huruf kecil (a., b.) / dash -> Sub Bab
+    """
+    cleaned_rows = [r.strip() for r in raw_rows]
+    has_roman = any(ROMAN_REGEX.match(r) for r in cleaned_rows)
+    has_arabic = any(ARABIC_REGEX.match(r) for r in cleaned_rows)
+    has_upper = any(UPPER_REGEX.match(r) and not ROMAN_REGEX.match(r) for r in cleaned_rows)
+    has_lower = any(LOWER_REGEX.match(r) for r in cleaned_rows)
+    has_dash = any(DASH_REGEX.match(r) for r in cleaned_rows)
+
+    results = []
+    for r in raw_rows:
+        val = r.strip()
+        level = 0
+        clean_v = val
+
+        if r.startswith('----'):
+            level = 2
+            clean_v = val[4:].strip()
+        elif r.startswith('--'):
+            level = 1
+            clean_v = val[2:].strip()
+        elif r.startswith('    '):
+            level = 2
+            clean_v = val.strip()
+        elif r.startswith('  ') or r.startswith('\t'):
+            level = 1
+            clean_v = val.strip()
+        elif has_roman and has_arabic:
+            if ROMAN_REGEX.match(val):
+                level = 0
+            elif ARABIC_REGEX.match(val):
+                level = 1
+            elif LOWER_REGEX.match(val) or DASH_REGEX.match(val):
+                level = 2
+            elif any(val.lower().startswith(p) for p in ['jumlah', 'total', 'rata-rata', 'average']):
+                level = 0
+            else:
+                level = 0
+        elif has_upper and has_arabic:
+            if UPPER_REGEX.match(val):
+                level = 0
+            elif ARABIC_REGEX.match(val):
+                level = 1
+            elif LOWER_REGEX.match(val) or DASH_REGEX.match(val):
+                level = 2
+            elif any(val.lower().startswith(p) for p in ['jumlah', 'total', 'rata-rata', 'average']):
+                level = 0
+            else:
+                level = 0
+        elif has_arabic and (has_lower or has_dash):
+            if ARABIC_REGEX.match(val):
+                level = 0
+            elif LOWER_REGEX.match(val) or DASH_REGEX.match(val):
+                level = 1
+            elif any(val.lower().startswith(p) for p in ['jumlah', 'total', 'rata-rata', 'average']):
+                level = 0
+            else:
+                level = 0
+
+        results.append((clean_v, level))
+
+    return results
 
 def is_col_num_series(row_vals):
     non_empty = [v.strip() for v in row_vals if v.strip()]
@@ -250,6 +373,12 @@ def detect_structure(grid):
     if max_r == 0:
         return 0, 0, 0, [], None
     max_c = max(len(r) for r in grid) if grid else 0
+    if max_c == 0:
+        return 0, 0, 0, [], None
+
+    for r in range(max_r):
+        if len(grid[r]) < max_c:
+            grid[r].extend([""] * (max_c - len(grid[r])))
 
     # 1. Deteksi baris nomor kolom resmi BPS jika ada di 25 baris pertama
     col_num_row_idx = None
@@ -308,13 +437,17 @@ def detect_structure(grid):
     while header_start < header_end and not any(grid[header_start][c].strip() for c in range(max_c)):
         header_start += 1
 
-    # Cek baris banner seksi di awal data_start
-    while data_start < max_r:
+    # Cek baris banner seksi di awal data_start (maksimal 2 baris setelah header)
+    max_banner_skip = min(data_start + 2, max_r)
+    while data_start < max_banner_skip:
         non_empty = [grid[data_start][c].strip() for c in range(max_c) if grid[data_start][c].strip()]
         if not non_empty:
             data_start += 1
             continue
         if len(set(non_empty)) <= 1 and not any(is_stat_val(v) for v in non_empty):
+            # Jika baris berikutnya juga memiliki sel teks di kolom yang sama (misal daftar kabupaten di template), jangan lewati!
+            if data_start + 1 < max_r and any(grid[data_start + 1][c].strip() for c in range(min(3, max_c))):
+                break
             data_start += 1
         else:
             break
@@ -326,9 +459,36 @@ def detect_structure(grid):
     return header_start, header_end, data_start, h_rows, col_num_row_idx
 
 def find_best_row_col(grid, data_start, max_r, max_c, seq_cols):
+    """
+    Mencari kolom baris utama pertama dari sebelah kiri tabel (sebelum kolom observasi statistik pertama).
+    """
+    for c in range(min(10, max_c)):
+        if c in seq_cols:
+            continue
+        sample_vals = [grid[r][c].strip() for r in range(data_start, min(data_start + 20, max_r)) if grid[r][c].strip()]
+        if not sample_vals:
+            continue
+        total_vals = len(sample_vals)
+        num_start_cnt = sum(1 for v in sample_vals if re.match(r'^\d', v))
+        avg_len = sum(len(v) for v in sample_vals) / total_vals
+        alpha_cnt = sum(1 for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
+        stat_cnt = sum(1 for v in sample_vals if is_stat_val(v) and not is_year_val(v))
+
+        # Abaikan kolom nomor urut murni (1, 2, 3 atau 01., 02.)
+        if num_start_cnt >= total_vals * 0.7 and avg_len < 5:
+            continue
+
+        # Jika sudah bertemu kolom angka data observasi statistik, hentikan pencarian kolom baris pertama dari kiri!
+        if stat_cnt >= total_vals * 0.6 and alpha_cnt <= 1:
+            break
+
+        unique_texts = set(v.lower() for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
+        if len(unique_texts) >= 2 or alpha_cnt >= 2:
+            return c
+
+    # Fallback pencarian dengan skor jika belum ketemu
     best_col = None
     best_score = -1
-    
     for c in range(min(6, max_c)):
         if c in seq_cols:
             continue
@@ -340,17 +500,48 @@ def find_best_row_col(grid, data_start, max_r, max_c, seq_cols):
         avg_len = sum(len(v) for v in sample_vals) / total_vals
         alpha_cnt = sum(1 for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
         unique_texts = set(v.lower() for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
-        
-        # Abaikan kolom nomor urut murni (1, 2, 3 atau 01., 02.)
         if num_start_cnt >= total_vals * 0.7 and avg_len < 5:
             continue
-            
         score = len(unique_texts) * 50 + alpha_cnt * 10 + avg_len
         if score > best_score:
             best_score = score
             best_col = c
-            
-    return best_col if best_col is not None else (1 if 1 not in seq_cols and max_c > 1 else 0)
+
+    if best_col is not None:
+        return best_col
+
+    # Jika ada seq_cols (misal kolom 0 adalah nomor urut), kandidat baris berikutnya adalah kolom setelahnya
+    if seq_cols:
+        candidate = max(seq_cols) + 1
+        return candidate if candidate < max_c else 0
+
+    return 0
+
+def find_continuation_row_cols(grid, primary_col, h_rows, col_num_row_idx, data_start, max_r, max_c):
+    if primary_col >= max_c:
+        return [primary_col]
+
+    primary_headers = [grid[r][primary_col].strip().lower() for r in h_rows if r < max_r and grid[r][primary_col].strip()]
+    primary_hdr_text = ' '.join(primary_headers)
+    primary_col_num = grid[col_num_row_idx][primary_col].strip() if (col_num_row_idx is not None and col_num_row_idx < max_r and primary_col < len(grid[col_num_row_idx])) else ''
+
+    cols = [primary_col]
+
+    for c in range(primary_col + 1, max_c):
+        c_headers = [grid[r][c].strip().lower() for r in h_rows if r < max_r and grid[r][c].strip()]
+        c_hdr_text = ' '.join(c_headers)
+        c_col_num = grid[col_num_row_idx][c].strip() if (col_num_row_idx is not None and col_num_row_idx < max_r and c < len(grid[col_num_row_idx])) else ''
+
+        is_same_header = bool(primary_hdr_text and c_hdr_text and (primary_hdr_text == c_hdr_text or primary_hdr_text in c_hdr_text or c_hdr_text in primary_hdr_text))
+        is_same_col_num = bool(primary_col_num and is_bracket_col_num(primary_col_num) and c_col_num == primary_col_num)
+
+        c_samples = [grid[r][c].strip() for r in range(data_start, min(data_start + 15, max_r)) if grid[r][c].strip()]
+        c_has_alpha = sum(1 for v in c_samples if any(ch.isalpha() for ch in v) and not is_bracket_col_num(v) and v.lower() not in ROW_ID_KEYWORDS) >= 2
+
+        if c_has_alpha and (is_same_header or is_same_col_num):
+            cols.append(c)
+
+    return cols
 
 def inspect_source(source, sheet_name=None):
     res = fetch_raw_data(source, sheet_name)
@@ -395,30 +586,32 @@ def inspect_source(source, sheet_name=None):
     if first_stat_col is None:
         first_stat_col = best_row_col_idx + 1
 
-    # Kolom sebelum dan termasuk best_row_col_idx serta seq_cols adalah identitas baris
-    row_identifier_cols = set(range(best_row_col_idx + 1))
+    # Kolom identitas baris: best_row_col_idx dan seq_cols, serta kolom teks pendamping sebelum best_row_col
+    row_identifier_cols = {best_row_col_idx}
     for c in seq_cols:
         row_identifier_cols.add(c)
+    for c in range(best_row_col_idx):
+        stat_cnt = sum(1 for r in range(data_start, min(data_start + 15, max_r)) if is_stat_val(grid[r][c]) and not is_year_val(grid[r][c]))
+        if stat_cnt < 2:
+            row_identifier_cols.add(c)
 
-    # Jika kolom di sebelah kanan best_row_col memiliki header sama persis dengan best_row_col (merged cell di baris header)
+    # Jika kolom di sebelah kanan best_row_col memiliki header sama persis dengan best_row_col (merged cell di baris header dan bukan kolom angka)
     for c in range(best_row_col_idx + 1, max_c):
         same_h = any(grid[r][c].strip() == grid[r][best_row_col_idx].strip() and grid[r][best_row_col_idx].strip() != "" for r in h_rows)
-        if same_h:
+        stat_cnt = sum(1 for r in range(data_start, min(data_start + 15, max_r)) if is_stat_val(grid[r][c]) and not is_year_val(grid[r][c]))
+        if same_h and stat_cnt < 2:
             row_identifier_cols.add(c)
         else:
             break
 
     # Deteksi tabel bersambung samping (side-by-side continuation)
-    first_data_col = min([c for c in range(max_c) if c not in row_identifier_cols] or [best_row_col_idx + 1])
-    ref_row_samples = [grid[r][best_row_col_idx].strip() for r in range(data_start, min(data_start + 10, max_r))]
-    for c in range(first_data_col, max_c):
-        col_samples = [grid[r][c].strip() for r in range(data_start, min(data_start + 10, max_r))]
-        if ref_row_samples and col_samples == ref_row_samples:
-            row_identifier_cols.add(c)
-            if c > 0 and (c - 1) not in row_identifier_cols:
-                prev_samples = [grid[r][c-1].strip() for r in range(data_start, min(data_start + 6, max_r))]
-                if all(is_row_number_str(v) for v in prev_samples if v):
-                    row_identifier_cols.add(c - 1)
+    continuation_cols = find_continuation_row_cols(grid, best_row_col_idx, h_rows, col_num_row_idx, data_start, max_r, max_c)
+    for c in continuation_cols:
+        row_identifier_cols.add(c)
+        if c > 0 and (c - 1) not in row_identifier_cols:
+            prev_samples = [grid[r][c-1].strip() for r in range(data_start, min(data_start + 6, max_r))]
+            if all(is_row_number_str(v) for v in prev_samples if v):
+                row_identifier_cols.add(c - 1)
 
     # 3. Deteksi Baris Periode Waktu di Header
     period_row_indices = set()
@@ -448,7 +641,29 @@ def inspect_source(source, sheet_name=None):
     if not col_h_rows and h_rows:
         col_h_rows = h_rows
 
-    # 5. Susun Columns Info & Hierarki Cerdas
+    # 5. Susun Columns Info & Hierarki Cerdas (Mendukung hingga 3 Tingkatan Kolom Asimetris)
+    # Deteksi apakah ada baris translasi bahasa murni (misal Row r = Indo, Row r+1 = English)
+    en_translation_rows = set()
+    if len(col_h_rows) >= 2:
+        for i in range(len(col_h_rows) - 1):
+            r_top = col_h_rows[i]
+            r_bot = col_h_rows[i+1]
+            match_en_count = 0
+            valid_col_count = 0
+            has_span = False
+            for c in data_cols:
+                v_top = grid[r_top][c].strip()
+                v_bot = grid[r_bot][c].strip()
+                if not v_top or not v_bot:
+                    continue
+                valid_col_count += 1
+                if c + 1 < max_c and grid[r_top][c+1].strip() == v_top and grid[r_bot][c+1].strip() != v_bot:
+                    has_span = True
+                if v_bot.lower() in KNOWN_EN_TERMS or (v_top.lower() in KNOWN_EN_TERMS.values()):
+                    match_en_count += 1
+            if not has_span and valid_col_count > 0 and match_en_count >= valid_col_count * 0.5:
+                en_translation_rows.add(r_bot)
+
     columns_info = []
     distinct_parents = []
     seen_parents = set()
@@ -462,81 +677,61 @@ def inspect_source(source, sheet_name=None):
         if is_empty_col:
             continue
 
-        ind_header = ""
-        en_header = ""
-        sub_header = ""
-
         if is_row_id:
             top_vals = [grid[r][c].strip() for r in h_rows if grid[r][c].strip()]
             top_val = top_vals[0] if top_vals else f"Baris {col_letter}"
-            if '\n' in top_val:
-                p = top_val.split('\n')
-                ind_header, en_header = p[0].strip(), p[1].strip()
-            elif ' / ' in top_val:
-                p = top_val.split(' / ')
-                ind_header, en_header = p[0].strip(), p[1].strip()
-            else:
-                ind_header = top_val
-                en_header = top_val
+            ind_header, en_header = extract_cell_lang(top_val)
+            sub_header = ""
+            sub_header_en = ""
+            sub_sub_header = ""
+            sub_sub_header_en = ""
+            levels = [{"ind": ind_header, "en": en_header}]
+            tree_notation_ind = ind_header
+            tree_notation_en = en_header
+            full_title = ind_header
         else:
-            raw_h_vals = [grid[r][c].strip() for r in col_h_rows if grid[r][c].strip()]
-            if len(col_h_rows) >= 2:
-                r_top = grid[col_h_rows[0]][c].strip()
-                r_sub = grid[col_h_rows[1]][c].strip()
-                r_third = grid[col_h_rows[2]][c].strip() if len(col_h_rows) > 2 else ""
+            levels = []
+            prev_clean = None
+            i = 0
+            while i < len(col_h_rows):
+                r = col_h_rows[i]
+                val = grid[r][c].strip()
+                if not val:
+                    i += 1
+                    continue
 
-                # Cek apakah r_top membentang (muncul di kolom sebelah dengan nilai sama tapi r_sub beda)
-                is_parent_span = False
-                if c + 1 < max_c and grid[col_h_rows[0]][c+1].strip() == r_top and grid[col_h_rows[1]][c+1].strip() != r_sub and r_top:
-                    is_parent_span = True
-                elif c > 0 and grid[col_h_rows[0]][c-1].strip() == r_top and grid[col_h_rows[1]][c-1].strip() != r_sub and r_top:
-                    is_parent_span = True
+                ind_part, en_part = extract_cell_lang(val)
 
-                is_bilingual_translation = (r_sub.lower() in KNOWN_EN_TERMS or 
-                                            (r_top.lower() in KNOWN_EN_TERMS.values() and not is_parent_span))
+                # Jika baris berikutnya adalah baris terjemahan bahasa inggris murni
+                if i + 1 < len(col_h_rows) and col_h_rows[i+1] in en_translation_rows:
+                    en_val = grid[col_h_rows[i+1]][c].strip()
+                    if en_val:
+                        en_part = en_val
+                    i += 1  # Lewati baris terjemahan
 
-                if is_parent_span and not is_bilingual_translation:
-                    ind_header = r_top
-                    sub_header = r_sub
-                    if r_third:
-                        sub_header += f" - {r_third}"
-                elif is_bilingual_translation:
-                    ind_header = r_top
-                    en_header = r_sub
-                    if r_third:
-                        sub_header = r_third
-                else:
-                    ind_header = r_top if r_top else r_sub
-                    if r_sub and r_sub != r_top:
-                        sub_header = r_sub
-            elif len(col_h_rows) == 1:
-                ind_header = grid[col_h_rows[0]][c].strip()
+                clean_ind = ind_part.lower()
+                # Hindari duplikasi berulang secara vertikal akibat merged cell / rowspan
+                if clean_ind != prev_clean:
+                    prev_clean = clean_ind
+                    levels.append({
+                        "ind": ind_part,
+                        "en": en_part if en_part else ind_part
+                    })
+                i += 1
 
-            if not ind_header and raw_h_vals:
-                ind_header = raw_h_vals[0]
-            if not ind_header:
-                ind_header = f"Kolom {col_letter}"
+            if not levels:
+                levels = [{"ind": f"Kolom {col_letter}", "en": f"Column {col_letter}"}]
 
-            # Pecah bilingual internal sel
-            if not en_header or en_header == ind_header:
-                if "\n" in ind_header:
-                    p = ind_header.split("\n")
-                    ind_header, en_header = p[0].strip(), p[1].strip()
-                elif " / " in ind_header:
-                    p = ind_header.split(" / ")
-                    ind_header, en_header = p[0].strip(), p[1].strip()
-                elif ind_header.lower() in KNOWN_EN_TERMS.values():
-                    for en_k, id_v in KNOWN_EN_TERMS.items():
-                        if id_v.lower() == ind_header.lower():
-                            en_header = en_k.title()
-                            break
+            ind_header = levels[0]["ind"]
+            en_header  = levels[0]["en"]
+            sub_header = levels[1]["ind"] if len(levels) >= 2 else ""
+            sub_header_en = levels[1]["en"] if len(levels) >= 2 else ""
+            sub_sub_header = levels[2]["ind"] if len(levels) >= 3 else ""
+            sub_sub_header_en = levels[2]["en"] if len(levels) >= 3 else ""
 
-            if not en_header:
-                en_header = ind_header
-
-        full_title = ind_header
-        if sub_header and sub_header != ind_header:
-            full_title = f"{ind_header} ({sub_header})"
+            tree_notation_ind = " || ".join([l["ind"] for l in levels])
+            tree_notation_en  = " || ".join([l["en"] for l in levels])
+            full_title = " > ".join([l["ind"] for l in levels])
 
         col_vals = [grid[r][c].strip() for r in range(data_start, max_r) if grid[r][c].strip()]
         preview_vals = [v for v in col_vals if v != ind_header and not is_col_num_series([v])][:6]
@@ -547,6 +742,12 @@ def inspect_source(source, sheet_name=None):
             "header": ind_header,
             "header_en": en_header,
             "sub_header": sub_header,
+            "sub_header_en": sub_header_en,
+            "sub_sub_header": sub_sub_header,
+            "sub_sub_header_en": sub_sub_header_en,
+            "levels": levels,
+            "tree_notation_ind": tree_notation_ind,
+            "tree_notation_en": tree_notation_en,
             "full_title": full_title,
             "preview": preview_vals,
             "sample_count": len(col_vals),
@@ -617,52 +818,50 @@ def inspect_source(source, sheet_name=None):
             for y in sorted(list(set(years_found))):
                 auto_periode.append({"ind": y, "en": y})
 
-    # 7. Susun auto_rows
+    # 7. Susun auto_rows (Mendukung tabel lanjutan bersambung samping / multi-panel)
+    continuation_row_cols = find_continuation_row_cols(grid, best_row_col_idx, h_rows, col_num_row_idx, data_start, max_r, max_c)
+    raw_row_candidates = []
+    for c_idx in continuation_row_cols:
+        for r in range(data_start, max_r):
+            if c_idx >= len(grid[r]):
+                continue
+            val_ind = grid[r][c_idx].strip()
+            if not val_ind or is_bracket_col_num(val_ind) or is_col_num_series([val_ind]) or is_row_number_str(val_ind):
+                continue
+            lower_v = val_ind.lower()
+            if lower_v in ROW_ID_KEYWORDS:
+                continue
+            # Berhenti jika bertemu baris footer
+            if any(lower_v.startswith(p) for p in ['sumber', 'source', 'catatan', 'note', 'keterangan']):
+                break
+            raw_row_candidates.append(grid[r][c_idx])
+
+    hierarchical_rows = detect_row_hierarchy(raw_row_candidates)
+
     auto_rows = []
     seen_rows = set()
-    for r in range(data_start, max_r):
-        val_ind = grid[r][best_row_col_idx].strip()
-        if not val_ind or is_col_num_series([val_ind]) or is_row_number_str(val_ind):
-            continue
-        lower_v = val_ind.lower()
-        if lower_v in ROW_ID_KEYWORDS:
-            continue
-        # Berhenti jika bertemu baris footer
-        if any(lower_v.startswith(p) for p in ['sumber', 'source', 'catatan', 'note', 'keterangan']):
-            break
+    for clean_v, level in hierarchical_rows:
+        ind_val, en_val = extract_cell_lang(clean_v)
+        lower_v = ind_val.lower()
+        if lower_v in MONTH_MAP:
+            en_val = MONTH_MAP[lower_v]
 
-        clean_v = val_ind
-        level = 0
-        if val_ind.startswith('----'):
-            level = 2
-            clean_v = val_ind[4:].strip()
-        elif val_ind.startswith('--'):
-            level = 1
-            clean_v = val_ind[2:].strip()
-        elif val_ind.startswith('    '):
-            level = 2
-            clean_v = val_ind.strip()
-        elif val_ind.startswith('  ') or val_ind.startswith('\t'):
-            level = 1
-            clean_v = val_ind.strip()
-
-        row_key = f"{level}::{clean_v.lower()}"
+        row_key = f"{level}::{ind_val.lower()}"
         if row_key in seen_rows:
             continue
         seen_rows.add(row_key)
 
-        val_en = clean_v
-        if lower_v in MONTH_MAP:
-            val_en = MONTH_MAP[lower_v]
-
-        auto_rows.append({"ind": clean_v, "en": val_en, "level": level})
+        auto_rows.append({"ind": ind_val, "en": en_val if en_val else ind_val, "level": level})
 
     # 8. Usulan Nama Cerdas
     best_col_meta = next((c for c in columns_info if c['index'] == best_row_col_idx), None)
     sugg_baris_ind = best_col_meta['header'] if best_col_meta else 'Judul Baris'
     sugg_baris_en  = best_col_meta['header_en'] if best_col_meta else sugg_baris_ind
 
-    if any(k in sugg_baris_ind.lower() for k in ['tampilkan data', 'kolom', 'baris', 'lanjutan', 'no.', 'no']):
+    if sugg_baris_ind.lower() in ['kabupaten', 'kota', 'kab/kota']:
+        sugg_baris_ind = 'Kabupaten/Kota'
+        sugg_baris_en  = 'Regency/Municipality'
+    elif any(k in sugg_baris_ind.lower() for k in ['tampilkan data', 'kolom', 'baris', 'lanjutan', 'no.', 'no']):
         if auto_rows:
             first_row_lower = auto_rows[0]['ind'].lower()
             if any(k in first_row_lower for k in ['cilacap', 'banyumas', 'semarang', 'kab.', 'kota']):
@@ -748,7 +947,7 @@ def inspect_source(source, sheet_name=None):
         "has_periode": len(auto_periode) > 0
     }
 
-def extract_rows(source, sheet_name=None, ind_col=0, en_col=None, deduplicate=True, clean_headers=True, auto_translate_month=True):
+def extract_rows(source, sheet_name=None, ind_col=0, en_col=None, deduplicate=True, clean_headers=True, auto_translate_month=True, auto_hierarchy=True):
     res = fetch_raw_data(source, sheet_name)
     if "error" in res:
         return res
@@ -758,64 +957,108 @@ def extract_rows(source, sheet_name=None, ind_col=0, en_col=None, deduplicate=Tr
         return {"error": "Sheet kosong."}
 
     max_r = len(grid)
+    max_c = max(len(r) for r in grid) if grid else 0
     header_start, header_end, data_start, h_rows, col_num_row_idx = detect_structure(grid)
+
+    start_idx = data_start if clean_headers else 0
+
+    continuation_row_cols = find_continuation_row_cols(grid, ind_col, h_rows, col_num_row_idx, data_start, max_r, max_c)
+    en_offset = (en_col - ind_col) if (en_col is not None and en_col >= 0) else None
+
+    candidate_records = []
+    for c_idx in continuation_row_cols:
+        target_en_col = (c_idx + en_offset) if (en_offset is not None and c_idx + en_offset < max_c) else None
+        for r_idx in range(start_idx, max_r):
+            row = grid[r_idx]
+            if c_idx >= len(row):
+                continue
+
+            raw_val_ind = row[c_idx].strip()
+            if not raw_val_ind or is_bracket_col_num(raw_val_ind):
+                continue
+
+            if clean_headers:
+                if is_col_num_series([raw_val_ind]) or is_row_number_str(raw_val_ind):
+                    continue
+                lower_ind = raw_val_ind.lower()
+                if lower_ind in ROW_ID_KEYWORDS:
+                    continue
+                if any(lower_ind.startswith(p) for p in ['sumber', 'source', 'catatan', 'note', 'keterangan']):
+                    break
+
+            val_en_custom = ""
+            if target_en_col is not None and target_en_col < len(row):
+                val_en_custom = row[target_en_col].strip()
+
+            candidate_records.append({
+                "raw_str": row[c_idx],
+                "val_ind": raw_val_ind,
+                "val_en_custom": val_en_custom
+            })
+
+    if not candidate_records:
+        return {
+            "status": "success",
+            "items": [],
+            "total_extracted": 0
+        }
+
+    if auto_hierarchy:
+        hierarchy_results = detect_row_hierarchy([c["raw_str"] for c in candidate_records])
+    else:
+        hierarchy_results = []
+        for c in candidate_records:
+            val_ind = c["val_ind"]
+            r_str = c["raw_str"]
+            level = 0
+            clean_text_ind = val_ind
+            if r_str.startswith('----'):
+                level = 2
+                clean_text_ind = val_ind[4:].strip()
+            elif r_str.startswith('--'):
+                level = 1
+                clean_text_ind = val_ind[2:].strip()
+            elif r_str.startswith('    '):
+                level = 2
+                clean_text_ind = val_ind.strip()
+            elif r_str.startswith('  ') or r_str.startswith('\t'):
+                level = 1
+                clean_text_ind = val_ind.strip()
+            hierarchy_results.append((clean_text_ind, level))
 
     extracted = []
     seen = set()
 
-    start_idx = data_start if clean_headers else 0
+    for idx, cand in enumerate(candidate_records):
+        clean_text_ind, level = hierarchy_results[idx]
+        val_en_custom = cand["val_en_custom"]
 
-    for r_idx in range(start_idx, max_r):
-        row = grid[r_idx]
-        if ind_col >= len(row):
-            continue
+        final_ind = clean_text_ind
+        final_en = val_en_custom
 
-        val_ind = row[ind_col].strip()
-        if not val_ind:
-            continue
+        # Jika kolom English tidak ditentukan secara terpisah, ekstrak dwibahasa dari string atau terjemahkan bulan
+        if not final_en:
+            split_ind, split_en = extract_cell_lang(clean_text_ind)
+            if split_ind and split_en and split_ind != split_en:
+                final_ind = split_ind
+                final_en = split_en
+            else:
+                final_en = clean_text_ind
 
-        if clean_headers:
-            if is_col_num_series([val_ind]) or is_row_number_str(val_ind):
-                continue
-            lower_ind = val_ind.lower()
-            if lower_ind in ROW_ID_KEYWORDS:
-                continue
-            if any(lower_ind.startswith(p) for p in ['sumber', 'source', 'catatan', 'note', 'keterangan']):
-                break
+        if auto_translate_month and (not final_en or final_en == final_ind):
+            lower_ind = final_ind.lower()
+            if lower_ind in MONTH_MAP:
+                final_en = MONTH_MAP[lower_ind]
 
-        val_en = ""
-        if en_col is not None and en_col >= 0 and en_col < len(row):
-            val_en = row[en_col].strip()
-
-        if auto_translate_month and not val_en:
-            lower = val_ind.lower()
-            if lower in MONTH_MAP:
-                val_en = MONTH_MAP[lower]
-
-        level = 0
-        clean_text_ind = val_ind
-        if val_ind.startswith('----'):
-            level = 2
-            clean_text_ind = val_ind[4:].strip()
-        elif val_ind.startswith('--'):
-            level = 1
-            clean_text_ind = val_ind[2:].strip()
-        elif val_ind.startswith('    '):
-            level = 2
-            clean_text_ind = val_ind.strip()
-        elif val_ind.startswith('  ') or val_ind.startswith('\t'):
-            level = 1
-            clean_text_ind = val_ind.strip()
-
-        dedup_key = f"{level}::{clean_text_ind.lower()}"
+        dedup_key = f"{level}::{final_ind.lower()}"
         if deduplicate:
             if dedup_key in seen:
                 continue
             seen.add(dedup_key)
 
         extracted.append({
-            "ind": clean_text_ind,
-            "en": val_en if val_en else clean_text_ind,
+            "ind": final_ind,
+            "en": final_en if final_en else final_ind,
             "level": level
         })
 
@@ -843,7 +1086,9 @@ if __name__ == "__main__":
         dedup = (sys.argv[6].lower() in ['1', 'true', 'yes']) if len(sys.argv) > 6 else True
         clean_headers = (sys.argv[7].lower() in ['1', 'true', 'yes']) if len(sys.argv) > 7 else True
         auto_translate = (sys.argv[8].lower() in ['1', 'true', 'yes']) if len(sys.argv) > 8 else True
-        result = extract_rows(src, sheet, ind_col, en_col, deduplicate=dedup, clean_headers=clean_headers, auto_translate_month=auto_translate)
+        auto_hierarchy = (sys.argv[9].lower() in ['1', 'true', 'yes']) if len(sys.argv) > 9 else True
+        result = extract_rows(src, sheet, ind_col, en_col, deduplicate=dedup, clean_headers=clean_headers, auto_translate_month=auto_translate, auto_hierarchy=auto_hierarchy)
         print(json.dumps(result, ensure_ascii=True))
     else:
         print(json.dumps({"error": f"Mode tidak dikenal: {mode}"}, ensure_ascii=True))
+

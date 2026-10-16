@@ -4184,6 +4184,7 @@ class Admin extends BaseController
 			$dedup         = (int)($this->request->getPost('deduplicate') ?? 1);
 			$cleanHeaders  = (int)($this->request->getPost('clean_headers') ?? 1);
 			$autoTranslate = (int)($this->request->getPost('auto_translate_month') ?? 1);
+			$autoHierarchy = (int)($this->request->getPost('auto_hierarchy') ?? 1);
 
 			$targetPath = !empty($tempFilepath) && file_exists($tempFilepath) ? $tempFilepath : $urlSource;
 			if (empty($targetPath)) {
@@ -4198,6 +4199,7 @@ class Admin extends BaseController
 			$cmd .= " " . escapeshellarg($dedup ? "1" : "0");
 			$cmd .= " " . escapeshellarg($cleanHeaders ? "1" : "0");
 			$cmd .= " " . escapeshellarg($autoTranslate ? "1" : "0");
+			$cmd .= " " . escapeshellarg($autoHierarchy ? "1" : "0");
 			$cmd .= " 2>&1";
 
 			$output = shell_exec($cmd);
@@ -4296,8 +4298,10 @@ class Admin extends BaseController
 
 			// 2. Simpan Judul Baris jika dipilih
 			if ($saveBaris) {
-				$namaBarisInd = trim((string)$this->request->getPost('nama_baris_ind'));
-				$namaBarisEn  = trim((string)$this->request->getPost('nama_baris_en'));
+				$namaBarisInd  = trim((string)$this->request->getPost('nama_baris_ind'));
+				$namaBarisEn   = trim((string)$this->request->getPost('nama_baris_en'));
+				$judulBarisInd = trim((string)$this->request->getPost('judul_baris_ind'));
+				$judulBarisEn  = trim((string)$this->request->getPost('judul_baris_en'));
 				$itemsBarisInd = trim((string)$this->request->getPost('items_baris_ind'));
 				$itemsBarisEn  = trim((string)$this->request->getPost('items_baris_en'));
 
@@ -4306,6 +4310,14 @@ class Admin extends BaseController
 						'status' => 'error',
 						'message' => 'Nama Kelompok Judul Baris Bahasa Indonesia wajib diisi!'
 					]);
+				}
+
+				// Fallback judul header baris jika kosong
+				if (empty($judulBarisInd)) {
+					$judulBarisInd = $namaBarisInd;
+				}
+				if (empty($judulBarisEn)) {
+					$judulBarisEn = !empty($namaBarisEn) ? $namaBarisEn : null;
 				}
 
 				// Cek duplikasi cerdas
@@ -4320,12 +4332,14 @@ class Admin extends BaseController
 				$idKelompokBaris = $mTabelDinamis->saveBarisKelompok([
 					'nama_kelompok_ind' => $namaBarisInd,
 					'nama_kelompok_en'  => !empty($namaBarisEn) ? $namaBarisEn : null,
+					'judul_baris_ind'   => $judulBarisInd,
+					'judul_baris_en'    => $judulBarisEn,
 				]);
 
 				if (!empty($itemsBarisInd)) {
 					$mTabelDinamis->parseBarisFromText($idKelompokBaris, $itemsBarisInd, $itemsBarisEn);
 				}
-				$savedParts[] = "Judul Baris '<strong>" . esc($namaBarisInd) . "</strong>'";
+				$savedParts[] = "Judul Baris '<strong>" . esc($namaBarisInd) . "</strong>' (Header: '<strong>" . esc($judulBarisInd) . "</strong>')";
 			}
 
 			// 3. Simpan Periode Waktu jika dipilih
