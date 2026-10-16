@@ -4422,6 +4422,10 @@ class Admin extends BaseController
 		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
 			$label_total_kustom = null;
 		}
+		$format_nomor_baris   = trim((string)$this->request->getPost('format_nomor_baris'));
+		if (!in_array($format_nomor_baris, ['auto', 'none', 'reset_kategori'], true)) {
+			$format_nomor_baris = 'auto';
+		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
 		$selectedDimCount = (!empty($id_baris) ? 1 : 0) + (!empty($id_karakteristik) ? 1 : 0) + (!empty($id_periode) ? 1 : 0);
@@ -4480,6 +4484,7 @@ class Admin extends BaseController
 			'tingkat_kolom'             => $tingkat_kolom,
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
+			'format_nomor_baris'        => $format_nomor_baris,
 			'satuan'                    => null,
 			'desimal'                   => 0,
 			'catatan'                   => $finalCatatan,

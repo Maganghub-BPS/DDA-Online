@@ -24,6 +24,7 @@ class M_tabeldinamis extends Model
         'tingkat_kolom',
         'konfigurasi_total',
         'label_total_kustom',
+        'format_nomor_baris',
         'satuan',
         'desimal',
         'catatan',
@@ -557,7 +558,12 @@ class M_tabeldinamis extends Model
         }
 
         // 3. Subtotal
-        if ($base === 'subtotal' || $base === 'sub total' || $base === 'sub-total' || strpos($lower, 'subtotal') === 0 || strpos($lower, 'sub total') === 0) {
+        if (
+            $base === 'subtotal' || $base === 'sub total' || $base === 'sub-total' || 
+            strpos($lower, 'subtotal') === 0 || strpos($lower, 'sub total') === 0 ||
+            strpos($lower, 'sub jumlah') === 0 || strpos($lower, 'sub-jumlah') === 0 ||
+            strpos($base, 'jumlah ') === 0 || strpos($base, 'total ') === 0
+        ) {
             return 'subtotal';
         }
 

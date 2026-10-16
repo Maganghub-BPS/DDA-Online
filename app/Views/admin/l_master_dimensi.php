@@ -142,6 +142,12 @@
     border-left: 4px solid #ff6d1f !important;
     box-shadow: 0 2px 6px rgba(255, 109, 31, 0.08) !important;
 }
+.tree-item-row.is-subtotal-row {
+    background-color: #fff7ed !important;
+    border-color: #fed7aa !important;
+    border-left: 4px solid #f97316 !important;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.08) !important;
+}
 .tree-item-row:has(.dropdown.show) {
     z-index: 25;
 }
@@ -188,6 +194,18 @@
 .btn-role-badge.role-kategori:focus {
     background: #ffedd5;
     color: #9a3412;
+    border-color: #fdba74;
+}
+.btn-role-badge.role-subtotal {
+    background: #ffedd5;
+    color: #ea580c;
+    border-color: #fed7aa;
+    font-weight: 700;
+}
+.btn-role-badge.role-subtotal:hover,
+.btn-role-badge.role-subtotal:focus {
+    background: #fed7aa;
+    color: #c2410c;
     border-color: #fdba74;
 }
 .btn-role-badge.role-total {
@@ -1652,9 +1670,14 @@ $(document).ready(function() {
     function isBarisSubtotal(nama) {
         if (!nama) return false;
         let clean = stripExistingPrefix(nama).trim().toLowerCase();
+        if (clean.includes('curah hujan') || clean.includes('hari hujan')) return false;
+        if (/^jumlah\s+(curah|hari|penduduk|kasus|sekolah|guru|murid|jiwa|balita|kk|desa|kelurahan|sarana|penerima|armada|tindak|kejadian|korban|kelahiran|kematian|pasien|peserta|tenaga)/i.test(clean)) {
+            return false;
+        }
         let base = clean.split(/[\/\(]/)[0].trim();
         if (base === 'subtotal' || base === 'sub total' || base === 'sub-total') return true;
-        if (clean.startsWith('subtotal') || clean.startsWith('sub total') || clean.startsWith('sub-total')) return true;
+        if (clean.startsWith('subtotal') || clean.startsWith('sub total') || clean.startsWith('sub-total') || clean.startsWith('sub jumlah') || clean.startsWith('sub-jumlah')) return true;
+        if (base.startsWith('jumlah ') || base.startsWith('total ')) return true;
         return false;
     }
 
@@ -1810,6 +1833,12 @@ $(document).ready(function() {
                         roleClass = 'role-kategori';
                         placeholderInd = 'Judul Kategori / Sekat (Indonesia)';
                         placeholderEn  = 'Category Header (English)';
+                    } else if (currentRole === 'subtotal') {
+                        roleIcon = '∑₍ₛ₎';
+                        roleLabel = 'Subtotal';
+                        roleClass = 'role-subtotal';
+                        placeholderInd = 'Subtotal (Indonesia)';
+                        placeholderEn  = 'Subtotal (English)';
                     } else if (currentRole === 'total') {
                         roleIcon = '∑';
                         roleLabel = 'Total';
@@ -1845,6 +1874,13 @@ $(document).ready(function() {
                                     </a>
                                 </li>
                                 <li>
+                                    <a class="dropdown-item ${currentRole === 'subtotal' ? 'active' : ''} set-role d-flex align-items-center gap-2" data-role="subtotal" href="#">
+                                        <span class="fw-bold" style="font-size: 0.95em;">∑₍ₛ₎</span>
+                                        <span>Subtotal</span>
+                                        ${currentRole === 'subtotal' ? '<i class="bi bi-check2 ms-auto text-primary fw-bold"></i>' : ''}
+                                    </a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item ${currentRole === 'total' ? 'active' : ''} set-role d-flex align-items-center gap-2" data-role="total" href="#">
                                         <span class="fw-bold" style="font-size: 0.95em;">∑</span>
                                         <span>Total</span>
@@ -1873,10 +1909,12 @@ $(document).ready(function() {
 
                 const isTotalActive = (self.type === 'baris' && item.tipe_baris === 'total');
                 const isKategoriActive = (self.type === 'baris' && item.tipe_baris === 'kategori');
+                const isSubtotalActive = (self.type === 'baris' && item.tipe_baris === 'subtotal');
 
                 let rowExtraClass = '';
                 if (isTotalActive) rowExtraClass = 'is-total-row';
                 else if (isKategoriActive) rowExtraClass = 'is-kategori-row';
+                else if (isSubtotalActive) rowExtraClass = 'is-subtotal-row';
 
                 const rowClass = `tree-item-row level-${item.level} ${self.theme} ${rowExtraClass}`;
 
@@ -1885,11 +1923,11 @@ $(document).ready(function() {
                         <div class="d-flex align-items-center gap-2">
                             <div class="tree-badge-container">${leftBadgeHtml}</div>
                             <div class="tree-item-inputs">
-                                <input type="text" class="form-control form-control-sm item-input-ind ${isTotalActive || isKategoriActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderInd}" value="${escapeHtml(item.ind)}">
-                                <input type="text" class="form-control form-control-sm item-input-en ${isTotalActive || isKategoriActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderEn}" value="${escapeHtml(item.en)}">
+                                <input type="text" class="form-control form-control-sm item-input-ind ${isTotalActive || isKategoriActive || isSubtotalActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderInd}" value="${escapeHtml(item.ind)}">
+                                <input type="text" class="form-control form-control-sm item-input-en ${isTotalActive || isKategoriActive || isSubtotalActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderEn}" value="${escapeHtml(item.en)}">
                             </div>
                             <div class="tree-item-actions">
-                                ${(self.allowSub && item.level < self.maxDepth && !isTotalActive) ? `<button type="button" class="btn btn-sm btn-sub-badge btn-add-sub" title="Tambah Sub-Level"><i class="bi bi-plus-lg"></i> Sub</button>` : ''}
+                                ${(self.allowSub && item.level < self.maxDepth && !isTotalActive && !isSubtotalActive) ? `<button type="button" class="btn btn-sm btn-sub-badge btn-add-sub" title="Tambah Sub-Level"><i class="bi bi-plus-lg"></i> Sub</button>` : ''}
                                 <button type="button" class="btn btn-sm btn-delete-item btn-remove" title="Hapus"><i class="bi bi-x-lg"></i></button>
                             </div>
                         </div>
@@ -1911,10 +1949,13 @@ $(document).ready(function() {
                     item.ind = $(this).val();
                     if (self.type === 'baris' && !item.isUserToggled) {
                         const autoTotal = isBarisTotal(item.ind);
+                        const autoSubtotal = isBarisSubtotal(item.ind);
                         const lower = (item.ind || '').toLowerCase().trim();
                         let detectedRole = 'data';
                         if (autoTotal) {
                             detectedRole = 'total';
+                        } else if (autoSubtotal) {
+                            detectedRole = 'subtotal';
                         } else if (lower === 'kabupaten' || lower === 'kota') {
                             detectedRole = 'kategori';
                         }
@@ -2396,7 +2437,7 @@ $(document).ready(function() {
 
         items.forEach(function(item, idx) {
             let indentPx = parseInt(item.level_indentasi) * 20;
-            let isBold = parseInt(item.is_bold) === 1 || item.tipe_baris === 'total' || item.tipe_baris === 'kategori';
+            let isBold = parseInt(item.is_bold) === 1 || item.tipe_baris === 'total' || item.tipe_baris === 'kategori' || item.tipe_baris === 'subtotal';
             let style = isBold ? 'font-weight: bold;' : '';
             let bg = '';
             let badgeClass = 'bg-light text-secondary border';
@@ -2411,8 +2452,8 @@ $(document).ready(function() {
                 badgeClass = 'bg-warning text-dark fw-bold';
                 badgeText = '∑ Grand Total';
             } else if (item.tipe_baris === 'subtotal') {
-                bg = 'background-color: #f1f5f9; border-top: 1px solid #cbd5e1;';
-                badgeClass = 'bg-secondary text-white';
+                bg = 'background-color: #fff3e8; border-top: 1px solid #fed7aa; border-bottom: 1px solid #fed7aa;';
+                badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold';
                 badgeText = '∑ Subtotal';
             } else {
                 if (item.level_indentasi === 1) {

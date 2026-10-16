@@ -940,8 +940,9 @@ class ExcelTemplateGenerator
                 }
             }
 
+            $totalTingkatBaris = $maxBarisGroupLevel + 1;
             $level     = (int)($baris->level_indentasi ?? 0);
-            $isBold    = ((int)($baris->is_bold ?? 0) === 1 || $tipeBaris === 'total' || $tipeBaris === 'kategori');
+            $isBold    = ((int)($baris->is_bold ?? 0) === 1 || $tipeBaris === 'total' || $tipeBaris === 'subtotal' || $tipeBaris === 'kategori' || ($totalTingkatBaris >= 2 && $level === 0));
 
             if ($posisi_hirarki === 'periode_baris') {
                 if ($tipeBaris === 'kategori') {
@@ -1024,6 +1025,34 @@ class ExcelTemplateGenerator
                                 $cLetter = Coordinate::stringFromColumnIndex($c);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
+                            }
+                        } elseif ($tipeBaris === 'subtotal') {
+                            $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
+                                'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
+                                'fill' => [
+                                    'fillType'   => Fill::FILL_SOLID,
+                                    'startColor' => ['rgb' => 'FFF3E8']
+                                ],
+                                'borders' => [
+                                    'top' => [
+                                        'borderStyle' => Border::BORDER_THIN,
+                                        'color'       => ['rgb' => 'FED7AA']
+                                    ],
+                                    'bottom' => [
+                                        'borderStyle' => Border::BORDER_THIN,
+                                        'color'       => ['rgb' => 'FED7AA']
+                                    ],
+                                    'inside' => [
+                                        'borderStyle' => Border::BORDER_THIN,
+                                        'color'       => ['rgb' => 'FED7AA']
+                                    ]
+                                ]
+                            ]);
+                            for ($c = 3; $c <= $lastColIndex; $c++) {
+                                $cLetter = Coordinate::stringFromColumnIndex($c);
+                                $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
+                                $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
+                                $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true);
                             }
                         } else {
                             $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
@@ -1109,6 +1138,40 @@ class ExcelTemplateGenerator
                             ->setFormatCode($numFormat);
                         $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()
                             ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    }
+                } elseif ($tipeBaris === 'subtotal') {
+                    // Baris Subtotal BPS: Peach Lembut (#FFF3E8), Font Bold, Border Halus (#FED7AA)
+                    $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
+                        'fill' => [
+                            'fillType'   => Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'FFF3E8']
+                        ],
+                        'borders' => [
+                            'top' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color'       => ['rgb' => 'FED7AA']
+                            ],
+                            'bottom' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color'       => ['rgb' => 'FED7AA']
+                            ],
+                            'inside' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color'       => ['rgb' => 'FED7AA']
+                            ]
+                        ]
+                    ]);
+
+                    // Sel data subtotal: Format angka & alignment & bold
+                    for ($c = 2; $c <= $lastColIndex; $c++) {
+                        $cLetter = Coordinate::stringFromColumnIndex($c);
+                        $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()
+                            ->setFormatCode($numFormat);
+                        $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()
+                            ->setHorizontal(Alignment::HORIZONTAL_RIGHT)
+                            ->setVertical(Alignment::VERTICAL_CENTER);
+                        $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true);
                     }
                 } else {
                     // Baris Data Normal: Putih, Garis Halus

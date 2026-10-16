@@ -16,6 +16,7 @@ $sel_posisi_hirarki = $indikator->posisi_hirarki ?? 'kolom_atas';
 $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
 $sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
 $sel_label_total_kustom = $indikator->label_total_kustom ?? '';
+$sel_format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
 $sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
 ?>
@@ -209,10 +210,11 @@ $catatan_val = $indikator->catatan ?? '';
         text-align: center !important;
     }
     .row-subtotal td {
-        background-color: #fffbeb !important;
+        background-color: #fff3e8 !important;
         font-weight: 700 !important;
-        color: #92400e !important;
-        border-top: 1.5px solid #f59e0b !important;
+        color: #1e293b !important;
+        border-top: 1px solid #fed7aa !important;
+        border-bottom: 1px solid #fed7aa !important;
     }
     .row-total td {
         background-color: #fffbeb !important;
@@ -894,6 +896,28 @@ $catatan_val = $indikator->catatan ?? '';
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Divider halus vertikal -->
+                        <div class="toolbar-divider d-none d-md-block"></div>
+
+                        <!-- 4. Penomoran Baris (Segmented Button Group) -->
+                        <div id="box_format_nomor_baris" class="toolbar-setting-item" title="Atur penomoran baris pada tabel: Otomatis 1..N, Tanpa Nomor (seperti Komoditas), atau Reset per Kategori (Kabupaten 1..29, Kota 1..6)">
+                            <span class="toolbar-setting-label">
+                                <i class="bi bi-list-ol text-primary me-1"></i> Penomoran:
+                            </span>
+                            <div class="posisi-segmented-group" id="group_format_nomor_baris">
+                                <button type="button" class="btn-segmented <?= ($sel_format_nomor_baris === 'auto') ? 'active' : ''; ?>" data-val="auto" id="btn_nomor_auto" title="Nomor Urut Berurutan (1, 2, 3...)">
+                                    <i class="bi bi-sort-numeric-down me-1"></i> 1..N
+                                </button>
+                                <button type="button" class="btn-segmented <?= ($sel_format_nomor_baris === 'none') ? 'active' : ''; ?>" data-val="none" id="btn_nomor_none" title="Tanpa Nomor Urut (Hilangkan Kolom No.)">
+                                    <i class="bi bi-slash-circle me-1"></i> Tanpa No.
+                                </button>
+                                <button type="button" class="btn-segmented <?= ($sel_format_nomor_baris === 'reset_kategori') ? 'active' : ''; ?>" data-val="reset_kategori" id="btn_nomor_reset" title="Nomor Urut Reset per Kategori (Kabupaten 1..29, Kota 1..6)">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Reset Kategori
+                                </button>
+                            </div>
+                            <input type="hidden" name="format_nomor_baris" id="input_format_nomor_baris" value="<?= esc($sel_format_nomor_baris); ?>">
+                        </div>
                     </div>
                 </div>
 
@@ -1145,12 +1169,25 @@ $(document).ready(function() {
     });
 
     // Handler switch hirarki segmented buttons: Kolom di Atas vs Periode di Atas
-    $(document).on('click', '.btn-segmented', function(e) {
+    $('#group_posisi_hirarki .btn-segmented').on('click', function(e) {
         e.preventDefault();
         if ($('#group_posisi_hirarki').hasClass('disabled')) return;
         const val = $(this).data('val');
         $('#input_posisi_hirarki').val(val);
-        $('.btn-segmented').removeClass('active');
+        $('#group_posisi_hirarki .btn-segmented').removeClass('active');
+        $(this).addClass('active');
+
+        if (currentData) {
+            renderMatrix(currentData);
+        }
+    });
+
+    // Handler switch format penomoran baris segmented buttons: 1..N vs Tanpa No vs Reset Kategori
+    $('#group_format_nomor_baris .btn-segmented').on('click', function(e) {
+        e.preventDefault();
+        const val = $(this).data('val');
+        $('#input_format_nomor_baris').val(val);
+        $('#group_format_nomor_baris .btn-segmented').removeClass('active');
         $(this).addClass('active');
 
         if (currentData) {
@@ -1501,6 +1538,14 @@ $(document).ready(function() {
         }
 
         const hasBaris = (barisItems && barisItems.length > 0);
+
+        let maxBarisLevel = 0;
+        barisItems.forEach(function(b) {
+            let lvl = parseInt(b.level_indentasi) || 0;
+            if (lvl > maxBarisLevel) maxBarisLevel = lvl;
+        });
+        const totalTingkatBaris = maxBarisLevel + 1;
+        const formatNomorBaris = $('#input_format_nomor_baris').val() || 'auto';
 
         // Hitung statistik sel data
         let totalLeafCols = 0;
@@ -2087,6 +2132,9 @@ $(document).ready(function() {
                 }
             });
         } else {
+            let autoRowCounter = 0;
+            let catRowCounter = 0;
+
             barisItems.forEach(function(baris, bIdx) {
                 let tipe = (baris.tipe_baris || '').toLowerCase().trim();
                 let lowerNama = (baris.nama_baris_ind || '').toLowerCase().trim();
@@ -2102,6 +2150,14 @@ $(document).ready(function() {
                         if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan')) {
                             tipe = 'total';
                         }
+                    } else if (
+                        lowerNama.startsWith('jumlah ') || lowerNama.startsWith('total ') || 
+                        lowerNama.startsWith('subtotal') || lowerNama.startsWith('sub total') || 
+                        lowerNama.startsWith('sub-total') || lowerNama.startsWith('sub jumlah')
+                    ) {
+                        if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan') && !/^jumlah\s+(curah|hari|penduduk|kasus|sekolah|guru|murid|jiwa|balita|kk|desa|kelurahan|sarana|penerima|armada|tindak|kejadian|korban|kelahiran|kematian|pasien|peserta|tenaga)/i.test(lowerNama)) {
+                            tipe = 'subtotal';
+                        }
                     }
                     if (!tipe) tipe = 'data';
                 }
@@ -2112,10 +2168,26 @@ $(document).ready(function() {
                 }
 
                 const isParent = isParentBaris(bIdx, barisItems);
+                if (isParent) {
+                    catRowCounter = 0; // Reset counter nomor urut per kategori
+                }
+
                 const level = parseInt(baris.level_indentasi) || 0;
                 let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
                 let indentClass = 'indent-level-' + Math.min(level, 2);
-                let isBold = (parseInt(baris.is_bold) === 1 || tipe === 'total' || isParent);
+
+                // Aturan Ketebalan Huruf (Bold):
+                // Jika baris memiliki 2 tingkat atau 3 tingkat, maka tingkat pertama (level 0) SELALU TEBAL
+                // terlepas dari apakah dia bertipe kategori atau data!
+                let isBold = false;
+                if (totalTingkatBaris >= 2 && level === 0) {
+                    isBold = true;
+                } else if (tipe === 'total' || tipe === 'subtotal' || isParent) {
+                    isBold = true;
+                } else if (parseInt(baris.is_bold) === 1) {
+                    isBold = true;
+                }
+
                 let textClass = isBold ? ' fw-bold text-dark' : ' text-dark';
 
                 // Tentukan nama tampilan (override jika baris total)
@@ -2131,6 +2203,29 @@ $(document).ready(function() {
                     } else if (konfigurasiTotal === 'kustom' && labelTotalKustom.trim() !== '') {
                         namaBarisInd = labelTotalKustom.trim();
                         namaBarisEn = labelTotalKustom.trim();
+                    }
+                }
+
+                // Penyesuaian Penomoran Baris
+                if (!isParent && tipe !== 'total' && tipe !== 'subtotal') {
+                    let cleanInd = namaBarisInd.replace(/^(\d+[\.\)]|[A-Za-z0-9]+[\.\)])\s*/u, '').trim();
+                    let cleanEn = namaBarisEn ? namaBarisEn.replace(/^(\d+[\.\)]|[A-Za-z0-9]+[\.\)])\s*/u, '').trim() : '';
+
+                    if (formatNomorBaris === 'none') {
+                        namaBarisInd = cleanInd;
+                        namaBarisEn = cleanEn;
+                    } else if (formatNomorBaris === 'reset_kategori') {
+                        catRowCounter++;
+                        namaBarisInd = catRowCounter + '. ' + cleanInd;
+                        namaBarisEn = cleanEn ? (catRowCounter + '. ' + cleanEn) : '';
+                    } else { // 'auto'
+                        autoRowCounter++;
+                        let match = namaBarisInd.match(/^(\d+)\.\s*(.+)$/u);
+                        if (match) {
+                            namaBarisInd = match[1] + '. ' + match[2];
+                        } else {
+                            namaBarisInd = autoRowCounter + '. ' + cleanInd;
+                        }
                     }
                 }
 
