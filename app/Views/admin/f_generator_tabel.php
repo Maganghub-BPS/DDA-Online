@@ -14,7 +14,9 @@ $sel_baris = $indikator->id_baris_kelompok ?? '';
 $sel_periode = $indikator->id_periode_kelompok ?? '';
 $sel_posisi_hirarki = $indikator->posisi_hirarki ?? 'kolom_atas';
 $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
-$sumber_val = $indikator->sumber ?? ($tabel->unitkerja_ind ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : '');
+$sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
+$sel_label_total_kustom = $indikator->label_total_kustom ?? '';
+$sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
 ?>
 
@@ -376,10 +378,10 @@ $catatan_val = $indikator->catatan ?? '';
     .tingkat-pill-content {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 5px 14px;
+        gap: 5px;
+        padding: 4px 12px;
         border-radius: 50px;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 600;
         border: 1.5px solid #cbd5e1;
         background: #ffffff;
@@ -402,12 +404,12 @@ $catatan_val = $indikator->catatan ?? '';
     .tingkat-pill-item .icon-checked {
         display: none;
         color: #FF6D1F;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     .tingkat-pill-item .icon-unchecked {
         display: inline-block;
         color: #94a3b8;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     .tingkat-pill-item input[type="checkbox"]:checked + .tingkat-pill-content .icon-checked {
         display: inline-block;
@@ -427,8 +429,8 @@ $catatan_val = $indikator->catatan ?? '';
     .btn-segmented {
         border: none;
         background: transparent;
-        padding: 5px 14px;
-        font-size: 0.8rem;
+        padding: 4px 11px;
+        font-size: 0.78rem;
         font-weight: 600;
         color: #64748b;
         border-radius: 50px;
@@ -450,6 +452,171 @@ $catatan_val = $indikator->catatan ?? '';
     .posisi-segmented-group.disabled {
         opacity: 0.55;
         pointer-events: none;
+    }
+
+    /* ===== TOOLBAR PENGATURAN MATRIKS (TINGKAT, POSISI, TOTAL) ===== */
+    .toolbar-setting-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .toolbar-setting-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        color: #64748b;
+        text-transform: uppercase;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+    }
+    .toolbar-divider {
+        width: 1px;
+        height: 22px;
+        background-color: #cbd5e1;
+        opacity: 0.7;
+        margin: 0 4px;
+    }
+    .matrix-settings-ribbon {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 14px;
+    }
+    @media (max-width: 991px) {
+        .toolbar-divider {
+            display: none;
+        }
+    }
+
+    /* ===== CUSTOM TOTAL DROPDOWN MODERN (BPS STYLE - PENGGANTI UI GAMBAR 3) ===== */
+    .custom-total-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .btn-total-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 50px;
+        padding: 4px 14px 4px 14px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #1e293b;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+        user-select: none;
+        white-space: nowrap;
+        outline: none;
+    }
+    .btn-total-toggle:hover {
+        background: #ffffff;
+        border-color: #94a3b8;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+    }
+    .custom-total-dropdown.open .btn-total-toggle,
+    .btn-total-toggle:focus {
+        background: #ffffff;
+        border-color: #FF6D1F;
+        box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.15);
+        color: #FF6D1F;
+    }
+    .toggle-chevron {
+        font-size: 0.72rem;
+        color: #64748b;
+        transition: transform 0.2s ease;
+    }
+    .custom-total-dropdown.open .toggle-chevron {
+        transform: rotate(180deg);
+        color: #FF6D1F;
+    }
+    .custom-total-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 1050;
+        min-width: 220px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 6px 10px -6px rgba(0, 0, 0, 0.05);
+        padding: 5px;
+        margin: 0;
+        list-style: none;
+        display: none;
+        animation: fadeInMenu 0.15s ease-out;
+    }
+    @keyframes fadeInMenu {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .custom-total-dropdown.open .custom-total-menu {
+        display: block;
+    }
+    .custom-total-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 11px;
+        border-radius: 6px;
+        font-size: 0.79rem;
+        font-weight: 500;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+    .custom-total-item:hover {
+        background: #f8fafc;
+        color: #0f172a;
+    }
+    .custom-total-item.active {
+        background: #FFF5ED;
+        color: #FF6D1F;
+        font-weight: 600;
+    }
+    .custom-total-item .item-check {
+        font-size: 0.85rem;
+        color: #FF6D1F;
+        display: none;
+    }
+    .custom-total-item.active .item-check {
+        display: inline-block;
+    }
+    .custom-total-divider {
+        height: 1px;
+        background: #f1f5f9;
+        margin: 4px 5px;
+    }
+    .custom-total-input-wrap {
+        padding: 4px 6px 6px 6px;
+        margin-top: 2px;
+        animation: fadeInMenu 0.15s ease-out;
+    }
+    .total-popover-input {
+        font-size: 0.78rem !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px 0 0 6px !important;
+        padding: 4px 9px !important;
+        color: #1e293b !important;
+        background: #ffffff !important;
+    }
+    .total-popover-input:focus {
+        border-color: #FF6D1F !important;
+        box-shadow: 0 0 0 2px rgba(255, 109, 31, 0.15) !important;
+    }
+    .btn-total-apply {
+        background: #FF6D1F !important;
+        border-color: #FF6D1F !important;
+        color: #ffffff !important;
+        border-radius: 0 6px 6px 0 !important;
+        padding: 4px 10px !important;
+        font-size: 0.8rem !important;
+    }
+    .btn-total-apply:hover {
+        background: #e05d15 !important;
     }
     #btn_unlock_reset_data:hover {
         background: #fef2f2 !important;
@@ -595,20 +762,19 @@ $catatan_val = $indikator->catatan ?? '';
                     </div>
                 </div>
 
-                <!-- BARIS 2: PENGATURAN TINGKAT KOLOM, POSISI HEADER, & TOMBOL AKSI -->
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 pt-3 mt-3 border-top">
-                    <!-- Kiri: Tingkat Kolom & Posisi Header -->
-                    <div class="d-flex flex-wrap align-items-center gap-3">
-                        <!-- Tingkat Kolom (Opsi 2 Adaptif Pill Chips) -->
-                        <div id="box_tingkat_kolom" class="d-flex align-items-center gap-2" title="Pilih tingkat kolom yang ingin ditampilkan pada tabel">
-                            <span class="text-xs fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">
-                                <i class="bi bi-layers text-primary me-1"></i> Tingkat Kolom:
+                <!-- BARIS 2: PENGATURAN MATRIKS (TINGKAT KOLOM, POSISI HEADER, BARIS TOTAL) -->
+                <div class="matrix-settings-ribbon mt-3">
+                    <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
+                        <!-- 1. Tingkat Kolom (Opsi 2 Adaptif Pill Chips) -->
+                        <div id="box_tingkat_kolom" class="toolbar-setting-item" title="Pilih tingkat kolom yang ingin ditampilkan pada tabel">
+                            <span class="toolbar-setting-label">
+                                <i class="bi bi-layers text-primary me-1"></i> Tingkat:
                             </span>
-                            <div id="container_tingkat_kolom" class="d-flex align-items-center gap-2 flex-wrap">
+                            <div id="container_tingkat_kolom" class="d-flex align-items-center gap-1 flex-wrap">
                                 <?php 
                                     $curDepth = $init_max_depth ?? 1;
                                     $actL = [];
-                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua') {
+                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua' || ($sel_tingkat_kolom === '1' && $curDepth > 1)) {
                                         $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                     } elseif ($sel_tingkat_kolom === 'sub_bab') {
                                         $actL = ($curDepth === 3) ? ['2', '3'] : ['2'];
@@ -618,13 +784,25 @@ $catatan_val = $indikator->catatan ?? '';
                                         $actL = array_filter(array_map('trim', explode(',', $sel_tingkat_kolom)), function($l) use ($curDepth) {
                                             return (int)$l >= 1 && (int)$l <= $curDepth;
                                         });
-                                        if (empty($actL)) {
+                                        if (empty($actL) || ($curDepth > 1 && count($actL) === 1 && in_array('1', $actL) && empty($indikator->tingkat_kolom))) {
                                             $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                         }
                                     }
+
+                                    // Label display awal untuk toggle button baris total
+                                    $total_label_display = 'Sesuai Master';
+                                    if ($sel_konfigurasi_total === 'jawa_tengah') {
+                                        $total_label_display = 'Jawa Tengah';
+                                    } elseif ($sel_konfigurasi_total === 'jumlah') {
+                                        $total_label_display = 'Jumlah';
+                                    } elseif ($sel_konfigurasi_total === 'none') {
+                                        $total_label_display = 'Tanpa Total (Sembunyikan)';
+                                    } elseif ($sel_konfigurasi_total === 'kustom') {
+                                        $total_label_display = !empty($sel_label_total_kustom) ? esc($sel_label_total_kustom) : 'Kustom...';
+                                    }
                                 ?>
                                 <?php if ($curDepth <= 1): ?>
-                                    <span class="badge bg-light text-muted border px-2 py-1 text-xxs rounded-pill"><i class="bi bi-dash-circle me-1"></i>1 Tingkat (Rata)</span>
+                                    <span class="badge bg-light text-secondary border px-2-5 py-1 rounded-pill fw-semibold" style="font-size: 0.76rem; border-color: #cbd5e1 !important;"><i class="bi bi-dash-circle me-1 text-muted"></i>1 Tingkat (Rata)</span>
                                 <?php else: ?>
                                     <?php for ($i = 1; $i <= $curDepth; $i++): ?>
                                         <label class="tingkat-pill-item" title="Tampilkan atau sembunyikan Tingkat <?= $i; ?>">
@@ -641,11 +819,11 @@ $catatan_val = $indikator->catatan ?? '';
                         </div>
 
                         <!-- Divider halus vertikal -->
-                        <div class="vr text-muted opacity-25 d-none d-md-block" style="height: 24px;"></div>
+                        <div class="toolbar-divider d-none d-md-block"></div>
 
-                        <!-- Posisi Hirarki Header (Segmented Button Group) -->
-                        <div id="box_posisi_hirarki" class="d-flex align-items-center gap-2" title="Atur tata letak hirarki kolom atau periode waktu">
-                            <span class="text-xs fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">
+                        <!-- 2. Posisi Hirarki Header (Segmented Button Group) -->
+                        <div id="box_posisi_hirarki" class="toolbar-setting-item" title="Atur tata letak hirarki kolom atau periode waktu">
+                            <span class="toolbar-setting-label">
                                 <i class="bi bi-arrow-down-up text-primary me-1"></i> Posisi:
                             </span>
                             <div class="posisi-segmented-group" id="group_posisi_hirarki">
@@ -660,10 +838,74 @@ $catatan_val = $indikator->catatan ?? '';
                                 </button>
                             </div>
                         </div>
+
+                        <!-- Divider halus vertikal -->
+                        <div class="toolbar-divider d-none d-md-block"></div>
+
+                        <!-- 3. Penyajian Baris Total (Custom Modern Popover Dropdown) -->
+                        <div id="box_konfigurasi_total" class="toolbar-setting-item" title="Atur label penyajian baris total atau sembunyikan untuk tabel rasio/pertumbuhan">
+                            <span class="toolbar-setting-label">
+                                <i class="bi bi-calculator text-primary me-1"></i> Baris Total:
+                            </span>
+                            <div class="custom-total-dropdown" id="dropdown_total_menu_wrap">
+                                <button type="button" class="btn-total-toggle" id="btn_total_toggle">
+                                    <span id="selected_total_label"><?= esc($total_label_display); ?></span>
+                                    <i class="bi bi-chevron-down toggle-chevron"></i>
+                                </button>
+                                <input type="hidden" name="konfigurasi_total" id="select_konfigurasi_total" value="<?= esc($sel_konfigurasi_total); ?>">
+                                
+                                <!-- Menu popover melayang modern: Sederhana & Clean -->
+                                <div class="custom-total-menu" id="menu_total_options">
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'default') ? 'active' : ''; ?>" data-val="default">
+                                        <span class="item-title" id="label_item_default_text">Sesuai Master</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'jawa_tengah') ? 'active' : ''; ?>" data-val="jawa_tengah">
+                                        <span class="item-title">Jawa Tengah</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'jumlah') ? 'active' : ''; ?>" data-val="jumlah">
+                                        <span class="item-title">Jumlah</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-divider"></div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'none') ? 'active' : ''; ?>" data-val="none">
+                                        <span class="item-title text-muted">Tanpa Total (Sembunyikan)</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    <div class="custom-total-divider"></div>
+                                    <div class="custom-total-item <?= ($sel_konfigurasi_total === 'kustom') ? 'active' : ''; ?>" data-val="kustom">
+                                        <span class="item-title">Kustom...</span>
+                                        <i class="bi bi-check2 item-check"></i>
+                                    </div>
+                                    
+                                    <!-- Input label kustom langsung di dalam menu dropdown popover -->
+                                    <div class="custom-total-input-wrap <?= ($sel_konfigurasi_total === 'kustom') ? '' : 'd-none'; ?>" id="box_popover_kustom_input">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" name="label_total_kustom" id="input_label_total_kustom" 
+                                                   class="form-control form-control-sm total-popover-input" 
+                                                   value="<?= esc($sel_label_total_kustom); ?>" 
+                                                   placeholder="Ketik label kustom...">
+                                            <button type="button" class="btn btn-sm btn-total-apply" id="btn_apply_kustom" title="Terapkan dan tutup">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BARIS 3: FOOTER AKSI & STATUS (TOMBOL FIX DI KANAN) -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 mt-3 border-top">
+                    <div class="d-flex align-items-center gap-2 text-muted text-xs">
+                        <i class="bi bi-info-circle text-primary"></i>
+                        <span>Pratinjau matriks di bawah otomatis menyesuaikan konfigurasi yang dipilih.</span>
                     </div>
 
                     <!-- Kanan: Tombol Aksi (Unduh Template, Lepas, Simpan Matriks) -->
-                    <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+                    <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
                         <?php if ($is_dynamic): ?>
                             <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id_tahun_tabel); ?>" class="btn btn-outline-success btn-sm px-3 py-1-5 rounded-pill text-xs fw-semibold shadow-xs d-inline-flex align-items-center gap-1" title="Unduh Template Excel (.xlsx) Berstandar BPS">
                                 <i class="bi bi-file-earmark-excel"></i> Unduh Template
@@ -808,7 +1050,13 @@ $(document).ready(function() {
     updateHirarkiSwitchState();
 
     // Trigger pembaruan preview saat input dimensi berubah (Select2 & native change)
-    $('#select_karakteristik, #select_baris, #select_periode').on('select2:select select2:clear change', function() {
+    $('#select_karakteristik').on('select2:select select2:clear change', function() {
+        $('#input_tingkat_kolom').val('semua'); // Pastikan selalu reset ke semua tingkat saat ganti karakteristik!
+        updateHirarkiSwitchState();
+        fetchDimensiData();
+    });
+
+    $('#select_baris, #select_periode').on('select2:select select2:clear change', function() {
         updateHirarkiSwitchState();
         fetchDimensiData();
     });
@@ -817,6 +1065,83 @@ $(document).ready(function() {
         if (currentData) {
             renderMatrix(currentData);
         }
+    });
+
+    // ===== HANDLER CUSTOM DROPDOWN MODERN BARIS TOTAL (PENGGANTI GAMBAR 3) =====
+    // Toggle buka-tutup menu dropdown
+    $('#btn_total_toggle').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const $wrap = $('#dropdown_total_menu_wrap');
+        $wrap.toggleClass('open');
+        if ($wrap.hasClass('open') && $('#select_konfigurasi_total').val() === 'kustom') {
+            setTimeout(function() {
+                $('#input_label_total_kustom').focus().select();
+            }, 60);
+        }
+    });
+
+    // Tutup menu dropdown jika pengguna mengklik area luar
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#dropdown_total_menu_wrap').length) {
+            $('#dropdown_total_menu_wrap').removeClass('open');
+        }
+    });
+
+    // Event saat opsi pada menu dropdown diklik
+    $(document).on('click', '.custom-total-item', function(e) {
+        e.preventDefault();
+        const val = $(this).data('val');
+        const label = $(this).find('.item-title').text();
+
+        $('#select_konfigurasi_total').val(val);
+        $('.custom-total-item').removeClass('active');
+        $(this).addClass('active');
+
+        if (val === 'kustom') {
+            // Tampilkan input inline di dalam popover dan fokuskan
+            $('#box_popover_kustom_input').removeClass('d-none');
+            const customVal = $('#input_label_total_kustom').val().trim();
+            $('#selected_total_label').text(customVal ? customVal : 'Kustom...');
+            setTimeout(function() {
+                $('#input_label_total_kustom').focus().select();
+            }, 60);
+        } else {
+            // Sembunyikan input kustom dan tutup menu dropdown
+            $('#box_popover_kustom_input').addClass('d-none');
+            $('#selected_total_label').text(label);
+            $('#dropdown_total_menu_wrap').removeClass('open');
+        }
+
+        if (currentData) {
+            renderMatrix(currentData);
+        }
+    });
+
+    // Handler input real-time label kustom di dalam popover
+    $('#input_label_total_kustom').on('input', function() {
+        const val = $(this).val().trim();
+        if ($('#select_konfigurasi_total').val() === 'kustom') {
+            $('#selected_total_label').text(val ? val : 'Kustom...');
+        }
+        if (currentData) {
+            renderMatrix(currentData);
+        }
+    });
+
+    // Tekan tombol Enter pada input kustom -> tutup dropdown
+    $('#input_label_total_kustom').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $('#dropdown_total_menu_wrap').removeClass('open');
+        }
+    });
+
+    // Tombol centang Apply pada input kustom di popover
+    $('#btn_apply_kustom').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $('#dropdown_total_menu_wrap').removeClass('open');
     });
 
     // Handler switch hirarki segmented buttons: Kolom di Atas vs Periode di Atas
@@ -834,7 +1159,7 @@ $(document).ready(function() {
     });
 
     function parseActiveLevels(tingkatKolom, maxDepth) {
-        if (!tingkatKolom || tingkatKolom === 'semua') {
+        if (!tingkatKolom || tingkatKolom === 'semua' || (tingkatKolom === '1' && maxDepth > 1)) {
             return (maxDepth === 3) ? ['1', '2', '3'] : ((maxDepth === 2) ? ['1', '2'] : ['1']);
         }
         if (tingkatKolom === 'sub_bab') {
@@ -850,11 +1175,16 @@ $(document).ready(function() {
 
     function updateTingkatKolomUI(maxDepth) {
         const $container = $('#container_tingkat_kolom');
-        const savedVal = $('#input_tingkat_kolom').val();
+        let savedVal = $('#input_tingkat_kolom').val();
+        // Default tercentang semua jika baru dibuka atau kedalaman kolom bertingkat
+        if (!savedVal || savedVal === 'semua' || (savedVal === '1' && maxDepth > 1)) {
+            savedVal = (maxDepth === 3) ? '1,2,3' : ((maxDepth === 2) ? '1,2' : '1');
+            $('#input_tingkat_kolom').val(savedVal);
+        }
         const active = parseActiveLevels(savedVal, maxDepth);
 
         if (maxDepth <= 1) {
-            $container.html('<span class="badge bg-light text-muted border px-2 py-1 text-xxs rounded-pill"><i class="bi bi-dash-circle me-1"></i>1 Tingkat (Rata)</span>');
+            $container.html('<span class="badge bg-light text-secondary border px-2-5 py-1 rounded-pill fw-semibold" style="font-size: 0.76rem; border-color: #cbd5e1 !important;"><i class="bi bi-dash-circle me-1 text-muted"></i>1 Tingkat (Rata)</span>');
             $('#input_tingkat_kolom').val('1');
             return;
         }
@@ -1033,12 +1363,40 @@ $(document).ready(function() {
         const isPeriodeAtas = (posHirarki === 'periode_atas');
         const isPeriodeBaris = (posHirarki === 'periode_baris');
         const tingkatKolom = $('#input_tingkat_kolom').val() || 'semua';
+        const konfigurasiTotal = $('#select_konfigurasi_total').val() || 'default';
+        const labelTotalKustom = $('#input_label_total_kustom').val() || '';
 
         const kolomStruct = data.kolom;
         const maxDepth = kolomStruct ? (kolomStruct.max_depth || (kolomStruct.has_groups ? 2 : 1)) : 1;
         const rawFlatKolom = data.kolom ? (data.kolom.flat_items || []) : [];
         const barisItems = data.baris || [];
         const periodeItems = data.periode || [];
+
+        // Deteksi apakah master baris memiliki item total untuk menyesuaikan label dropdown
+        let masterTotalItem = null;
+        barisItems.forEach(function(b) {
+            let t = (b.tipe_baris || '').toLowerCase().trim();
+            let l = (b.nama_baris_ind || '').toLowerCase().trim();
+            if (t === 'total' || (!t && (l === 'jumlah' || l === 'total' || l.includes('jawa tengah') || l.includes('produk domestik regional bruto') || l === 'pdrb' || l.includes('gross regional domestic product') || l === 'grdp'))) {
+                if (!l.includes('curah hujan') && !l.includes('hari hujan')) {
+                    masterTotalItem = b;
+                }
+            }
+        });
+
+        if (masterTotalItem) {
+            const origLabel = masterTotalItem.nama_baris_ind || 'Jumlah';
+            const masterLabelText = 'Sesuai Master (' + origLabel + ')';
+            $('#label_item_default_text').text(masterLabelText);
+            if ($('#select_konfigurasi_total').val() === 'default') {
+                $('#selected_total_label').text(masterLabelText);
+            }
+        } else {
+            $('#label_item_default_text').text('Sesuai Master');
+            if ($('#select_konfigurasi_total').val() === 'default') {
+                $('#selected_total_label').text('Sesuai Master');
+            }
+        }
 
         // Parse tingkat aktif menjadi array angka [1, 2, 3] dsb
         const activeLevels = parseActiveLevels(tingkatKolom, maxDepth).map(Number).sort((a, b) => a - b);
@@ -1097,7 +1455,54 @@ $(document).ready(function() {
         const hasKolom = (flatKolom && flatKolom.length > 0);
         const hasPeriode = (periodeItems && periodeItems.length > 0);
 
-        // Hitung statistik sel data
+        // Hitung level maksimum pada seluruh kelompok baris
+        let maxBarisGroupLevel = 0;
+        for (let i = 0; i < barisItems.length; i++) {
+            const lvl = parseInt(barisItems[i].level_indentasi) || 0;
+            if (lvl > maxBarisGroupLevel) maxBarisGroupLevel = lvl;
+        }
+
+        // Helper untuk mendeteksi apakah suatu baris merupakan Parent/Header (bukan level terakhir/leaf)
+        function isParentBaris(idx, items) {
+            const cur = items[idx];
+            if (!cur) return false;
+            let tipe = (cur.tipe_baris || '').toLowerCase().trim();
+
+            // 1. Prioritas Utama: Sesuai role fungsional yang dipilih pengguna di Master Dimensi
+            if (tipe === 'kategori') {
+                return true; // Kategori: banner pemisah sekat (tanpa sel data)
+            }
+            if (tipe === 'data' || tipe === 'total' || tipe === 'subtotal') {
+                return false; // Data / Total: baris fungsional (bisa diisi sel datanya)
+            }
+
+            // 2. Fallback untuk data lawas yang tipe_baris-nya belum tersimpan di DB
+            if (maxBarisGroupLevel === 0) {
+                return false;
+            }
+
+            let lowerNama = (cur.nama_baris_ind || '').toLowerCase().trim();
+            if (
+                lowerNama === 'jumlah' || lowerNama === 'total' || 
+                lowerNama.includes('jawa tengah') || 
+                lowerNama.includes('produk domestik regional bruto') || 
+                lowerNama === 'pdrb' || 
+                lowerNama.includes('gross regional domestic product') || 
+                lowerNama === 'grdp'
+            ) {
+                if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan')) {
+                    return false;
+                }
+            }
+
+            if (lowerNama === 'kabupaten' || lowerNama === 'kota') {
+                return true;
+            }
+
+            return false;
+        }
+
+        // Hitung statistik sel data (hanya menghitung baris leaf / data ril)
         let totalLeafCols = 0;
         if (hasKolom && hasPeriode) {
             totalLeafCols = isPeriodeBaris ? flatKolom.length : (flatKolom.length * periodeItems.length);
@@ -1107,10 +1512,15 @@ $(document).ready(function() {
             totalLeafCols = periodeItems.length;
         }
 
-        const totalDataRows = barisItems.filter(b => b.tipe_baris === 'data').length;
-        const totalRowsRendered = isPeriodeBaris ? (totalDataRows * (periodeItems.length || 1)) : totalDataRows;
-        const totalCells = totalLeafCols * totalRowsRendered;
-        const displayRowCount = isPeriodeBaris ? (barisItems.length * (periodeItems.length || 1)) : barisItems.length;
+        const leafDataRows = barisItems.filter((b, idx) => !isParentBaris(idx, barisItems));
+        const parentRowsCount = barisItems.length - leafDataRows.length;
+        const totalRowsRendered = isPeriodeBaris 
+            ? (parentRowsCount + leafDataRows.length * (periodeItems.length || 1)) 
+            : barisItems.length;
+        const totalCells = totalLeafCols * (leafDataRows.length * (isPeriodeBaris ? 1 : 1));
+        const displayRowCount = isPeriodeBaris 
+            ? (parentRowsCount + leafDataRows.length * (periodeItems.length || 1)) 
+            : barisItems.length;
         $('#stat_total_cells').text(displayRowCount + ' Baris × ' + totalLeafCols + ' Kolom (' + totalCells + ' Sel)');
 
         // =====================================================================
@@ -1535,10 +1945,10 @@ $(document).ready(function() {
             tbodyHtml = '<tr><td colspan="' + emptyColspan + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';
         } else if (hasKolom && hasPeriode && isPeriodeBaris) {
             // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (NESTED PIVOT)
-            barisItems.forEach(function(baris) {
-                let tipe = baris.tipe_baris || 'data';
-                let lowerNama = (baris.nama_baris_ind || '').toLowerCase();
-                if (tipe === 'data' || !tipe) {
+            barisItems.forEach(function(baris, bIdx) {
+                let tipe = (baris.tipe_baris || '').toLowerCase().trim();
+                let lowerNama = (baris.nama_baris_ind || '').toLowerCase().trim();
+                if (!tipe) {
                     if (
                         lowerNama === 'jumlah' || lowerNama === 'total' || 
                         lowerNama.includes('jawa tengah') || 
@@ -1551,23 +1961,49 @@ $(document).ready(function() {
                             tipe = 'total';
                         }
                     }
+                    if (!tipe) tipe = 'data';
                 }
-                const level = parseInt(baris.level_indentasi) || 0;
-                let rowClass = 'row-' + tipe;
-                let indentClass = 'indent-level-' + Math.min(level, 2);
-                let textClass = ' fw-bold text-dark';
 
-                if (tipe === 'kategori') {
-                    // Kategori Pembatas (misal: "Kabupaten", "Kota"): Bentang penuh seluruh kolom
+                // Pengaturan baris total (sembunyikan jika opsi 'none' dipilih)
+                if (tipe === 'total' && konfigurasiTotal === 'none') {
+                    return;
+                }
+
+                const isParent = isParentBaris(bIdx, barisItems);
+                const level = parseInt(baris.level_indentasi) || 0;
+                let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
+                let indentClass = 'indent-level-' + Math.min(level, 2);
+                let isBold = (parseInt(baris.is_bold) === 1 || tipe === 'total' || isParent);
+                let textClass = isBold ? ' fw-bold text-dark' : ' text-dark';
+
+                // Tentukan nama tampilan (override jika baris total)
+                let namaBarisInd = baris.nama_baris_ind;
+                let namaBarisEn = baris.nama_baris_en;
+                if (tipe === 'total') {
+                    if (konfigurasiTotal === 'jawa_tengah') {
+                        namaBarisInd = 'Jawa Tengah';
+                        namaBarisEn = 'Central Java';
+                    } else if (konfigurasiTotal === 'jumlah') {
+                        namaBarisInd = 'Jumlah';
+                        namaBarisEn = 'Total';
+                    } else if (konfigurasiTotal === 'kustom' && labelTotalKustom.trim() !== '') {
+                        namaBarisInd = labelTotalKustom.trim();
+                        namaBarisEn = labelTotalKustom.trim();
+                    }
+                }
+
+                if (isParent) {
+                    // Baris Induk / Header Level Atas (misal: "Kabupaten", "Kota", "Suhu"): Bentang penuh seluruh kolom tanpa kolom periode
                     tbodyHtml += '<tr class="' + rowClass + '">';
                     tbodyHtml += '<td colspan="' + (2 + totalLeafCols) + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #ff6d1f !important;">';
-                    tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
-                    if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
-                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
+                    tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
+                    if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                     }
                     tbodyHtml += '</td>';
                     tbodyHtml += '</tr>';
                 } else {
+                    // Baris Rincian Daun (Leaf / Level Terakhir): Memiliki kolom kedua periode dan sel data
                     const pCount = periodeItems.length;
                     periodeItems.forEach(function(p, pIdx) {
                         tbodyHtml += '<tr class="' + rowClass + '">';
@@ -1575,9 +2011,9 @@ $(document).ready(function() {
                         // Sel Kolom 1 (Nama Wilayah / Baris): Hanya di baris periode pertama dengan rowspan
                         if (pIdx === 0) {
                             tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col ' + indentClass + textClass + '" style="vertical-align: middle;">';
-                            tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
-                            if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
-                                tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
+                            tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
+                            if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                                tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                             }
                             tbodyHtml += '</td>';
                         }
@@ -1600,10 +2036,10 @@ $(document).ready(function() {
                 }
             });
         } else {
-            barisItems.forEach(function(baris) {
-                let tipe = baris.tipe_baris || 'data';
-                let lowerNama = (baris.nama_baris_ind || '').toLowerCase();
-                if (tipe === 'data' || !tipe) {
+            barisItems.forEach(function(baris, bIdx) {
+                let tipe = (baris.tipe_baris || '').toLowerCase().trim();
+                let lowerNama = (baris.nama_baris_ind || '').toLowerCase().trim();
+                if (!tipe) {
                     if (
                         lowerNama === 'jumlah' || lowerNama === 'total' || 
                         lowerNama.includes('jawa tengah') || 
@@ -1616,35 +2052,65 @@ $(document).ready(function() {
                             tipe = 'total';
                         }
                     }
+                    if (!tipe) tipe = 'data';
                 }
+
+                // Pengaturan baris total (sembunyikan jika opsi 'none' dipilih)
+                if (tipe === 'total' && konfigurasiTotal === 'none') {
+                    return;
+                }
+
+                const isParent = isParentBaris(bIdx, barisItems);
                 const level = parseInt(baris.level_indentasi) || 0;
-                const isBold = true; // Sesuai tabel API BPS: rincian/wilayah dicetak tebal
-                let rowClass = 'row-' + tipe;
+                let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
                 let indentClass = 'indent-level-' + Math.min(level, 2);
-                let textClass = ' fw-bold text-dark';
+                let isBold = (parseInt(baris.is_bold) === 1 || tipe === 'total' || isParent);
+                let textClass = isBold ? ' fw-bold text-dark' : ' text-dark';
 
-                tbodyHtml += '<tr class="' + rowClass + '">';
-
-                // Kolom Judul Baris (Sticky Freeze di Kiri - Bahasa Inggris di samping memakai /)
-                tbodyHtml += '<td class="td-freeze-col ' + indentClass + textClass + '">';
-                tbodyHtml += '<span>' + escapeHtml(baris.nama_baris_ind) + '</span>';
-                if (isBilingual && baris.nama_baris_en && baris.nama_baris_en.trim().toLowerCase() !== baris.nama_baris_ind.trim().toLowerCase()) {
-                    tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(baris.nama_baris_en) + '</span>';
-                }
-                tbodyHtml += '</td>';
-
-                // Sel Data Kolom (Seluruh sel menampilkan tanda strip standar BPS, tidak kosong bolong)
-                for (let i = 0; i < totalLeafCols; i++) {
-                    if (tipe === 'kategori') {
-                        // Kategori Bab (Kabupaten / Kota): tanda strip di tengah
-                        tbodyHtml += '<td class="cell-hatched text-center">–</td>';
-                    } else {
-                        // Data item, subtotal, atau total: tanda strip di tengah
-                        tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
+                // Tentukan nama tampilan (override jika baris total)
+                let namaBarisInd = baris.nama_baris_ind;
+                let namaBarisEn = baris.nama_baris_en;
+                if (tipe === 'total') {
+                    if (konfigurasiTotal === 'jawa_tengah') {
+                        namaBarisInd = 'Jawa Tengah';
+                        namaBarisEn = 'Central Java';
+                    } else if (konfigurasiTotal === 'jumlah') {
+                        namaBarisInd = 'Jumlah';
+                        namaBarisEn = 'Total';
+                    } else if (konfigurasiTotal === 'kustom' && labelTotalKustom.trim() !== '') {
+                        namaBarisInd = labelTotalKustom.trim();
+                        namaBarisEn = labelTotalKustom.trim();
                     }
                 }
 
-                tbodyHtml += '</tr>';
+                if (isParent) {
+                    // Baris Induk / Header Level Atas: Bentang penuh seluruh kolom
+                    tbodyHtml += '<tr class="' + rowClass + '">';
+                    tbodyHtml += '<td colspan="' + (1 + totalLeafCols) + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #ff6d1f !important;">';
+                    tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
+                    if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
+                    }
+                    tbodyHtml += '</td>';
+                    tbodyHtml += '</tr>';
+                } else {
+                    tbodyHtml += '<tr class="' + rowClass + '">';
+
+                    // Kolom Judul Baris (Sticky Freeze di Kiri)
+                    tbodyHtml += '<td class="td-freeze-col ' + indentClass + textClass + '">';
+                    tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
+                    if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
+                    }
+                    tbodyHtml += '</td>';
+
+                    // Sel Data Kolom (Seluruh sel menampilkan tanda strip standar BPS)
+                    for (let i = 0; i < totalLeafCols; i++) {
+                        tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
+                    }
+
+                    tbodyHtml += '</tr>';
+                }
             });
         }
 

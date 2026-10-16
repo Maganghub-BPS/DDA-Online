@@ -18,15 +18,14 @@ class M_tabeldinamis extends Model
         'judul_en',
         'id_unitkerja',
         'id_karakteristik_kelompok',
-        'id_sub_karakteristik_kelompok',
         'id_baris_kelompok',
         'id_periode_kelompok',
         'posisi_hirarki',
         'tingkat_kolom',
+        'konfigurasi_total',
+        'label_total_kustom',
         'satuan',
         'desimal',
-        'grafik_default',
-        'sumber',
         'catatan',
         'created_at',
         'updated_at'
@@ -94,15 +93,34 @@ class M_tabeldinamis extends Model
 
     public function syncKarakteristikItems(int $id_kelompok, array $items): bool
     {
-        $builder = $this->db->table('m_karakteristik_item');
-        $builder->where('id_kelompok', $id_kelompok)->delete();
+        $existingRows = $this->db->table('m_karakteristik_item')
+            ->where('id_kelompok', $id_kelompok)
+            ->orderBy('no_urut', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $existingById = [];
+        $existingByComp = [];
+        foreach ($existingRows as $row) {
+            $existingById[(int)$row['id']] = $row;
+            $compKey = mb_strtolower(trim($row['grup_induk_ind'] ?? '')) . '|' . mb_strtolower(trim($row['grup_sub_ind'] ?? '')) . '|' . mb_strtolower(trim($row['item_ind']));
+            if (!isset($existingByComp[$compKey])) {
+                $existingByComp[$compKey] = (int)$row['id'];
+            }
+        }
 
         if (empty($items)) {
+            if (!empty($existingById)) {
+                $deleteIds = array_keys($existingById);
+                $this->db->table('m_karakteristik_item')->whereIn('id', $deleteIds)->delete();
+                $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
+            }
             return true;
         }
 
         $now = date('Y-m-d H:i:s');
-        $insertData = [];
+        $keptIds = [];
         $no = 1;
 
         foreach ($items as $item) {
@@ -163,9 +181,21 @@ class M_tabeldinamis extends Model
                 }
             }
 
-            $insertData[] = [
+            // Matching item existing
+            $matchedId = null;
+            $candidateId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
+            if ($candidateId > 0 && isset($existingById[$candidateId])) {
+                $matchedId = $candidateId;
+            } else {
+                $compKey = mb_strtolower(trim($grup_induk_ind ?? '')) . '|' . mb_strtolower(trim($grup_sub_ind ?? '')) . '|' . mb_strtolower(trim($item_ind));
+                if (isset($existingByComp[$compKey])) {
+                    $matchedId = $existingByComp[$compKey];
+                    unset($existingByComp[$compKey]);
+                }
+            }
+
+            $payload = [
                 'id_kelompok'    => $id_kelompok,
-                'parent_id'      => !empty($item['parent_id']) ? (int)$item['parent_id'] : null,
                 'grup_induk_ind' => $grup_induk_ind,
                 'grup_induk_en'  => $grup_induk_en,
                 'grup_sub_ind'   => $grup_sub_ind,
@@ -174,14 +204,25 @@ class M_tabeldinamis extends Model
                 'item_en'        => $item_en,
                 'no_urut'        => (int)($item['no_urut'] ?? $no),
                 'is_standalone'  => $is_standalone,
-                'created_at'     => $now,
                 'updated_at'     => $now,
             ];
+
+            if ($matchedId !== null && isset($existingById[$matchedId])) {
+                $this->db->table('m_karakteristik_item')->where('id', $matchedId)->update($payload);
+                $keptIds[] = $matchedId;
+            } else {
+                $payload['created_at'] = $now;
+                $this->db->table('m_karakteristik_item')->insert($payload);
+                $keptIds[] = (int)$this->db->insertID();
+            }
+
             $no++;
         }
 
-        if (!empty($insertData)) {
-            $builder->insertBatch($insertData);
+        $deleteIds = array_diff(array_keys($existingById), $keptIds);
+        if (!empty($deleteIds)) {
+            $this->db->table('m_karakteristik_item')->whereIn('id', $deleteIds)->delete();
+            $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
         }
 
         return true;
@@ -363,14 +404,35 @@ class M_tabeldinamis extends Model
     public function syncBarisItems(int $id_kelompok, array $items): bool
     {
         $builder = $this->db->table('m_baris_item');
-        $builder->where('id_kelompok', $id_kelompok)->delete();
+
+        // 1. Ambil seluruh data baris existing untuk kelompok ini
+        $existingRows = $builder->where('id_kelompok', $id_kelompok)
+            ->orderBy('no_urut', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $existingById = [];
+        $existingByName = [];
+        foreach ($existingRows as $row) {
+            $existingById[(int)$row['id']] = $row;
+            $norm = mb_strtolower(trim($row['nama_baris_ind']));
+            if (!isset($existingByName[$norm])) {
+                $existingByName[$norm] = (int)$row['id'];
+            }
+        }
 
         if (empty($items)) {
+            if (!empty($existingById)) {
+                $deleteIds = array_keys($existingById);
+                $this->db->table('m_baris_item')->whereIn('id', $deleteIds)->delete();
+                $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
+            }
             return true;
         }
 
         $now = date('Y-m-d H:i:s');
-        $insertData = [];
+        $keptIds = [];
         $no = 1;
 
         foreach ($items as $item) {
@@ -381,39 +443,75 @@ class M_tabeldinamis extends Model
                 continue;
             }
 
+            $level_indentasi = (int)($item['level_indentasi'] ?? ($item['level'] ?? 0));
             $tipe_baris = $item['tipe_baris'] ?? '';
             $validTypes = ['kategori', 'data', 'subtotal', 'total'];
             
             // Evaluasi tipe baris cerdas & hormati penandaan is_total / tipe_baris dari pengguna
             $is_user_total = (!empty($item['is_total']) || $tipe_baris === 'total');
-            $detectedTipe  = $this->detectTipeBaris($nama_ind, (int)($item['level_indentasi'] ?? 0));
+            $detectedTipe  = $this->detectTipeBaris($nama_ind, $level_indentasi);
 
-            if ($is_user_total || $detectedTipe === 'total') {
+            if (!empty($tipe_baris) && in_array($tipe_baris, $validTypes, true)) {
+                // Prioritas tertinggi: pertahankan tipe fungsional yang eksplisit dipilih pengguna
+                if (!empty($item['is_total']) && $tipe_baris !== 'data' && $tipe_baris !== 'kategori') {
+                    $tipe_baris = 'total';
+                }
+            } elseif ($is_user_total || $detectedTipe === 'total') {
                 $tipe_baris = 'total';
-            } elseif (!in_array($tipe_baris, $validTypes, true) || empty($tipe_baris) || $tipe_baris === 'data') {
+            } else {
                 $tipe_baris = $detectedTipe;
             }
 
-            $level_indentasi = (int)($item['level_indentasi'] ?? 0);
             $is_bold = !empty($item['is_bold']) ? 1 : ($tipe_baris === 'total' || $tipe_baris === 'kategori' ? 1 : 0);
+            $noUrut  = (int)($item['no_urut'] ?? $no);
 
-            $insertData[] = [
+            // Deteksi pencocokan item existing agar ID baris TIDAK BERUBAH:
+            // Prioritas 1: Kecocokan eksplisit db_id / id dari client
+            // Prioritas 2: Kecocokan nama_baris_ind
+            $matchedId = null;
+            $candidateId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
+            if ($candidateId > 0 && isset($existingById[$candidateId])) {
+                $matchedId = $candidateId;
+            } else {
+                $norm = mb_strtolower($nama_ind);
+                if (isset($existingByName[$norm])) {
+                    $matchedId = $existingByName[$norm];
+                    unset($existingByName[$norm]); // Hindari pencocokan ganda
+                }
+            }
+
+            $rowPayload = [
                 'id_kelompok'     => $id_kelompok,
                 'parent_id'       => !empty($item['parent_id']) ? (int)$item['parent_id'] : null,
-                'no_urut'         => (int)($item['no_urut'] ?? $no),
+                'no_urut'         => $noUrut,
                 'nama_baris_ind'  => $nama_ind,
                 'nama_baris_en'   => $nama_en !== '' ? $nama_en : null,
                 'tipe_baris'      => $tipe_baris,
                 'level_indentasi' => $level_indentasi,
                 'is_bold'         => $is_bold,
-                'created_at'      => $now,
                 'updated_at'      => $now,
             ];
+
+            if ($matchedId !== null && isset($existingById[$matchedId])) {
+                // UPDATE baris yang sudah ada (Pertahankan ID agar t_nilai_dinamis TIDAK PUTUS!)
+                $this->db->table('m_baris_item')->where('id', $matchedId)->update($rowPayload);
+                $keptIds[] = $matchedId;
+            } else {
+                // INSERT baris baru (Dapat ID baru)
+                $rowPayload['created_at'] = $now;
+                $this->db->table('m_baris_item')->insert($rowPayload);
+                $newId = (int)$this->db->insertID();
+                $keptIds[] = $newId;
+            }
+
             $no++;
         }
 
-        if (!empty($insertData)) {
-            $builder->insertBatch($insertData);
+        // Hapus HANYA baris-baris yang memang dibuang oleh pengguna
+        $deleteIds = array_diff(array_keys($existingById), $keptIds);
+        if (!empty($deleteIds)) {
+            $this->db->table('m_baris_item')->whereIn('id', $deleteIds)->delete();
+            $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
         }
 
         return true;
@@ -463,8 +561,8 @@ class M_tabeldinamis extends Model
             return 'subtotal';
         }
 
-        // 4. Kategori (Pembatas Bab/Kategori)
-        if ($lower === 'kabupaten' || $lower === 'kota' || ($indent === 0 && $hasChildren)) {
+        // 4. Kategori (Pembatas Bab/Kategori - khusus pembatas wilayah Kabupaten/Kota atau banner judul murni)
+        if ($lower === 'kabupaten' || $lower === 'kota') {
             return 'kategori';
         }
 
@@ -490,6 +588,7 @@ class M_tabeldinamis extends Model
             $is_total = !empty($it['is_total']) || (($it['tipe_baris'] ?? '') === 'total');
 
             $items[] = [
+                'db_id'           => !empty($it['db_id']) ? (int)$it['db_id'] : null,
                 'nama_baris_ind'  => $nama_ind,
                 'nama_baris_en'   => !empty($nama_en) ? $nama_en : $nama_ind,
                 'level_indentasi' => $lvl,
@@ -613,15 +712,34 @@ class M_tabeldinamis extends Model
 
     public function syncPeriodeItems(int $id_kelompok, array $items): bool
     {
-        $builder = $this->db->table('m_periode_item');
-        $builder->where('id_kelompok', $id_kelompok)->delete();
+        $existingRows = $this->db->table('m_periode_item')
+            ->where('id_kelompok', $id_kelompok)
+            ->orderBy('no_urut', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $existingById = [];
+        $existingByName = [];
+        foreach ($existingRows as $row) {
+            $existingById[(int)$row['id']] = $row;
+            $norm = mb_strtolower(trim($row['nama_periode_ind']));
+            if (!isset($existingByName[$norm])) {
+                $existingByName[$norm] = (int)$row['id'];
+            }
+        }
 
         if (empty($items)) {
+            if (!empty($existingById)) {
+                $deleteIds = array_keys($existingById);
+                $this->db->table('m_periode_item')->whereIn('id', $deleteIds)->delete();
+                $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
+            }
             return true;
         }
 
         $now = date('Y-m-d H:i:s');
-        $insertData = [];
+        $keptIds = [];
         $no = 1;
 
         foreach ($items as $item) {
@@ -632,19 +750,42 @@ class M_tabeldinamis extends Model
                 continue;
             }
 
-            $insertData[] = [
+            $matchedId = null;
+            $candidateId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
+            if ($candidateId > 0 && isset($existingById[$candidateId])) {
+                $matchedId = $candidateId;
+            } else {
+                $norm = mb_strtolower($nama_ind);
+                if (isset($existingByName[$norm])) {
+                    $matchedId = $existingByName[$norm];
+                    unset($existingByName[$norm]);
+                }
+            }
+
+            $payload = [
                 'id_kelompok'      => $id_kelompok,
                 'nama_periode_ind' => $nama_ind,
                 'nama_periode_en'  => $nama_en !== '' ? $nama_en : null,
                 'no_urut'          => (int)($item['no_urut'] ?? $no),
-                'created_at'       => $now,
                 'updated_at'       => $now,
             ];
+
+            if ($matchedId !== null && isset($existingById[$matchedId])) {
+                $this->db->table('m_periode_item')->where('id', $matchedId)->update($payload);
+                $keptIds[] = $matchedId;
+            } else {
+                $payload['created_at'] = $now;
+                $this->db->table('m_periode_item')->insert($payload);
+                $keptIds[] = (int)$this->db->insertID();
+            }
+
             $no++;
         }
 
-        if (!empty($insertData)) {
-            $builder->insertBatch($insertData);
+        $deleteIds = array_diff(array_keys($existingById), $keptIds);
+        if (!empty($deleteIds)) {
+            $this->db->table('m_periode_item')->whereIn('id', $deleteIds)->delete();
+            $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
         }
 
         return true;
@@ -738,14 +879,6 @@ class M_tabeldinamis extends Model
         $indikator->kolom_items = $this->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
         $indikator->kolom_structure = $this->buildColumnStructure($indikator->kolom_items);
 
-        // Sub-Karakteristik jika ada
-        $indikator->sub_karakteristik_kelompok = null;
-        $indikator->sub_kolom_items = [];
-        if (!empty($indikator->id_sub_karakteristik_kelompok)) {
-            $indikator->sub_karakteristik_kelompok = $this->getKarakteristikKelompok((int)$indikator->id_sub_karakteristik_kelompok);
-            $indikator->sub_kolom_items = $this->getKarakteristikItems((int)$indikator->id_sub_karakteristik_kelompok);
-        }
-
         // 2. Dimensi Baris
         $indikator->baris_kelompok = $this->getBarisKelompok((int)$indikator->id_baris_kelompok);
         $indikator->baris_items = $this->getBarisItems((int)$indikator->id_baris_kelompok);
@@ -798,8 +931,7 @@ class M_tabeldinamis extends Model
 
         $lookup = [];
         foreach ($rows as $row) {
-            $subId = (int)($row->id_sub_karakteristik_item ?? 0);
-            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$subId}_{$row->id_periode_item}";
+            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$row->id_periode_item}";
             $lookup[$key] = [
                 'id'     => $row->id,
                 'nilai'  => $row->nilai !== null ? (float)$row->nilai : null,
@@ -827,17 +959,15 @@ class M_tabeldinamis extends Model
             foreach ($chunk as $c) {
                 $idBaris = (int)$c['id_baris_item'];
                 $idKarakteristik = (int)$c['id_karakteristik_item'];
-                $idSub = (int)($c['id_sub_karakteristik_item'] ?? 0);
                 $idPeriode = (int)$c['id_periode_item'];
 
                 $nilai = isset($c['nilai']) && $c['nilai'] !== '' && $c['nilai'] !== null ? (float)$c['nilai'] : null;
                 $simbol = !empty($c['simbol']) ? trim($c['simbol']) : null;
 
-                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?)";
                 $params[] = $id_indikator;
                 $params[] = $idBaris;
                 $params[] = $idKarakteristik;
-                $params[] = $idSub;
                 $params[] = $idPeriode;
                 $params[] = $nilai;
                 $params[] = $simbol;
@@ -846,7 +976,7 @@ class M_tabeldinamis extends Model
             }
 
             $sql = "INSERT INTO t_nilai_dinamis 
-                    (id_indikator, id_baris_item, id_karakteristik_item, id_sub_karakteristik_item, id_periode_item, nilai, simbol, created_at, updated_at)
+                    (id_indikator, id_baris_item, id_karakteristik_item, id_periode_item, nilai, simbol, created_at, updated_at)
                     VALUES " . implode(', ', $values) . "
                     ON DUPLICATE KEY UPDATE 
                         nilai = VALUES(nilai),

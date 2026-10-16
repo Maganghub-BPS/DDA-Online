@@ -925,28 +925,82 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
                         $desimal = (int)($indikator->desimal ?? 2);
                         $dataRowCounter = 0;
 
-                        foreach ($itemsBaris as $baris):
-                            $tipe         = $baris->tipe_baris ?: 'data';
+                        // Hitung level maksimum pada seluruh kelompok baris
+                        $maxBarisGroupLevel = 0;
+                        foreach ($itemsBaris as $b) {
+                            $lvl = (int)($b->level_indentasi ?? 0);
+                            if ($lvl > $maxBarisGroupLevel) {
+                                $maxBarisGroupLevel = $lvl;
+                            }
+                        }
+
+                        // Helper untuk mendeteksi apakah baris adalah Parent / Header Banner (kategori melintang tanpa sel data)
+                        $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
+                            $cur = $items[$idx];
+                            $tipe = strtolower(trim($cur->tipe_baris ?? ''));
+
+                            // 1. Sesuai role badge di Master Dimensi
+                            if ($tipe === 'kategori') {
+                                return true; // Kategori: banner pemisah sekat tanpa sel data
+                            }
+                            if ($tipe === 'data' || $tipe === 'total' || $tipe === 'subtotal') {
+                                return false; // Data / Total: baris fungsional dengan sel data
+                            }
+
+                            // 2. Fallback untuk data lawas jika belum terisi
+                            if ($maxBarisGroupLevel === 0) {
+                                return false;
+                            }
+
+                            $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ''));
+                            if (
+                                $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                                strpos($lowerNama, 'jawa tengah') !== false || 
+                                strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                                $lowerNama === 'pdrb' || 
+                                strpos($lowerNama, 'gross regional domestic product') !== false || 
+                                $lowerNama === 'grdp'
+                            ) {
+                                if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                                    return false;
+                                }
+                            }
+
+                            if ($lowerNama === 'kabupaten' || $lowerNama === 'kota') {
+                                return true;
+                            }
+
+                            return false;
+                        };
+
+                        foreach ($itemsBaris as $bIdx => $baris):
+                            $tipe         = strtolower(trim($baris->tipe_baris ?? ''));
                             $rawNamaInd   = trim($baris->nama_baris_ind);
                             $rawNamaEn    = trim($baris->nama_baris_en ?: '');
                             $lowerNamaInd = strtolower($rawNamaInd);
 
                             // 1. Deteksi Baris Grand Total (tipe === 'total' atau nama PDRB, Jawa Tengah, Jumlah, dsb.)
-                            $isTotalRow = (
-                                $tipe === 'total' || 
-                                $lowerNamaInd === 'jumlah' || 
-                                $lowerNamaInd === 'total' || 
-                                strpos($lowerNamaInd, 'jawa tengah') !== false ||
-                                strpos($lowerNamaInd, 'produk domestik regional bruto') !== false ||
-                                $lowerNamaInd === 'pdrb' ||
-                                strpos($lowerNamaInd, 'gross regional domestic product') !== false ||
-                                $lowerNamaInd === 'grdp'
-                            )
-                            && strpos($lowerNamaInd, 'curah hujan') === false
-                            && strpos($lowerNamaInd, 'hari hujan') === false;
+                            $isTotalRow = false;
+                            if ($tipe === 'total') {
+                                $isTotalRow = true;
+                            } elseif ($tipe === 'data' || $tipe === 'kategori') {
+                                $isTotalRow = false;
+                            } else {
+                                $isTotalRow = (
+                                    $lowerNamaInd === 'jumlah' || 
+                                    $lowerNamaInd === 'total' || 
+                                    strpos($lowerNamaInd, 'jawa tengah') !== false || 
+                                    strpos($lowerNamaInd, 'produk domestik regional bruto') !== false || 
+                                    $lowerNamaInd === 'pdrb' || 
+                                    strpos($lowerNamaInd, 'gross regional domestic product') !== false || 
+                                    $lowerNamaInd === 'grdp'
+                                )
+                                && strpos($lowerNamaInd, 'curah hujan') === false
+                                && strpos($lowerNamaInd, 'hari hujan') === false;
+                            }
 
-                            // 2. Deteksi Baris Pembatas Kategori (Kabupaten / Kota / dsb.) - Bukan Baris Total
-                            $isCategoryDivider = !$isTotalRow && ($tipe === 'kategori' || $lowerNamaInd === 'kabupaten' || $lowerNamaInd === 'kota') && ($lowerNamaInd !== 'jawa tengah');
+                            // 2. Deteksi Baris Pembatas Kategori / Parent Header Level Atas
+                            $isCategoryDivider = !$isTotalRow && $isParentBaris($bIdx, $itemsBaris);
 
                             if ($isCategoryDivider):
                                 $dividerText = $rawNamaInd;
@@ -967,13 +1021,26 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
                         <?php
                             // 3. Deteksi Baris Grand Total (JUMLAH / JAWA TENGAH / PRODUK DOMESTIK REGIONAL BRUTO)
                             elseif ($isTotalRow):
-                                $totalLabel = $rawNamaInd;
-                                if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd && strtolower($rawNamaEn) !== 'jawa tengah') {
-                                    $totalLabel .= ' / ' . $rawNamaEn;
-                                } elseif ($lowerNamaInd === 'jumlah') {
-                                    $totalLabel .= ' / Total';
-                                } elseif ($lowerNamaInd === 'total') {
-                                    $totalLabel .= ' / Total';
+                                $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+                                if ($cfgTotal === 'none') {
+                                    continue; // Lewati baris total jika dikonfigurasi Tanpa Total
+                                }
+
+                                if ($cfgTotal === 'jawa_tengah') {
+                                    $totalLabel = 'Jawa Tengah / Central Java';
+                                } elseif ($cfgTotal === 'jumlah') {
+                                    $totalLabel = 'Jumlah / Total';
+                                } elseif ($cfgTotal === 'kustom' && !empty($indikator->label_total_kustom)) {
+                                    $totalLabel = $indikator->label_total_kustom;
+                                } else {
+                                    $totalLabel = $rawNamaInd;
+                                    if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd && strtolower($rawNamaEn) !== 'jawa tengah') {
+                                        $totalLabel .= ' / ' . $rawNamaEn;
+                                    } elseif ($lowerNamaInd === 'jumlah') {
+                                        $totalLabel .= ' / Total';
+                                    } elseif ($lowerNamaInd === 'total') {
+                                        $totalLabel .= ' / Total';
+                                    }
                                 }
 
                                 if ($posisi_hirarki === 'periode_baris'):
@@ -1117,7 +1184,7 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
             <!-- FOOTER CATATAN DAN SUMBER RESMI DDA BPS -->
             <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;" class="no-print">
                 <div><b>Catatan/</b><i>Note</i>: <?= nl2br(esc($indikator->catatan ?: '-')); ?></div>
-                <div><b>Sumber/</b><i>Source</i>: <?= esc($indikator->sumber ?: ($tabel->unitkerja_ind ?: 'BPS Provinsi Jawa Tengah')); ?></div>
+                <div><b>Sumber/</b><i>Source</i>: <?= esc($tabel->unitkerja_ind ?: 'BPS Provinsi Jawa Tengah'); ?></div>
             </div>
         </div>
     </div>

@@ -68,7 +68,7 @@ class ExcelTemplateGenerator
         $desimal          = (int)($indikator->desimal ?? 2);
         
         // Footnote: ambil dari instansi/unit kerja, tanpa catatan
-        $sumber = !empty($tabel->unitkerja_ind) ? $tabel->unitkerja_ind : (!empty($indikator->sumber) ? $indikator->sumber : 'BPS Provinsi Jawa Tengah');
+        $sumber = !empty($tabel->unitkerja_ind) ? $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 
         // 3. Ambil data dimensi
         $itemsKolom     = $id_karakteristik > 0 ? $this->mTabelDinamis->getKarakteristikItems($id_karakteristik) : [];
@@ -789,23 +789,91 @@ class ExcelTemplateGenerator
 
         $rowItemsMeta = [];
 
-        foreach ($itemsBaris as $baris) {
-            $tipeBaris = $baris->tipe_baris ?? 'data';
+        // Hitung level maksimum pada seluruh kelompok baris
+        $maxBarisGroupLevel = 0;
+        foreach ($itemsBaris as $b) {
+            $lvl = (int)($b->level_indentasi ?? 0);
+            if ($lvl > $maxBarisGroupLevel) {
+                $maxBarisGroupLevel = $lvl;
+            }
+        }
+
+        $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
+            $cur = $items[$idx];
+            $tipe = strtolower(trim($cur->tipe_baris ?? ''));
+
+            // 1. Sesuai role badge di Master Dimensi
+            if ($tipe === 'kategori') {
+                return true;
+            }
+            if ($tipe === 'data' || $tipe === 'total' || $tipe === 'subtotal') {
+                return false;
+            }
+
+            // 2. Fallback untuk data lawas jika belum terisi
+            if ($maxBarisGroupLevel === 0) {
+                return false;
+            }
+
+            $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ($cur->item_ind ?? '')));
+            if (
+                $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                strpos($lowerNama, 'jawa tengah') !== false || 
+                strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                $lowerNama === 'pdrb' || 
+                strpos($lowerNama, 'gross regional domestic product') !== false || 
+                $lowerNama === 'grdp'
+            ) {
+                if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                    return false;
+                }
+            }
+
+            if ($lowerNama === 'kabupaten' || $lowerNama === 'kota') {
+                return true;
+            }
+
+            return false;
+        };
+
+        foreach ($itemsBaris as $bIdx => $baris) {
+            $tipeBaris = strtolower(trim($baris->tipe_baris ?? ''));
             $namaBaris = $baris->nama_baris_ind ?? ($baris->item_ind ?? '');
             $lowerBaris = strtolower(trim($namaBaris));
 
-            if ($tipeBaris !== 'total') {
+            if (!$tipeBaris) {
                 if (
                     $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
                     strpos($lowerBaris, 'jawa tengah') !== false || 
                     strpos($lowerBaris, 'produk domestik regional bruto') !== false || 
-                    $lowerBaris === 'pdrb' ||
-                    strpos($lowerBaris, 'gross regional domestic product') !== false ||
+                    $lowerBaris === 'pdrb' || 
+                    strpos($lowerBaris, 'gross regional domestic product') !== false || 
                     $lowerBaris === 'grdp'
                 ) {
                     if (strpos($lowerBaris, 'curah hujan') === false && strpos($lowerBaris, 'hari hujan') === false) {
                         $tipeBaris = 'total';
                     }
+                }
+                if (!$tipeBaris) $tipeBaris = 'data';
+            }
+
+            $isParent = $isParentBaris($bIdx, $itemsBaris);
+            if ($isParent) {
+                $tipeBaris = 'kategori';
+            }
+
+            // Pengaturan Override Baris Total (Jawa Tengah vs Jumlah vs Sembunyikan vs Kustom)
+            $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+            if ($tipeBaris === 'total') {
+                if ($cfgTotal === 'none') {
+                    continue; // Sembunyikan baris total dari template Excel
+                }
+                if ($cfgTotal === 'jawa_tengah') {
+                    $namaBaris = 'Jawa Tengah';
+                } elseif ($cfgTotal === 'jumlah') {
+                    $namaBaris = 'Jumlah';
+                } elseif ($cfgTotal === 'kustom' && !empty($indikator->label_total_kustom)) {
+                    $namaBaris = $indikator->label_total_kustom;
                 }
             }
 
@@ -932,7 +1000,8 @@ class ExcelTemplateGenerator
 
                 // Atur Style Baris Ini
                 if ($tipeBaris === 'kategori') {
-                    // Baris Kategori / Induk: Beri warna latar abu-abu lembut
+                    // Baris Kategori / Induk: Merge penuh seluruh kolom dan beri warna latar abu-abu lembut
+                    $sheet->mergeCells("A{$curRow}:{$lastColLetter}{$curRow}");
                     $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
                         'fill' => [
