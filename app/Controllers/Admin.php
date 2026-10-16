@@ -4422,7 +4422,6 @@ class Admin extends BaseController
 		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
 			$label_total_kustom = null;
 		}
-		$sumber               = trim((string)$this->request->getPost('sumber'));
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
 		if (empty($id_tahun_tabel) || empty($id_baris) || (empty($id_karakteristik) && empty($id_periode))) {
@@ -4459,16 +4458,9 @@ class Admin extends BaseController
 			}
 		}
 
-		// Sumber dan catatan: jika tidak dikirim dalam form (karena UI compact), pertahankan data existing atau default instansi
-		$hasPostSumber  = $this->request->getPost('sumber') !== null;
+		// Catatan: jika tidak dikirim dalam form (karena UI compact), pertahankan data existing
 		$hasPostCatatan = $this->request->getPost('catatan') !== null;
-		$defaultSumber  = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : null;
-
-		$finalSumber = $hasPostSumber
-			? (!empty($sumber) ? $sumber : null)
-			: ($existing->sumber ?? $defaultSumber);
-
-		$finalCatatan = $hasPostCatatan
+		$finalCatatan   = $hasPostCatatan
 			? (!empty($catatan) ? $catatan : null)
 			: ($existing->catatan ?? null);
 
@@ -4488,7 +4480,6 @@ class Admin extends BaseController
 			'label_total_kustom'        => $label_total_kustom,
 			'satuan'                    => null,
 			'desimal'                   => 0,
-			'sumber'                    => $finalSumber,
 			'catatan'                   => $finalCatatan,
 			'updated_at'                => $now,
 		];

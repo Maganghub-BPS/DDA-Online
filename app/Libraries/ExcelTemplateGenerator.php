@@ -68,7 +68,7 @@ class ExcelTemplateGenerator
         $desimal          = (int)($indikator->desimal ?? 2);
         
         // Footnote: ambil dari instansi/unit kerja, tanpa catatan
-        $sumber = !empty($tabel->unitkerja_ind) ? $tabel->unitkerja_ind : (!empty($indikator->sumber) ? $indikator->sumber : 'BPS Provinsi Jawa Tengah');
+        $sumber = !empty($tabel->unitkerja_ind) ? $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 
         // 3. Ambil data dimensi
         $itemsKolom     = $id_karakteristik > 0 ? $this->mTabelDinamis->getKarakteristikItems($id_karakteristik) : [];

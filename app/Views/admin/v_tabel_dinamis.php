@@ -1184,7 +1184,7 @@ $isConfigured = ($indikator && !empty($itemsBaris) && (!empty($structureKolom) |
             <!-- FOOTER CATATAN DAN SUMBER RESMI DDA BPS -->
             <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;" class="no-print">
                 <div><b>Catatan/</b><i>Note</i>: <?= nl2br(esc($indikator->catatan ?: '-')); ?></div>
-                <div><b>Sumber/</b><i>Source</i>: <?= esc($indikator->sumber ?: ($tabel->unitkerja_ind ?: 'BPS Provinsi Jawa Tengah')); ?></div>
+                <div><b>Sumber/</b><i>Source</i>: <?= esc($tabel->unitkerja_ind ?: 'BPS Provinsi Jawa Tengah'); ?></div>
             </div>
         </div>
     </div>

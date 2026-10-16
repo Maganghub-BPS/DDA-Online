@@ -16,7 +16,7 @@ $sel_posisi_hirarki = $indikator->posisi_hirarki ?? 'kolom_atas';
 $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
 $sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
 $sel_label_total_kustom = $indikator->label_total_kustom ?? '';
-$sumber_val = $indikator->sumber ?? ($tabel->unitkerja_ind ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : '');
+$sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
 ?>
 

@@ -26,7 +26,6 @@ class M_tabeldinamis extends Model
         'label_total_kustom',
         'satuan',
         'desimal',
-        'sumber',
         'catatan',
         'created_at',
         'updated_at'
