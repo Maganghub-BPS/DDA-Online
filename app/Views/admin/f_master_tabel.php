@@ -23,6 +23,7 @@ if ($mode == "edt" || $mode == "act_edt") {
     $periode_id             = $datpil->periode_id ?? $datpil->periode ?? '';
     $periode_en             = $datpil->periode_en ?? $periode_id;
     $no_tabel               = $datpil->no_tabel;
+    $is_dynamic             = !empty($datpil->is_dynamic) ? (int)$datpil->is_dynamic : 0;
     
     $query_unitkerja =\Config\Database::connect()->query("SELECT * from m_unitkerja where id_unitkerja=? LIMIT 1", [$id_unitkerja])->getRow();
     if($query_unitkerja) {
@@ -46,6 +47,7 @@ if ($mode == "edt" || $mode == "act_edt") {
     $periode_id             = "";
     $periode_en             = "";
     $no_tabel               = "";
+    $is_dynamic             = 0;
 }
 ?>
 
@@ -170,14 +172,109 @@ if ($mode == "edt" || $mode == "act_edt") {
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark"><i class="bi bi-link-45deg me-1 text-primary"></i> Link Tabel (Tahun Berjalan)</label>
-                            <textarea name="link_tabel" tabindex="3" class="form-control" rows="2" placeholder="Masukkan url/link tabel"><?php echo $link_tabel; ?></textarea>
+                    <!-- PILIHAN FORMAT SUMBER DATA TABEL -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark mb-2 d-flex align-items-center gap-2">
+                            <i class="bi bi-hdd-network text-primary"></i> Pilihan Format Sumber Data Tabel
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card p-3 rounded-3 format-option-card <?= empty($is_dynamic) ? 'active' : ''; ?>" id="card_format_link">
+                                    <div class="form-check d-flex align-items-center gap-2 mb-0">
+                                        <input class="form-check-input" type="radio" name="is_dynamic" id="format_link" value="0" <?= empty($is_dynamic) ? 'checked' : ''; ?>>
+                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="format_link" style="cursor: pointer;">
+                                            <i class="bi bi-link-45deg text-success fs-5"></i> URL
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card p-3 rounded-3 format-option-card <?= !empty($is_dynamic) ? 'active' : ''; ?>" id="card_format_dynamic">
+                                    <div class="form-check d-flex align-items-center gap-2 mb-0">
+                                        <input class="form-check-input" type="radio" name="is_dynamic" id="format_dynamic" value="1" <?= !empty($is_dynamic) ? 'checked' : ''; ?>>
+                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="format_dynamic" style="cursor: pointer;">
+                                            <i class="bi bi-boxes text-primary fs-5"></i> Tabel Dinamis
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold text-dark"><i class="bi bi-link-45deg me-1 text-primary"></i> Link Tabel (Tahun Sebelumnya)</label>
-                            <textarea name="link_sebelumnya" tabindex="4" class="form-control" rows="2" placeholder="Masukkan url/link tabel tahun sebelumnya"><?php echo $link_sebelumnya; ?></textarea>
+                    </div>
+
+                    <!-- KONTEN A: FORMAT LINK SPREADSHEET (MUNCUL JIKA LINK DIPILIH) -->
+                    <div id="section_format_link" class="<?= !empty($is_dynamic) ? 'd-none' : ''; ?>">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark"><i class="bi bi-link-45deg me-1 text-primary"></i> Link Tabel (Tahun Berjalan)</label>
+                                <textarea name="link_tabel" id="link_tabel" tabindex="3" class="form-control" rows="2" placeholder="Masukkan url/link tabel"><?php echo $link_tabel; ?></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark"><i class="bi bi-link-45deg me-1 text-primary"></i> Link Tabel (Tahun Sebelumnya)</label>
+                                <textarea name="link_sebelumnya" id="link_sebelumnya" tabindex="4" class="form-control" rows="2" placeholder="Masukkan url/link tabel tahun sebelumnya"><?php echo $link_sebelumnya; ?></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KONTEN B: FORMAT TABEL DINAMIS (OPSI 1: STATUS DIMENSI & TOMBOL GENERATOR) -->
+                    <div id="section_format_dynamic" class="<?= empty($is_dynamic) ? 'd-none' : ''; ?>">
+                        <div class="card border rounded-3 mb-4 shadow-xs" style="background: #ffffff; border-color: #cbd5e1 !important;">
+                            <div class="card-header bg-light border-bottom py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <span class="fw-bold text-dark small">
+                                    <i class="bi bi-sliders text-primary me-1"></i> Konfigurasi Dimensi Matriks Dinamis
+                                </span>
+                                <?php if (!empty($idp)): ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <a href="<?= base_url('admin/download_template_tabel/' . $idp); ?>" class="btn btn-sm btn-success px-3 py-1.5 rounded-pill fw-semibold text-xs shadow-xs d-inline-flex align-items-center gap-1" title="Unduh Template Excel (.xlsx)">
+                                        <i class="bi bi-file-earmark-excel"></i> Unduh Template Excel
+                                    </a>
+                                    <a href="<?= base_url('admin/generator_tabel/' . $idp); ?>" class="btn btn-sm btn-primary px-3 py-1.5 rounded-pill fw-semibold text-xs shadow-xs d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-tools"></i> Kelola Dimensi Matriks
+                                    </a>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="card-body p-3">
+                                <?php if (!empty($idp)): ?>
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <div class="p-3 rounded-3 border bg-light h-100">
+                                                <div class="text-muted text-xxs fw-bold text-uppercase d-flex align-items-center gap-1">
+                                                    <i class="bi bi-layout-three-columns text-warning"></i> Kolom : Karakteristik
+                                                </div>
+                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_karakteristik_ind) ? esc($datpil->nama_karakteristik_ind) : 'Belum ditentukan'; ?>">
+                                                    <?= !empty($datpil->nama_karakteristik_ind) ? esc($datpil->nama_karakteristik_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="p-3 rounded-3 border bg-light h-100">
+                                                <div class="text-muted text-xxs fw-bold text-uppercase d-flex align-items-center gap-1">
+                                                    <i class="bi bi-list-nested text-info"></i> Baris : Rincian / Wilayah
+                                                </div>
+                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_baris_ind) ? esc($datpil->nama_baris_ind) : 'Belum ditentukan'; ?>">
+                                                    <?= !empty($datpil->nama_baris_ind) ? esc($datpil->nama_baris_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="p-3 rounded-3 border bg-light h-100">
+                                                <div class="text-muted text-xxs fw-bold text-uppercase d-flex align-items-center gap-1">
+                                                    <i class="bi bi-calendar3 text-success"></i> Periode : Waktu
+                                                </div>
+                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : 'Belum ditentukan'; ?>">
+                                                    <?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="text-center py-3 text-muted">
+                                        <i class="bi bi-boxes fs-3 text-primary d-block mb-1"></i>
+                                        <div class="small fw-semibold text-dark">Tabel Baru: Siap Dirakit Menjadi Tabel Dinamis</div>
+                                        <div class="text-xxs text-muted mt-1">Simpan data tabel terlebih dahulu, kemudian Anda dapat merakit dimensi Kolom, Baris, dan Periode melalui Generator Tabel.</div>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                     
@@ -373,10 +470,66 @@ if ($mode == "edt" || $mode == "act_edt") {
         background-color: #FF6D1F;
         border-color: #FF6D1F;
     }
+    /* Format Option Cards (Tabel Dinamis vs Link) */
+    .format-option-card {
+        border: 1.5px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .format-option-card:hover {
+        border-color: #cbd5e1;
+        background: #ffffff;
+        transform: translateY(-1px);
+    }
+    .format-option-card.active {
+        border-color: #2563eb !important;
+        background: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
+    }
+    .format-option-card .form-check-input:checked {
+        background-color: #2563eb;
+        border-color: #2563eb;
+    }
 </style>
 
 <script>
 $(document).ready(function() {
+    // =========================================================================
+    // TOGGLE FORMAT SUMBER DATA TABEL (LINK SPREADSHEET VS TABEL DINAMIS)
+    // =========================================================================
+    function updateFormatView() {
+        var formatVal = $('input[name="is_dynamic"]:checked').val();
+        if (formatVal === '1') {
+            $('#section_format_link').addClass('d-none');
+            $('#section_format_dynamic').removeClass('d-none');
+            $('#card_format_dynamic').addClass('active');
+            $('#card_format_link').removeClass('active');
+        } else {
+            $('#section_format_link').removeClass('d-none');
+            $('#section_format_dynamic').addClass('d-none');
+            $('#card_format_link').addClass('active');
+            $('#card_format_dynamic').removeClass('active');
+        }
+    }
+
+    $('input[name="is_dynamic"]').on('change', function() {
+        updateFormatView();
+    });
+
+    $('#card_format_link').on('click', function(e) {
+        if (!$(e.target).is('input')) {
+            $('#format_link').prop('checked', true).trigger('change');
+        }
+    });
+
+    $('#card_format_dynamic').on('click', function(e) {
+        if (!$(e.target).is('input')) {
+            $('#format_dynamic').prop('checked', true).trigger('change');
+        }
+    });
+
+    updateFormatView();
     // =========================================================================
     // INISIALISASI SELECT2 DENGAN TEMA BOOTSTRAP 5
     // Mempermudah admin mencari nama instansi/OPD dari puluhan daftar yang ada.

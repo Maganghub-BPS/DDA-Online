@@ -1206,7 +1206,20 @@ class Admin extends BaseController
 		} else if ($mau_ke == "add") {
 			$a['page'] = "f_master_tabel";
 		} else if ($mau_ke == "edt") {
-			$a['datpil'] = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id = ?", [$idu])->getRow();
+			$a['datpil'] = $this->db->query("
+				SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.*,
+				       ind.id as id_indikator, ind.id_karakteristik_kelompok, ind.id_baris_kelompok, ind.id_periode_kelompok,
+				       kk.nama_kelompok_ind as nama_karakteristik_ind, kk.nama_kelompok_en as nama_karakteristik_en,
+				       bk.nama_kelompok_ind as nama_baris_ind, bk.nama_kelompok_en as nama_baris_en,
+				       pk.nama_kelompok_ind as nama_periode_ind, pk.nama_kelompok_en as nama_periode_en
+				FROM t_tahun_tabel t 
+				JOIN m_list_tabel m ON t.id_tabel = m.id 
+				LEFT JOIN m_indikator_tabel ind ON ind.id_tahun_tabel = t.id
+				LEFT JOIN m_karakteristik_kelompok kk ON ind.id_karakteristik_kelompok = kk.id
+				LEFT JOIN m_baris_kelompok bk ON ind.id_baris_kelompok = bk.id
+				LEFT JOIN m_periode_kelompok pk ON ind.id_periode_kelompok = pk.id
+				WHERE t.id = ?
+			", [$idu])->getRow();
 			$a['page'] = "f_master_tabel";
 		} else if ($mau_ke == "act_add") {
 			// Ambil tanggal hari ini dan input dari form
@@ -1315,10 +1328,12 @@ class Admin extends BaseController
 			$judul_ind = trim($this->input->post('judul_ind') ?? '');
 			$judul_en = trim($this->input->post('judul_en') ?? '');
 
+			$is_dynamic = $this->input->post('is_dynamic') !== null ? (int)$this->input->post('is_dynamic') : 0;
+
 			// Query UPDATE menggunakan JOIN antar tabel master dan tahunan
 			$this->db->query(
-				"UPDATE m_list_tabel m JOIN t_tahun_tabel t ON m.id = t.id_tabel SET m.judul_ind=?, m.judul_en=?, t.no_tabel=?, t.periode_id=?, t.periode_en=?, t.link_tabel=?, t.link_sebelumnya=?, m.id_unitkerja=? WHERE t.id=?",
-				[$judul_ind, $judul_en, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $id_unitkerja, $idp]
+				"UPDATE m_list_tabel m JOIN t_tahun_tabel t ON m.id = t.id_tabel SET m.judul_ind=?, m.judul_en=?, t.no_tabel=?, t.periode_id=?, t.periode_en=?, t.link_tabel=?, t.link_sebelumnya=?, t.is_dynamic=?, m.id_unitkerja=? WHERE t.id=?",
+				[$judul_ind, $judul_en, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_dynamic, $id_unitkerja, $idp]
 			);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di update</div>");
 			return redirect()->to('admin/master_tabel/');
@@ -3023,7 +3038,7 @@ class Admin extends BaseController
 				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
 				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
 
-				// Pastikan setiap tabel matched memiliki link_tabel dan source_type
+				// Pastikan setiap tabel matched memiliki link_tabel dan source_type yang sinkron dengan database terbaru
 				if (file_exists($dbJson)) {
 					$dbMap = [];
 					$dbList = json_decode(@file_get_contents($dbJson), true) ?? [];
@@ -3033,14 +3048,27 @@ class Admin extends BaseController
 						}
 					}
 					$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+					$hasMatchedChanged = false;
 					foreach ($masterData[$listKey] as &$mItem) {
-						if (empty($mItem['link_tabel'])) {
-							$mItem['link_tabel'] = $dbMap[trim($mItem['nomor_tabel'] ?? '')] ?? '';
+						$tNum = trim($mItem['nomor_tabel'] ?? '');
+						if (isset($dbMap[$tNum]) && !empty($dbMap[$tNum])) {
+							if (($mItem['link_tabel'] ?? '') !== $dbMap[$tNum]) {
+								$mItem['link_tabel'] = $dbMap[$tNum];
+								$hasMatchedChanged = true;
+							}
 						}
 						$linkLower = strtolower($mItem['link_tabel'] ?? '');
-						$mItem['source_type'] = (strpos($linkLower, 'docs.google.com') !== false || strpos($linkLower, 'spreadsheet') !== false) ? 'spreadsheet' : 'api';
+						$newSourceType = (strpos($linkLower, 'docs.google.com') !== false || strpos($linkLower, 'spreadsheet') !== false) ? 'spreadsheet' : 'api';
+						if (($mItem['source_type'] ?? '') !== $newSourceType) {
+							$mItem['source_type'] = $newSourceType;
+							$hasMatchedChanged = true;
+						}
 					}
 					unset($mItem);
+
+					if ($hasMatchedChanged) {
+						@file_put_contents($matchedJson, json_encode($masterData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+					}
 				}
 			}
 		}
@@ -3335,13 +3363,20 @@ class Admin extends BaseController
 			$match_count = 0;
 
 			if (isset($res['status']) && $res['status'] === 'success') {
-				$totalDiffs = isset($res['summary']) ? $res['summary']['total_diffs'] : (isset($res['diffs']) ? count($res['diffs']) : 0);
-				$totalMatches = isset($res['summary']) ? $res['summary']['total_matches'] : (isset($res['matches']) ? count($res['matches']) : 0);
+				$totalDiffs = $res['summary']['total_diffs'] ?? (isset($res['diffs']) ? count($res['diffs']) : 0);
+				$totalMatches = $res['summary']['total_matches'] ?? (isset($res['matches']) ? count($res['matches']) : 0);
+				$totalPdfOnly = $res['summary']['total_pdf_only'] ?? (isset($res['pdf_only']) ? count($res['pdf_only']) : 0);
 				if ($totalDiffs > 0) {
 					$status = 'diff';
 					$diff_count = $totalDiffs;
+					$match_count = $totalMatches;
+				} else if ($totalMatches == 0) {
+					$status = 'diff';
+					$diff_count = ($totalPdfOnly > 0) ? $totalPdfOnly : '!';
+					$match_count = 0;
 				} else {
 					$status = 'match';
+					$diff_count = 0;
 					$match_count = $totalMatches;
 				}
 			} else if (isset($res['is_api_empty']) && $res['is_api_empty']) {
@@ -3418,6 +3453,38 @@ class Admin extends BaseController
 				}
 				if ($isUpdated) {
 					@file_put_contents($dbJson, json_encode($listTables, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+				}
+
+				// Sync juga ke dda_matched_{ta}.json agar batch worker membaca link & source_type terbaru
+				if (file_exists($matchedJson)) {
+					$rawMatched = @file_get_contents($matchedJson);
+					$matchedObj = json_decode($rawMatched, true);
+					if (is_array($matchedObj)) {
+						$mKey = isset($matchedObj['matched_in_pdf']) ? 'matched_in_pdf' : (isset($matchedObj['matched_tables']) ? 'matched_tables' : null);
+						if ($mKey && is_array($matchedObj[$mKey])) {
+							$isMatchedUpdated = false;
+							foreach ($matchedObj[$mKey] as &$mItem) {
+								$cNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $mItem['nomor_tabel'] ?? ''));
+								$cNo = rtrim($cNo, '.');
+								if (isset($linkMap[$cNo])) {
+									if (($mItem['link_tabel'] ?? '') !== $linkMap[$cNo]) {
+										$mItem['link_tabel'] = $linkMap[$cNo];
+										$isMatchedUpdated = true;
+									}
+								}
+								$linkLower = strtolower($mItem['link_tabel'] ?? '');
+								$st = (strpos($linkLower, 'docs.google.com') !== false || strpos($linkLower, 'spreadsheet') !== false) ? 'spreadsheet' : 'api';
+								if (($mItem['source_type'] ?? '') !== $st) {
+									$mItem['source_type'] = $st;
+									$isMatchedUpdated = true;
+								}
+							}
+							unset($mItem);
+							if ($isMatchedUpdated) {
+								@file_put_contents($matchedJson, json_encode($matchedObj, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+							}
+						}
+					}
 				}
 			}
 		}
@@ -3624,4 +3691,1440 @@ class Admin extends BaseController
 
 		return $this->response->setJSON(['status' => 'empty', 'data' => []]);
 	}
+
+	/**
+	 * Normalisasi judul dimensi untuk deteksi variasi spasi, strip, garis miring, tanda kurung, dan multi-spasi.
+	 * Contoh: "Tahunan 2020 - 2024" == "Tahunan 2020-2024" == "Tahunan  2020   –  2024"
+	 */
+	private function normalizeDimensiTitle(string $str): string
+	{
+		$str = mb_strtolower(trim($str), 'UTF-8');
+		// Samakan semua jenis tanda hubung (en-dash, em-dash, minus) ke regular hyphen '-'
+		$str = str_replace(['–', '—', '−'], '-', $str);
+		// Hilangkan spasi di sekitar pemisah seperti '-', '/', '(', ')', '&'
+		// Contoh: "2020 - 2024" -> "2020-2024", "Kabupaten / Kota" -> "Kabupaten/Kota"
+		$str = preg_replace('/\s*([-\/\(\)&])\s*/', '$1', $str);
+		// Rampingkan spasi berlebih menjadi 1 spasi
+		$str = preg_replace('/\s+/', ' ', $str);
+		return trim($str);
+	}
+
+	/**
+	 * Pengecekan cerdas duplikasi judul dimensi pada tabel target (Karakteristik, Baris, Periode)
+	 */
+	private function checkDuplicateDimensi(string $table, string $nama, int $excludeId = 0): ?array
+	{
+		$nama = trim($nama);
+		if ($nama === '') {
+			return null;
+		}
+
+		$inputNorm  = $this->normalizeDimensiTitle($nama);
+		$inputAlnum = preg_replace('/[^a-z0-9]/', '', $inputNorm);
+
+		$builder = $this->db->table($table)->select('id, nama_kelompok_ind');
+		if ($excludeId > 0) {
+			$builder->where('id !=', $excludeId);
+		}
+		$rows = $builder->get()->getResult();
+
+		foreach ($rows as $row) {
+			$dbName = (string)$row->nama_kelompok_ind;
+			$dbNorm = $this->normalizeDimensiTitle($dbName);
+
+			// 1. Cek Exact Normalized (variasi spasi di sekitar strip, garis miring, simbol)
+			if ($inputNorm === $dbNorm) {
+				return [
+					'id'            => (int)$row->id,
+					'existing_name' => $dbName
+				];
+			}
+
+			// 2. Cek Alphanumeric (jika tanda kurung/simbol diabaikan dan menghasilkan karakter sama)
+			$dbAlnum = preg_replace('/[^a-z0-9]/', '', $dbNorm);
+			if ($inputAlnum !== '' && $inputAlnum === $dbAlnum) {
+				return [
+					'id'            => (int)$row->id,
+					'existing_name' => $dbName
+				];
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * =========================================================================
+	 * MODUL TABEL DINAMIS: MASTER DIMENSI (SPRINT 2)
+	 * Mengelola Master Karakteristik (Kolom Asimetris), Baris Bertingkat, dan Periode
+	 * =========================================================================
+	 */
+	public function master_dimensi()
+	{
+		// Cek otentikasi login
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		// Hak akses: hanya untuk akun BPS (Super Admin, Admin, LO, Supervisor)
+		$unitkerjalogin = $this->session->get('admin_unitkerja');
+		if ($unitkerjalogin != 'bps') {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Menu Master Dimensi hanya dapat diakses oleh Admin dan LO BPS.</div>");
+			return redirect()->to('admin');
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$action = $this->uri->segment(3);
+		$param1 = $this->uri->segment(4);
+
+		// ---------------------------------------------------------------------
+		// AKSI: AJAX CHECK DUPLICATE NAMA KELOMPOK DIMENSI (REAL-TIME NORMALIZED)
+		// ---------------------------------------------------------------------
+		if ($action === 'ajax_check_duplicate') {
+			$type = (string)$this->request->getVar('type'); // 'karakteristik' | 'baris' | 'periode'
+			$nama = trim((string)$this->request->getVar('nama'));
+			$id   = (int)$this->request->getVar('id');
+
+			$tableMap = [
+				'karakteristik' => 'm_karakteristik_kelompok',
+				'baris'         => 'm_baris_kelompok',
+				'periode'       => 'm_periode_kelompok'
+			];
+
+			if (!isset($tableMap[$type]) || $nama === '') {
+				return $this->response->setJSON([
+					'status' => 'success',
+					'exists' => false
+				]);
+			}
+
+			$duplicate = $this->checkDuplicateDimensi($tableMap[$type], $nama, $id);
+
+			return $this->response->setJSON([
+				'status'        => 'success',
+				'exists'        => ($duplicate !== null),
+				'existing_name' => $duplicate ? $duplicate['existing_name'] : null,
+				'nama'          => $nama,
+				'type'          => $type
+			]);
+		}
+
+		// ---------------------------------------------------------------------
+		// AKSI: KARAKTERISTIK (KOLOM & SUB-KOLOM ASIMETRIS)
+		// ---------------------------------------------------------------------
+		if ($action === 'add_karakteristik') {
+			$nama_ind   = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en    = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+
+			if (empty($nama_ind)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Kelompok Karakteristik wajib diisi!</div>");
+				return redirect()->to('admin/master_dimensi?tab=karakteristik');
+			}
+
+			// Cek duplikasi cerdas (variasi spasi, strip, garis miring)
+			$duplicate = $this->checkDuplicateDimensi('m_karakteristik_kelompok', $nama_ind);
+			if ($duplicate) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Kelompok Karakteristik '<strong>" . esc($nama_ind) . "</strong>' sudah ada / serupa dengan '<strong>" . esc($duplicate['existing_name']) . "</strong>'! Silakan gunakan kelompok yang sudah ada atau gunakan nama lain.</div>");
+				return redirect()->to('admin/master_dimensi?tab=karakteristik');
+			}
+
+			$idKelompok = $mTabelDinamis->saveKarakteristikKelompok([
+				'nama_kelompok_ind' => $nama_ind,
+				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+			]);
+
+			if (!empty($items_ind)) {
+				$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
+				$lines_en  = !empty($items_en) ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+				$items = [];
+				$no = 1;
+
+				foreach ($lines_ind as $idx => $l_ind) {
+					$l_ind = trim($l_ind);
+					if ($l_ind === '') continue;
+					$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+					$items[] = [
+						'item_ind' => $l_ind,
+						'item_en'  => $l_en,
+						'no_urut'  => $no++,
+					];
+				}
+				$mTabelDinamis->syncKarakteristikItems($idKelompok, $items);
+			}
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Karakteristik Kolom '<strong>{$nama_ind}</strong>' berhasil ditambahkan!</div>");
+			return redirect()->to('admin/master_dimensi?tab=karakteristik');
+		}
+
+		if ($action === 'edt_karakteristik') {
+			$id = (int)$this->request->getPost('id');
+			$nama_ind = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en  = trim((string)$this->request->getPost('nama_kelompok_en'));
+
+			if (empty($id) || empty($nama_ind)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID dan Nama Kelompok wajib diisi!</div>");
+				return redirect()->to('admin/master_dimensi?tab=karakteristik');
+			}
+
+			// Cek duplikasi cerdas pada ID lain
+			$duplicate = $this->checkDuplicateDimensi('m_karakteristik_kelompok', $nama_ind, $id);
+			if ($duplicate) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Nama Kelompok '<strong>" . esc($nama_ind) . "</strong>' serupa dengan '<strong>" . esc($duplicate['existing_name']) . "</strong>' yang sudah digunakan kelompok lain!</div>");
+				return redirect()->to('admin/master_dimensi?tab=karakteristik');
+			}
+
+			$mTabelDinamis->saveKarakteristikKelompok([
+				'nama_kelompok_ind' => $nama_ind,
+				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+			], $id);
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Karakteristik berhasil diperbarui!</div>");
+			return redirect()->to('admin/master_dimensi?tab=karakteristik');
+		}
+
+		if ($action === 'del_karakteristik') {
+			$id = (int)($param1 ?: $this->request->getPost('id'));
+			if ($id > 0) {
+				// Cek integritas relasi: apakah dimensi ini sedang digunakan oleh tabel dinamis aktif?
+				$usedCount = $this->db->table('m_indikator_tabel')
+					->where('id_karakteristik_kelompok', $id)
+					->countAllResults();
+
+				if ($usedCount > 0) {
+					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Kelompok Karakteristik ini sedang digunakan oleh <strong>{$usedCount}</strong> tabel dinamis aktif! Silakan ubah konfigurasi tabel terkait terlebih dahulu sebelum menghapus.</div>");
+					return redirect()->to('admin/master_dimensi?tab=karakteristik');
+				}
+
+				$mTabelDinamis->deleteKarakteristikKelompok($id);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Karakteristik berhasil dihapus!</div>");
+			}
+			return redirect()->to('admin/master_dimensi?tab=karakteristik');
+		}
+
+		if ($action === 'sync_karakteristik_items') {
+			$idKelompok = (int)$this->request->getPost('id_kelompok');
+			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+
+			if (empty($idKelompok)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
+				return redirect()->to('admin/master_dimensi?tab=karakteristik');
+			}
+
+			$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
+			$lines_en  = !empty($items_en) ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+			$items = [];
+			$no = 1;
+
+			foreach ($lines_ind as $idx => $l_ind) {
+				$l_ind = trim($l_ind);
+				if ($l_ind === '') continue;
+				$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+				$items[] = [
+					'item_ind' => $l_ind,
+					'item_en'  => $l_en,
+					'no_urut'  => $no++,
+				];
+			}
+
+			$mTabelDinamis->syncKarakteristikItems($idKelompok, $items);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item kolom karakteristik berhasil disimpan! (" . count($items) . " kolom)</div>");
+			return redirect()->to('admin/master_dimensi?tab=karakteristik');
+		}
+
+		if ($action === 'get_karakteristik_items') {
+			$id = (int)$param1;
+			$kelompok = $mTabelDinamis->getKarakteristikKelompok($id);
+			$items = $mTabelDinamis->getKarakteristikItems($id);
+			$structure = $mTabelDinamis->buildColumnStructure($items);
+			return $this->response->setJSON([
+				'status'    => 'success',
+				'kelompok'  => $kelompok,
+				'items'     => $items,
+				'structure' => $structure
+			]);
+		}
+
+		// ---------------------------------------------------------------------
+		// AKSI: BARIS BERTINGKAT (HIERARCHICAL ROWS)
+		// ---------------------------------------------------------------------
+		if ($action === 'add_baris') {
+			$nama_ind   = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en    = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$judul_ind  = trim((string)$this->request->getPost('judul_baris_ind'));
+			$judul_en   = trim((string)$this->request->getPost('judul_baris_en'));
+			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+
+			if (empty($nama_ind)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Kelompok Baris wajib diisi!</div>");
+				return redirect()->to('admin/master_dimensi?tab=baris');
+			}
+
+			// Cek duplikasi cerdas (variasi spasi, strip, garis miring) pada nama pilihan master
+			$duplicate = $this->checkDuplicateDimensi('m_baris_kelompok', $nama_ind);
+			if ($duplicate) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Kelompok Baris '<strong>" . esc($nama_ind) . "</strong>' sudah ada / serupa dengan '<strong>" . esc($duplicate['existing_name']) . "</strong>'! Silakan gunakan kelompok yang sudah ada atau gunakan nama lain.</div>");
+				return redirect()->to('admin/master_dimensi?tab=baris');
+			}
+
+			// Fallback judul header baris jika kosong
+			if (empty($judul_ind)) {
+				$judul_ind = $nama_ind;
+			}
+			if (empty($judul_en)) {
+				$judul_en = !empty($nama_en) ? $nama_en : null;
+			}
+
+			$idKelompok = $mTabelDinamis->saveBarisKelompok([
+				'nama_kelompok_ind' => $nama_ind,
+				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+				'judul_baris_ind'   => $judul_ind,
+				'judul_baris_en'    => $judul_en,
+			]);
+
+			$items_json = $this->request->getPost('items_json');
+			if (!empty($items_json)) {
+				$decoded = json_decode($items_json, true);
+				if (is_array($decoded) && !empty($decoded)) {
+					$mTabelDinamis->syncBarisFromTreeItems($idKelompok, $decoded);
+				} elseif (!empty($items_ind)) {
+					$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
+				}
+			} elseif (!empty($items_ind)) {
+				$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
+			}
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Baris '<strong>{$nama_ind}</strong>' berhasil ditambahkan!</div>");
+			return redirect()->to('admin/master_dimensi?tab=baris');
+		}
+
+		if ($action === 'edt_baris') {
+			$id        = (int)$this->request->getPost('id');
+			$nama_ind  = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en   = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$judul_ind = trim((string)$this->request->getPost('judul_baris_ind'));
+			$judul_en  = trim((string)$this->request->getPost('judul_baris_en'));
+
+			if (empty($id) || empty($nama_ind)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID dan Nama Kelompok wajib diisi!</div>");
+				return redirect()->to('admin/master_dimensi?tab=baris');
+			}
+
+			// Cek duplikasi cerdas pada ID lain (nama pilihan master)
+			$duplicate = $this->checkDuplicateDimensi('m_baris_kelompok', $nama_ind, $id);
+			if ($duplicate) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Nama Kelompok '<strong>" . esc($nama_ind) . "</strong>' serupa dengan '<strong>" . esc($duplicate['existing_name']) . "</strong>' yang sudah digunakan kelompok lain!</div>");
+				return redirect()->to('admin/master_dimensi?tab=baris');
+			}
+
+			// Fallback judul header baris jika kosong
+			if (empty($judul_ind)) {
+				$judul_ind = $nama_ind;
+			}
+			if (empty($judul_en)) {
+				$judul_en = !empty($nama_en) ? $nama_en : null;
+			}
+
+			$mTabelDinamis->saveBarisKelompok([
+				'nama_kelompok_ind' => $nama_ind,
+				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+				'judul_baris_ind'   => $judul_ind,
+				'judul_baris_en'    => $judul_en,
+			], $id);
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Baris berhasil diperbarui!</div>");
+			return redirect()->to('admin/master_dimensi?tab=baris');
+		}
+
+		if ($action === 'del_baris') {
+			$id = (int)($param1 ?: $this->request->getPost('id'));
+			if ($id > 0) {
+				// Cek integritas relasi: apakah dimensi ini sedang digunakan oleh tabel dinamis aktif?
+				$usedCount = $this->db->table('m_indikator_tabel')
+					->where('id_baris_kelompok', $id)
+					->countAllResults();
+
+				if ($usedCount > 0) {
+					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Kelompok Baris ini sedang digunakan oleh <strong>{$usedCount}</strong> tabel dinamis aktif! Silakan ubah konfigurasi tabel terkait terlebih dahulu sebelum menghapus.</div>");
+					return redirect()->to('admin/master_dimensi?tab=baris');
+				}
+
+				$mTabelDinamis->deleteBarisKelompok($id);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Baris berhasil dihapus!</div>");
+			}
+			return redirect()->to('admin/master_dimensi?tab=baris');
+		}
+
+		if ($action === 'sync_baris_items') {
+			$idKelompok = (int)$this->request->getPost('id_kelompok');
+			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$items_json = $this->request->getPost('items_json');
+
+			if (empty($idKelompok)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
+				return redirect()->to('admin/master_dimensi?tab=baris');
+			}
+
+			if (!empty($items_json)) {
+				$decoded = json_decode($items_json, true);
+				if (is_array($decoded) && !empty($decoded)) {
+					$mTabelDinamis->syncBarisFromTreeItems($idKelompok, $decoded);
+					$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+					return redirect()->to('admin/master_dimensi?tab=baris');
+				}
+			}
+
+			$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+			return redirect()->to('admin/master_dimensi?tab=baris');
+		}
+
+		if ($action === 'get_baris_items') {
+			$id = (int)$param1;
+			$kelompok = $mTabelDinamis->getBarisKelompok($id);
+			$items = $mTabelDinamis->getBarisItems($id);
+			$tree = $mTabelDinamis->getBarisTree($id);
+			return $this->response->setJSON([
+				'status'   => 'success',
+				'kelompok' => $kelompok,
+				'items'    => $items,
+				'tree'     => $tree
+			]);
+		}
+
+		// =====================================================================
+		// FITUR CERDAS: IMPOR DIMENSI DARI SPREADSHEET / EXCEL / CSV
+		// =====================================================================
+		if ($action === 'ajax_inspect_dimension_source') {
+			$urlSource = trim((string)$this->request->getPost('url_source'));
+			$sheetName = trim((string)$this->request->getPost('sheet_name'));
+			$fileSource = $this->request->getFile('file_source');
+
+			$targetPath = '';
+			$isUploaded = false;
+
+			if ($fileSource && $fileSource->isValid() && !$fileSource->hasMoved()) {
+				$ext = strtolower($fileSource->getClientExtension());
+				if (!in_array($ext, ['xlsx', 'xls', 'csv'])) {
+					return $this->response->setJSON(['status' => 'error', 'message' => 'Format file harus berupa Excel (.xlsx, .xls) atau .csv']);
+				}
+				$uploadDir = WRITEPATH . 'uploads/tmp_dimension/';
+				if (!is_dir($uploadDir)) {
+					@mkdir($uploadDir, 0777, true);
+				}
+				$newName = 'dim_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+				$fileSource->move($uploadDir, $newName);
+				$targetPath = $uploadDir . $newName;
+				$isUploaded = true;
+			} elseif (!empty($urlSource)) {
+				$targetPath = $urlSource;
+			} else {
+				// Cek apakah ada file temporary sebelumnya yang di-request ulang dengan sheet berbeda
+				$existingTemp = trim((string)$this->request->getPost('temp_filepath'));
+				if (!empty($existingTemp) && file_exists($existingTemp)) {
+					$targetPath = $existingTemp;
+					$isUploaded = true;
+				} else {
+					return $this->response->setJSON(['status' => 'error', 'message' => 'Silakan pilih file Excel/CSV atau masukkan URL Google Spreadsheet.']);
+				}
+			}
+
+			$rowColOverride = $this->request->getPost('row_col_override');
+			$pyScript = FCPATH . '../python_engine/parse_dimension_source.py';
+			$cmd = "python " . escapeshellarg($pyScript) . " inspect " . escapeshellarg($targetPath);
+			$cmd .= " " . escapeshellarg(!empty($sheetName) ? $sheetName : "None");
+			if ($rowColOverride !== null && $rowColOverride !== '' && (int)$rowColOverride >= 0) {
+				$cmd .= " " . escapeshellarg((int)$rowColOverride);
+			}
+			$cmd .= " 2>&1";
+
+			$output = shell_exec($cmd);
+			$output = trim((string)$output);
+			$output = preg_replace('/^[\xEF\xBB\xBF\s]+/', '', $output);
+			$data = json_decode($output, true);
+			if ((!$data || !is_array($data)) && json_last_error() === JSON_ERROR_UTF8) {
+				$outputClean = mb_convert_encoding($output, 'UTF-8', 'auto');
+				$data = json_decode($outputClean, true);
+			}
+
+			if (!$data || !is_array($data)) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Gagal membaca sumber data. Output: ' . mb_substr($output ?? '', 0, 300)
+				]);
+			}
+
+			if (isset($data['error'])) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => $data['error']
+				]);
+			}
+
+			// Tambahkan info filepath jika file di-upload agar bisa dipakai untuk extract berikutnya
+			if ($isUploaded) {
+				$data['temp_filepath'] = $targetPath;
+			}
+
+			return $this->response->setJSON($data);
+		}
+
+		if ($action === 'ajax_extract_dimension_source') {
+			$urlSource     = trim((string)$this->request->getPost('url_source'));
+			$tempFilepath  = trim((string)$this->request->getPost('temp_filepath'));
+			$sheetName     = trim((string)$this->request->getPost('sheet_name'));
+			$indCol        = (int)($this->request->getPost('ind_col') ?? 0);
+			$enColRaw      = $this->request->getPost('en_col');
+			$enCol         = ($enColRaw !== null && $enColRaw !== '' && (int)$enColRaw >= 0) ? (int)$enColRaw : 'None';
+			$dedup         = (int)($this->request->getPost('deduplicate') ?? 1);
+			$cleanHeaders  = (int)($this->request->getPost('clean_headers') ?? 1);
+			$autoTranslate = (int)($this->request->getPost('auto_translate_month') ?? 1);
+			$autoHierarchy = (int)($this->request->getPost('auto_hierarchy') ?? 1);
+
+			$targetPath = !empty($tempFilepath) && file_exists($tempFilepath) ? $tempFilepath : $urlSource;
+			if (empty($targetPath)) {
+				return $this->response->setJSON(['status' => 'error', 'message' => 'Sumber data tidak ditemukan.']);
+			}
+
+			$pyScript = FCPATH . '../python_engine/parse_dimension_source.py';
+			$cmd = "python " . escapeshellarg($pyScript) . " extract " . escapeshellarg($targetPath);
+			$cmd .= " " . escapeshellarg(!empty($sheetName) ? $sheetName : "None");
+			$cmd .= " " . escapeshellarg($indCol);
+			$cmd .= " " . escapeshellarg($enCol);
+			$cmd .= " " . escapeshellarg($dedup ? "1" : "0");
+			$cmd .= " " . escapeshellarg($cleanHeaders ? "1" : "0");
+			$cmd .= " " . escapeshellarg($autoTranslate ? "1" : "0");
+			$cmd .= " " . escapeshellarg($autoHierarchy ? "1" : "0");
+			$cmd .= " 2>&1";
+
+			$output = shell_exec($cmd);
+			$output = trim((string)$output);
+			$output = preg_replace('/^[\xEF\xBB\xBF\s]+/', '', $output);
+			$data = json_decode($output, true);
+			if ((!$data || !is_array($data)) && json_last_error() === JSON_ERROR_UTF8) {
+				$outputClean = mb_convert_encoding($output, 'UTF-8', 'auto');
+				$data = json_decode($outputClean, true);
+			}
+
+			if (!$data || !is_array($data)) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Gagal mengekstrak data baris. Output: ' . mb_substr($output ?? '', 0, 300)
+				]);
+			}
+
+			if (isset($data['error'])) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => $data['error']
+				]);
+			}
+
+			return $this->response->setJSON($data);
+		}
+
+		// ---------------------------------------------------------------------
+		// AKSI: SIMPAN TERPADU (KOLOM & BARIS SEKALIGUS DARI 1 FILE EXCEL/SHEET)
+		// ---------------------------------------------------------------------
+		if ($action === 'save_terpadu_dimensi') {
+			$saveKolom   = (string)$this->request->getPost('save_kolom') === '1';
+			$saveBaris   = (string)$this->request->getPost('save_baris') === '1';
+			$savePeriode = (string)$this->request->getPost('save_periode') === '1';
+
+			if (!$saveKolom && !$saveBaris && !$savePeriode) {
+				return $this->response->setJSON([
+					'status' => 'error',
+					'message' => 'Pilih minimal satu dimensi untuk disimpan (Karakteristik Kolom, Judul Baris, atau Periode Waktu).'
+				]);
+			}
+
+			$savedParts = [];
+
+			// 1. Simpan Karakteristik Kolom jika dipilih
+			if ($saveKolom) {
+				$namaKolomInd = trim((string)$this->request->getPost('nama_kolom_ind'));
+				$namaKolomEn  = trim((string)$this->request->getPost('nama_kolom_en'));
+				$itemsKolomInd = trim((string)$this->request->getPost('items_kolom_ind'));
+				$itemsKolomEn  = trim((string)$this->request->getPost('items_kolom_en'));
+
+				if (empty($namaKolomInd)) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => 'Nama Kelompok Karakteristik (Kolom) Bahasa Indonesia wajib diisi!'
+					]);
+				}
+
+				// Cek duplikasi cerdas
+				$dupKolom = $this->checkDuplicateDimensi('m_karakteristik_kelompok', $namaKolomInd);
+				if ($dupKolom) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => "Gagal: Nama Kelompok Karakteristik '{$namaKolomInd}' sudah ada / serupa dengan '{$dupKolom['existing_name']}'!"
+					]);
+				}
+
+				$idKelompokKolom = $mTabelDinamis->saveKarakteristikKelompok([
+					'nama_kelompok_ind' => $namaKolomInd,
+					'nama_kelompok_en'  => !empty($namaKolomEn) ? $namaKolomEn : null,
+				]);
+
+				$kolomCount = 0;
+				if (!empty($itemsKolomInd)) {
+					$lines_ind = preg_split('/\r\n|\r|\n/', $itemsKolomInd);
+					$lines_en  = !empty($itemsKolomEn) ? preg_split('/\r\n|\r|\n/', $itemsKolomEn) : [];
+					$items = [];
+					$no = 1;
+
+					foreach ($lines_ind as $idx => $l_ind) {
+						$l_ind = trim($l_ind);
+						if ($l_ind === '') continue;
+						$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+						$items[] = [
+							'item_ind' => $l_ind,
+							'item_en'  => $l_en,
+							'no_urut'  => $no++,
+						];
+					}
+					$mTabelDinamis->syncKarakteristikItems($idKelompokKolom, $items);
+					$kolomCount = count($items);
+				}
+				$savedParts[] = "Karakteristik Kolom '<strong>" . esc($namaKolomInd) . "</strong>' ({$kolomCount} kolom)";
+			}
+
+			// 2. Simpan Judul Baris jika dipilih
+			if ($saveBaris) {
+				$namaBarisInd  = trim((string)$this->request->getPost('nama_baris_ind'));
+				$namaBarisEn   = trim((string)$this->request->getPost('nama_baris_en'));
+				$judulBarisInd = trim((string)$this->request->getPost('judul_baris_ind'));
+				$judulBarisEn  = trim((string)$this->request->getPost('judul_baris_en'));
+				$itemsBarisInd = trim((string)$this->request->getPost('items_baris_ind'));
+				$itemsBarisEn  = trim((string)$this->request->getPost('items_baris_en'));
+
+				if (empty($namaBarisInd)) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => 'Nama Kelompok Judul Baris Bahasa Indonesia wajib diisi!'
+					]);
+				}
+
+				// Fallback judul header baris jika kosong
+				if (empty($judulBarisInd)) {
+					$judulBarisInd = $namaBarisInd;
+				}
+				if (empty($judulBarisEn)) {
+					$judulBarisEn = !empty($namaBarisEn) ? $namaBarisEn : null;
+				}
+
+				// Cek duplikasi cerdas
+				$dupBaris = $this->checkDuplicateDimensi('m_baris_kelompok', $namaBarisInd);
+				if ($dupBaris) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => "Gagal: Nama Kelompok Baris '{$namaBarisInd}' sudah ada / serupa dengan '{$dupBaris['existing_name']}'!"
+					]);
+				}
+
+				$idKelompokBaris = $mTabelDinamis->saveBarisKelompok([
+					'nama_kelompok_ind' => $namaBarisInd,
+					'nama_kelompok_en'  => !empty($namaBarisEn) ? $namaBarisEn : null,
+					'judul_baris_ind'   => $judulBarisInd,
+					'judul_baris_en'    => $judulBarisEn,
+				]);
+
+				if (!empty($itemsBarisInd)) {
+					$mTabelDinamis->parseBarisFromText($idKelompokBaris, $itemsBarisInd, $itemsBarisEn);
+				}
+				$savedParts[] = "Judul Baris '<strong>" . esc($namaBarisInd) . "</strong>' (Header: '<strong>" . esc($judulBarisInd) . "</strong>')";
+			}
+
+			// 3. Simpan Periode Waktu jika dipilih
+			if ($savePeriode) {
+				$namaPeriodeInd = trim((string)$this->request->getPost('nama_periode_ind'));
+				$namaPeriodeEn  = trim((string)$this->request->getPost('nama_periode_en'));
+				$itemsPeriodeInd = trim((string)$this->request->getPost('items_periode_ind'));
+				$itemsPeriodeEn  = trim((string)$this->request->getPost('items_periode_en'));
+
+				if (empty($namaPeriodeInd)) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => 'Nama Kelompok Periode Waktu Bahasa Indonesia wajib diisi!'
+					]);
+				}
+
+				// Cek duplikasi cerdas
+				$dupPeriode = $this->checkDuplicateDimensi('m_periode_kelompok', $namaPeriodeInd);
+				if ($dupPeriode) {
+					return $this->response->setJSON([
+						'status' => 'error',
+						'message' => "Gagal: Nama Kelompok Periode '{$namaPeriodeInd}' sudah ada / serupa dengan '{$dupPeriode['existing_name']}'!"
+					]);
+				}
+
+				$idKelompokPeriode = $mTabelDinamis->savePeriodeKelompok([
+					'nama_kelompok_ind' => $namaPeriodeInd,
+					'nama_kelompok_en'  => !empty($namaPeriodeEn) ? $namaPeriodeEn : null,
+				]);
+
+				$periodeCount = 0;
+				if (!empty($itemsPeriodeInd)) {
+					$mTabelDinamis->parsePeriodeFromText($idKelompokPeriode, $itemsPeriodeInd, $itemsPeriodeEn);
+					$lines_p = preg_split('/\r\n|\r|\n/', trim($itemsPeriodeInd));
+					$periodeCount = count(array_filter($lines_p, fn($v) => trim($v) !== ''));
+				}
+				$savedParts[] = "Periode Waktu '<strong>" . esc($namaPeriodeInd) . "</strong>' ({$periodeCount} periode)";
+			}
+
+			$summaryMsg = "Impor Terpadu Berhasil! " . implode(', ', $savedParts) . " berhasil disimpan.";
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">{$summaryMsg}</div>");
+
+			$redirectTab = 'karakteristik';
+			if ($saveKolom) {
+				$redirectTab = 'karakteristik';
+			} elseif ($saveBaris) {
+				$redirectTab = 'baris';
+			} elseif ($savePeriode) {
+				$redirectTab = 'periode';
+			}
+
+			return $this->response->setJSON([
+				'status'   => 'success',
+				'message'  => $summaryMsg,
+				'redirect' => base_url('admin/master_dimensi?tab=' . $redirectTab)
+			]);
+		}
+
+		// ---------------------------------------------------------------------
+		// AKSI: PERIODE WAKTU
+		// ---------------------------------------------------------------------
+		if ($action === 'add_periode') {
+			$nama_ind   = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en    = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$year_start = (int)$this->request->getPost('year_start');
+			$year_end   = (int)$this->request->getPost('year_end');
+			$year_order = $this->request->getPost('year_order') ?: 'ASC';
+
+			if (empty($nama_ind)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Kelompok Periode wajib diisi!</div>");
+				return redirect()->to('admin/master_dimensi?tab=periode');
+			}
+
+			// Cek duplikasi cerdas (variasi spasi, strip, garis miring)
+			$duplicate = $this->checkDuplicateDimensi('m_periode_kelompok', $nama_ind);
+			if ($duplicate) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Kelompok Periode '<strong>" . esc($nama_ind) . "</strong>' sudah ada / serupa dengan '<strong>" . esc($duplicate['existing_name']) . "</strong>'! Silakan gunakan kelompok yang sudah ada atau gunakan nama lain.</div>");
+				return redirect()->to('admin/master_dimensi?tab=periode');
+			}
+
+			$judul_ind  = trim((string)$this->request->getPost('judul_periode_ind'));
+			$judul_en   = trim((string)$this->request->getPost('judul_periode_en'));
+			if (empty($judul_ind)) {
+				$judul_ind = 'Tahun';
+			}
+			if (empty($judul_en)) {
+				$judul_en = !empty($nama_en) ? $nama_en : 'Year';
+			}
+
+			$idKelompok = $mTabelDinamis->savePeriodeKelompok([
+				'nama_kelompok_ind' => $nama_ind,
+				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+				'judul_periode_ind' => $judul_ind,
+				'judul_periode_en'  => $judul_en,
+			]);
+
+			if (!empty($items_ind)) {
+				$mTabelDinamis->parsePeriodeFromText($idKelompok, $items_ind, $items_en);
+			} elseif (!empty($year_start) && !empty($year_end) && $year_end >= $year_start) {
+				$mTabelDinamis->generatePeriodeYearRange($idKelompok, $year_start, $year_end, $year_order);
+			}
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Periode '<strong>{$nama_ind}</strong>' berhasil ditambahkan!</div>");
+			return redirect()->to('admin/master_dimensi?tab=periode');
+		}
+
+		if ($action === 'edt_periode') {
+			$id = (int)$this->request->getPost('id');
+			$nama_ind = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en  = trim((string)$this->request->getPost('nama_kelompok_en'));
+
+			if (empty($id) || empty($nama_ind)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID dan Nama Kelompok wajib diisi!</div>");
+				return redirect()->to('admin/master_dimensi?tab=periode');
+			}
+
+			// Cek duplikasi cerdas pada ID lain
+			$duplicate = $this->checkDuplicateDimensi('m_periode_kelompok', $nama_ind, $id);
+			if ($duplicate) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Nama Kelompok '<strong>" . esc($nama_ind) . "</strong>' serupa dengan '<strong>" . esc($duplicate['existing_name']) . "</strong>' yang sudah digunakan kelompok lain!</div>");
+				return redirect()->to('admin/master_dimensi?tab=periode');
+			}
+
+			$judul_ind = trim((string)$this->request->getPost('judul_periode_ind'));
+			$judul_en  = trim((string)$this->request->getPost('judul_periode_en'));
+			if (empty($judul_ind)) {
+				$judul_ind = 'Tahun';
+			}
+			if (empty($judul_en)) {
+				$judul_en = 'Year';
+			}
+
+			$mTabelDinamis->savePeriodeKelompok([
+				'nama_kelompok_ind' => $nama_ind,
+				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
+				'judul_periode_ind' => $judul_ind,
+				'judul_periode_en'  => $judul_en,
+			], $id);
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Periode berhasil diperbarui!</div>");
+			return redirect()->to('admin/master_dimensi?tab=periode');
+		}
+
+		if ($action === 'del_periode') {
+			$id = (int)($param1 ?: $this->request->getPost('id'));
+			if ($id > 0) {
+				// Cek integritas relasi: apakah dimensi ini sedang digunakan oleh tabel dinamis aktif?
+				$usedCount = $this->db->table('m_indikator_tabel')
+					->where('id_periode_kelompok', $id)
+					->countAllResults();
+
+				if ($usedCount > 0) {
+					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Kelompok Periode ini sedang digunakan oleh <strong>{$usedCount}</strong> tabel dinamis aktif! Silakan ubah konfigurasi tabel terkait terlebih dahulu sebelum menghapus.</div>");
+					return redirect()->to('admin/master_dimensi?tab=periode');
+				}
+
+				$mTabelDinamis->deletePeriodeKelompok($id);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Periode berhasil dihapus!</div>");
+			}
+			return redirect()->to('admin/master_dimensi?tab=periode');
+		}
+
+		if ($action === 'generate_periode_years') {
+			$idKelompok = (int)$this->request->getPost('id_kelompok');
+			$year_start = (int)$this->request->getPost('year_start');
+			$year_end   = (int)$this->request->getPost('year_end');
+			$year_order = $this->request->getPost('year_order') ?: 'ASC';
+
+			if (empty($idKelompok) || empty($year_start) || empty($year_end)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Rentang tahun tidak valid!</div>");
+				return redirect()->to('admin/master_dimensi?tab=periode');
+			}
+
+			$mTabelDinamis->generatePeriodeYearRange($idKelompok, $year_start, $year_end, $year_order);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Rentang tahun {$year_start}-{$year_end} berhasil di-generate!</div>");
+			return redirect()->to('admin/master_dimensi?tab=periode');
+		}
+
+		if ($action === 'sync_periode_items') {
+			$idKelompok = (int)$this->request->getPost('id_kelompok');
+			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+
+			if (empty($idKelompok)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
+				return redirect()->to('admin/master_dimensi?tab=periode');
+			}
+
+			$mTabelDinamis->parsePeriodeFromText($idKelompok, $items_ind, $items_en);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item periode waktu berhasil disimpan!</div>");
+			return redirect()->to('admin/master_dimensi?tab=periode');
+		}
+
+		if ($action === 'get_periode_items') {
+			$id = (int)$param1;
+			$kelompok = $mTabelDinamis->getPeriodeKelompok($id);
+			$items = $mTabelDinamis->getPeriodeItems($id);
+			return $this->response->setJSON([
+				'status'   => 'success',
+				'kelompok' => $kelompok,
+				'items'    => $items
+			]);
+		}
+
+		// ---------------------------------------------------------------------
+		// DEFAULT VIEW: LIST MASTER DIMENSI (3 TAB)
+		// ---------------------------------------------------------------------
+		$tab = $this->request->getGet('tab') ?? 'karakteristik';
+		$a['active_tab'] = in_array($tab, ['karakteristik', 'baris', 'periode'], true) ? $tab : 'karakteristik';
+
+		// Data Karakteristik
+		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
+		foreach ($a['list_karakteristik'] as $k) {
+			$k->total_items = count($mTabelDinamis->getKarakteristikItems((int)$k->id));
+		}
+
+		// Data Baris
+		$a['list_baris'] = $mTabelDinamis->getBarisKelompokAll();
+		foreach ($a['list_baris'] as $b) {
+			$b->total_items = count($mTabelDinamis->getBarisItems((int)$b->id));
+		}
+
+		// Data Periode
+		$a['list_periode'] = $mTabelDinamis->getPeriodeKelompokAll();
+		foreach ($a['list_periode'] as $p) {
+			$p->total_items = count($mTabelDinamis->getPeriodeItems((int)$p->id));
+		}
+
+		$a['page'] = 'l_master_dimensi';
+		return view('admin/index', $a);
+	}
+
+	// =========================================================================
+	// MODUL TABEL DINAMIS: GENERATOR INDIKATOR TABEL (SPRINT 3)
+	// Merakit Dimensi (Kolom, Baris, Periode) dengan Tabel DDA & Live Preview
+	// =========================================================================
+
+	/**
+	 * Halaman Generator Indikator Tabel & Live Matrix Preview
+	 */
+	public function generator_tabel($id_tahun_tabel = null)
+	{
+		// Cek otentikasi login
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		// Hak akses: hanya untuk akun BPS
+		$unitkerjalogin = $this->session->get('admin_unitkerja');
+		if ($unitkerjalogin != 'bps') {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Generator Tabel Dinamis hanya dapat diakses oleh Admin BPS.</div>");
+			return redirect()->to('admin');
+		}
+
+		if (empty($id_tahun_tabel)) {
+			return redirect()->to('admin/master_tabel');
+		}
+
+		// Ambil data fisik tabel tahunan yang akan dirakit
+		$tabel = $this->db->query("
+			SELECT t.id as id_tahun_tabel, t.tahun, t.no_tabel, t.periode_id, t.periode_en, t.periode_id as periode, t.link_tabel, t.link_sebelumnya, t.is_dynamic,
+			       m.id as id_master_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, m.kondef,
+			       u.unitkerja_ind, u.user_wali
+			FROM t_tahun_tabel t
+			JOIN m_list_tabel m ON t.id_tabel = m.id
+			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+			WHERE t.id = ?
+		", [$id_tahun_tabel])->getRow();
+
+		if (!$tabel) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Data tabel tahunan tidak ditemukan.</div>");
+			return redirect()->to('admin/master_tabel');
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+
+		// Cek apakah indikator untuk tabel ini sudah pernah dirakit
+		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+
+		// Hitung jumlah data nilai sel dinamis yang sudah tersimpan
+		$total_nilai = 0;
+		if ($indikator) {
+			$total_nilai = (int)$this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id)
+				->countAllResults();
+		}
+
+		// Ambil seluruh kamus dimensi master untuk dropdown
+		$a['tabel']              = $tabel;
+		$a['indikator']          = $indikator;
+		$a['total_nilai']        = $total_nilai;
+		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
+		$a['list_baris']         = $mTabelDinamis->getBarisKelompokAll();
+		$a['list_periode']       = $mTabelDinamis->getPeriodeKelompokAll();
+
+		// Hitung jumlah item di masing-masing master untuk visual preview di select option
+		foreach ($a['list_karakteristik'] as $k) {
+			$k->total_items = count($mTabelDinamis->getKarakteristikItems((int)$k->id));
+		}
+		foreach ($a['list_baris'] as $b) {
+			$b->total_items = count($mTabelDinamis->getBarisItems((int)$b->id));
+		}
+		foreach ($a['list_periode'] as $p) {
+			$p->total_items = count($mTabelDinamis->getPeriodeItems((int)$p->id));
+		}
+
+		$init_max_depth = 1;
+		if (!empty($indikator->id_karakteristik_kelompok)) {
+			$kItems = $mTabelDinamis->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
+			$kStruct = $mTabelDinamis->buildColumnStructure($kItems);
+			$init_max_depth = $kStruct['max_depth'] ?? 1;
+		}
+		$a['init_max_depth'] = $init_max_depth;
+
+		$a['page'] = 'f_generator_tabel';
+		return view('admin/index', $a);
+	}
+
+	/**
+	 * AJAX Endpoint: Mengambil struktur dimensi untuk Live Matrix Preview
+	 */
+	public function ajax_preview_dimensi()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$id_karakteristik     = (int)($this->request->getVar('id_karakteristik') ?? 0);
+		$id_sub_karakteristik = (int)($this->request->getVar('id_sub_karakteristik') ?? 0);
+		$id_baris             = (int)($this->request->getVar('id_baris') ?? 0);
+		$id_periode           = (int)($this->request->getVar('id_periode') ?? 0);
+		$tingkat_kolom        = trim((string)($this->request->getVar('tingkat_kolom') ?? 'semua'));
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+
+		$structureKolom = null;
+		$itemsKolom     = [];
+		if ($id_karakteristik > 0) {
+			$itemsKolom     = $mTabelDinamis->getKarakteristikItems($id_karakteristik);
+			$structureKolom = $mTabelDinamis->buildColumnStructure($itemsKolom);
+		}
+
+		$itemsBaris    = [];
+		$kelompokBaris = null;
+		if ($id_baris > 0) {
+			$kelompokBaris = $this->db->table('m_baris_kelompok')->where('id', $id_baris)->get()->getRow();
+			$itemsBaris    = $mTabelDinamis->getBarisItems($id_baris);
+		}
+
+		$itemsPeriode    = [];
+		$kelompokPeriode = null;
+		if ($id_periode > 0) {
+			$kelompokPeriode = $this->db->table('m_periode_kelompok')->where('id', $id_periode)->get()->getRow();
+			$itemsPeriode    = $mTabelDinamis->getPeriodeItems($id_periode);
+		}
+
+		return $this->response->setJSON([
+			'status'           => 'success',
+			'kolom'            => $structureKolom,
+			'kolom_raw'        => $itemsKolom,
+			'baris'            => $itemsBaris,
+			'baris_kelompok'   => $kelompokBaris,
+			'periode'          => $itemsPeriode,
+			'periode_kelompok' => $kelompokPeriode,
+			'tingkat_kolom'    => $tingkat_kolom
+		]);
+	}
+
+	/**
+	 * AJAX Endpoint: Reset/Hapus seluruh nilai matriks dinamis (t_nilai_dinamis)
+	 * untuk membuka kunci konfigurasi dimensi tabel
+	 */
+	public function ajax_reset_nilai_tabel()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		// Hak akses: hanya untuk akun BPS
+		$unitkerjalogin = $this->session->get('admin_unitkerja');
+		if ($unitkerjalogin != 'bps') {
+			return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Fitur ini hanya untuk Admin BPS.']);
+		}
+
+		$id_tahun_tabel = (int)$this->request->getPost('id_tahun_tabel');
+		if (empty($id_tahun_tabel)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'ID Tabel tidak valid.']);
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+		if (!$indikator) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Konfigurasi indikator tabel tidak ditemukan.']);
+		}
+
+		$countDeleted = (int)$this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults();
+		$mTabelDinamis->clearNilai((int)$indikator->id);
+
+		return $this->response->setJSON([
+			'status'       => 'success',
+			'message'      => 'Berhasil menghapus ' . number_format($countDeleted, 0, ',', '.') . ' data nilai sel. Kunci dimensi telah dibuka dan Anda dapat memilih ulang dimensi tabel.',
+			'deleted_rows' => $countDeleted
+		]);
+	}
+
+	/**
+	 * Simpan / Update Konfigurasi Perakitan Indikator Tabel
+	 */
+	public function save_generator_tabel()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$id_tahun_tabel       = (int)$this->request->getPost('id_tahun_tabel');
+		$id_karakteristik     = (int)($this->request->getPost('id_karakteristik_kelompok') ?: 0);
+		$id_baris             = (int)$this->request->getPost('id_baris_kelompok');
+		$id_periode           = (int)($this->request->getPost('id_periode_kelompok') ?: 0);
+		$posisi_hirarki       = trim((string)$this->request->getPost('posisi_hirarki'));
+		if (!in_array($posisi_hirarki, ['kolom_atas', 'periode_atas', 'periode_baris'], true)) {
+			$posisi_hirarki = 'kolom_atas';
+		}
+		$tingkat_kolom        = trim((string)$this->request->getPost('tingkat_kolom'));
+		if (empty($tingkat_kolom)) {
+			$tingkat_kolom = 'semua';
+		}
+		$konfigurasi_total    = trim((string)$this->request->getPost('konfigurasi_total'));
+		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom'], true)) {
+			$konfigurasi_total = 'default';
+		}
+		$label_total_kustom   = trim((string)$this->request->getPost('label_total_kustom'));
+		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
+			$label_total_kustom = null;
+		}
+		$catatan              = trim((string)$this->request->getPost('catatan'));
+
+		if (empty($id_tahun_tabel) || empty($id_baris) || (empty($id_karakteristik) && empty($id_periode))) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal! Mohon pilih Judul Baris dan setidaknya salah satu antara Karakteristik Kolom atau Periode Waktu.</div>");
+			return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+		}
+
+		// Ambil metadata tabel induk
+		$tabel = $this->db->query("
+			SELECT t.id, t.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja
+			FROM t_tahun_tabel t
+			JOIN m_list_tabel m ON t.id_tabel = m.id
+			WHERE t.id = ?
+		", [$id_tahun_tabel])->getRow();
+
+		if (!$tabel) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Tabel tidak ditemukan!</div>");
+			return redirect()->to('admin/master_tabel');
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$existing = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+
+		// Safety Lock: Jika tabel sudah memiliki data nilai sel dinamis, kunci dimensi tidak boleh diubah
+		if ($existing) {
+			$total_nilai = (int)$this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$existing->id)
+				->countAllResults();
+			if ($total_nilai > 0) {
+				// Paksa menggunakan dimensi existing agar integritas koordinat tetap terjaga
+				$id_baris         = (int)$existing->id_baris_kelompok;
+				$id_karakteristik = (int)($existing->id_karakteristik_kelompok ?: 0);
+				$id_periode       = (int)($existing->id_periode_kelompok ?: 0);
+			}
+		}
+
+		// Catatan: jika tidak dikirim dalam form (karena UI compact), pertahankan data existing
+		$hasPostCatatan = $this->request->getPost('catatan') !== null;
+		$finalCatatan   = $hasPostCatatan
+			? (!empty($catatan) ? $catatan : null)
+			: ($existing->catatan ?? null);
+
+		$now = date('Y-m-d H:i:s');
+		$payload = [
+			'id_tahun_tabel'            => $id_tahun_tabel,
+			'no_tabel'                  => $tabel->no_tabel,
+			'judul_ind'                 => $tabel->judul_ind,
+			'judul_en'                  => $tabel->judul_en,
+			'id_unitkerja'              => $tabel->id_unitkerja,
+			'id_karakteristik_kelompok' => !empty($id_karakteristik) ? $id_karakteristik : null,
+			'id_baris_kelompok'         => $id_baris,
+			'id_periode_kelompok'       => !empty($id_periode) ? $id_periode : null,
+			'posisi_hirarki'            => $posisi_hirarki,
+			'tingkat_kolom'             => $tingkat_kolom,
+			'konfigurasi_total'         => $konfigurasi_total,
+			'label_total_kustom'        => $label_total_kustom,
+			'satuan'                    => null,
+			'desimal'                   => 0,
+			'catatan'                   => $finalCatatan,
+			'updated_at'                => $now,
+		];
+
+		if ($existing) {
+			$mTabelDinamis->update($existing->id, $payload);
+		} else {
+			$payload['created_at'] = $now;
+			$mTabelDinamis->insert($payload);
+		}
+
+		// Tandai bahwa tabel tahunan ini resmi menjadi Tabel Dinamis (is_dynamic = 1)
+		$this->db->table('t_tahun_tabel')
+			->where('id', $id_tahun_tabel)
+			->update(['is_dynamic' => 1]);
+
+		$this->session->setFlashdata("k", "<div class=\"alert alert-success d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-check-circle-fill fs-5\"></i><div><b>Berhasil!</b> Konfigurasi Tabel Dinamis berhasil dirakit dan diaktifkan.</div></div>");
+		return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+	}
+
+	/**
+	 * Lepas Status Tabel Dinamis (Kembalikan ke Non-Dinamis)
+	 */
+	public function unlink_generator_tabel($id_tahun_tabel = null)
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$id_tahun_tabel = (int)$id_tahun_tabel;
+		if (empty($id_tahun_tabel)) {
+			return redirect()->to('admin/master_tabel');
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$existing = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+		if ($existing) {
+			// Bersihkan nilai sel (data cell values) agar tidak menjadi orphan records di database
+			$mTabelDinamis->clearNilai((int)$existing->id);
+			$mTabelDinamis->delete($existing->id);
+		}
+
+		$this->db->table('t_tahun_tabel')
+			->where('id', $id_tahun_tabel)
+			->update(['is_dynamic' => 0]);
+
+		$this->session->setFlashdata("k", "<div class=\"alert alert-info d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-info-circle-fill fs-5\"></i><div>Tabel berhasil dikembalikan ke format biasa (Non-Dinamis). Seluruh konfigurasi dan sel data matriks telah dibersihkan.</div></div>");
+		return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+	}
+
+	// =========================================================================
+	// MODUL TABEL DINAMIS: SERVICE GENERATOR TEMPLATE EXCEL (SPRINT 4)
+	// =========================================================================
+
+	/**
+	 * Endpoint Unduh Template Excel Resmi (.xlsx) Tabel Dinamis
+	 * Standar Publikasi BPS Jawa Tengah dengan Proteksi Sel & Hidden Metadata
+	 */
+	public function download_template_tabel($id_tahun_tabel = null)
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$id_tahun_tabel = (int)$id_tahun_tabel;
+		if (empty($id_tahun_tabel)) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Tabel tidak valid!</div>");
+			return redirect()->to('admin/master_tabel');
+		}
+
+		try {
+			$generator = new \App\Libraries\ExcelTemplateGenerator();
+			$generator->download($id_tahun_tabel);
+			exit;
+		} catch (\Throwable $e) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill fs-5\"></i><div>Gagal mengunduh template Excel: " . htmlspecialchars($e->getMessage()) . "</div></div>");
+			return redirect()->back();
+		}
+	}
+
+	/**
+	 * Halaman Viewer Tabel Dinamis Publikasi Resmi BPS Jawa Tengah
+	 * Dapat diakses oleh Admin BPS, Supervisor, maupun Walidata/OPD
+	 * URL: admin/view_tabel_dinamis/{id_tahun_tabel}
+	 */
+	public function view_tabel_dinamis($id_tahun_tabel = null)
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$id_tahun_tabel = (int)$id_tahun_tabel;
+		if (empty($id_tahun_tabel)) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Tabel tidak valid!</div>");
+			return redirect()->to('admin/dda');
+		}
+
+		// Ambil metadata tabel induk & tahunan
+		$tabel = $this->db->query("
+			SELECT t.id as id_tahun_tabel, t.tahun, t.no_tabel, t.periode_id, t.periode_en, t.link_tabel, t.is_dynamic,
+			       m.id as id_master_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, m.kondef,
+			       u.unitkerja_ind, u.user_wali
+			FROM t_tahun_tabel t
+			JOIN m_list_tabel m ON t.id_tabel = m.id
+			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+			WHERE t.id = ?
+		", [$id_tahun_tabel])->getRow();
+
+		if (!$tabel) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Data tabel tidak ditemukan.</div>");
+			return redirect()->to('admin/dda');
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+
+		$structureKolom = null;
+		$itemsKolom     = [];
+		$itemsBaris     = [];
+		$kelompokBaris  = null;
+		$itemsPeriode   = [];
+		$nilaiMap       = [];
+
+		if ($indikator) {
+			if (!empty($indikator->id_karakteristik_kelompok)) {
+				$itemsKolom     = $mTabelDinamis->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
+				$structureKolom = $mTabelDinamis->buildColumnStructure($itemsKolom);
+			}
+
+			if (!empty($indikator->id_baris_kelompok)) {
+				$kelompokBaris = $mTabelDinamis->getBarisKelompok((int)$indikator->id_baris_kelompok);
+				$itemsBaris    = $mTabelDinamis->getBarisItems((int)$indikator->id_baris_kelompok);
+			}
+
+			if (!empty($indikator->id_periode_kelompok)) {
+				$kelompokPeriode = $mTabelDinamis->getPeriodeKelompok((int)$indikator->id_periode_kelompok);
+				$itemsPeriode    = $mTabelDinamis->getPeriodeItems((int)$indikator->id_periode_kelompok);
+			}
+
+			// Ambil nilai sel dari t_nilai_dinamis
+			$nilaiRows = $this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id)
+				->get()
+				->getResult();
+
+			foreach ($nilaiRows as $nr) {
+				$pid = (int)($nr->id_periode_item ?? 0);
+				$key = $nr->id_baris_item . '_' . $nr->id_karakteristik_item . '_' . $pid;
+				$val = $nr->nilai !== null ? (float)$nr->nilai : ($nr->simbol ?: null);
+				$nilaiMap[$key] = $val;
+			}
+		}
+
+		$a['page']            = 'v_tabel_dinamis';
+		$a['page_title']      = 'Pratinjau Tabel Dinamis';
+		$a['tabel']           = $tabel;
+		$a['indikator']       = $indikator;
+		$a['structureKolom']  = $structureKolom;
+		$a['itemsKolom']      = $itemsKolom;
+		$a['itemsBaris']      = $itemsBaris;
+		$a['kelompokBaris']   = $kelompokBaris;
+		$a['itemsPeriode']    = $itemsPeriode;
+		$a['kelompokPeriode'] = $kelompokPeriode ?? null;
+		$a['nilaiMap']        = $nilaiMap;
+		$a['is_admin_bps']    = ($this->session->get('admin_unitkerja') == 'bps');
+
+		return view('admin/index', $a);
+	}
+
+	// =========================================================================
+	// MODUL TABEL DINAMIS: SERVICE PARSER & UPLOAD EXCEL WALIDATA (SPRINT 5)
+	// =========================================================================
+
+	/**
+	 * Endpoint Upload & Parsing Berkas Excel Walidata (.xlsx)
+	 * Membaca lembar tersembunyi __METADATA_DDA__ dan melakukan batch upsert ke t_nilai_dinamis
+	 */
+	public function upload_excel_dinamis()
+	{
+		// Cek otentikasi login
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			if ($this->request->isAJAX()) {
+				return $this->response->setStatusCode(401)->setJSON([
+					'status'  => 'error',
+					'message' => 'Sesi login telah berakhir. Silakan login kembali.'
+				]);
+			}
+			return redirect()->to("admin/login");
+		}
+
+		$id_tahun_tabel = (int)$this->request->getPost('id_tahun_tabel');
+		if (empty($id_tahun_tabel)) {
+			$errMsg = 'ID Tabel tidak valid.';
+			if ($this->request->isAJAX()) {
+				return $this->response->setJSON(['status' => 'error', 'message' => $errMsg]);
+			}
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">{$errMsg}</div>");
+			return redirect()->back();
+		}
+
+		$file = $this->request->getFile('file_excel');
+		if (!$file || !$file->isValid()) {
+			$errMsg = 'Berkas Excel tidak valid atau belum dipilih.';
+			if ($this->request->isAJAX()) {
+				return $this->response->setJSON(['status' => 'error', 'message' => $errMsg]);
+			}
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">{$errMsg}</div>");
+			return redirect()->back();
+		}
+
+		$ext = strtolower($file->getClientExtension());
+		if ($ext !== 'xlsx') {
+			$errMsg = 'Format berkas tidak valid! Harap unggah berkas berekstensi .xlsx.';
+			if ($this->request->isAJAX()) {
+				return $this->response->setJSON(['status' => 'error', 'message' => $errMsg]);
+			}
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">{$errMsg}</div>");
+			return redirect()->back();
+		}
+
+		try {
+			$parser = new \App\Libraries\ExcelDataParser();
+			$parseResult = $parser->parse($file->getTempName(), $id_tahun_tabel);
+
+			$mTabelDinamis = new \App\Models\M_tabeldinamis();
+			$affected = $mTabelDinamis->batchUpsertNilai((int)$parseResult['id_indikator'], $parseResult['cells_data']);
+
+			// Update status pengisian di t_tahun_tabel
+			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Walidata');
+			$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
+
+			$this->db->table('t_tahun_tabel')
+				->where('id', $id_tahun_tabel)
+				->update([
+					'is_periksa'      => 1,
+					'catatan_periksa' => $catatan
+				]);
+
+			$successMsg = "Data tabel dinamis berhasil diimpor! Total <b>{$parseResult['filled_cells']}</b> sel data berhasil disimpan.";
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-check-circle-fill fs-5\"></i><div>{$successMsg}</div></div>");
+
+			if ($this->request->isAJAX()) {
+				return $this->response->setJSON([
+					'status'       => 'success',
+					'message'      => $successMsg,
+					'total_cells'  => $parseResult['total_cells'],
+					'filled_cells' => $parseResult['filled_cells'],
+					'empty_cells'  => $parseResult['empty_cells'],
+					'symbol_cells' => $parseResult['symbol_cells']
+				]);
+			}
+
+			return redirect()->back();
+		} catch (\Throwable $e) {
+			$errMsg = $e->getMessage();
+			if ($this->request->isAJAX()) {
+				return $this->response->setJSON([
+					'status'  => 'error',
+					'message' => $errMsg
+				]);
+			}
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill fs-5\"></i><div>Gagal mengunggah Excel: " . htmlspecialchars($errMsg) . "</div></div>");
+			return redirect()->back();
+		}
+	}
+
+	/**
+	 * Endpoint AJAX untuk Admin/LO menyimpan catatan bagi Walidata
+	 */
+	public function simpan_catatan_tabel()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Sesi login telah berakhir']);
+		}
+
+		$id = (int)$this->request->getPost('id');
+		$catatan = trim((string)$this->request->getPost('catatan'));
+
+		if (empty($id)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'ID tabel tidak valid']);
+		}
+
+		$this->db->table('t_tahun_tabel')
+			->where('id', $id)
+			->update(['catatan' => $catatan]);
+
+		return $this->response->setJSON([
+			'status'  => 'success',
+			'message' => 'Catatan berhasil disimpan!',
+			'catatan' => $catatan
+		]);
+	}
 }
+
+

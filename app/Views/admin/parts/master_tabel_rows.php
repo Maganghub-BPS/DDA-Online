@@ -30,19 +30,24 @@ if (empty($data)) {
                 <p class="text-xxs text-secondary mb-0 font-italic text-wrap mt-1" style="max-width:350px; line-height: 1.2;"><?php echo (!empty($b->no_tabel) ? $b->no_tabel . ' ' : '') . format_judul_tabel($b->judul_en, $b->periode_en ?? $b->periode_id ?? $b->periode ?? ''); ?></p>
             </td>
 
-            <!-- Kolom Tipe Tabel & Tautan (Portal Data Open Data Jateng vs Spreadsheet) -->
+            <!-- Kolom Tipe Tabel & Tautan (Tabel Dinamis vs Portal Data vs Spreadsheet) -->
             <td>
                 <div class="d-flex flex-column gap-1">
-                    <?php if (strpos($b->link_tabel, 'view_portal_tabel') !== false): ?>
+                    <?php if (!empty($b->is_dynamic)): ?>
+                        <a href="<?php echo base_url('admin/generator_tabel/' . $b->id); ?>" class="badge badge-sm text-white border-0 align-self-start fw-bold shadow-xs text-decoration-none" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px;">
+                            <i class="bi bi-boxes me-1"></i>TABEL DINAMIS
+                        </a>
+                    <?php elseif (strpos($b->link_tabel, 'view_portal_tabel') !== false): ?>
                         <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold">
                             <i class="bi bi-cloud-check me-1"></i>PORTAL DATA
                         </span>
+                        <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo str_replace('index.php/admin/', '', $b->link_tabel); ?></code>
                     <?php else: ?>
                         <span class="badge badge-sm bg-success-soft text-success border-success-soft align-self-start fw-bold">
                             <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPREADSHEET
                         </span>
+                        <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo str_replace('index.php/admin/', '', $b->link_tabel); ?></code>
                     <?php endif; ?>
-                    <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo str_replace('index.php/admin/', '', $b->link_tabel); ?></code>
                 </div>
             </td>
 
@@ -64,9 +69,26 @@ if (empty($data)) {
                         <!-- Menu Edit Detail Tabel -->
                         <li>
                             <a href="<?php echo base_URL() ?>index.php/admin/master_tabel/edt/<?php echo $b->id; ?>/1" class="dropdown-item border-radius-md py-2 text-sm">
-                                <i class="bi bi-pencil me-2 text-primary"></i> Edit Detail
+                                <i class="bi bi-pencil me-2 text-secondary"></i> Edit Detail
                             </a>
                         </li>
+                        <?php if (!empty($b->is_dynamic)): ?>
+                        <li>
+                            <a href="<?php echo base_url('admin/view_tabel_dinamis/' . $b->id); ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold" target="_blank">
+                                <i class="bi bi-eye me-2"></i> Lihat Tabel Dinamis
+                            </a>
+                        </li>
+                        <li>
+                            <a href="<?php echo base_url('admin/generator_tabel/' . $b->id); ?>" class="dropdown-item border-radius-md py-2 text-sm text-primary fw-semibold">
+                                <i class="bi bi-boxes me-2"></i> Konfigurasi Matriks
+                            </a>
+                        </li>
+                        <li>
+                            <a href="<?php echo base_url('admin/download_template_tabel/' . $b->id); ?>" class="dropdown-item border-radius-md py-2 text-sm text-success fw-semibold">
+                                <i class="bi bi-file-earmark-excel me-2"></i> Unduh Template Excel
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <li>
                             <hr class="dropdown-divider opacity-5 mt-1">
                         </li>

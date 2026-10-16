@@ -881,13 +881,14 @@
                     let totalPdfOnly = res.summary ? res.summary.total_pdf_only : (res.pdf_only ? res.pdf_only.length : 0);
                     let totalAll = totalDiffs + totalMatches + totalPdfOnly;
 
-                    window.currentDiffFilter = totalDiffs > 0 ? 'diff' : 'match';
+                    window.currentDiffFilter = totalDiffs > 0 ? 'diff' : (totalMatches > 0 ? 'match' : (totalPdfOnly > 0 ? 'pdf_only' : 'all'));
 
                     // Update main list badge & counters
-                    let status = totalDiffs > 0 ? 'diff' : 'match';
+                    let status = (totalDiffs > 0 || totalMatches === 0) ? 'diff' : 'match';
+                    let diffCount = totalDiffs > 0 ? totalDiffs : (totalPdfOnly > 0 ? totalPdfOnly : '!');
                     window.batchStatusMap[nomor_tabel] = {
                         status: status,
-                        diff_count: totalDiffs,
+                        diff_count: diffCount,
                         match_count: totalMatches
                     };
                     let foundItem = window.currentMatchedTables ? window.currentMatchedTables.find(t => t.nomor_tabel === nomor_tabel) : null;
@@ -931,7 +932,8 @@
                     `;
                     
                     // Banner Verifikasi Bersih Ringkas (Jika 100% Cocok Sempurna)
-                    if (totalDiffs === 0 && totalPdfOnly === 0) {
+                    // Banner Verifikasi Bersih Ringkas (Jika 100% Cocok Sempurna)
+                    if (totalMatches > 0 && totalDiffs === 0 && totalPdfOnly === 0) {
                         html += `
                             <div class="alert alert-success border-success-subtle bg-success-subtle rounded-3 p-3 mb-3 shadow-xs d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-left: 5px solid #10b981 !important;">
                                 <div class="d-flex align-items-center">
@@ -952,9 +954,31 @@
                                 </div>
                             </div>
                         `;
+                    } else if (totalMatches === 0 && totalPdfOnly > 0) {
+                        html += `
+                            <div class="alert alert-warning border-warning-subtle bg-warning-subtle rounded-3 p-3 mb-3 shadow-xs d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-left: 5px solid #f59e0b !important;">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center me-3 shadow-xs flex-shrink-0" style="width: 40px; height: 40px;">
+                                        <i class="bi bi-exclamation-triangle-fill fw-bold" style="font-size: 1.3rem;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold text-warning-emphasis mb-0" style="font-size: 0.95rem;">Perbedaan Struktur Data (Khusus Cetakan PDF)</h6>
+                                        <div class="text-secondary small">
+                                            Tercetak <strong>${totalPdfOnly} data</strong> pada cetakan PDF, namun barisnya tidak ditemukan di database resmi.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-white text-dark border border-warning-subtle px-3 py-1-5 rounded-pill fw-semibold shadow-xs" style="font-size: 0.78rem;">
+                                        <i class="bi bi-journal-bookmark me-1"></i> ${totalPdfOnly} Cuma di PDF
+                                    </span>
+                                </div>
+                            </div>
+                        `;
                     }
 
                     // 1. KPI Cards (Selalu ditampilkan untuk status cocok maupun beda nilai)
+                    let isPerfectMatch = (totalMatches > 0 && totalDiffs === 0 && totalPdfOnly === 0);
                     html += `
                         <div class="row g-3 mb-4">
                             <!-- KPI: Beda Nilai -->
@@ -973,19 +997,19 @@
 
                             <!-- KPI: Cocok Sempurna (Highlight Spesial Saat 100% Cocok) -->
                             <div class="col-md-4">
-                                <div class="p-3 rounded-3 border d-flex align-items-center shadow-xs ${totalDiffs === 0 ? 'border-success' : 'border-success bg-success-subtle'}" 
-                                     onclick="switchDiffFilter('match')" 
-                                     style="cursor:pointer; ${totalDiffs === 0 ? 'border: 2px solid #10b981 !important; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important; box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.25) !important;' : ''}" 
+                                <div class="p-3 rounded-3 border d-flex align-items-center shadow-xs ${isPerfectMatch ? 'border-success' : (totalMatches > 0 ? 'border-success bg-success-subtle' : 'bg-light border-secondary-subtle')}" 
+                                     ${totalMatches > 0 ? `onclick="switchDiffFilter('match')" style="cursor:pointer;"` : 'style="opacity: 0.75;"'}
+                                     ${isPerfectMatch ? 'style="cursor:pointer; border: 2px solid #10b981 !important; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important; box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.25) !important;"' : ''} 
                                      title="Klik untuk menyaring data yang cocok">
-                                    <div class="rounded-circle p-2 bg-success text-white me-3 d-flex align-items-center justify-content-center shadow-xs" style="width:48px; height:48px;">
+                                    <div class="rounded-circle p-2 ${totalMatches > 0 ? 'bg-success text-white' : 'bg-secondary text-white'} me-3 d-flex align-items-center justify-content-center shadow-xs" style="width:48px; height:48px;">
                                         <i class="bi bi-check-lg fs-3 fw-bold"></i>
                                     </div>
                                     <div class="flex-grow-1">
                                         <div class="d-flex align-items-center justify-content-between">
-                                            <div class="fw-black fs-4 text-success mb-0">${totalMatches} Angka</div>
-                                            ${totalDiffs === 0 ? `<span class="badge bg-success text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.68rem;"><i class="bi bi-stars me-1"></i>Cocok</span>` : ''}
+                                            <div class="fw-black fs-4 ${totalMatches > 0 ? 'text-success' : 'text-muted'} mb-0">${totalMatches} Angka</div>
+                                            ${isPerfectMatch ? `<span class="badge bg-success text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.68rem;"><i class="bi bi-stars me-1"></i>Cocok</span>` : ''}
                                         </div>
-                                        <div class="small text-success fw-semibold">Cocok Sempurna ${totalDiffs === 0 ? '(100%)' : ''}</div>
+                                        <div class="small ${totalMatches > 0 ? 'text-success' : 'text-muted'} fw-semibold">Cocok Sempurna ${isPerfectMatch ? '(100%)' : ''}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1026,8 +1050,8 @@
                                     <span class="small fw-bold text-dark me-1"><i class="bi bi-funnel-fill text-secondary me-1"></i>Filter:</span>
                                     <div class="btn-group btn-group-sm" role="group">
                                         ${totalDiffs > 0 ? `<button type="button" class="btn btn-danger active btn-filter-type fw-bold px-3 py-1" data-filter="diff" onclick="setDiffType('diff', this)"><i class="bi bi-exclamation-octagon-fill me-1"></i> Beda Nilai (${totalDiffs})</button>` : ''}
-                                        <button type="button" class="btn ${totalDiffs === 0 ? 'btn-success active text-white shadow-xs' : 'btn-outline-secondary'} btn-filter-type fw-bold px-3 py-1" data-filter="match" onclick="setDiffType('match', this)"><i class="bi bi-check-circle-fill me-1"></i> Cocok (${totalMatches})</button>
-                                        ${totalPdfOnly > 0 ? `<button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" data-filter="pdf_only" onclick="setDiffType('pdf_only', this)"><i class="bi bi-journal-bookmark me-1"></i> Cuma di PDF (${totalPdfOnly})</button>` : ''}
+                                        <button type="button" class="btn ${totalDiffs === 0 && totalMatches > 0 ? 'btn-success active text-white shadow-xs' : 'btn-outline-secondary'} btn-filter-type fw-bold px-3 py-1" data-filter="match" onclick="setDiffType('match', this)"><i class="bi bi-check-circle-fill me-1"></i> Cocok (${totalMatches})</button>
+                                        ${totalPdfOnly > 0 ? `<button type="button" class="btn ${totalDiffs === 0 && totalMatches === 0 ? 'btn-warning active text-dark fw-bold shadow-xs' : 'btn-outline-secondary'} btn-filter-type px-3 py-1" data-filter="pdf_only" onclick="setDiffType('pdf_only', this)"><i class="bi bi-journal-bookmark me-1"></i> Cuma di PDF (${totalPdfOnly})</button>` : ''}
                                         <button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" data-filter="all" onclick="setDiffType('all', this)">Semua (${totalAll})</button>
                                     </div>
                                 </div>
@@ -1204,6 +1228,7 @@
 
                         html += `</div>`; // Close comparisonList
                     $('#diffContent').html(html);
+                    applyDiffFilters();
                 } else {
                     let msg = res.message || 'Terjadi kesalahan saat memproses data';
                     let isApiEmpty = msg.toLowerCase().includes('tidak ada data dalam api') || res.is_api_empty;

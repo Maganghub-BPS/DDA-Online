@@ -157,7 +157,7 @@ def build_index(pdf_path, db_tables=None):
     # Assign strictly non-overlapping page blocks
     for i, (k, st, v) in enumerate(table_starts):
         nxt_st = table_starts[i+1][1] if i + 1 < len(table_starts) else st + 3
-        p_range = list(range(st, min(nxt_st, st + 8)))
+        p_range = list(range(st, min(nxt_st, st + 35)))
         if not p_range: p_range = [st]
         toc[k]["pages"] = p_range
 

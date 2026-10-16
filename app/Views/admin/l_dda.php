@@ -145,14 +145,38 @@ if (empty($data)) {
 
     <td class="tabel-judul-cell">
         <?php 
-        $tabel_url = $b->link_tabel;
-        if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
-            $tabel_url = base_url() . $tabel_url;
+        $is_dynamic = !empty($b->is_dynamic);
+        $is_portal  = (stripos($b->link_tabel, 'portal') !== false || 
+                       stripos($b->link_tabel, 'satudata') !== false || 
+                       (isset($b->id_api) && !empty($b->id_api)));
+
+        if ($is_dynamic) {
+            $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id);
+            $target = '';
+        } elseif ($is_portal) {
+            $tabel_url = $b->link_tabel;
+            if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
+                $tabel_url = base_url() . $tabel_url;
+            }
+            $target = '';
+        } else {
+            $tabel_url = $b->link_tabel;
+            if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
+                $tabel_url = base_url() . $tabel_url;
+            }
+            $target = 'target="_blank"';
         }
         ?>
-        <a href="<?php echo $tabel_url; ?>" target="_blank" class="text-decoration-none tabel-judul">
+        <a href="<?php echo $tabel_url; ?>" <?php echo $target; ?> class="text-decoration-none tabel-judul">
             <?php echo htmlspecialchars($judul_bersih); ?>
         </a>
+        <?php if ($is_dynamic && session()->get('admin_unitkerja') == 'bps'): ?>
+            <div class="mt-1 d-flex align-items-center gap-1 flex-wrap">
+                <a href="<?php echo base_url('admin/generator_tabel/' . $b->id); ?>" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill text-xxs d-inline-flex align-items-center gap-1 shadow-xs fw-semibold" style="font-size: 10px;" title="Kelola Dimensi Generator">
+                    <i class="bi bi-sliders"></i> Dimensi
+                </a>
+            </div>
+        <?php endif; ?>
     </td>
 
     <!-- STATUS PENGISIAN -->
@@ -169,24 +193,62 @@ if (empty($data)) {
                 <small class="text-muted d-block fst-italic">
                     <?php if($is_portal): ?>
                         <i class="bi bi-cloud-check-fill me-1 text-primary"></i>Sudah sinkron dengan portal data Jateng
+                    <?php elseif($is_dynamic): ?>
+                        <?php
+                        $cleanCatatan = preg_replace('/\s*\(\d+\s*sel\s*terisi\)/iu', '', $b->catatan_periksa ?? '');
+                        if (preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $cleanCatatan, $m)):
+                            $uploader = trim($m[1]);
+                            $waktu    = trim($m[2]);
+                        ?>
+                            <span class="d-block text-dark fw-semibold" style="font-style: normal; font-size: 0.77rem; line-height: 1.35;">
+                                <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
+                            </span>
+                            <span class="d-block text-muted mt-1" style="font-style: normal; font-size: 0.72rem;">
+                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                            </span>
+                        <?php else: ?>
+                            <span class="d-block" style="font-style: normal;">
+                                <i class="bi bi-file-earmark-excel-fill me-1 text-success"></i><?= htmlspecialchars($cleanCatatan ?: 'Tabel Dinamis DDA'); ?>
+                            </span>
+                        <?php endif; ?>
                     <?php else: ?>
                         <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? 'Catatan: '.htmlspecialchars($b->catatan_periksa) : 'Input Manual/Sheet'; ?>
                     <?php endif; ?>
                 </small>
                 <?php if($is_portal): ?>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle mt-1" style="font-size: 9px;">SUMBER: PORTAL DATA JATENG</span>
+                <?php elseif($is_dynamic): ?>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size: 9px;"><i class="bi bi-boxes me-1"></i>TABEL DINAMIS</span>
                 <?php endif; ?>
             </div>
             
-            <?php if(!$is_portal): ?>
-            <div class="mt-2 text-end">
-                <a href="<?php echo base_url(); ?>admin/batal_isi/<?php echo $b->id; ?>" 
-                class="btn btn-sm btn-outline-danger py-0 btn-batal-isi" style="font-size: 0.7rem;"
-                data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
-                title="Batalkan status">
-                    <i class="bi bi-x-circle me-1"></i>Batal
-                </a>
-            </div>
+            <?php if ($is_dynamic): ?>
+                <div class="mt-2 text-start">
+                    <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
+                        <button type="button" class="btn btn-sm btn-warning text-dark py-1 px-2.5 btn-lihat-catatan shadow-xs fw-semibold" 
+                                data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                data-catatan="<?php echo htmlspecialchars($b->catatan, ENT_QUOTES); ?>"
+                                style="font-size: 0.74rem; border-radius: 8px;">
+                            <i class="bi bi-chat-left-quote-fill me-1"></i> Catatan <span class="badge bg-danger text-white ms-1" style="font-size: 9px;">Ada Catatan</span>
+                        </button>
+                    <?php else: ?>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2.5 btn-lihat-catatan" 
+                                data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                data-catatan=""
+                                style="font-size: 0.74rem; border-radius: 8px;">
+                            <i class="bi bi-chat-left-dots me-1"></i> Catatan
+                        </button>
+                    <?php endif; ?>
+                </div>
+            <?php elseif (!$is_portal): ?>
+                <div class="mt-2 text-end">
+                    <a href="<?php echo base_url(); ?>admin/batal_isi/<?php echo $b->id; ?>" 
+                    class="btn btn-sm btn-outline-danger py-0 btn-batal-isi" style="font-size: 0.7rem;"
+                    data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                    title="Batalkan status">
+                        <i class="bi bi-x-circle me-1"></i>Batal
+                    </a>
+                </div>
             <?php endif; ?>
         <?php } else { ?>
             <div class="d-flex flex-column gap-2">
@@ -302,6 +364,33 @@ if (empty($data)) {
     </div>
 </div>
 
+<!-- MODAL LIHAT CATATAN DARI ADMIN/LO (BS5) -->
+<div id="ModalLihatCatatanWalidata" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header bg-light border-0 pt-3 px-4 pb-2">
+                <h6 class="modal-title fw-bold text-dark d-flex align-items-center">
+                    <i class="bi bi-chat-left-quote-fill text-warning me-2 fs-5"></i> Catatan BPS
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label text-secondary small fw-bold mb-1">JUDUL TABEL</label>
+                    <div id="lihat_catatan_judul" class="p-2 bg-light rounded text-dark small fw-medium" style="border: 1px solid #e9ecef;"></div>
+                </div>
+                <div>
+                    <label class="form-label text-secondary small fw-bold mb-1">CATATAN BPS</label>
+                    <div id="lihat_catatan_isi_box"></div>
+                </div>
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="button" class="btn btn-sm btn-secondary px-4 fw-medium" data-bs-dismiss="modal" style="border-radius: 8px;">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- JavaScript: Modal handlers using BS5 native API -->
 <script type="text/javascript">
 $(document).ready(function () {
@@ -356,6 +445,35 @@ $(document).ready(function () {
         $('#judul_tabel_modal').val(this.dataset.judul);
         $('#asal_data_modal').val(this.dataset.unit);
         var bsModal = new bootstrap.Modal(document.getElementById('ModalIsiData'));
+        bsModal.show();
+    });
+
+    // Lihat Catatan Admin/LO oleh Walidata
+    $(document).on('click', '.btn-lihat-catatan', function () {
+        var judul = $(this).data('judul');
+        var catatan = $(this).data('catatan');
+        $('#lihat_catatan_judul').text(judul);
+
+        if (catatan && String(catatan).trim() !== '' && String(catatan).trim() !== '-') {
+            $('#lihat_catatan_isi_box').html(`
+                <div class="p-3 rounded-3" style="background: #fff8e1; border: 1px solid #ffe082; border-left: 5px solid #ffb300;">
+                    <div class="d-flex align-items-center mb-1 text-warning-emphasis fw-bold small">
+                        <i class="bi bi-info-circle-fill me-1"></i> Arahan / Catatan Pemeriksaan:
+                    </div>
+                    <div class="text-dark" style="font-size: 0.88rem; line-height: 1.5; white-space: pre-wrap;">${catatan}</div>
+                </div>
+            `);
+        } else {
+            $('#lihat_catatan_isi_box').html(`
+                <div class="p-4 rounded-3 text-center" style="background: #f8fafc; border: 1px dashed #cbd5e1;">
+                    <i class="bi bi-chat-square-dots text-secondary mb-2" style="font-size: 2rem;"></i>
+                    <div class="fw-bold text-dark mb-1">Belum Ada Catatan</div>
+                    <div class="text-secondary small">Tabel ini belum memiliki catatan khusus atau instruksi pemeriksaan dari BPS.</div>
+                </div>
+            `);
+        }
+
+        var bsModal = new bootstrap.Modal(document.getElementById('ModalLihatCatatanWalidata'));
         bsModal.show();
     });
 });
