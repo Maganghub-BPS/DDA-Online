@@ -39,7 +39,11 @@ KNOWN_EN_TERMS = {
 def clean_cell_str(val):
     if val is None:
         return ""
+    if isinstance(val, float) and val.is_integer():
+        return str(int(val))
     s = str(val).strip()
+    if re.match(r'^-?\d+\.0$', s):
+        return s[:-2]
     return s
 
 def extract_cell_lang(val):
@@ -226,8 +230,8 @@ def is_bracket_col_num(v):
     v = v.strip()
     if not v:
         return False
-    # Format penomoran kolom resmi BPS dalam tanda kurung: (1), (2), ( 1 ), (1+2), (1-2), (1)-(2), dll
-    if re.match(r'^\(\s*[0-9]+(\s*[\+\-\*\/]\s*[0-9]+)*\s*\)$', v):
+    # Format penomoran kolom resmi BPS dalam tanda kurung: (1), (2), ( 1 ), (1+2), (1-2), (1)-(2), dll atau -1, -2
+    if re.match(r'^(\(\s*[0-9]+(\s*[\+\-\*\/]\s*[0-9]+)*\s*\)|-[0-9]+)$', v):
         return True
     if re.match(r'^\(\s*[0-9]+\s*\)\s*[\+\-\*\/]\s*\(\s*[0-9]+\s*\)$', v):
         return True
@@ -361,7 +365,8 @@ def is_sequence_col(vals):
             digits.append(int(v))
         else:
             return False
-    if len(digits) >= 3 and all(digits[i+1] == digits[i] + 1 for i in range(min(5, len(digits)-1))):
+    # Nomor urut baris tabel (series number) SELALU mulai dari 0 atau 1. Jika mulai dari 10, itu adalah kode kategorikal (KBLI/Kode Industri)
+    if len(digits) >= 3 and digits[0] in (0, 1) and all(digits[i+1] == digits[i] + 1 for i in range(min(5, len(digits)-1))):
         return True
     return False
 
@@ -458,7 +463,7 @@ def detect_structure(grid):
 
     return header_start, header_end, data_start, h_rows, col_num_row_idx
 
-def find_best_row_col(grid, data_start, max_r, max_c, seq_cols):
+def find_best_row_col(grid, data_start, max_r, max_c, seq_cols, h_rows=None):
     """
     Mencari kolom baris utama pertama dari sebelah kiri tabel (sebelum kolom observasi statistik pertama).
     """
@@ -474,19 +479,45 @@ def find_best_row_col(grid, data_start, max_r, max_c, seq_cols):
         alpha_cnt = sum(1 for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
         stat_cnt = sum(1 for v in sample_vals if is_stat_val(v) and not is_year_val(v))
 
-        # Abaikan kolom nomor urut murni (1, 2, 3 atau 01., 02.)
-        if num_start_cnt >= total_vals * 0.7 and avg_len < 5:
-            continue
+        # Cek apakah header kolom ini mengindikasikan kolom identitas baris / kode
+        header_text = ""
+        if h_rows:
+            header_text = " ".join(grid[r][c].strip().lower() for r in h_rows if r < max_r and grid[r][c].strip())
+        is_code_header = any(k in header_text for k in ['kode', 'code', 'kbli', 'klasifikasi', 'golongan', 'komoditas', 'rincian', 'uraian', 'nama', 'item', 'daerah', 'wilayah'])
+
+        # Jika sudah ada seq_cols di sebelah kiri (misal kolom 0 adalah no urut 1, 2, 3), 
+        # maka kolom numerik berikutnya (seperti Kode Industri 10, 11, 12 atau kode wilayah) BUKAN no urut, melainkan KODE BARIS UTAMA!
+        if seq_cols and c > max(seq_cols) and (is_code_header or not is_sequence_col(sample_vals)):
+            next_is_stat = False
+            if c + 1 < max_c:
+                next_samples = [grid[r][c+1].strip() for r in range(data_start, min(data_start + 20, max_r)) if grid[r][c+1].strip()]
+                next_stat_cnt = sum(1 for v in next_samples if is_stat_val(v) and not is_year_val(v))
+                if len(next_samples) > 0 and next_stat_cnt >= len(next_samples) * 0.6:
+                    next_is_stat = True
+            if next_is_stat or is_code_header:
+                return c
+
+        # Abaikan kolom nomor urut murni (1, 2, 3 atau 01., 02.) HANYA jika bukan kolom kode dan murni berurutan dari 1
+        if num_start_cnt >= total_vals * 0.7 and avg_len < 5 and not is_code_header:
+            cleaned_d = [int(v.split('.')[0]) for v in sample_vals if v.replace('.','').isdigit()]
+            if len(cleaned_d) >= 3 and cleaned_d[0] in (0, 1):
+                continue
 
         # Jika sudah bertemu kolom angka data observasi statistik, hentikan pencarian kolom baris pertama dari kiri!
-        if stat_cnt >= total_vals * 0.6 and alpha_cnt <= 1:
+        if stat_cnt >= total_vals * 0.6 and alpha_cnt <= 1 and not is_code_header:
             break
 
         unique_texts = set(v.lower() for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
-        if len(unique_texts) >= 2 or alpha_cnt >= 2:
+        if len(unique_texts) >= 2 or alpha_cnt >= 2 or is_code_header:
             return c
 
-    # Fallback pencarian dengan skor jika belum ketemu
+    # Fallback pencarian: jika ada seq_cols, kolom tepat setelah seq_cols adalah kandidat terbaik
+    if seq_cols:
+        candidate = max(seq_cols) + 1
+        if candidate < max_c:
+            return candidate
+
+    # Fallback pencarian dengan skor jika belum ketemu (hindari memilih kolom observasi statistik panjang)
     best_col = None
     best_score = -1
     for c in range(min(6, max_c)):
@@ -496,13 +527,16 @@ def find_best_row_col(grid, data_start, max_r, max_c, seq_cols):
         if not sample_vals:
             continue
         total_vals = len(sample_vals)
-        num_start_cnt = sum(1 for v in sample_vals if re.match(r'^\d', v))
-        avg_len = sum(len(v) for v in sample_vals) / total_vals
         alpha_cnt = sum(1 for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
         unique_texts = set(v.lower() for v in sample_vals if any(ch.isalpha() for ch in v) and v.lower() not in ROW_ID_KEYWORDS)
-        if num_start_cnt >= total_vals * 0.7 and avg_len < 5:
+        stat_cnt = sum(1 for v in sample_vals if is_stat_val(v) and not is_year_val(v))
+        avg_len = sum(len(v) for v in sample_vals) / total_vals
+
+        # JANGAN PERNAH memilih kolom yang jelas-jelas data observasi statistik sebagai kolom baris fallback!
+        if stat_cnt >= total_vals * 0.8 and alpha_cnt == 0 and avg_len >= 5:
             continue
-        score = len(unique_texts) * 50 + alpha_cnt * 10 + avg_len
+
+        score = len(unique_texts) * 50 + alpha_cnt * 10
         if score > best_score:
             best_score = score
             best_col = c
@@ -510,12 +544,16 @@ def find_best_row_col(grid, data_start, max_r, max_c, seq_cols):
     if best_col is not None:
         return best_col
 
-    # Jika ada seq_cols (misal kolom 0 adalah nomor urut), kandidat baris berikutnya adalah kolom setelahnya
-    if seq_cols:
-        candidate = max(seq_cols) + 1
-        return candidate if candidate < max_c else 0
-
     return 0
+
+def is_summary_col_header(headers):
+    for h in headers:
+        if not h: continue
+        clean = re.sub(r'[\(\[].*?[\)\]]', '', h).strip().lower()
+        clean = clean.split('\n')[0].strip()
+        if clean in ['jumlah', 'total', 'jumlah / total', 'total / jumlah', 'sum', 'rata-rata', 'average', 'mean']:
+            return True
+    return False
 
 def find_continuation_row_cols(grid, primary_col, h_rows, col_num_row_idx, data_start, max_r, max_c):
     if primary_col >= max_c:
@@ -524,6 +562,11 @@ def find_continuation_row_cols(grid, primary_col, h_rows, col_num_row_idx, data_
     primary_headers = [grid[r][primary_col].strip().lower() for r in h_rows if r < max_r and grid[r][primary_col].strip()]
     primary_hdr_text = ' '.join(primary_headers)
     primary_col_num = grid[col_num_row_idx][primary_col].strip() if (col_num_row_idx is not None and col_num_row_idx < max_r and primary_col < len(grid[col_num_row_idx])) else ''
+
+    primary_samples = [grid[r][primary_col].strip() for r in range(data_start, min(data_start + 20, max_r)) if grid[r][primary_col].strip()]
+    primary_total = len(primary_samples)
+    primary_num_cnt = sum(1 for v in primary_samples if v.isdigit() or is_row_number_str(v))
+    primary_is_numeric = (primary_num_cnt / primary_total >= 0.7) if primary_total > 0 else False
 
     cols = [primary_col]
 
@@ -535,15 +578,18 @@ def find_continuation_row_cols(grid, primary_col, h_rows, col_num_row_idx, data_
         is_same_header = bool(primary_hdr_text and c_hdr_text and (primary_hdr_text == c_hdr_text or primary_hdr_text in c_hdr_text or c_hdr_text in primary_hdr_text))
         is_same_col_num = bool(primary_col_num and is_bracket_col_num(primary_col_num) and c_col_num == primary_col_num)
 
-        c_samples = [grid[r][c].strip() for r in range(data_start, min(data_start + 15, max_r)) if grid[r][c].strip()]
-        c_has_alpha = sum(1 for v in c_samples if any(ch.isalpha() for ch in v) and not is_bracket_col_num(v) and v.lower() not in ROW_ID_KEYWORDS) >= 2
-
-        if c_has_alpha and (is_same_header or is_same_col_num):
+        if is_same_header or (is_same_col_num and primary_col_num):
+            c_samples = [grid[r][c].strip() for r in range(data_start, min(data_start + 20, max_r)) if grid[r][c].strip()]
+            c_total = len(c_samples)
+            if c_total > 0:
+                c_num_cnt = sum(1 for v in c_samples if v.isdigit() or is_row_number_str(v))
+                if not primary_is_numeric and (c_num_cnt / c_total >= 0.5):
+                    continue
             cols.append(c)
 
     return cols
 
-def inspect_source(source, sheet_name=None):
+def inspect_source(source, sheet_name=None, row_col_override=None):
     res = fetch_raw_data(source, sheet_name)
     if "error" in res:
         return res
@@ -570,9 +616,13 @@ def inspect_source(source, sheet_name=None):
         sample_vals = [grid[r][c] for r in range(data_start, min(data_start + 10, max_r))]
         if is_sequence_col(sample_vals):
             seq_cols.add(c)
+            break
 
-    # Cari kolom teks nama baris utama
-    best_row_col_idx = find_best_row_col(grid, data_start, max_r, max_c, seq_cols)
+    # Cari kolom teks nama baris utama (atau gunakan override dari input user jika diberikan)
+    if row_col_override is not None and str(row_col_override).strip() not in ("", "None", "-1"):
+        best_row_col_idx = int(row_col_override)
+    else:
+        best_row_col_idx = find_best_row_col(grid, data_start, max_r, max_c, seq_cols, h_rows)
 
     # Cari kolom data statistik pertama (kolom numerik observasi setelah best_row_col_idx)
     first_stat_col = None
@@ -589,7 +639,8 @@ def inspect_source(source, sheet_name=None):
     # Kolom identitas baris: best_row_col_idx dan seq_cols, serta kolom teks pendamping sebelum best_row_col
     row_identifier_cols = {best_row_col_idx}
     for c in seq_cols:
-        row_identifier_cols.add(c)
+        if c < best_row_col_idx:
+            row_identifier_cols.add(c)
     for c in range(best_row_col_idx):
         stat_cnt = sum(1 for r in range(data_start, min(data_start + 15, max_r)) if is_stat_val(grid[r][c]) and not is_year_val(grid[r][c]))
         if stat_cnt < 2:
@@ -599,7 +650,8 @@ def inspect_source(source, sheet_name=None):
     for c in range(best_row_col_idx + 1, max_c):
         same_h = any(grid[r][c].strip() == grid[r][best_row_col_idx].strip() and grid[r][best_row_col_idx].strip() != "" for r in h_rows)
         stat_cnt = sum(1 for r in range(data_start, min(data_start + 15, max_r)) if is_stat_val(grid[r][c]) and not is_year_val(grid[r][c]))
-        if same_h and stat_cnt < 2:
+        alpha_cnt = sum(1 for r in range(data_start, min(data_start + 15, max_r)) if any(ch.isalpha() for ch in grid[r][c]))
+        if same_h and stat_cnt < 2 and alpha_cnt >= 2:
             row_identifier_cols.add(c)
         else:
             break
@@ -610,15 +662,35 @@ def inspect_source(source, sheet_name=None):
         row_identifier_cols.add(c)
         if c > 0 and (c - 1) not in row_identifier_cols:
             prev_samples = [grid[r][c-1].strip() for r in range(data_start, min(data_start + 6, max_r))]
-            if all(is_row_number_str(v) for v in prev_samples if v):
-                row_identifier_cols.add(c - 1)
+            prev_non_empty = [v for v in prev_samples if v]
+            prev_headers = [grid[r][c-1].strip() for r in h_rows if grid[r][c-1].strip()]
+            if len(prev_non_empty) >= 2 and not is_summary_col_header(prev_headers):
+                if all(is_row_number_str(v) or is_bracket_col_num(v) or (v.isdigit() and int(v) > 0) for v in prev_non_empty):
+                    row_identifier_cols.add(c - 1)
+
+    # Pastikan kolom ringkasan/total data (Jumlah/Total) TIDAK PERNAH masuk sebagai row_identifier_cols
+    for c in range(max_c):
+        col_headers = [grid[r][c].strip() for r in h_rows if grid[r][c].strip()]
+        if is_summary_col_header(col_headers):
+            row_identifier_cols.discard(c)
+
+    # 2.5 Deteksi Kolom Bayangan (Shadow Columns) akibat merged cell horizontal di Excel
+    shadow_cols = set()
+    for c in range(1, max_c):
+        is_dup_header = all(grid[r][c].strip() == grid[r][c-1].strip() for r in h_rows)
+        is_dup_data = all(grid[r][c].strip() == grid[r][c-1].strip() for r in range(data_start, max_r))
+        has_content = any(grid[r][c].strip() for r in range(data_start, max_r))
+        if is_dup_header and is_dup_data and has_content:
+            shadow_cols.add(c)
+
+    row_identifier_cols.difference_update(shadow_cols)
 
     # 3. Deteksi Baris Periode Waktu di Header
     period_row_indices = set()
     year_row_idx = None
     month_row_idx = None
 
-    data_cols = [c for c in range(max_c) if c not in row_identifier_cols]
+    data_cols = [c for c in range(max_c) if c not in row_identifier_cols and c not in shadow_cols]
     for r in h_rows:
         row_vals = [grid[r][c].strip() for c in data_cols if grid[r][c].strip()]
         if not row_vals: continue
@@ -636,10 +708,10 @@ def inspect_source(source, sheet_name=None):
             period_row_indices.add(r)
             month_row_idx = r
 
-    # 4. Baris Header Khusus Karakteristik (Tanpa baris periode waktu)
-    col_h_rows = [r for r in h_rows if r not in period_row_indices and any(grid[r][c].strip() for c in data_cols)]
+    # 4. Baris Header Khusus Karakteristik (Tanpa baris periode waktu dan tanpa baris nomor kolom BPS)
+    col_h_rows = [r for r in h_rows if r not in period_row_indices and r != col_num_row_idx and any(grid[r][c].strip() for c in data_cols)]
     if not col_h_rows and h_rows:
-        col_h_rows = h_rows
+        col_h_rows = [r for r in h_rows if r != col_num_row_idx]
 
     # 5. Susun Columns Info & Hierarki Cerdas (Mendukung hingga 3 Tingkatan Kolom Asimetris)
     # Deteksi apakah ada baris translasi bahasa murni (misal Row r = Indo, Row r+1 = English)
@@ -669,6 +741,8 @@ def inspect_source(source, sheet_name=None):
     seen_parents = set()
 
     for c in range(max_c):
+        if c in shadow_cols:
+            continue
         col_letter = chr(65 + c) if c < 26 else f"Col{c+1}"
         is_row_id = (c in row_identifier_cols)
 
@@ -678,8 +752,18 @@ def inspect_source(source, sheet_name=None):
             continue
 
         if is_row_id:
-            top_vals = [grid[r][c].strip() for r in h_rows if grid[r][c].strip()]
-            top_val = top_vals[0] if top_vals else f"Baris {col_letter}"
+            candidate_vals = []
+            for r in h_rows:
+                if r == col_num_row_idx or r in period_row_indices:
+                    continue
+                v = grid[r][c].strip()
+                if not v:
+                    continue
+                is_spanned_to_data = any(grid[r][d_col].strip() == v for d_col in range(max_c) if d_col not in row_identifier_cols)
+                candidate_vals.append((v, is_spanned_to_data))
+            
+            specific_vals = [v for v, spanned in candidate_vals if not spanned]
+            top_val = specific_vals[-1] if specific_vals else (candidate_vals[-1][0] if candidate_vals else f"Baris {col_letter}")
             ind_header, en_header = extract_cell_lang(top_val)
             sub_header = ""
             sub_header_en = ""
@@ -696,7 +780,7 @@ def inspect_source(source, sheet_name=None):
             while i < len(col_h_rows):
                 r = col_h_rows[i]
                 val = grid[r][c].strip()
-                if not val:
+                if not val or is_bracket_col_num(val) or r == col_num_row_idx:
                     i += 1
                     continue
 
@@ -822,6 +906,8 @@ def inspect_source(source, sheet_name=None):
     continuation_row_cols = find_continuation_row_cols(grid, best_row_col_idx, h_rows, col_num_row_idx, data_start, max_r, max_c)
     raw_row_candidates = []
     for c_idx in continuation_row_cols:
+        if c_idx in shadow_cols:
+            continue
         for r in range(data_start, max_r):
             if c_idx >= len(grid[r]):
                 continue
@@ -895,7 +981,7 @@ def inspect_source(source, sheet_name=None):
         sugg_kolom_ind = m_per.group(1).strip().title()
 
     sheet_clean = (res.get("current_sheet") or "").strip()
-    if not sugg_kolom_ind and distinct_parents:
+    if (not sugg_kolom_ind or sugg_kolom_ind.lower() == sugg_baris_ind.lower()) and distinct_parents:
         if len(distinct_parents) == 1 and distinct_parents[0]['ind'] not in ['Kolom', 'Data']:
             sugg_kolom_ind = distinct_parents[0]['ind']
             sugg_kolom_en  = distinct_parents[0]['en']
@@ -904,6 +990,7 @@ def inspect_source(source, sheet_name=None):
             sugg_kolom_en = sheet_clean
         elif distinct_parents:
             sugg_kolom_ind = distinct_parents[0]['ind']
+            sugg_kolom_en  = distinct_parents[0].get('en', sugg_kolom_ind)
 
     if not sugg_kolom_en:
         sugg_kolom_en = sugg_kolom_ind
@@ -1075,10 +1162,11 @@ if __name__ == "__main__":
 
     mode = sys.argv[1]
     src = sys.argv[2]
-    sheet = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] != "None" else None
+    sheet = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] not in ("None", "") else None
 
     if mode == "inspect":
-        result = inspect_source(src, sheet)
+        row_col_override = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] not in ("None", "", "-1") else None
+        result = inspect_source(src, sheet, row_col_override)
         print(json.dumps(result, ensure_ascii=True))
     elif mode == "extract":
         ind_col = int(sys.argv[4]) if len(sys.argv) > 4 else 0

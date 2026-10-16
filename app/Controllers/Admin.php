@@ -4133,10 +4133,12 @@ class Admin extends BaseController
 				}
 			}
 
+			$rowColOverride = $this->request->getPost('row_col_override');
 			$pyScript = FCPATH . '../python_engine/parse_dimension_source.py';
 			$cmd = "python " . escapeshellarg($pyScript) . " inspect " . escapeshellarg($targetPath);
-			if (!empty($sheetName)) {
-				$cmd .= " " . escapeshellarg($sheetName);
+			$cmd .= " " . escapeshellarg(!empty($sheetName) ? $sheetName : "None");
+			if ($rowColOverride !== null && $rowColOverride !== '' && (int)$rowColOverride >= 0) {
+				$cmd .= " " . escapeshellarg((int)$rowColOverride);
 			}
 			$cmd .= " 2>&1";
 

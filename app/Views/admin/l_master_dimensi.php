@@ -1997,6 +1997,24 @@
                                         </div>
                                     </div>
 
+                                    <!-- Interactive Column Role Override: Dropdown Pemilih Kolom Baris Utama -->
+                                    <div class="mb-3 p-2 rounded-2 border shadow-xs" id="terpadu_row_col_container" style="display: none; background: #f8fafc; border-color: #cbd5e1 !important;">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="form-label fw-bold text-dark text-xxs mb-0" for="terpadu_select_row_col">
+                                                <i class="bi bi-layout-sidebar-inset text-primary me-1"></i>Kolom Baris Utama:
+                                            </label>
+                                            <span class="badge bg-primary-soft text-primary border text-xxs" id="terpadu_row_col_detected_badge">
+                                                <i class="bi bi-magic me-1"></i>Auto-detect
+                                            </span>
+                                        </div>
+                                        <select class="form-select form-select-sm fw-semibold text-xs border-primary-subtle" id="terpadu_select_row_col" title="Ganti kolom jika deteksi otomatis keliru">
+                                            <option value="">-- Memuat Kolom --</option>
+                                        </select>
+                                        <div class="text-muted mt-1" style="font-size: 0.68rem; line-height: 1.15;">
+                                            <i class="bi bi-info-circle me-1"></i>Pilih kolom jika baris tabel ini berada di kolom lain.
+                                        </div>
+                                    </div>
+
                                     <!-- Form Kelompok Baris: Nama Pilihan Master (Dropdown) & Judul Header Tabel -->
                                     <div class="row g-2 mb-2">
                                         <div class="col-6">
@@ -4962,6 +4980,8 @@ Jawa Tengah // Central Java`;
         $('#terpadu_matrix_thead').empty();
         $('#terpadu_matrix_tbody').empty();
         $('#terpadu_table_meta_badge').text('0 baris | 0 kolom');
+        $('#terpadu_select_row_col').empty().append('<option value="">-- Memuat Kolom --</option>');
+        $('#terpadu_row_col_container').hide();
 
         validatorKolomTerpadu.clear();
         validatorBarisTerpadu.clear();
@@ -5101,6 +5121,32 @@ Jawa Tengah // Central Java`;
         executeInspectTerpadu(payload, false);
     });
 
+    // Ganti Kolom Baris Utama Terpadu (Manual Override)
+    $('#terpadu_select_row_col').on('change', function() {
+        const rowColIdx = $(this).val();
+        if (rowColIdx === '' || rowColIdx === null || rowColIdx === undefined) return;
+
+        // Reset usulan nama baris agar dapat mengikuti header kolom baru
+        isTerpaduJudulIndTouched = false;
+        isTerpaduJudulEnTouched = false;
+        $('#terpadu_nama_baris_ind').val('');
+        $('#terpadu_nama_baris_en').val('');
+        $('#terpadu_judul_baris_ind').val('');
+        $('#terpadu_judul_baris_en').val('');
+
+        const payload = { row_col_override: rowColIdx };
+        const sheetName = $('#terpadu_sheet_dropdown').val();
+        if (sheetName) {
+            payload.sheet_name = sheetName;
+        }
+        if (currentTerpaduTempFilePath) {
+            payload.temp_filepath = currentTerpaduTempFilePath;
+        } else {
+            payload.url_source = $('#terpadu_url_input').val().trim();
+        }
+        executeInspectTerpadu(payload, false);
+    });
+
     function renderInspectTerpaduResult(data) {
         // 1. Render Dropdown Sheet
         const $shDropdown = $('#terpadu_sheet_dropdown');
@@ -5147,6 +5193,25 @@ Jawa Tengah // Central Java`;
         // 3. Judul Baris
         const autoRows = data.auto_rows || [];
         $('#terpadu_baris_count_badge').text(`${autoRows.length} Baris Terdeteksi`);
+
+        // Populate Dropdown Pemilih Kolom Baris Utama
+        const $rowColSelect = $('#terpadu_select_row_col');
+        $rowColSelect.empty();
+        if (data.columns && data.columns.length > 0) {
+            data.columns.forEach(function(col) {
+                const isSelected = (col.index === data.best_row_col_index) ? 'selected' : '';
+                const roleBadge = col.is_row_identifier ? ' [Baris/ID]' : '';
+                const colLetter = col.letter || String.fromCharCode(65 + col.index);
+                const colTitle = col.header || col.full_title || ('Kolom ' + (col.index + 1));
+                $rowColSelect.append(`<option value="${col.index}" ${isSelected}>Kolom ${colLetter}: ${escapeHtml(colTitle)}${roleBadge}</option>`);
+            });
+            const activeCol = data.columns.find(c => c.index === data.best_row_col_index);
+            const activeLetter = activeCol ? activeCol.letter : (String.fromCharCode(65 + (data.best_row_col_index || 0)));
+            $('#terpadu_row_col_detected_badge').html(`<i class="bi bi-magic me-1"></i>Kolom ${activeLetter}`);
+            $('#terpadu_row_col_container').show();
+        } else {
+            $('#terpadu_row_col_container').hide();
+        }
 
         // Isi Usulan Nama Kelompok Baris (Pilihan Master) & Judul Header Tabel Baris
         const suggBarisInd = data.suggested_baris_ind || 'Kabupaten/Kota';
@@ -5355,22 +5420,61 @@ Jawa Tengah // Central Java`;
             return;
         }
 
-        // 1. Render Header Grid
+        // 1. Render Header Grid dengan Dukungan 2D Rowspan & Colspan
         if (grid.length > 0) {
-            grid.forEach(function(rowCells, rIdx) {
+            const numRows = grid.length;
+            const numCols = grid[0].length;
+            const rendered = Array.from({length: numRows}, () => Array(numCols).fill(false));
+
+            for (let r = 0; r < numRows; r++) {
                 const tr = $('<tr></tr>');
-                let c = 0;
-                while (c < rowCells.length) {
-                    const val = rowCells[c];
-                    let span = 1;
-                    while (c + span < rowCells.length && rowCells[c + span] === val && val !== '') {
-                        span++;
+                for (let c = 0; c < numCols; c++) {
+                    if (rendered[r][c]) continue;
+
+                    const val = grid[r][c];
+
+                    // Hitung Colspan (horizontal)
+                    let spanC = 1;
+                    if (val !== '') {
+                        while (c + spanC < numCols && !rendered[r][c + spanC] && grid[r][c + spanC] === val) {
+                            spanC++;
+                        }
+                    }
+
+                    // Hitung Rowspan (vertikal)
+                    let spanR = 1;
+                    if (val !== '') {
+                        while (r + spanR < numRows) {
+                            let canExpandDown = true;
+                            for (let k = c; k < c + spanC; k++) {
+                                if (rendered[r + spanR][k] || grid[r + spanR][k] !== val) {
+                                    canExpandDown = false;
+                                    break;
+                                }
+                            }
+                            if (canExpandDown) {
+                                spanR++;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+
+                    // Tandai sel yang sudah dicakup dalam span
+                    for (let i = r; i < r + spanR; i++) {
+                        for (let j = c; j < c + spanC; j++) {
+                            rendered[i][j] = true;
+                        }
                     }
 
                     // Deteksi peran sel header: Baris, Kolom, atau Periode
                     const colMeta = columns[c] || {};
-                    const isRowCol = colMeta.is_row_identifier || c === bestRowIdx;
+                    let isRowCol = colMeta.is_row_identifier || c === bestRowIdx;
                     const valLower = (val || '').toLowerCase().trim();
+                    const isSummaryHeader = /^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(valLower);
+                    if (isSummaryHeader) {
+                        isRowCol = false;
+                    }
                     const isYearOrPeriod = /^(19|20)\d{2}(\s*[\-\/]\s*(19|20)?\d{2})?$/.test(valLower) ||
                                           /^(triwulan|tw|quarter|q)\s*[1-4ivx]+\b/i.test(valLower) ||
                                           /^(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|january|february|march|may|june|july|august|october|december)\b/i.test(valLower);
@@ -5389,16 +5493,19 @@ Jawa Tengah // Central Java`;
                         cellBorder = '#bbf7d0';
                     }
 
-                    const style = `background: ${cellBg}; color: ${cellColor}; border: 1px solid ${cellBorder}; font-weight: bold; padding: 6px 8px;`;
-                    tr.append(`<th colspan="${span}" style="${style}">${escapeHtml(val || '-')}</th>`);
-                    c += span;
+                    const style = `background: ${cellBg}; color: ${cellColor}; border: 1px solid ${cellBorder}; font-weight: bold; padding: 6px 8px; text-align: center; vertical-align: middle;`;
+                    tr.append(`<th colspan="${spanC}" rowspan="${spanR}" style="${style}">${escapeHtml(val || '-')}</th>`);
                 }
                 $thead.append(tr);
-            });
+            }
         } else {
             const tr = $('<tr></tr>');
             columns.forEach(function(col) {
-                const isRowCol = col.is_row_identifier;
+                let isRowCol = col.is_row_identifier;
+                const colTitle = (col.full_title || col.header || '').toLowerCase().trim();
+                if (/^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(colTitle)) {
+                    isRowCol = false;
+                }
                 const cellBg = isRowCol ? '#eff6ff' : '#fff7ed';
                 const cellColor = isRowCol ? '#1e40af' : '#9a3412';
                 const cellBorder = isRowCol ? '#bfdbfe' : '#fed7aa';
@@ -5413,7 +5520,11 @@ Jawa Tengah // Central Java`;
                 const tr = $('<tr></tr>');
                 rowVals.forEach(function(cellVal, cIdx) {
                     const colMeta = columns[cIdx] || {};
-                    const isRowCol = colMeta.is_row_identifier || cIdx === bestRowIdx;
+                    let isRowCol = colMeta.is_row_identifier || cIdx === bestRowIdx;
+                    const colTitle = (colMeta.full_title || colMeta.header || '').toLowerCase().trim();
+                    if (/^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(colTitle)) {
+                        isRowCol = false;
+                    }
                     let style = 'border: 1px solid #e2e8f0; padding: 4px 8px;';
                     if (isRowCol) {
                         style += 'background: #f8fafc; font-weight: 600; color: #1e293b; text-align: left;';
