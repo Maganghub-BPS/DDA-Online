@@ -207,6 +207,53 @@ class ExcelDataParser
             $hasPeriode  = !empty($itemsPeriode);
             $colIdx      = ($posisi_hirarki === 'periode_baris') ? 3 : 2; // Mulai C jika periode_baris, atau B jika kolom biasa
 
+            // Hitung level maksimum pada seluruh kelompok baris
+            $maxBarisGroupLevel = 0;
+            foreach ($itemsBaris as $b) {
+                $lvl = (int)($b->level_indentasi ?? 0);
+                if ($lvl > $maxBarisGroupLevel) {
+                    $maxBarisGroupLevel = $lvl;
+                }
+            }
+
+            $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
+                $cur = $items[$idx];
+                $tipe = strtolower(trim($cur->tipe_baris ?? ''));
+
+                // 1. Sesuai role badge di Master Dimensi
+                if ($tipe === 'kategori') {
+                    return true;
+                }
+                if ($tipe === 'data' || $tipe === 'total' || $tipe === 'subtotal') {
+                    return false;
+                }
+
+                // 2. Fallback untuk data lawas jika belum terisi
+                if ($maxBarisGroupLevel === 0) {
+                    return false;
+                }
+
+                $lowerNama = strtolower(trim($cur->nama_baris_ind ?? ''));
+                if (
+                    $lowerNama === 'jumlah' || $lowerNama === 'total' || 
+                    strpos($lowerNama, 'jawa tengah') !== false || 
+                    strpos($lowerNama, 'produk domestik regional bruto') !== false || 
+                    $lowerNama === 'pdrb' || 
+                    strpos($lowerNama, 'gross regional domestic product') !== false || 
+                    $lowerNama === 'grdp'
+                ) {
+                    if (strpos($lowerNama, 'curah hujan') === false && strpos($lowerNama, 'hari hujan') === false) {
+                        return false;
+                    }
+                }
+
+                if ($lowerNama === 'kabupaten' || $lowerNama === 'kota') {
+                    return true;
+                }
+
+                return false;
+            };
+
             if ($posisi_hirarki === 'periode_baris') {
                 if ($hasKolom) {
                     foreach ($flatKolom as $ch) {
@@ -230,8 +277,33 @@ class ExcelDataParser
 
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 $currR  = $startR;
-                foreach ($itemsBaris as $bItem) {
-                    $tipe = $bItem->tipe_baris ?? 'data';
+                foreach ($itemsBaris as $bIdx => $bItem) {
+                    $tipe = strtolower(trim($bItem->tipe_baris ?? ''));
+                    $lowerBaris = strtolower(trim($bItem->nama_baris_ind ?? ''));
+                    if (!$tipe) {
+                        if (
+                            $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
+                            strpos($lowerBaris, 'jawa tengah') !== false || 
+                            strpos($lowerBaris, 'produk domestik regional bruto') !== false || 
+                            $lowerBaris === 'pdrb' || 
+                            strpos($lowerBaris, 'gross regional domestic product') !== false || 
+                            $lowerBaris === 'grdp'
+                        ) {
+                            if (strpos($lowerBaris, 'curah hujan') === false && strpos($lowerBaris, 'hari hujan') === false) {
+                                $tipe = 'total';
+                            }
+                        }
+                        if (!$tipe) $tipe = 'data';
+                    }
+                    if ($isParentBaris($bIdx, $itemsBaris)) {
+                        $tipe = 'kategori';
+                    }
+
+                    $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+                    if ($tipe === 'total' && $cfgTotal === 'none') {
+                        continue;
+                    }
+
                     if ($tipe === 'kategori') {
                         $rowItems[] = [
                             'excel_row'  => $currR,
@@ -315,13 +387,41 @@ class ExcelDataParser
 
             if ($posisi_hirarki !== 'periode_baris') {
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
+                $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {
+                    $tipe = strtolower(trim($bItem->tipe_baris ?? ''));
+                    $lowerBaris = strtolower(trim($bItem->nama_baris_ind ?? ''));
+                    if (!$tipe) {
+                        if (
+                            $lowerBaris === 'jumlah' || $lowerBaris === 'total' || 
+                            strpos($lowerBaris, 'jawa tengah') !== false || 
+                            strpos($lowerBaris, 'produk domestik regional bruto') !== false || 
+                            $lowerBaris === 'pdrb' || 
+                            strpos($lowerBaris, 'gross regional domestic product') !== false || 
+                            $lowerBaris === 'grdp'
+                        ) {
+                            if (strpos($lowerBaris, 'curah hujan') === false && strpos($lowerBaris, 'hari hujan') === false) {
+                                $tipe = 'total';
+                            }
+                        }
+                        if (!$tipe) $tipe = 'data';
+                    }
+                    if ($isParentBaris($bIdx, $itemsBaris)) {
+                        $tipe = 'kategori';
+                    }
+
+                    $cfgTotal = $indikator->konfigurasi_total ?? 'default';
+                    if ($tipe === 'total' && $cfgTotal === 'none') {
+                        continue;
+                    }
+
                     $rowItems[] = [
-                        'excel_row' => $startR + $bIdx,
+                        'excel_row' => $currR,
                         'id_baris'  => (int)$bItem->id,
-                        'tipe'      => $bItem->tipe_baris ?? 'data',
+                        'tipe'      => $tipe,
                         'nama'      => $bItem->nama_baris_ind ?? '',
                     ];
+                    $currR++;
                 }
             }
         }
@@ -373,12 +473,11 @@ class ExcelDataParser
                 }
 
                 $cellsToUpsert[] = [
-                    'id_baris_item'             => $idBaris,
-                    'id_karakteristik_item'     => $idKarakteristik,
-                    'id_sub_karakteristik_item' => 0,
-                    'id_periode_item'           => $idPeriode,
-                    'nilai'                     => $sanitized['nilai'],
-                    'simbol'                    => $sanitized['simbol'],
+                    'id_baris_item'         => $idBaris,
+                    'id_karakteristik_item' => $idKarakteristik,
+                    'id_periode_item'       => $idPeriode,
+                    'nilai'                 => $sanitized['nilai'],
+                    'simbol'                => $sanitized['simbol'],
                 ];
             }
         }

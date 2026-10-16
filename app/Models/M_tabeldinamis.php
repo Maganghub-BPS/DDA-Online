@@ -18,15 +18,14 @@ class M_tabeldinamis extends Model
         'judul_en',
         'id_unitkerja',
         'id_karakteristik_kelompok',
-        'id_sub_karakteristik_kelompok',
         'id_baris_kelompok',
         'id_periode_kelompok',
         'posisi_hirarki',
         'tingkat_kolom',
+        'konfigurasi_total',
+        'label_total_kustom',
         'satuan',
         'desimal',
-        'grafik_default',
-        'sumber',
         'catatan',
         'created_at',
         'updated_at'
@@ -165,7 +164,6 @@ class M_tabeldinamis extends Model
 
             $insertData[] = [
                 'id_kelompok'    => $id_kelompok,
-                'parent_id'      => !empty($item['parent_id']) ? (int)$item['parent_id'] : null,
                 'grup_induk_ind' => $grup_induk_ind,
                 'grup_induk_en'  => $grup_induk_en,
                 'grup_sub_ind'   => $grup_sub_ind,
@@ -371,8 +369,15 @@ class M_tabeldinamis extends Model
 
         $now = date('Y-m-d H:i:s');
         $insertData = [];
-        $no = 1;
+        $maxLevel = 0;
+        foreach ($items as $it) {
+            $lvl = (int)($it['level_indentasi'] ?? ($it['level'] ?? 0));
+            if ($lvl > $maxLevel) {
+                $maxLevel = $lvl;
+            }
+        }
 
+        $no = 1;
         foreach ($items as $item) {
             $nama_ind = trim($item['nama_baris_ind'] ?? '');
             $nama_en  = trim($item['nama_baris_en'] ?? '');
@@ -381,20 +386,25 @@ class M_tabeldinamis extends Model
                 continue;
             }
 
+            $level_indentasi = (int)($item['level_indentasi'] ?? ($item['level'] ?? 0));
             $tipe_baris = $item['tipe_baris'] ?? '';
             $validTypes = ['kategori', 'data', 'subtotal', 'total'];
             
             // Evaluasi tipe baris cerdas & hormati penandaan is_total / tipe_baris dari pengguna
             $is_user_total = (!empty($item['is_total']) || $tipe_baris === 'total');
-            $detectedTipe  = $this->detectTipeBaris($nama_ind, (int)($item['level_indentasi'] ?? 0));
+            $detectedTipe  = $this->detectTipeBaris($nama_ind, $level_indentasi);
 
-            if ($is_user_total || $detectedTipe === 'total') {
+            if (!empty($tipe_baris) && in_array($tipe_baris, $validTypes, true)) {
+                // Prioritas tertinggi: pertahankan tipe fungsional yang eksplisit dipilih pengguna
+                if (!empty($item['is_total']) && $tipe_baris !== 'data' && $tipe_baris !== 'kategori') {
+                    $tipe_baris = 'total';
+                }
+            } elseif ($is_user_total || $detectedTipe === 'total') {
                 $tipe_baris = 'total';
-            } elseif (!in_array($tipe_baris, $validTypes, true) || empty($tipe_baris) || $tipe_baris === 'data') {
+            } else {
                 $tipe_baris = $detectedTipe;
             }
 
-            $level_indentasi = (int)($item['level_indentasi'] ?? 0);
             $is_bold = !empty($item['is_bold']) ? 1 : ($tipe_baris === 'total' || $tipe_baris === 'kategori' ? 1 : 0);
 
             $insertData[] = [
@@ -463,8 +473,8 @@ class M_tabeldinamis extends Model
             return 'subtotal';
         }
 
-        // 4. Kategori (Pembatas Bab/Kategori)
-        if ($lower === 'kabupaten' || $lower === 'kota' || ($indent === 0 && $hasChildren)) {
+        // 4. Kategori (Pembatas Bab/Kategori - khusus pembatas wilayah Kabupaten/Kota atau banner judul murni)
+        if ($lower === 'kabupaten' || $lower === 'kota') {
             return 'kategori';
         }
 
@@ -738,14 +748,6 @@ class M_tabeldinamis extends Model
         $indikator->kolom_items = $this->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
         $indikator->kolom_structure = $this->buildColumnStructure($indikator->kolom_items);
 
-        // Sub-Karakteristik jika ada
-        $indikator->sub_karakteristik_kelompok = null;
-        $indikator->sub_kolom_items = [];
-        if (!empty($indikator->id_sub_karakteristik_kelompok)) {
-            $indikator->sub_karakteristik_kelompok = $this->getKarakteristikKelompok((int)$indikator->id_sub_karakteristik_kelompok);
-            $indikator->sub_kolom_items = $this->getKarakteristikItems((int)$indikator->id_sub_karakteristik_kelompok);
-        }
-
         // 2. Dimensi Baris
         $indikator->baris_kelompok = $this->getBarisKelompok((int)$indikator->id_baris_kelompok);
         $indikator->baris_items = $this->getBarisItems((int)$indikator->id_baris_kelompok);
@@ -798,8 +800,7 @@ class M_tabeldinamis extends Model
 
         $lookup = [];
         foreach ($rows as $row) {
-            $subId = (int)($row->id_sub_karakteristik_item ?? 0);
-            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$subId}_{$row->id_periode_item}";
+            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$row->id_periode_item}";
             $lookup[$key] = [
                 'id'     => $row->id,
                 'nilai'  => $row->nilai !== null ? (float)$row->nilai : null,
@@ -827,17 +828,15 @@ class M_tabeldinamis extends Model
             foreach ($chunk as $c) {
                 $idBaris = (int)$c['id_baris_item'];
                 $idKarakteristik = (int)$c['id_karakteristik_item'];
-                $idSub = (int)($c['id_sub_karakteristik_item'] ?? 0);
                 $idPeriode = (int)$c['id_periode_item'];
 
                 $nilai = isset($c['nilai']) && $c['nilai'] !== '' && $c['nilai'] !== null ? (float)$c['nilai'] : null;
                 $simbol = !empty($c['simbol']) ? trim($c['simbol']) : null;
 
-                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?)";
                 $params[] = $id_indikator;
                 $params[] = $idBaris;
                 $params[] = $idKarakteristik;
-                $params[] = $idSub;
                 $params[] = $idPeriode;
                 $params[] = $nilai;
                 $params[] = $simbol;
@@ -846,7 +845,7 @@ class M_tabeldinamis extends Model
             }
 
             $sql = "INSERT INTO t_nilai_dinamis 
-                    (id_indikator, id_baris_item, id_karakteristik_item, id_sub_karakteristik_item, id_periode_item, nilai, simbol, created_at, updated_at)
+                    (id_indikator, id_baris_item, id_karakteristik_item, id_periode_item, nilai, simbol, created_at, updated_at)
                     VALUES " . implode(', ', $values) . "
                     ON DUPLICATE KEY UPDATE 
                         nilai = VALUES(nilai),

@@ -3837,10 +3837,7 @@ class Admin extends BaseController
 			if ($id > 0) {
 				// Cek integritas relasi: apakah dimensi ini sedang digunakan oleh tabel dinamis aktif?
 				$usedCount = $this->db->table('m_indikator_tabel')
-					->groupStart()
-						->where('id_karakteristik_kelompok', $id)
-						->orWhere('id_sub_karakteristik_kelompok', $id)
-					->groupEnd()
+					->where('id_karakteristik_kelompok', $id)
 					->countAllResults();
 
 				if ($usedCount > 0) {
@@ -4417,7 +4414,14 @@ class Admin extends BaseController
 		if (empty($tingkat_kolom)) {
 			$tingkat_kolom = 'semua';
 		}
-		$sumber               = trim((string)$this->request->getPost('sumber'));
+		$konfigurasi_total    = trim((string)$this->request->getPost('konfigurasi_total'));
+		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom'], true)) {
+			$konfigurasi_total = 'default';
+		}
+		$label_total_kustom   = trim((string)$this->request->getPost('label_total_kustom'));
+		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
+			$label_total_kustom = null;
+		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
 		if (empty($id_tahun_tabel) || empty($id_baris) || (empty($id_karakteristik) && empty($id_periode))) {
@@ -4454,38 +4458,30 @@ class Admin extends BaseController
 			}
 		}
 
-		// Sumber dan catatan: jika tidak dikirim dalam form (karena UI compact), pertahankan data existing atau default instansi
-		$hasPostSumber  = $this->request->getPost('sumber') !== null;
+		// Catatan: jika tidak dikirim dalam form (karena UI compact), pertahankan data existing
 		$hasPostCatatan = $this->request->getPost('catatan') !== null;
-		$defaultSumber  = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : null;
-
-		$finalSumber = $hasPostSumber
-			? (!empty($sumber) ? $sumber : null)
-			: ($existing->sumber ?? $defaultSumber);
-
-		$finalCatatan = $hasPostCatatan
+		$finalCatatan   = $hasPostCatatan
 			? (!empty($catatan) ? $catatan : null)
 			: ($existing->catatan ?? null);
 
 		$now = date('Y-m-d H:i:s');
 		$payload = [
-			'id_tahun_tabel'                => $id_tahun_tabel,
-			'no_tabel'                      => $tabel->no_tabel,
-			'judul_ind'                     => $tabel->judul_ind,
-			'judul_en'                      => $tabel->judul_en,
-			'id_unitkerja'                  => $tabel->id_unitkerja,
-			'id_karakteristik_kelompok'     => !empty($id_karakteristik) ? $id_karakteristik : null,
-			'id_sub_karakteristik_kelompok' => null,
-			'id_baris_kelompok'             => $id_baris,
-			'id_periode_kelompok'           => !empty($id_periode) ? $id_periode : null,
-			'posisi_hirarki'                => $posisi_hirarki,
-			'tingkat_kolom'                 => $tingkat_kolom,
-			'satuan'                        => null,
-			'desimal'                       => 0,
-			'grafik_default'                => 'bar',
-			'sumber'                        => $finalSumber,
-			'catatan'                       => $finalCatatan,
-			'updated_at'                    => $now,
+			'id_tahun_tabel'            => $id_tahun_tabel,
+			'no_tabel'                  => $tabel->no_tabel,
+			'judul_ind'                 => $tabel->judul_ind,
+			'judul_en'                  => $tabel->judul_en,
+			'id_unitkerja'              => $tabel->id_unitkerja,
+			'id_karakteristik_kelompok' => !empty($id_karakteristik) ? $id_karakteristik : null,
+			'id_baris_kelompok'         => $id_baris,
+			'id_periode_kelompok'       => !empty($id_periode) ? $id_periode : null,
+			'posisi_hirarki'            => $posisi_hirarki,
+			'tingkat_kolom'             => $tingkat_kolom,
+			'konfigurasi_total'         => $konfigurasi_total,
+			'label_total_kustom'        => $label_total_kustom,
+			'satuan'                    => null,
+			'desimal'                   => 0,
+			'catatan'                   => $finalCatatan,
+			'updated_at'                => $now,
 		];
 
 		if ($existing) {
