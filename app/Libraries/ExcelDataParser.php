@@ -205,7 +205,8 @@ class ExcelDataParser
 
             $hasKolom    = !empty($flatKolom);
             $hasPeriode  = !empty($itemsPeriode);
-            $colIdx      = ($posisi_hirarki === 'periode_baris') ? 3 : 2; // Mulai C jika periode_baris, atau B jika kolom biasa
+            $hasBaris    = !empty($itemsBaris);
+            $colIdx      = ($posisi_hirarki === 'periode_baris' && $hasBaris) ? 3 : 2; // Mulai C jika periode_baris (dengan baris), atau B jika kolom biasa
 
             // Hitung level maksimum pada seluruh kelompok baris
             $maxBarisGroupLevel = 0;
@@ -337,6 +338,17 @@ class ExcelDataParser
                         }
                     }
                 }
+            } elseif (!$hasBaris && $hasKolom && $hasPeriode) {
+                // Kasus Runtun Waktu Makro (Tanpa Baris Wilayah): Periode sebagai baris, Kolom sebagai header
+                foreach ($flatKolom as $ch) {
+                    $colLetter = Coordinate::stringFromColumnIndex($colIdx);
+                    $leafColumns[] = [
+                        'excel_col'  => $colLetter,
+                        'item_id'    => (int)$ch->id,
+                        'periode_id' => 0,
+                    ];
+                    $colIdx++;
+                }
             } elseif (!$hasKolom && $hasPeriode) {
                 foreach ($itemsPeriode as $p) {
                     $colLetter = Coordinate::stringFromColumnIndex($colIdx);
@@ -385,7 +397,21 @@ class ExcelDataParser
                 }
             }
 
-            if ($posisi_hirarki !== 'periode_baris') {
+            if (!$hasBaris && $hasKolom && $hasPeriode) {
+                // Kasus Runtun Waktu Makro: Baris data berasal dari periodeItems
+                $startR = (int)($metaPayload['data_start_row'] ?? 7);
+                $currR  = $startR;
+                foreach ($itemsPeriode as $p) {
+                    $rowItems[] = [
+                        'excel_row'  => $currR,
+                        'id_baris'   => 0,
+                        'id_periode' => (int)$p->id,
+                        'tipe'       => 'data',
+                        'nama'       => $p->nama_periode_ind ?? '',
+                    ];
+                    $currR++;
+                }
+            } elseif ($posisi_hirarki !== 'periode_baris') {
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {
@@ -436,7 +462,7 @@ class ExcelDataParser
 
         foreach ($rowItems as $rItem) {
             $excelRow = (int)$rItem['excel_row'];
-            $idBaris  = (int)$rItem['id_baris'];
+            $idBaris  = (int)($rItem['id_baris'] ?? ($rItem['item_id'] ?? 0));
             $tipe     = $rItem['tipe'] ?? 'data';
 
             // Lewati baris bertipe 'kategori' karena merupakan judul kelompok tanpa nilai data
@@ -447,8 +473,8 @@ class ExcelDataParser
 
             foreach ($leafColumns as $colItem) {
                 $colLetter       = $colItem['excel_col'];
-                $idKarakteristik = (int)$colItem['item_id'];
-                $idPeriode       = (int)($rItem['id_periode'] ?? ($colItem['periode_id'] ?? 0));
+                $idKarakteristik = (int)($colItem['item_id'] ?? 0);
+                $idPeriode       = (int)($rItem['id_periode'] ?? ($rItem['periode_id'] ?? ($colItem['periode_id'] ?? 0)));
 
                 $cellCoord = "{$colLetter}{$excelRow}";
                 $cell = $dataSheet->getCell($cellCoord);

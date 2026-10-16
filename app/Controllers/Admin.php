@@ -4422,10 +4422,16 @@ class Admin extends BaseController
 		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
 			$label_total_kustom = null;
 		}
+		$format_nomor_baris   = trim((string)$this->request->getPost('format_nomor_baris'));
+		if (!in_array($format_nomor_baris, ['auto', 'none', 'reset_kategori'], true)) {
+			$format_nomor_baris = 'auto';
+		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
-		if (empty($id_tahun_tabel) || empty($id_baris) || (empty($id_karakteristik) && empty($id_periode))) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal! Mohon pilih Judul Baris dan setidaknya salah satu antara Karakteristik Kolom atau Periode Waktu.</div>");
+		$selectedDimCount = (!empty($id_baris) ? 1 : 0) + (!empty($id_karakteristik) ? 1 : 0) + (!empty($id_periode) ? 1 : 0);
+
+		if (empty($id_tahun_tabel) || $selectedDimCount < 2) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal! Mohon pilih minimal 2 dimensi (antara Judul Baris, Karakteristik Kolom, atau Periode Waktu) untuk merakit matriks tabel dinamis.</div>");
 			return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
 		}
 
@@ -4452,7 +4458,7 @@ class Admin extends BaseController
 				->countAllResults();
 			if ($total_nilai > 0) {
 				// Paksa menggunakan dimensi existing agar integritas koordinat tetap terjaga
-				$id_baris         = (int)$existing->id_baris_kelompok;
+				$id_baris         = !empty($existing->id_baris_kelompok) ? (int)$existing->id_baris_kelompok : 0;
 				$id_karakteristik = (int)($existing->id_karakteristik_kelompok ?: 0);
 				$id_periode       = (int)($existing->id_periode_kelompok ?: 0);
 			}
@@ -4472,12 +4478,13 @@ class Admin extends BaseController
 			'judul_en'                  => $tabel->judul_en,
 			'id_unitkerja'              => $tabel->id_unitkerja,
 			'id_karakteristik_kelompok' => !empty($id_karakteristik) ? $id_karakteristik : null,
-			'id_baris_kelompok'         => $id_baris,
+			'id_baris_kelompok'         => !empty($id_baris) ? $id_baris : null,
 			'id_periode_kelompok'       => !empty($id_periode) ? $id_periode : null,
 			'posisi_hirarki'            => $posisi_hirarki,
 			'tingkat_kolom'             => $tingkat_kolom,
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
+			'format_nomor_baris'        => $format_nomor_baris,
 			'satuan'                    => null,
 			'desimal'                   => 0,
 			'catatan'                   => $finalCatatan,

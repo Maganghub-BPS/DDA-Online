@@ -79,8 +79,15 @@ class ExcelTemplateGenerator
         $kelompokPeriode = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeKelompok($id_periode) : null;
         $itemsPeriode   = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeItems($id_periode) : [];
 
-        if (empty($itemsBaris) || (empty($itemsKolom) && empty($itemsPeriode))) {
-            throw new \Exception("Konfigurasi dimensi kolom/periode atau baris belum memiliki item master.");
+        $dimCount = (!empty($itemsBaris) ? 1 : 0) + (!empty($itemsKolom) ? 1 : 0) + (!empty($itemsPeriode) ? 1 : 0);
+        if ($dimCount < 2) {
+            throw new \Exception("Konfigurasi dimensi tabel harus memiliki minimal 2 dimensi yang aktif.");
+        }
+
+        // Jika tabel tidak memiliki dimensi baris (misal runtun waktu makro),
+        // posisi hirarki otomatis 'kolom_atas' (karena periode adalah sumbu baris vertikal di Kolom A)
+        if (empty($itemsBaris)) {
+            $posisi_hirarki = 'kolom_atas';
         }
 
         // 4. Inisialisasi Spreadsheet
@@ -99,30 +106,35 @@ class ExcelTemplateGenerator
         $sheet->setTitle('Data');
         $sheet->setShowGridLines(true);
 
+        // Judul Periode Kolom Kedua (Jika Periode Baris Aktif atau sebagai sumbu baris)
+        $titlePeriodeInd = !empty($kelompokPeriode->judul_periode_ind) ? $kelompokPeriode->judul_periode_ind : ($kelompokPeriode->nama_kelompok_ind ?? 'Tahun');
+        $titlePeriodeEn  = !empty($kelompokPeriode->judul_periode_en) ? $kelompokPeriode->judul_periode_en : ($kelompokPeriode->nama_kelompok_en ?? 'Year');
+
         // Judul Baris Kolom Pertama
-        $titleBarisInd = !empty($kelompokBaris->judul_baris_ind) ? $kelompokBaris->judul_baris_ind : ($kelompokBaris->nama_kelompok_ind ?? 'Kabupaten/Kota');
-        $titleBarisInd = preg_replace('/^\d+\s+/', '', $titleBarisInd); // Bersihkan prefix angka
-        $titleBarisEn  = !empty($kelompokBaris->judul_baris_en) ? $kelompokBaris->judul_baris_en : ($kelompokBaris->nama_kelompok_en ?? '');
-        if (empty($titleBarisEn) || strtolower($titleBarisEn) === strtolower($titleBarisInd)) {
-            $lower = strtolower($titleBarisInd);
-            if (strpos($lower, 'kabupaten') !== false && strpos($lower, 'kota') !== false) {
-                $titleBarisEn = 'Regency/Municipality';
-            } elseif (strpos($lower, 'kabupaten') !== false) {
-                $titleBarisEn = 'Regency';
-            } elseif (strpos($lower, 'kota') !== false) {
-                $titleBarisEn = 'Municipality';
-            } elseif (strpos($lower, 'kecamatan') !== false) {
-                $titleBarisEn = 'District';
-            } elseif (strpos($lower, 'desa') !== false || strpos($lower, 'kelurahan') !== false) {
-                $titleBarisEn = 'Village';
-            } else {
-                $titleBarisEn = 'Detail / Region';
+        if (empty($itemsBaris)) {
+            $titleBarisInd = $titlePeriodeInd;
+            $titleBarisEn  = $titlePeriodeEn;
+        } else {
+            $titleBarisInd = !empty($kelompokBaris->judul_baris_ind) ? $kelompokBaris->judul_baris_ind : ($kelompokBaris->nama_kelompok_ind ?? 'Kabupaten/Kota');
+            $titleBarisInd = preg_replace('/^\d+\s+/', '', $titleBarisInd); // Bersihkan prefix angka
+            $titleBarisEn  = !empty($kelompokBaris->judul_baris_en) ? $kelompokBaris->judul_baris_en : ($kelompokBaris->nama_kelompok_en ?? '');
+            if (empty($titleBarisEn) || strtolower($titleBarisEn) === strtolower($titleBarisInd)) {
+                $lower = strtolower($titleBarisInd);
+                if (strpos($lower, 'kabupaten') !== false && strpos($lower, 'kota') !== false) {
+                    $titleBarisEn = 'Regency/Municipality';
+                } elseif (strpos($lower, 'kabupaten') !== false) {
+                    $titleBarisEn = 'Regency';
+                } elseif (strpos($lower, 'kota') !== false) {
+                    $titleBarisEn = 'Municipality';
+                } elseif (strpos($lower, 'kecamatan') !== false) {
+                    $titleBarisEn = 'District';
+                } elseif (strpos($lower, 'desa') !== false || strpos($lower, 'kelurahan') !== false) {
+                    $titleBarisEn = 'Village';
+                } else {
+                    $titleBarisEn = 'Detail / Region';
+                }
             }
         }
-
-        // Judul Periode Kolom Kedua (Jika Periode Baris Aktif)
-        $titlePeriodeInd = !empty($kelompokPeriode->judul_periode_ind) ? $kelompokPeriode->judul_periode_ind : 'Tahun';
-        $titlePeriodeEn  = !empty($kelompokPeriode->judul_periode_en) ? $kelompokPeriode->judul_periode_en : 'Year';
 
         // =====================================================================
         // =====================================================================
@@ -218,11 +230,26 @@ class ExcelTemplateGenerator
 
         $hasKolom    = !empty($flatKolom);
         $hasPeriode  = !empty($itemsPeriode);
+        $hasBaris    = !empty($itemsBaris);
 
         // Susun daftar kolom leaf (kolom paling bawah yang menampung sel angka)
         $leafColumns = [];
 
-        if (!$hasKolom && $hasPeriode) {
+        if (!$hasBaris && $hasKolom && $hasPeriode) {
+            // TABEL RUNTUN WAKTU MAKRO: Periode sebagai sumbu baris vertikal, Karakteristik sebagai kolom
+            foreach ($flatKolom as $child) {
+                $leafColumns[] = [
+                    'group_title_ind' => $child->grup_induk_ind ?? ($child->group_title_ind ?? null),
+                    'group_title_en'  => $child->grup_induk_en ?? ($child->group_title_en ?? null),
+                    'item_id'         => (int)$child->id,
+                    'item_ind'        => $child->item_ind,
+                    'item_en'         => $child->item_en ?? '',
+                    'periode_id'      => 0,
+                    'periode_ind'     => '',
+                    'periode_en'      => '',
+                ];
+            }
+        } elseif (!$hasKolom && $hasPeriode) {
             // HANYA PERIODE
             foreach ($itemsPeriode as $p) {
                 $leafColumns[] = [
@@ -836,7 +863,43 @@ class ExcelTemplateGenerator
             return false;
         };
 
-        foreach ($itemsBaris as $bIdx => $baris) {
+        if (!$hasBaris && $hasKolom && $hasPeriode) {
+            // TABEL RUNTUN WAKTU MAKRO (TANPA BARIS): RENDER ITEM PERIODE SEBAGAI BARIS
+            foreach ($itemsPeriode as $p) {
+                $rowItemsMeta[] = [
+                    'excel_row'  => $curRow,
+                    'id_baris'   => 0,
+                    'id_periode' => (int)$p->id,
+                    'tipe'       => 'data',
+                    'nama'       => $p->nama_periode_ind,
+                ];
+
+                // Tulis Kolom A (Label Periode/Tahun)
+                $sheet->setCellValue("A{$curRow}", $p->nama_periode_ind);
+                $sheet->getStyle("A{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
+
+                // Styling baris data
+                $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
+                    'font' => ['size' => 9.5, 'name' => 'Arial'],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color'       => ['rgb' => 'E2E8F0']
+                        ]
+                    ]
+                ]);
+
+                for ($c = 2; $c <= $lastColIndex; $c++) {
+                    $cLetter = Coordinate::stringFromColumnIndex($c);
+                    $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
+                    $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
+                }
+
+                $curRow++;
+            }
+        } else {
+            foreach ($itemsBaris as $bIdx => $baris) {
             $tipeBaris = strtolower(trim($baris->tipe_baris ?? ''));
             $namaBaris = $baris->nama_baris_ind ?? ($baris->item_ind ?? '');
             $lowerBaris = strtolower(trim($namaBaris));
@@ -877,8 +940,9 @@ class ExcelTemplateGenerator
                 }
             }
 
+            $totalTingkatBaris = $maxBarisGroupLevel + 1;
             $level     = (int)($baris->level_indentasi ?? 0);
-            $isBold    = ((int)($baris->is_bold ?? 0) === 1 || $tipeBaris === 'total' || $tipeBaris === 'kategori');
+            $isBold    = ((int)($baris->is_bold ?? 0) === 1 || $tipeBaris === 'total' || $tipeBaris === 'subtotal' || $tipeBaris === 'kategori' || ($totalTingkatBaris >= 2 && $level === 0));
 
             if ($posisi_hirarki === 'periode_baris') {
                 if ($tipeBaris === 'kategori') {
@@ -961,6 +1025,34 @@ class ExcelTemplateGenerator
                                 $cLetter = Coordinate::stringFromColumnIndex($c);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
+                            }
+                        } elseif ($tipeBaris === 'subtotal') {
+                            $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
+                                'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
+                                'fill' => [
+                                    'fillType'   => Fill::FILL_SOLID,
+                                    'startColor' => ['rgb' => 'FFF3E8']
+                                ],
+                                'borders' => [
+                                    'top' => [
+                                        'borderStyle' => Border::BORDER_THIN,
+                                        'color'       => ['rgb' => 'FED7AA']
+                                    ],
+                                    'bottom' => [
+                                        'borderStyle' => Border::BORDER_THIN,
+                                        'color'       => ['rgb' => 'FED7AA']
+                                    ],
+                                    'inside' => [
+                                        'borderStyle' => Border::BORDER_THIN,
+                                        'color'       => ['rgb' => 'FED7AA']
+                                    ]
+                                ]
+                            ]);
+                            for ($c = 3; $c <= $lastColIndex; $c++) {
+                                $cLetter = Coordinate::stringFromColumnIndex($c);
+                                $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
+                                $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
+                                $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true);
                             }
                         } else {
                             $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
@@ -1047,6 +1139,40 @@ class ExcelTemplateGenerator
                         $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()
                             ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     }
+                } elseif ($tipeBaris === 'subtotal') {
+                    // Baris Subtotal BPS: Peach Lembut (#FFF3E8), Font Bold, Border Halus (#FED7AA)
+                    $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
+                        'fill' => [
+                            'fillType'   => Fill::FILL_SOLID,
+                            'startColor' => ['rgb' => 'FFF3E8']
+                        ],
+                        'borders' => [
+                            'top' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color'       => ['rgb' => 'FED7AA']
+                            ],
+                            'bottom' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color'       => ['rgb' => 'FED7AA']
+                            ],
+                            'inside' => [
+                                'borderStyle' => Border::BORDER_THIN,
+                                'color'       => ['rgb' => 'FED7AA']
+                            ]
+                        ]
+                    ]);
+
+                    // Sel data subtotal: Format angka & alignment & bold
+                    for ($c = 2; $c <= $lastColIndex; $c++) {
+                        $cLetter = Coordinate::stringFromColumnIndex($c);
+                        $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()
+                            ->setFormatCode($numFormat);
+                        $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()
+                            ->setHorizontal(Alignment::HORIZONTAL_RIGHT)
+                            ->setVertical(Alignment::VERTICAL_CENTER);
+                        $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true);
+                    }
                 } else {
                     // Baris Data Normal: Putih, Garis Halus
                     $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
@@ -1073,6 +1199,7 @@ class ExcelTemplateGenerator
                 $curRow++;
             }
         }
+    }
 
         $dataEndRow = $curRow - 1;
 
@@ -1194,7 +1321,7 @@ class ExcelTemplateGenerator
             'tingkat_kolom'  => $tingkat_kolom,
             'data_start_row' => $dataStartRow,
             'data_end_row'   => $dataEndRow,
-            'total_rows'     => count($itemsBaris),
+            'total_rows'     => !empty($itemsBaris) ? count($itemsBaris) : count($itemsPeriode),
             'total_cols'     => $totalLeafCols,
             'leaf_columns'   => $leafColumnsMeta,
             'row_items'      => $rowItemsMeta,

@@ -16,6 +16,7 @@ $sel_posisi_hirarki = $indikator->posisi_hirarki ?? 'kolom_atas';
 $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
 $sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
 $sel_label_total_kustom = $indikator->label_total_kustom ?? '';
+$sel_format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
 $sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
 ?>
@@ -209,10 +210,11 @@ $catatan_val = $indikator->catatan ?? '';
         text-align: center !important;
     }
     .row-subtotal td {
-        background-color: #fffbeb !important;
+        background-color: #fff3e8 !important;
         font-weight: 700 !important;
-        color: #92400e !important;
-        border-top: 1.5px solid #f59e0b !important;
+        color: #1e293b !important;
+        border-top: 1px solid #fed7aa !important;
+        border-bottom: 1px solid #fed7aa !important;
     }
     .row-total td {
         background-color: #fffbeb !important;
@@ -700,15 +702,15 @@ $catatan_val = $indikator->catatan ?? '';
                     <div class="col-lg-4 col-md-12">
                         <label class="form-label text-xs fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
                             <span>
-                                <i class="bi bi-list-nested text-primary me-1"></i> Judul Baris <span class="text-danger">*</span>
+                                <i class="bi bi-list-nested text-primary me-1"></i> Judul Baris <span class="text-muted text-xxs fw-normal">(Opsional)</span>
                                 <?php if ($is_locked): ?>
                                     <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Dimensi terkunci"></i>
                                 <?php endif; ?>
                             </span>
                             <span class="badge bg-light text-secondary border text-xxs fw-normal"><?= count($list_baris); ?> Master</span>
                         </label>
-                        <select name="id_baris_kelompok" id="select_baris" class="form-select form-select-sm" required <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Judul Baris...">
-                            <option value="">-- Pilih Judul Baris --</option>
+                        <select name="id_baris_kelompok" id="select_baris" class="form-select form-select-sm" <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Judul Baris...">
+                            <option value="">-- Tanpa Dimensi Baris (Opsional) --</option>
                             <?php foreach ($list_baris as $b): ?>
                                 <option value="<?= $b->id; ?>" <?= ($sel_baris == $b->id) ? 'selected' : ''; ?>
                                     data-judul-ind="<?= esc($b->judul_baris_ind ?? $b->nama_kelompok_ind); ?>"
@@ -893,6 +895,28 @@ $catatan_val = $indikator->catatan ?? '';
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Divider halus vertikal -->
+                        <div class="toolbar-divider d-none d-md-block"></div>
+
+                        <!-- 4. Penomoran Baris (Segmented Button Group) -->
+                        <div id="box_format_nomor_baris" class="toolbar-setting-item" title="Atur penomoran baris pada tabel: Otomatis 1..N, Tanpa Nomor (seperti Komoditas), atau Reset per Kategori (Kabupaten 1..29, Kota 1..6)">
+                            <span class="toolbar-setting-label">
+                                <i class="bi bi-list-ol text-primary me-1"></i> Penomoran:
+                            </span>
+                            <div class="posisi-segmented-group" id="group_format_nomor_baris">
+                                <button type="button" class="btn-segmented <?= ($sel_format_nomor_baris === 'auto') ? 'active' : ''; ?>" data-val="auto" id="btn_nomor_auto" title="Nomor Urut Berurutan (1, 2, 3...)">
+                                    <i class="bi bi-sort-numeric-down me-1"></i> 1..N
+                                </button>
+                                <button type="button" class="btn-segmented <?= ($sel_format_nomor_baris === 'none') ? 'active' : ''; ?>" data-val="none" id="btn_nomor_none" title="Tanpa Nomor Urut (Hilangkan Kolom No.)">
+                                    <i class="bi bi-slash-circle me-1"></i> Tanpa No.
+                                </button>
+                                <button type="button" class="btn-segmented <?= ($sel_format_nomor_baris === 'reset_kategori') ? 'active' : ''; ?>" data-val="reset_kategori" id="btn_nomor_reset" title="Nomor Urut Reset per Kategori (Kabupaten 1..29, Kota 1..6)">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Reset Kategori
+                                </button>
+                            </div>
+                            <input type="hidden" name="format_nomor_baris" id="input_format_nomor_baris" value="<?= esc($sel_format_nomor_baris); ?>">
                         </div>
                     </div>
                 </div>
@@ -1145,12 +1169,25 @@ $(document).ready(function() {
     });
 
     // Handler switch hirarki segmented buttons: Kolom di Atas vs Periode di Atas
-    $(document).on('click', '.btn-segmented', function(e) {
+    $('#group_posisi_hirarki .btn-segmented').on('click', function(e) {
         e.preventDefault();
         if ($('#group_posisi_hirarki').hasClass('disabled')) return;
         const val = $(this).data('val');
         $('#input_posisi_hirarki').val(val);
-        $('.btn-segmented').removeClass('active');
+        $('#group_posisi_hirarki .btn-segmented').removeClass('active');
+        $(this).addClass('active');
+
+        if (currentData) {
+            renderMatrix(currentData);
+        }
+    });
+
+    // Handler switch format penomoran baris segmented buttons: 1..N vs Tanpa No vs Reset Kategori
+    $('#group_format_nomor_baris .btn-segmented').on('click', function(e) {
+        e.preventDefault();
+        const val = $(this).data('val');
+        $('#input_format_nomor_baris').val(val);
+        $('#group_format_nomor_baris .btn-segmented').removeClass('active');
         $(this).addClass('active');
 
         if (currentData) {
@@ -1229,35 +1266,30 @@ $(document).ready(function() {
         }
     });
 
-    // Validasi submit formulir: Judul Baris wajib, dan salah satu atau keduanya (Kolom / Periode) wajib diisi
+    // Validasi submit formulir: Minimal memilih 2 dari 3 dimensi (Baris, Kolom, Periode)
     $('#formGenerator').on('submit', function(e) {
-        const idBar = $('#select_baris').val();
-        const idKar = $('#select_karakteristik').val();
-        const idPer = $('#select_periode').val();
+        const idBar = $('#select_baris').val() || 0;
+        const idKar = $('#select_karakteristik').val() || 0;
+        const idPer = $('#select_periode').val() || 0;
 
-        if (!idBar) {
+        const count = (parseInt(idBar) > 0 ? 1 : 0) + (parseInt(idKar) > 0 ? 1 : 0) + (parseInt(idPer) > 0 ? 1 : 0);
+
+        if (count < 2) {
             e.preventDefault();
             Swal.fire({
                 icon: 'warning',
-                title: 'Judul Baris Belum Dipilih',
-                text: 'Silakan pilih Judul Baris terlebih dahulu.'
-            });
-            return false;
-        }
-
-        if (!idKar && !idPer) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'warning',
-                title: 'Dimensi Kolom Belum Dipilih',
-                text: 'Silakan pilih setidaknya salah satu antara Karakteristik Kolom atau Periode Waktu.'
+                title: 'Dimensi Belum Cukup',
+                text: 'Mohon pilih minimal 2 dimensi (antara Judul Baris, Karakteristik Kolom, atau Periode Waktu) untuk merakit tabel dinamis.'
             });
             return false;
         }
     });
 
-    // Panggil langsung saat pertama kali buka jika sudah ada konfigurasi minimal
-    if ($('#select_baris').val() && ($('#select_karakteristik').val() || $('#select_periode').val())) {
+    // Panggil langsung saat pertama kali buka jika sudah ada konfigurasi minimal (>= 2 dimensi)
+    const initDimCount = (parseInt($('#select_baris').val() || 0) > 0 ? 1 : 0) +
+                         (parseInt($('#select_karakteristik').val() || 0) > 0 ? 1 : 0) +
+                         (parseInt($('#select_periode').val() || 0) > 0 ? 1 : 0);
+    if (initDimCount >= 2) {
         fetchDimensiData();
     }
 
@@ -1265,8 +1297,9 @@ $(document).ready(function() {
      * Memperbarui status interaktif switch hirarki & checkbox tingkat kolom
      */
     function updateHirarkiSwitchState() {
-        const hasKolom = $('#select_karakteristik').val() && $('#select_karakteristik').val() !== '';
-        const hasPeriode = $('#select_periode').val() && $('#select_periode').val() !== '';
+        const hasBaris   = parseInt($('#select_baris').val() || 0) > 0;
+        const hasKolom   = parseInt($('#select_karakteristik').val() || 0) > 0;
+        const hasPeriode = parseInt($('#select_periode').val() || 0) > 0;
 
         // Status box_tingkat_kolom
         if (hasKolom) {
@@ -1277,7 +1310,8 @@ $(document).ready(function() {
             $('#box_tingkat_kolom').css({'opacity': '0.45', 'pointer-events': 'none'});
         }
 
-        if (hasKolom && hasPeriode) {
+        // Posisi Hirarki hanya relevan jika ada 3 dimensi lengkap (Baris + Kolom + Periode)
+        if (hasBaris && hasKolom && hasPeriode) {
             $('#group_posisi_hirarki').removeClass('disabled').css({'opacity': '1', 'pointer-events': 'auto'});
             const pos = $('#input_posisi_hirarki').val() || 'kolom_atas';
             $('.btn-segmented').removeClass('active');
@@ -1311,8 +1345,9 @@ $(document).ready(function() {
         const idPer = $('#select_periode').val() || 0;
         const tingKol = $('#input_tingkat_kolom').val() || 'semua';
 
-        // Wajib Judul Baris dan salah satu atau keduanya (Karakteristik Kolom atau Periode Waktu)
-        if (!idBar || (!idKar && !idPer)) {
+        // Wajib memilih minimal 2 dari 3 dimensi
+        const count = (parseInt(idBar) > 0 ? 1 : 0) + (parseInt(idKar) > 0 ? 1 : 0) + (parseInt(idPer) > 0 ? 1 : 0);
+        if (count < 2) {
             $('#preview_empty').removeClass('d-none');
             $('#preview_content').addClass('d-none');
             $('#preview_loading').addClass('d-none');
@@ -1502,25 +1537,43 @@ $(document).ready(function() {
             return false;
         }
 
-        // Hitung statistik sel data (hanya menghitung baris leaf / data ril)
+        const hasBaris = (barisItems && barisItems.length > 0);
+
+        let maxBarisLevel = 0;
+        barisItems.forEach(function(b) {
+            let lvl = parseInt(b.level_indentasi) || 0;
+            if (lvl > maxBarisLevel) maxBarisLevel = lvl;
+        });
+        const totalTingkatBaris = maxBarisLevel + 1;
+        const formatNomorBaris = $('#input_format_nomor_baris').val() || 'auto';
+
+        // Hitung statistik sel data
         let totalLeafCols = 0;
-        if (hasKolom && hasPeriode) {
-            totalLeafCols = isPeriodeBaris ? flatKolom.length : (flatKolom.length * periodeItems.length);
-        } else if (hasKolom) {
+        let displayRowCount = 0;
+        let totalCells = 0;
+
+        if (!hasBaris && hasKolom && hasPeriode) {
+            // Kasus Tanpa Dimensi Baris (Runtun Waktu): Kolom adalah flatKolom, Baris adalah periodeItems
             totalLeafCols = flatKolom.length;
-        } else if (hasPeriode) {
-            totalLeafCols = periodeItems.length;
+            displayRowCount = periodeItems.length;
+            totalCells = totalLeafCols * displayRowCount;
+        } else {
+            if (hasKolom && hasPeriode) {
+                totalLeafCols = isPeriodeBaris ? flatKolom.length : (flatKolom.length * periodeItems.length);
+            } else if (hasKolom) {
+                totalLeafCols = flatKolom.length;
+            } else if (hasPeriode) {
+                totalLeafCols = periodeItems.length;
+            }
+
+            const leafDataRows = barisItems.filter((b, idx) => !isParentBaris(idx, barisItems));
+            const parentRowsCount = barisItems.length - leafDataRows.length;
+            displayRowCount = isPeriodeBaris 
+                ? (parentRowsCount + leafDataRows.length * (periodeItems.length || 1)) 
+                : barisItems.length;
+            totalCells = totalLeafCols * leafDataRows.length;
         }
 
-        const leafDataRows = barisItems.filter((b, idx) => !isParentBaris(idx, barisItems));
-        const parentRowsCount = barisItems.length - leafDataRows.length;
-        const totalRowsRendered = isPeriodeBaris 
-            ? (parentRowsCount + leafDataRows.length * (periodeItems.length || 1)) 
-            : barisItems.length;
-        const totalCells = totalLeafCols * (leafDataRows.length * (isPeriodeBaris ? 1 : 1));
-        const displayRowCount = isPeriodeBaris 
-            ? (parentRowsCount + leafDataRows.length * (periodeItems.length || 1)) 
-            : barisItems.length;
         $('#stat_total_cells').text(displayRowCount + ' Baris × ' + totalLeafCols + ' Kolom (' + totalCells + ' Sel)');
 
         // =====================================================================
@@ -1530,7 +1583,9 @@ $(document).ready(function() {
 
         // Tentukan jumlah baris header
         let totalHeaderRows = 1;
-        if (hasKolom && hasPeriode) {
+        if (!hasBaris && hasKolom && hasPeriode) {
+            totalHeaderRows = activeLevels.length;
+        } else if (hasKolom && hasPeriode) {
             totalHeaderRows = isPeriodeBaris ? activeLevels.length : (activeLevels.length + 1);
         } else if (hasKolom) {
             totalHeaderRows = activeLevels.length;
@@ -1783,9 +1838,33 @@ $(document).ready(function() {
         }
 
         // -------------------------------------------------------------
+        // KASUS 0: Tanpa Dimensi Baris (Hanya Karakteristik Kolom & Periode Waktu)
+        // -------------------------------------------------------------
+        if (!hasBaris && hasKolom && hasPeriode) {
+            theadHtml += '<tr>';
+            theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-center" style="vertical-align: middle;">';
+            theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
+            if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
+            }
+            theadHtml += '</th>';
+
+            // Baris 1: Tingkat Kolom Pertama
+            theadHtml += getLevelCells(activeLevels[0], 1);
+            theadHtml += '</tr>';
+
+            // Baris berikutnya jika ada tingkat lain
+            for (let idx = 1; idx < activeLevels.length; idx++) {
+                theadHtml += '<tr>';
+                theadHtml += getLevelCells(activeLevels[idx], 1);
+                theadHtml += '</tr>';
+            }
+        }
+
+        // -------------------------------------------------------------
         // KASUS 1: Hanya Periode Waktu (Tanpa Karakteristik Kolom)
         // -------------------------------------------------------------
-        if (!hasKolom && hasPeriode) {
+        else if (!hasKolom && hasPeriode) {
             theadHtml += '<tr>';
             theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-start">';
             theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
@@ -1941,8 +2020,25 @@ $(document).ready(function() {
         const placeholderSimbol = '–'; // Tanda strip standar BPS (data tidak ada)
 
         if (barisItems.length === 0) {
-            const emptyColspan = (isPeriodeBaris ? 2 : 1) + totalLeafCols;
-            tbodyHtml = '<tr><td colspan="' + emptyColspan + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';
+            if (!hasBaris && hasKolom && hasPeriode) {
+                // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (RUNTUN WAKTU MAKRO / PROVINSI)
+                periodeItems.forEach(function(p) {
+                    tbodyHtml += '<tr class="row-data">';
+                    tbodyHtml += '<td class="td-freeze-col text-center fw-semibold text-dark" style="vertical-align: middle; font-size: 0.85rem;">';
+                    tbodyHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
+                    if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
+                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(p.nama_periode_en) + '</span>';
+                    }
+                    tbodyHtml += '</td>';
+                    for (let i = 0; i < totalLeafCols; i++) {
+                        tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
+                    }
+                    tbodyHtml += '</tr>';
+                });
+            } else {
+                const emptyColspan = (isPeriodeBaris ? 2 : 1) + totalLeafCols;
+                tbodyHtml = '<tr><td colspan="' + emptyColspan + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';
+            }
         } else if (hasKolom && hasPeriode && isPeriodeBaris) {
             // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (NESTED PIVOT)
             barisItems.forEach(function(baris, bIdx) {
@@ -2036,6 +2132,9 @@ $(document).ready(function() {
                 }
             });
         } else {
+            let autoRowCounter = 0;
+            let catRowCounter = 0;
+
             barisItems.forEach(function(baris, bIdx) {
                 let tipe = (baris.tipe_baris || '').toLowerCase().trim();
                 let lowerNama = (baris.nama_baris_ind || '').toLowerCase().trim();
@@ -2051,6 +2150,14 @@ $(document).ready(function() {
                         if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan')) {
                             tipe = 'total';
                         }
+                    } else if (
+                        lowerNama.startsWith('jumlah ') || lowerNama.startsWith('total ') || 
+                        lowerNama.startsWith('subtotal') || lowerNama.startsWith('sub total') || 
+                        lowerNama.startsWith('sub-total') || lowerNama.startsWith('sub jumlah')
+                    ) {
+                        if (!lowerNama.includes('curah hujan') && !lowerNama.includes('hari hujan') && !/^jumlah\s+(curah|hari|penduduk|kasus|sekolah|guru|murid|jiwa|balita|kk|desa|kelurahan|sarana|penerima|armada|tindak|kejadian|korban|kelahiran|kematian|pasien|peserta|tenaga)/i.test(lowerNama)) {
+                            tipe = 'subtotal';
+                        }
                     }
                     if (!tipe) tipe = 'data';
                 }
@@ -2061,10 +2168,26 @@ $(document).ready(function() {
                 }
 
                 const isParent = isParentBaris(bIdx, barisItems);
+                if (isParent) {
+                    catRowCounter = 0; // Reset counter nomor urut per kategori
+                }
+
                 const level = parseInt(baris.level_indentasi) || 0;
                 let rowClass = isParent ? 'row-kategori' : ('row-' + tipe);
                 let indentClass = 'indent-level-' + Math.min(level, 2);
-                let isBold = (parseInt(baris.is_bold) === 1 || tipe === 'total' || isParent);
+
+                // Aturan Ketebalan Huruf (Bold):
+                // Jika baris memiliki 2 tingkat atau 3 tingkat, maka tingkat pertama (level 0) SELALU TEBAL
+                // terlepas dari apakah dia bertipe kategori atau data!
+                let isBold = false;
+                if (totalTingkatBaris >= 2 && level === 0) {
+                    isBold = true;
+                } else if (tipe === 'total' || tipe === 'subtotal' || isParent) {
+                    isBold = true;
+                } else if (parseInt(baris.is_bold) === 1) {
+                    isBold = true;
+                }
+
                 let textClass = isBold ? ' fw-bold text-dark' : ' text-dark';
 
                 // Tentukan nama tampilan (override jika baris total)
@@ -2080,6 +2203,29 @@ $(document).ready(function() {
                     } else if (konfigurasiTotal === 'kustom' && labelTotalKustom.trim() !== '') {
                         namaBarisInd = labelTotalKustom.trim();
                         namaBarisEn = labelTotalKustom.trim();
+                    }
+                }
+
+                // Penyesuaian Penomoran Baris
+                if (!isParent && tipe !== 'total' && tipe !== 'subtotal') {
+                    let cleanInd = namaBarisInd.replace(/^(\d+[\.\)]|[A-Za-z0-9]+[\.\)])\s*/u, '').trim();
+                    let cleanEn = namaBarisEn ? namaBarisEn.replace(/^(\d+[\.\)]|[A-Za-z0-9]+[\.\)])\s*/u, '').trim() : '';
+
+                    if (formatNomorBaris === 'none') {
+                        namaBarisInd = cleanInd;
+                        namaBarisEn = cleanEn;
+                    } else if (formatNomorBaris === 'reset_kategori') {
+                        catRowCounter++;
+                        namaBarisInd = catRowCounter + '. ' + cleanInd;
+                        namaBarisEn = cleanEn ? (catRowCounter + '. ' + cleanEn) : '';
+                    } else { // 'auto'
+                        autoRowCounter++;
+                        let match = namaBarisInd.match(/^(\d+)\.\s*(.+)$/u);
+                        if (match) {
+                            namaBarisInd = match[1] + '. ' + match[2];
+                        } else {
+                            namaBarisInd = autoRowCounter + '. ' + cleanInd;
+                        }
                     }
                 }
 
