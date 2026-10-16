@@ -1684,7 +1684,7 @@ $(document).ready(function() {
             });
         }
 
-        addItem(parentId = null, level = 0, ind = '', en = '', isTotal = null, tipe_baris = null) {
+        addItem(parentId = null, level = 0, ind = '', en = '', isTotal = null, tipe_baris = null, db_id = null) {
             const autoTotal = (this.type === 'baris') ? isBarisTotal(ind) : false;
             let role = tipe_baris;
             if (!role) {
@@ -1698,6 +1698,7 @@ $(document).ready(function() {
             }
             const item = {
                 id: 'node_' + (++this.idSeq),
+                db_id: db_id || null,
                 parentId: parentId,
                 level: level,
                 ind: ind,
@@ -1767,6 +1768,7 @@ $(document).ready(function() {
                 }
                 return {
                     id: it.id || ('node_' + (++self.idSeq)),
+                    db_id: it.db_id || null,
                     parentId: it.parentId !== undefined ? it.parentId : null,
                     level: parseInt(it.level, 10) || 0,
                     ind: it.ind || '',
@@ -1998,6 +2000,7 @@ $(document).ready(function() {
                 }
                 return {
                     id: it.id,
+                    db_id: it.db_id || null,
                     parentId: it.parentId,
                     level: it.level,
                     ind: it.ind,
@@ -2279,6 +2282,7 @@ $(document).ready(function() {
 
                         const childNode = {
                             id: 'node_' + (++idSeq),
+                            db_id: it.id,
                             parentId: parentId,
                             level: partsInd.length,
                             ind: it.item_ind,
@@ -2288,6 +2292,7 @@ $(document).ready(function() {
                     } else {
                         const standaloneNode = {
                             id: 'node_' + (++idSeq),
+                            db_id: it.id,
                             parentId: null,
                             level: 0,
                             ind: it.item_ind,
@@ -2562,6 +2567,7 @@ $(document).ready(function() {
                     const role = it.tipe_baris || (isTotal ? 'total' : 'data');
                     const node = {
                         id: 'node_' + (++idSeq),
+                        db_id: it.id,
                         parentId: parentId,
                         level: lvl,
                         ind: it.nama_baris_ind,
@@ -2714,6 +2720,7 @@ $(document).ready(function() {
                 res.items.forEach(function(item) {
                     treeItems.push({
                         id: 'node_' + (++idSeq),
+                        db_id: item.id,
                         parentId: null,
                         level: 0,
                         ind: item.nama_periode_ind,
