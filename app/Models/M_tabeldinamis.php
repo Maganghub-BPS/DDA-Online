@@ -18,7 +18,6 @@ class M_tabeldinamis extends Model
         'judul_en',
         'id_unitkerja',
         'id_karakteristik_kelompok',
-        'id_sub_karakteristik_kelompok',
         'id_baris_kelompok',
         'id_periode_kelompok',
         'posisi_hirarki',
@@ -27,7 +26,6 @@ class M_tabeldinamis extends Model
         'label_total_kustom',
         'satuan',
         'desimal',
-        'grafik_default',
         'sumber',
         'catatan',
         'created_at',
@@ -167,7 +165,6 @@ class M_tabeldinamis extends Model
 
             $insertData[] = [
                 'id_kelompok'    => $id_kelompok,
-                'parent_id'      => !empty($item['parent_id']) ? (int)$item['parent_id'] : null,
                 'grup_induk_ind' => $grup_induk_ind,
                 'grup_induk_en'  => $grup_induk_en,
                 'grup_sub_ind'   => $grup_sub_ind,
@@ -752,14 +749,6 @@ class M_tabeldinamis extends Model
         $indikator->kolom_items = $this->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
         $indikator->kolom_structure = $this->buildColumnStructure($indikator->kolom_items);
 
-        // Sub-Karakteristik jika ada
-        $indikator->sub_karakteristik_kelompok = null;
-        $indikator->sub_kolom_items = [];
-        if (!empty($indikator->id_sub_karakteristik_kelompok)) {
-            $indikator->sub_karakteristik_kelompok = $this->getKarakteristikKelompok((int)$indikator->id_sub_karakteristik_kelompok);
-            $indikator->sub_kolom_items = $this->getKarakteristikItems((int)$indikator->id_sub_karakteristik_kelompok);
-        }
-
         // 2. Dimensi Baris
         $indikator->baris_kelompok = $this->getBarisKelompok((int)$indikator->id_baris_kelompok);
         $indikator->baris_items = $this->getBarisItems((int)$indikator->id_baris_kelompok);
@@ -812,8 +801,7 @@ class M_tabeldinamis extends Model
 
         $lookup = [];
         foreach ($rows as $row) {
-            $subId = (int)($row->id_sub_karakteristik_item ?? 0);
-            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$subId}_{$row->id_periode_item}";
+            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$row->id_periode_item}";
             $lookup[$key] = [
                 'id'     => $row->id,
                 'nilai'  => $row->nilai !== null ? (float)$row->nilai : null,
@@ -841,17 +829,15 @@ class M_tabeldinamis extends Model
             foreach ($chunk as $c) {
                 $idBaris = (int)$c['id_baris_item'];
                 $idKarakteristik = (int)$c['id_karakteristik_item'];
-                $idSub = (int)($c['id_sub_karakteristik_item'] ?? 0);
                 $idPeriode = (int)$c['id_periode_item'];
 
                 $nilai = isset($c['nilai']) && $c['nilai'] !== '' && $c['nilai'] !== null ? (float)$c['nilai'] : null;
                 $simbol = !empty($c['simbol']) ? trim($c['simbol']) : null;
 
-                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?)";
                 $params[] = $id_indikator;
                 $params[] = $idBaris;
                 $params[] = $idKarakteristik;
-                $params[] = $idSub;
                 $params[] = $idPeriode;
                 $params[] = $nilai;
                 $params[] = $simbol;
@@ -860,7 +846,7 @@ class M_tabeldinamis extends Model
             }
 
             $sql = "INSERT INTO t_nilai_dinamis 
-                    (id_indikator, id_baris_item, id_karakteristik_item, id_sub_karakteristik_item, id_periode_item, nilai, simbol, created_at, updated_at)
+                    (id_indikator, id_baris_item, id_karakteristik_item, id_periode_item, nilai, simbol, created_at, updated_at)
                     VALUES " . implode(', ', $values) . "
                     ON DUPLICATE KEY UPDATE 
                         nilai = VALUES(nilai),

@@ -3837,10 +3837,7 @@ class Admin extends BaseController
 			if ($id > 0) {
 				// Cek integritas relasi: apakah dimensi ini sedang digunakan oleh tabel dinamis aktif?
 				$usedCount = $this->db->table('m_indikator_tabel')
-					->groupStart()
-						->where('id_karakteristik_kelompok', $id)
-						->orWhere('id_sub_karakteristik_kelompok', $id)
-					->groupEnd()
+					->where('id_karakteristik_kelompok', $id)
 					->countAllResults();
 
 				if ($usedCount > 0) {
@@ -4477,25 +4474,23 @@ class Admin extends BaseController
 
 		$now = date('Y-m-d H:i:s');
 		$payload = [
-			'id_tahun_tabel'                => $id_tahun_tabel,
-			'no_tabel'                      => $tabel->no_tabel,
-			'judul_ind'                     => $tabel->judul_ind,
-			'judul_en'                      => $tabel->judul_en,
-			'id_unitkerja'                  => $tabel->id_unitkerja,
-			'id_karakteristik_kelompok'     => !empty($id_karakteristik) ? $id_karakteristik : null,
-			'id_sub_karakteristik_kelompok' => null,
-			'id_baris_kelompok'             => $id_baris,
-			'id_periode_kelompok'           => !empty($id_periode) ? $id_periode : null,
-			'posisi_hirarki'                => $posisi_hirarki,
-			'tingkat_kolom'                 => $tingkat_kolom,
-			'konfigurasi_total'             => $konfigurasi_total,
-			'label_total_kustom'            => $label_total_kustom,
-			'satuan'                        => null,
-			'desimal'                       => 0,
-			'grafik_default'                => 'bar',
-			'sumber'                        => $finalSumber,
-			'catatan'                       => $finalCatatan,
-			'updated_at'                    => $now,
+			'id_tahun_tabel'            => $id_tahun_tabel,
+			'no_tabel'                  => $tabel->no_tabel,
+			'judul_ind'                 => $tabel->judul_ind,
+			'judul_en'                  => $tabel->judul_en,
+			'id_unitkerja'              => $tabel->id_unitkerja,
+			'id_karakteristik_kelompok' => !empty($id_karakteristik) ? $id_karakteristik : null,
+			'id_baris_kelompok'         => $id_baris,
+			'id_periode_kelompok'       => !empty($id_periode) ? $id_periode : null,
+			'posisi_hirarki'            => $posisi_hirarki,
+			'tingkat_kolom'             => $tingkat_kolom,
+			'konfigurasi_total'         => $konfigurasi_total,
+			'label_total_kustom'        => $label_total_kustom,
+			'satuan'                    => null,
+			'desimal'                   => 0,
+			'sumber'                    => $finalSumber,
+			'catatan'                   => $finalCatatan,
+			'updated_at'                => $now,
 		];
 
 		if ($existing) {

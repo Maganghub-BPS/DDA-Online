@@ -473,12 +473,11 @@ class ExcelDataParser
                 }
 
                 $cellsToUpsert[] = [
-                    'id_baris_item'             => $idBaris,
-                    'id_karakteristik_item'     => $idKarakteristik,
-                    'id_sub_karakteristik_item' => 0,
-                    'id_periode_item'           => $idPeriode,
-                    'nilai'                     => $sanitized['nilai'],
-                    'simbol'                    => $sanitized['simbol'],
+                    'id_baris_item'         => $idBaris,
+                    'id_karakteristik_item' => $idKarakteristik,
+                    'id_periode_item'       => $idPeriode,
+                    'nilai'                 => $sanitized['nilai'],
+                    'simbol'                => $sanitized['simbol'],
                 ];
             }
         }
