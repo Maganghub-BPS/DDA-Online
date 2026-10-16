@@ -113,7 +113,8 @@ $catatan_val = $indikator->catatan ?? '';
         background-color: #f8fafc !important;
     }
     .row-subtotal td.td-freeze-col {
-        background-color: #fffbeb !important;
+        background-color: #f9a066 !important;
+        color: #000000 !important;
     }
     .row-total td.td-freeze-col {
         background-color: #fef3c7 !important;
@@ -122,6 +123,9 @@ $catatan_val = $indikator->catatan ?? '';
     }
     .table-matrix tbody tr:hover td.td-freeze-col {
         background-color: #f1f5f9 !important;
+    }
+    .table-matrix tbody tr.row-subtotal:hover td.td-freeze-col {
+        background-color: #f9a066 !important;
     }
 
     /* Freeze / Sticky Kolom Kedua (Periode Waktu) saat Periode Baris Aktif */
@@ -146,7 +150,8 @@ $catatan_val = $indikator->catatan ?? '';
         box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
     }
     .row-subtotal td.td-freeze-col-2 {
-        background-color: #fffbeb !important;
+        background-color: #f9a066 !important;
+        color: #000000 !important;
     }
     .row-total td.td-freeze-col-2 {
         background-color: #fef3c7 !important;
@@ -155,6 +160,9 @@ $catatan_val = $indikator->catatan ?? '';
     }
     .table-matrix tbody tr:hover td.td-freeze-col-2 {
         background-color: #f1f5f9 !important;
+    }
+    .table-matrix tbody tr.row-subtotal:hover td.td-freeze-col-2 {
+        background-color: #f9a066 !important;
     }
 
     /* Kolom Data Minimal 135px agar Rapi dan Tidak Gepeng */
@@ -210,11 +218,17 @@ $catatan_val = $indikator->catatan ?? '';
         text-align: center !important;
     }
     .row-subtotal td {
-        background-color: #fff3e8 !important;
+        background-color: #f9a066 !important;
         font-weight: 700 !important;
-        color: #1e293b !important;
-        border-top: 1px solid #fed7aa !important;
-        border-bottom: 1px solid #fed7aa !important;
+        color: #000000 !important;
+        border: 1px solid #ffffff !important;
+    }
+    .table-matrix tbody tr.row-subtotal:hover td {
+        background-color: #f9a066 !important;
+    }
+    .row-subtotal .cell-numeric-placeholder {
+        color: #000000 !important;
+        font-weight: 700 !important;
     }
     .row-total td {
         background-color: #fffbeb !important;

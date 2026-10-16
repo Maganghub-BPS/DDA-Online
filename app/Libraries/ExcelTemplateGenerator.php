@@ -1028,23 +1028,15 @@ class ExcelTemplateGenerator
                             }
                         } elseif ($tipeBaris === 'subtotal') {
                             $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
-                                'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
+                                'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial', 'color' => ['rgb' => '000000']],
                                 'fill' => [
                                     'fillType'   => Fill::FILL_SOLID,
-                                    'startColor' => ['rgb' => 'FFF3E8']
+                                    'startColor' => ['rgb' => 'F9A066']
                                 ],
                                 'borders' => [
-                                    'top' => [
+                                    'allBorders' => [
                                         'borderStyle' => Border::BORDER_THIN,
-                                        'color'       => ['rgb' => 'FED7AA']
-                                    ],
-                                    'bottom' => [
-                                        'borderStyle' => Border::BORDER_THIN,
-                                        'color'       => ['rgb' => 'FED7AA']
-                                    ],
-                                    'inside' => [
-                                        'borderStyle' => Border::BORDER_THIN,
-                                        'color'       => ['rgb' => 'FED7AA']
+                                        'color'       => ['rgb' => 'FFFFFF']
                                     ]
                                 ]
                             ]);
@@ -1052,7 +1044,7 @@ class ExcelTemplateGenerator
                                 $cLetter = Coordinate::stringFromColumnIndex($c);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
-                                $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true);
+                                $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true)->getColor()->setARGB('FF000000');
                             }
                         } else {
                             $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
@@ -1140,25 +1132,17 @@ class ExcelTemplateGenerator
                             ->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     }
                 } elseif ($tipeBaris === 'subtotal') {
-                    // Baris Subtotal BPS: Peach Lembut (#FFF3E8), Font Bold, Border Halus (#FED7AA)
+                    // Baris Subtotal BPS: Peach Lembut (#F9A066), Font Bold Hitam, Border Putih (#FFFFFF)
                     $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
-                        'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
+                        'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial', 'color' => ['rgb' => '000000']],
                         'fill' => [
                             'fillType'   => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'FFF3E8']
+                            'startColor' => ['rgb' => 'F9A066']
                         ],
                         'borders' => [
-                            'top' => [
+                            'allBorders' => [
                                 'borderStyle' => Border::BORDER_THIN,
-                                'color'       => ['rgb' => 'FED7AA']
-                            ],
-                            'bottom' => [
-                                'borderStyle' => Border::BORDER_THIN,
-                                'color'       => ['rgb' => 'FED7AA']
-                            ],
-                            'inside' => [
-                                'borderStyle' => Border::BORDER_THIN,
-                                'color'       => ['rgb' => 'FED7AA']
+                                'color'       => ['rgb' => 'FFFFFF']
                             ]
                         ]
                     ]);
@@ -1171,7 +1155,7 @@ class ExcelTemplateGenerator
                         $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()
                             ->setHorizontal(Alignment::HORIZONTAL_RIGHT)
                             ->setVertical(Alignment::VERTICAL_CENTER);
-                        $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true);
+                        $sheet->getStyle("{$cLetter}{$curRow}")->getFont()->setBold(true)->getColor()->setARGB('FF000000');
                     }
                 } else {
                     // Baris Data Normal: Putih, Garis Halus

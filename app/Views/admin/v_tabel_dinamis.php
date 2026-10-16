@@ -328,6 +328,31 @@ $isConfigured = ($indikator && $dimCount >= 2);
         padding-left: 8px !important;
     }
 
+    /* Baris Subtotal / Sub-Jumlah (Sama Seperti Angka di Bawah Kolom Header Sesuai Gambar 1) */
+    .main-table tbody tr.row-subtotal {
+        background: #f9a066 !important;
+        color: #000000 !important;
+        font-weight: bold !important;
+    }
+
+    .main-table tbody tr.row-subtotal td {
+        background: #f9a066 !important;
+        color: #000000 !important;
+        border: 1px solid #ffffff !important;
+        font-weight: bold !important;
+    }
+
+    .main-table tbody tr.row-subtotal td.col-val {
+        color: #000000 !important;
+        text-align: right !important;
+        font-weight: bold !important;
+    }
+
+    .main-table tbody tr.row-subtotal td i {
+        color: #000000 !important;
+        font-weight: normal;
+    }
+
     /* Baris Grand Total (Jumlah / Total / Jawa Tengah) Menyerupai Header Sesuai Gambar 2 */
     .main-table tbody tr.row-total {
         background: #FF6D1F !important;
@@ -1105,16 +1130,16 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 if ($posisi_hirarki === 'periode_baris'):
                                     foreach ($itemsPeriode as $pIdx => $p):
                         ?>
-                                    <tr class="row-subtotal" style="background: #fff3e8; font-weight: bold; color: #1e293b;">
+                                    <tr class="row-subtotal" style="background: #f9a066; font-weight: bold; color: #000000;">
                                         <?php if ($pIdx === 0): ?>
-                                            <td colspan="<?= $hasNoCol ? 2 : 1; ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 8px 14px; border: 1px solid #fed7aa !important; font-size: 12px; font-weight: bold; color: #1e293b !important; background: #fff3e8; vertical-align: middle;">
+                                            <td colspan="<?= $hasNoCol ? 2 : 1; ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 8px 14px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #000000 !important; background: #f9a066; vertical-align: middle;">
                                                 <?= esc($rawNamaInd); ?>
                                                 <?php if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd): ?>
-                                                    / <i style="font-weight: normal;"><?= esc($rawNamaEn); ?></i>
+                                                    / <i style="font-weight: normal; color: #000000;"><?= esc($rawNamaEn); ?></i>
                                                 <?php endif; ?>
                                             </td>
                                         <?php endif; ?>
-                                        <td style="text-align: center; border: 1px solid #fed7aa !important; font-size: 12px; font-weight: bold; color: #1e293b !important; background: #fff3e8; vertical-align: middle;">
+                                        <td style="text-align: center; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #000000 !important; background: #f9a066; vertical-align: middle;">
                                             <?= esc($p->nama_periode_ind); ?>
                                         </td>
                                         <?php foreach ($leafColumns as $colLeaf): ?>
@@ -1122,7 +1147,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
-                                            <td class="col-val" style="text-align: right; border: 1px solid #fed7aa !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e293b !important; background: #fff3e8;">
+                                            <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a066;">
                                                 <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
                                             </td>
                                         <?php endforeach; ?>
@@ -1131,12 +1156,12 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     endforeach;
                                 else:
                         ?>
-                                    <!-- BARIS SUBTOTAL STANDAR (TAMPILAN RESMI BPS GAMBAR 1) -->
-                                    <tr class="row-subtotal" style="background: #fff3e8; font-weight: bold; color: #1e293b;">
-                                        <td colspan="<?= $hasNoCol ? 2 : 1; ?>" style="padding: 8px 14px; border: 1px solid #fed7aa !important; font-size: 12px; font-weight: bold; color: #1e293b !important; background: #fff3e8;">
+                                    <!-- BARIS SUBTOTAL STANDAR (TAMPILAN RESMI BPS GAMBAR 1: SAMA SEPERTI ANGKA HEADER #f9a066) -->
+                                    <tr class="row-subtotal" style="background: #f9a066; font-weight: bold; color: #000000;">
+                                        <td colspan="<?= $hasNoCol ? 2 : 1; ?>" style="padding: 8px 14px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #000000 !important; background: #f9a066;">
                                             <?= esc($rawNamaInd); ?>
                                             <?php if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd): ?>
-                                                / <i style="font-weight: normal;"><?= esc($rawNamaEn); ?></i>
+                                                / <i style="font-weight: normal; color: #000000;"><?= esc($rawNamaEn); ?></i>
                                             <?php endif; ?>
                                         </td>
                                         <?php foreach ($leafColumns as $colLeaf): ?>
@@ -1144,7 +1169,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $colLeaf['periode_id'];
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
-                                            <td class="col-val" style="text-align: right; border: 1px solid #fed7aa !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e293b !important; background: #fff3e8;">
+                                            <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a066;">
                                                 <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
                                             </td>
                                         <?php endforeach; ?>

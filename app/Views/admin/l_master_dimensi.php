@@ -2452,7 +2452,7 @@ $(document).ready(function() {
                 badgeClass = 'bg-warning text-dark fw-bold';
                 badgeText = '∑ Grand Total';
             } else if (item.tipe_baris === 'subtotal') {
-                bg = 'background-color: #fff3e8; border-top: 1px solid #fed7aa; border-bottom: 1px solid #fed7aa;';
+                bg = 'background-color: #f9a066; color: #000000; border: 1px solid #ffffff;';
                 badgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold';
                 badgeText = '∑ Subtotal';
             } else {
