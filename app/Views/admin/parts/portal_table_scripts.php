@@ -513,7 +513,7 @@
             sectionIdx++;
             
             let rowHtml = "";
-            let rowClass = (r_idx % 2 === 0 ? '' : 'background:#fff4eb;');
+            let rowClass = (r_idx % 2 === 0 ? 'background:#fff4eb;' : '');
             
             // --- NEW: Row Hierarchy Logic (Optimized) ---
             const fCol = finalCols[0];
