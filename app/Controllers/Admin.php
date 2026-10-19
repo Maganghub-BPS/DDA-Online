@@ -134,6 +134,7 @@ class Admin extends BaseController
 				$this->db->query("UPDATE tr_instansi SET nama = ?, alamat = ?, kepsek = ?, nip_kepsek = ? WHERE id = ?", [$nama, $alamat, $kepsek, $nip_kepsek, $idp]);
 			}
 
+			$this->session->remove('cached_instansi_config');
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated</div>");
 			return redirect()->to('admin/pengguna');
 		} else {
@@ -4198,22 +4199,25 @@ class Admin extends BaseController
 		$tab = $this->request->getGet('tab') ?? 'karakteristik';
 		$a['active_tab'] = in_array($tab, ['karakteristik', 'baris', 'periode'], true) ? $tab : 'karakteristik';
 
-		// Data Karakteristik
+		// Data Karakteristik (Optimasi Single Aggregation Query)
 		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
+		$kCounts = $mTabelDinamis->getKarakteristikCounts();
 		foreach ($a['list_karakteristik'] as $k) {
-			$k->total_items = count($mTabelDinamis->getKarakteristikItems((int)$k->id));
+			$k->total_items = $kCounts[(int)$k->id] ?? 0;
 		}
 
-		// Data Baris
+		// Data Baris (Optimasi Single Aggregation Query)
 		$a['list_baris'] = $mTabelDinamis->getBarisKelompokAll();
+		$bCounts = $mTabelDinamis->getBarisCounts();
 		foreach ($a['list_baris'] as $b) {
-			$b->total_items = count($mTabelDinamis->getBarisItems((int)$b->id));
+			$b->total_items = $bCounts[(int)$b->id] ?? 0;
 		}
 
-		// Data Periode
+		// Data Periode (Optimasi Single Aggregation Query)
 		$a['list_periode'] = $mTabelDinamis->getPeriodeKelompokAll();
+		$pCounts = $mTabelDinamis->getPeriodeCounts();
 		foreach ($a['list_periode'] as $p) {
-			$p->total_items = count($mTabelDinamis->getPeriodeItems((int)$p->id));
+			$p->total_items = $pCounts[(int)$p->id] ?? 0;
 		}
 
 		$a['page'] = 'l_master_dimensi';
@@ -4283,15 +4287,19 @@ class Admin extends BaseController
 		$a['list_baris']         = $mTabelDinamis->getBarisKelompokAll();
 		$a['list_periode']       = $mTabelDinamis->getPeriodeKelompokAll();
 
-		// Hitung jumlah item di masing-masing master untuk visual preview di select option
+		// Hitung jumlah item di masing-masing master untuk visual preview di select option (Optimasi Single Aggregation Query)
+		$kCounts = $mTabelDinamis->getKarakteristikCounts();
+		$bCounts = $mTabelDinamis->getBarisCounts();
+		$pCounts = $mTabelDinamis->getPeriodeCounts();
+
 		foreach ($a['list_karakteristik'] as $k) {
-			$k->total_items = count($mTabelDinamis->getKarakteristikItems((int)$k->id));
+			$k->total_items = $kCounts[(int)$k->id] ?? 0;
 		}
 		foreach ($a['list_baris'] as $b) {
-			$b->total_items = count($mTabelDinamis->getBarisItems((int)$b->id));
+			$b->total_items = $bCounts[(int)$b->id] ?? 0;
 		}
 		foreach ($a['list_periode'] as $p) {
-			$p->total_items = count($mTabelDinamis->getPeriodeItems((int)$p->id));
+			$p->total_items = $pCounts[(int)$p->id] ?? 0;
 		}
 
 		$init_max_depth = 1;
@@ -4415,7 +4423,7 @@ class Admin extends BaseController
 			$tingkat_kolom = 'semua';
 		}
 		$konfigurasi_total    = trim((string)$this->request->getPost('konfigurasi_total'));
-		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom'], true)) {
+		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom', 'runtun_waktu'], true)) {
 			$konfigurasi_total = 'default';
 		}
 		$label_total_kustom   = trim((string)$this->request->getPost('label_total_kustom'));
@@ -4424,7 +4432,7 @@ class Admin extends BaseController
 		}
 		$format_nomor_baris   = trim((string)$this->request->getPost('format_nomor_baris'));
 		if (!in_array($format_nomor_baris, ['auto', 'none', 'reset_kategori'], true)) {
-			$format_nomor_baris = 'auto';
+			$format_nomor_baris = 'none';
 		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
