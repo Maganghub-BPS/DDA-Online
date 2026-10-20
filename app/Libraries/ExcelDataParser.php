@@ -205,22 +205,33 @@ class ExcelDataParser
 
             $hasKolom    = !empty($flatKolom);
             $hasPeriode  = !empty($itemsPeriode);
+            $hasBaris    = !empty($itemsBaris);
+            $cfgTotalParser = $indikator->konfigurasi_total ?? 'default';
+            $isRuntunWaktu  = ($cfgTotalParser === 'runtun_waktu');
 
             // Deteksi multi-column baris (||) untuk penyesuaian index kolom fallback
             $isMultiBaris = false;
-            $titleBarisInd = $indikator->nama_kelompok_baris_ind ?? '';
-            if (strpos($titleBarisInd, '||') !== false) {
-                $isMultiBaris = true;
-            } else {
-                foreach ($itemsBaris as $b) {
-                    if (strpos($b->nama_baris_ind ?? '', '||') !== false) {
-                        $isMultiBaris = true;
-                        break;
+            if ($hasBaris) {
+                $titleBarisInd = $indikator->nama_kelompok_baris_ind ?? '';
+                if (strpos($titleBarisInd, '||') !== false) {
+                    $isMultiBaris = true;
+                } else {
+                    foreach ($itemsBaris as $b) {
+                        if (strpos($b->nama_baris_ind ?? '', '||') !== false) {
+                            $isMultiBaris = true;
+                            break;
+                        }
                     }
                 }
             }
 
-            $colIdx      = ($posisi_hirarki === 'periode_baris') ? ($isMultiBaris ? 4 : 3) : ($isMultiBaris ? 3 : 2);
+            if (!$hasBaris) {
+                $colIdx = 2;
+            } elseif ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) {
+                $colIdx = $isMultiBaris ? 4 : 3;
+            } else {
+                $colIdx = $isMultiBaris ? 3 : 2;
+            }
 
             // Hitung level maksimum pada seluruh kelompok baris
             $maxBarisGroupLevel = 0;
@@ -352,6 +363,17 @@ class ExcelDataParser
                         }
                     }
                 }
+            } elseif (!$hasBaris && $hasKolom && $hasPeriode) {
+                // Kasus Runtun Waktu Makro (Tanpa Baris Wilayah): Periode sebagai baris, Kolom sebagai header
+                foreach ($flatKolom as $ch) {
+                    $colLetter = Coordinate::stringFromColumnIndex($colIdx);
+                    $leafColumns[] = [
+                        'excel_col'  => $colLetter,
+                        'item_id'    => (int)$ch->id,
+                        'periode_id' => 0,
+                    ];
+                    $colIdx++;
+                }
             } elseif (!$hasKolom && $hasPeriode) {
                 foreach ($itemsPeriode as $p) {
                     $colLetter = Coordinate::stringFromColumnIndex($colIdx);
@@ -373,7 +395,17 @@ class ExcelDataParser
                     $colIdx++;
                 }
             } elseif ($hasKolom && $hasPeriode) {
-                if ($posisi_hirarki === 'periode_atas') {
+                if ($isRuntunWaktu) {
+                    foreach ($flatKolom as $ch) {
+                        $colLetter = Coordinate::stringFromColumnIndex($colIdx);
+                        $leafColumns[] = [
+                            'excel_col'  => $colLetter,
+                            'item_id'    => (int)$ch->id,
+                            'periode_id' => 0,
+                        ];
+                        $colIdx++;
+                    }
+                } elseif ($posisi_hirarki === 'periode_atas') {
                     foreach ($itemsPeriode as $p) {
                         foreach ($flatKolom as $ch) {
                             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
@@ -400,7 +432,96 @@ class ExcelDataParser
                 }
             }
 
-            if ($posisi_hirarki !== 'periode_baris') {
+            if (!$hasBaris && $hasKolom && $hasPeriode) {
+                // Kasus Runtun Waktu Makro: Baris data berasal dari periodeItems
+                $startR = (int)($metaPayload['data_start_row'] ?? 7);
+                $currR  = $startR;
+                foreach ($itemsPeriode as $p) {
+                    $rowItems[] = [
+                        'excel_row'  => $currR,
+                        'id_baris'   => 0,
+                        'id_periode' => (int)$p->id,
+                        'tipe'       => 'data',
+                        'nama'       => $p->nama_periode_ind ?? '',
+                    ];
+                    $currR++;
+                }
+            } elseif ($isRuntunWaktu) {
+                $startR = (int)($metaPayload['data_start_row'] ?? 7);
+                $currR  = $startR;
+                $hasRenderedTotalFallback = false;
+                $idPeriodeAktif = 0;
+                if (!empty($itemsPeriode)) {
+                    $tabelInfo = $this->db->table('t_tahun_tabel')->where('id', $expectedIdTahunTabel)->get()->getRow();
+                    $tahunAktif = $tabelInfo->tahun ?? '';
+                    foreach ($itemsPeriode as $p) {
+                        if (!empty($tahunAktif) && trim((string)$p->nama_periode_ind) === trim((string)$tahunAktif)) {
+                            $idPeriodeAktif = (int)$p->id;
+                            break;
+                        }
+                    }
+                    if (!$idPeriodeAktif) {
+                        $idPeriodeAktif = (int)$itemsPeriode[0]->id;
+                    }
+                }
+                foreach ($itemsBaris as $bIdx => $bItem) {
+                    $tipe = strtolower(trim($bItem->tipe_baris ?? ''));
+                    $lowerBaris = strtolower(trim($bItem->nama_baris_ind ?? ''));
+                    if (!$tipe) {
+                        if ($lowerBaris === 'jumlah' || $lowerBaris === 'total' || strpos($lowerBaris, 'jawa tengah') !== false) {
+                            $tipe = 'total';
+                        }
+                        if (!$tipe) $tipe = 'data';
+                    }
+                    if ($isParentBaris($bIdx, $itemsBaris)) {
+                        $tipe = 'kategori';
+                    }
+
+                    if ($tipe === 'kategori') {
+                        $rowItems[] = [
+                            'excel_row'  => $currR,
+                            'id_baris'   => (int)$bItem->id,
+                            'id_periode' => 0,
+                            'tipe'       => 'kategori',
+                            'nama'       => $bItem->nama_baris_ind ?? '',
+                        ];
+                        $currR++;
+                    } elseif ($tipe === 'total') {
+                        $hasRenderedTotalFallback = true;
+                        foreach ($itemsPeriode as $p) {
+                            $rowItems[] = [
+                                'excel_row'  => $currR,
+                                'id_baris'   => (int)$bItem->id,
+                                'id_periode' => (int)$p->id,
+                                'tipe'       => 'total',
+                                'nama'       => ($bItem->nama_baris_ind ?? 'Jumlah') . ' (' . ($p->nama_periode_ind ?? '') . ')',
+                            ];
+                            $currR++;
+                        }
+                    } else {
+                        $rowItems[] = [
+                            'excel_row'  => $currR,
+                            'id_baris'   => (int)$bItem->id,
+                            'id_periode' => $idPeriodeAktif,
+                            'tipe'       => $tipe,
+                            'nama'       => $bItem->nama_baris_ind ?? '',
+                        ];
+                        $currR++;
+                    }
+                }
+                if (!$hasRenderedTotalFallback && !empty($itemsPeriode)) {
+                    foreach ($itemsPeriode as $p) {
+                        $rowItems[] = [
+                            'excel_row'  => $currR,
+                            'id_baris'   => 0,
+                            'id_periode' => (int)$p->id,
+                            'tipe'       => 'total',
+                            'nama'       => 'Jumlah (' . ($p->nama_periode_ind ?? '') . ')',
+                        ];
+                        $currR++;
+                    }
+                }
+            } elseif ($posisi_hirarki !== 'periode_baris') {
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {
@@ -451,7 +572,7 @@ class ExcelDataParser
 
         foreach ($rowItems as $rItem) {
             $excelRow = (int)$rItem['excel_row'];
-            $idBaris  = (int)$rItem['id_baris'];
+            $idBaris  = (int)($rItem['id_baris'] ?? ($rItem['item_id'] ?? 0));
             $tipe     = $rItem['tipe'] ?? 'data';
 
             // Lewati baris bertipe 'kategori' karena merupakan judul kelompok tanpa nilai data
@@ -462,8 +583,8 @@ class ExcelDataParser
 
             foreach ($leafColumns as $colItem) {
                 $colLetter       = $colItem['excel_col'];
-                $idKarakteristik = (int)$colItem['item_id'];
-                $idPeriode       = (int)($rItem['id_periode'] ?? ($colItem['periode_id'] ?? 0));
+                $idKarakteristik = (int)($colItem['item_id'] ?? 0);
+                $idPeriode       = (int)($rItem['id_periode'] ?? ($rItem['periode_id'] ?? ($colItem['periode_id'] ?? 0)));
 
                 $cellCoord = "{$colLetter}{$excelRow}";
                 $cell = $dataSheet->getCell($cellCoord);

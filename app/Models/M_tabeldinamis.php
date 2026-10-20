@@ -24,6 +24,7 @@ class M_tabeldinamis extends Model
         'tingkat_kolom',
         'konfigurasi_total',
         'label_total_kustom',
+        'format_nomor_baris',
         'satuan',
         'desimal',
         'catatan',
@@ -92,6 +93,20 @@ class M_tabeldinamis extends Model
         }
 
         return $items;
+    }
+
+    public function getKarakteristikCounts(): array
+    {
+        $rows = $this->db->table('m_karakteristik_item')
+            ->select('id_kelompok, COUNT(*) as total')
+            ->groupBy('id_kelompok')
+            ->get()
+            ->getResult();
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r->id_kelompok] = (int)$r->total;
+        }
+        return $map;
     }
 
     public function syncKarakteristikItems(int $id_kelompok, array $items): bool
@@ -385,6 +400,20 @@ class M_tabeldinamis extends Model
             ->getResult();
     }
 
+    public function getBarisCounts(): array
+    {
+        $rows = $this->db->table('m_baris_item')
+            ->select('id_kelompok, COUNT(*) as total')
+            ->groupBy('id_kelompok')
+            ->get()
+            ->getResult();
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r->id_kelompok] = (int)$r->total;
+        }
+        return $map;
+    }
+
     public function getBarisTree(int $id_kelompok): array
     {
         $items = $this->getBarisItems($id_kelompok);
@@ -563,7 +592,12 @@ class M_tabeldinamis extends Model
         }
 
         // 3. Subtotal
-        if ($base === 'subtotal' || $base === 'sub total' || $base === 'sub-total' || strpos($lower, 'subtotal') === 0 || strpos($lower, 'sub total') === 0) {
+        if (
+            $base === 'subtotal' || $base === 'sub total' || $base === 'sub-total' || 
+            strpos($lower, 'subtotal') === 0 || strpos($lower, 'sub total') === 0 ||
+            strpos($lower, 'sub jumlah') === 0 || strpos($lower, 'sub-jumlah') === 0 ||
+            strpos($base, 'jumlah ') === 0 || strpos($base, 'total ') === 0
+        ) {
             return 'subtotal';
         }
 
@@ -717,6 +751,20 @@ class M_tabeldinamis extends Model
             ->orderBy('id', 'ASC')
             ->get()
             ->getResult();
+    }
+
+    public function getPeriodeCounts(): array
+    {
+        $rows = $this->db->table('m_periode_item')
+            ->select('id_kelompok, COUNT(*) as total')
+            ->groupBy('id_kelompok')
+            ->get()
+            ->getResult();
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r->id_kelompok] = (int)$r->total;
+        }
+        return $map;
     }
 
     public function syncPeriodeItems(int $id_kelompok, array $items): bool
