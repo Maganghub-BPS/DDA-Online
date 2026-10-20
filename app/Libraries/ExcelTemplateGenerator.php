@@ -66,6 +66,8 @@ class ExcelTemplateGenerator
         $posisi_hirarki   = $indikator->posisi_hirarki ?? 'kolom_atas';
         $satuan           = trim((string)($indikator->satuan ?? ''));
         $desimal          = (int)($indikator->desimal ?? 2);
+        $cfgTotalInit     = $indikator->konfigurasi_total ?? 'default';
+        $isRuntunWaktu    = ($cfgTotalInit === 'runtun_waktu');
         
         // Footnote: ambil dari instansi/unit kerja, tanpa catatan
         $sumber = !empty($tabel->unitkerja_ind) ? $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
