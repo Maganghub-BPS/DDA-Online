@@ -65,7 +65,7 @@ if (empty($titleBarisEn) || strtolower($titleBarisEn) === strtolower($cleanTitle
 
 // Format Judul Kolom Periode Dinamis
 $titlePeriodeInd = !empty($kelompokPeriode->judul_periode_ind) ? $kelompokPeriode->judul_periode_ind : 'Tahun';
-$titlePeriodeEn  = !empty($kelompokPeriode->judul_periode_en) ? $kelompokPeriode->judul_periode_en : 'Year';
+$titlePeriodeEn  = !empty($kelompokPeriode->judul_periode_en) ? $kelompokPeriode->judul_periode_en : '';
 
 // Cek Kelengkapan Konfigurasi Dimensi (Minimal 2 dari 3 Dimensi: Baris, Kolom, Periode)
 $dimCount = (!empty($itemsBaris) ? 1 : 0) + (!empty($structureKolom) ? 1 : 0) + (!empty($itemsPeriode) ? 1 : 0);
@@ -610,12 +610,15 @@ $isConfigured = ($indikator && $dimCount >= 2);
                             }
                         }
 
+                        $isPeriodeBaris     = in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true);
+                        $isPeriodeBarisPisah = ($posisi_hirarki === 'periode_baris_pisah');
+
                         // Tentukan jumlah baris header
                         $totalHeaderRows = 1;
                         if (!$hasBaris && $hasKolom && $hasPeriode) {
                             $totalHeaderRows = count($activeLevels);
                         } elseif ($hasKolom && $hasPeriode) {
-                            $totalHeaderRows = ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1);
+                            $totalHeaderRows = ($isPeriodeBaris || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1);
                         } elseif ($hasKolom) {
                             $totalHeaderRows = count($activeLevels);
                         } elseif ($hasPeriode) {
@@ -654,7 +657,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         'periode_id' => $idPeriodeAktif, // Untuk data rincian unit wilayah tahun aktif
                                     ];
                                 }
-                            } elseif ($posisi_hirarki === 'periode_baris') {
+                            } elseif ($isPeriodeBaris) {
                                 foreach ($flatKolom as $child) {
                                     $leafColumns[] = [
                                         'item_id'    => (int)$child->id,
@@ -888,6 +891,14 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             <i><?= esc($titleBarisEn); ?></i>
                                         <?php endif; ?>
                                     </th>
+                                <?php elseif ($posisi_hirarki === 'periode_baris'): ?>
+                                    <!-- MODE GABUNG HEADER: Kolom 1 & 2 Dimerge Horizontal (1) -->
+                                    <th rowspan="<?= $totalHeaderRows; ?>" colspan="2" style="border: 1px solid #fff; min-width: 220px; text-align: center;">
+                                        <?= esc($cleanTitleInd); ?>
+                                        <?php if (!empty($titleBarisEn)): ?>
+                                            <i><?= esc($titleBarisEn); ?></i>
+                                        <?php endif; ?>
+                                    </th>
                                 <?php else: ?>
                                     <?php if ($hasNoCol): ?>
                                         <th rowspan="<?= $totalHeaderRows + 1; ?>" style="border: 1px solid #fff; width: 45px; text-align: center;">No.</th>
@@ -898,7 +909,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             <i><?= esc($titleBarisEn); ?></i>
                                         <?php endif; ?>
                                     </th>
-                                    <?php if ($hasKolom && $hasPeriode && $posisi_hirarki === 'periode_baris'): ?>
+                                    <?php if ($hasKolom && $hasPeriode && $posisi_hirarki === 'periode_baris_pisah'): ?>
+                                        <!-- MODE PISAH HEADER: Kolom 2 Memiliki Header Tersendiri -->
                                         <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 90px; text-align: center;">
                                             <?= esc($titlePeriodeInd); ?>
                                             <?php if (!empty($titlePeriodeEn) && $titlePeriodeEn !== $titlePeriodeInd): ?>
@@ -927,7 +939,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     <!-- KASUS 3: Kedua Dimensi Ada -->
                                     <?php if ($isRuntunWaktu): ?>
                                         <?= $getLevelCellsPhp($activeLevels[0], 1); ?>
-                                    <?php elseif ($posisi_hirarki === 'periode_baris'): ?>
+                                    <?php elseif ($isPeriodeBaris): ?>
                                         <?= $getLevelCellsPhp($activeLevels[0], 1); ?>
                                     <?php elseif ($posisi_hirarki === 'periode_atas'): ?>
                                         <!-- PERIODE WAKTU DI ATAS -->
@@ -962,7 +974,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 </tr>
                             <?php endfor; ?>
 
-                        <?php elseif ($hasKolom && $hasPeriode && ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu)): ?>
+                        <?php elseif ($hasKolom && $hasPeriode && ($isPeriodeBaris || $isRuntunWaktu)): ?>
                             <?php for ($idx = 1; $idx < count($activeLevels); $idx++): ?>
                                 <tr>
                                     <?= $getLevelCellsPhp($activeLevels[$idx], 1); ?>
@@ -978,7 +990,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 </tr>
                             <?php endforeach; ?>
 
-                        <?php elseif ($hasKolom && $hasPeriode && $posisi_hirarki !== 'periode_atas' && $posisi_hirarki !== 'periode_baris'): ?>
+                        <?php elseif ($hasKolom && $hasPeriode && $posisi_hirarki !== 'periode_atas' && !$isPeriodeBaris): ?>
                             <?php for ($idx = 1; $idx < count($activeLevels); $idx++): ?>
                                 <tr>
                                     <?= $getLevelCellsPhp($activeLevels[$idx], count($itemsPeriode)); ?>
@@ -999,12 +1011,12 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                         <!-- BARIS PENOMORAN KOLOM RESMI BPS: (1), (2), (3) ... -->
                         <tr class="num-row" style="background: #f9a066; color: #000; font-size: 11px; font-weight: bold;">
-                            <?php if ($isRuntunWaktu): ?>
+                            <?php if ($isRuntunWaktu || $posisi_hirarki === 'periode_baris'): ?>
                                 <th colspan="2" style="border: 1px solid #fff; text-align: center; font-weight: bold;">(1)</th>
                                 <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
                                     <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $n + 1; ?>)</th>
                                 <?php endfor; ?>
-                            <?php elseif ($posisi_hirarki === 'periode_baris' && $hasBaris): ?>
+                            <?php elseif ($posisi_hirarki === 'periode_baris_pisah' && $hasBaris): ?>
                                 <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(1)</th>
                                 <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(2)</th>
                                 <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
@@ -1161,14 +1173,14 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         ?>
                             <!-- BANNER PEMBATAS KATEGORI WILAYAH (PARITY 100% GAMBAR 2) -->
                             <tr style="background: #fff1e6; font-weight: bold; color: #000;">
-                                <td colspan="<?= $totalLeafCols + ($isRuntunWaktu ? 2 : ($hasNoCol ? ($posisi_hirarki === 'periode_baris' ? 3 : 2) : ($posisi_hirarki === 'periode_baris' ? 2 : 1))); ?>" style="padding: 10px 15px; border: 1px solid #eee; border-left: 2px solid #FF6D1F;">
+                                <td colspan="<?= $totalLeafCols + ($isRuntunWaktu ? 2 : ($hasNoCol ? ($isPeriodeBaris ? 3 : 2) : ($isPeriodeBaris ? 2 : 1))); ?>" style="padding: 10px 15px; border: 1px solid #eee; border-left: 2px solid #FF6D1F;">
                                     <?= esc($dividerText); ?>
                                 </td>
                             </tr>
                         <?php
                             // 4. Deteksi Baris Subtotal (Sub-Jumlah) seperti "Jumlah makanan / Total food"
                             elseif ($isSubtotalRow):
-                                if ($posisi_hirarki === 'periode_baris'):
+                                if ($isPeriodeBaris):
                                     foreach ($itemsPeriode as $pIdx => $p):
                         ?>
                                     <tr class="row-subtotal" style="background: #f9a066; font-weight: bold; color: #000000;">
@@ -1268,7 +1280,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     </tr>
                         <?php
                                     endforeach;
-                                elseif ($posisi_hirarki === 'periode_baris'):
+                                elseif ($isPeriodeBaris):
                                     foreach ($itemsPeriode as $pIdx => $p):
                         ?>
                                     <tr class="row-total" style="background: #FF6D1F; font-weight: bold; color: #ffffff;">
@@ -1353,7 +1365,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         <?php endforeach; ?>
                                     </tr>
                         <?php
-                                elseif ($posisi_hirarki === 'periode_baris'):
+                                elseif ($isPeriodeBaris):
                                     $blockBg = ($dataRowCounter % 2 === 1) ? 'background-color: #fff4eb !important;' : 'background-color: #ffffff !important;';
                                     foreach ($itemsPeriode as $pIdx => $p):
                                         $pRowClass = ($pIdx % 2 === 0) ? 'row-odd' : 'row-even';
@@ -1460,7 +1472,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                     <tfoot>
                         <tr>
-                            <td colspan="<?= (!$hasBaris && $hasKolom && $hasPeriode) ? ($totalLeafCols + 1) : ($totalLeafCols + ($isRuntunWaktu ? 2 : ($hasNoCol ? ($posisi_hirarki === 'periode_baris' ? 3 : 2) : ($posisi_hirarki === 'periode_baris' ? 2 : 1)))); ?>" style="border-top: 1px solid #000"></td>
+                            <td colspan="<?= (!$hasBaris && $hasKolom && $hasPeriode) ? ($totalLeafCols + 1) : ($totalLeafCols + ($isRuntunWaktu ? 2 : ($hasNoCol ? ($isPeriodeBaris ? 3 : 2) : ($isPeriodeBaris ? 2 : 1)))); ?>" style="border-top: 1px solid #000"></td>
                         </tr>
                     </tfoot>
                 </table>

@@ -107,8 +107,8 @@ class ExcelTemplateGenerator
         $sheet->setShowGridLines(true);
 
         // Judul Periode Kolom Kedua (Jika Periode Baris Aktif atau sebagai sumbu baris)
-        $titlePeriodeInd = !empty($kelompokPeriode->judul_periode_ind) ? $kelompokPeriode->judul_periode_ind : ($kelompokPeriode->nama_kelompok_ind ?? 'Tahun');
-        $titlePeriodeEn  = !empty($kelompokPeriode->judul_periode_en) ? $kelompokPeriode->judul_periode_en : ($kelompokPeriode->nama_kelompok_en ?? 'Year');
+        $titlePeriodeInd = !empty($kelompokPeriode->judul_periode_ind) ? $kelompokPeriode->judul_periode_ind : ($kelompokPeriode->nama_kelompok_ind ?? '');
+        $titlePeriodeEn  = !empty($kelompokPeriode->judul_periode_en) ? $kelompokPeriode->judul_periode_en : ($kelompokPeriode->nama_kelompok_en ?? '');
 
         // Judul Baris Kolom Pertama
         if (empty($itemsBaris)) {
@@ -134,6 +134,10 @@ class ExcelTemplateGenerator
                     $titleBarisEn = 'Detail / Region';
                 }
             }
+        }
+
+        if (empty($titlePeriodeInd)) {
+            $titlePeriodeInd = 'Tahun';
         }
 
         // =====================================================================
@@ -293,7 +297,7 @@ class ExcelTemplateGenerator
                         'periode_en'      => '',
                     ];
                 }
-            } elseif ($posisi_hirarki === 'periode_baris') {
+            } elseif (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) {
                 // PERIODE MENJADI BARIS (PIVOT KE BARIS)
                 foreach ($flatKolom as $child) {
                     $leafColumns[] = [
@@ -343,7 +347,7 @@ class ExcelTemplateGenerator
         }
 
         $totalLeafCols = count($leafColumns);
-        $lastColIndex  = ($posisi_hirarki === 'periode_baris') ? (2 + $totalLeafCols) : (1 + $totalLeafCols);
+        $lastColIndex  = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) ? (2 + $totalLeafCols) : (1 + $totalLeafCols);
         $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex);
 
         // =====================================================================
@@ -396,7 +400,7 @@ class ExcelTemplateGenerator
         $isRuntunWaktu = ($cfgTotalInit === 'runtun_waktu');
         $headerDataRows = 1; // Default: 1 baris
         if ($hasKolom && $hasPeriode) {
-            $headerDataRows = ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1);
+            $headerDataRows = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1);
         } elseif ($hasKolom) {
             $headerDataRows = count($activeLevels);
         } elseif ($hasPeriode) {
@@ -413,8 +417,8 @@ class ExcelTemplateGenerator
         $headerNumColor  = 'C2410C';
         $fontColorWhite  = 'FFFFFF';
 
-        if ($isRuntunWaktu) {
-            // Kolom A & B: Judul Baris dimerge
+        if ($isRuntunWaktu || $posisi_hirarki === 'periode_baris') {
+            // Kolom A & B: Judul Baris dimerge horizontal (1 kesatuan kolom seperti Tabel 4.6.1)
             $sheet->mergeCells("A{$startHeaderRow}:B" . ($numRow - 1));
             $cellTitleBaris = $titleBarisInd . (!empty($titleBarisEn) ? "\n" . $titleBarisEn : "");
             $sheet->setCellValue("A{$startHeaderRow}", $cellTitleBaris);
@@ -461,8 +465,8 @@ class ExcelTemplateGenerator
                 ]
             ]);
 
-            if ($posisi_hirarki === 'periode_baris') {
-                // Kolom B: Judul Periode (Tahun / Year)
+            if ($posisi_hirarki === 'periode_baris_pisah') {
+                // Kolom B: Judul Periode Terpisah (Periode / Period)
                 $sheet->mergeCells("B{$startHeaderRow}:B" . ($numRow - 1));
                 $cellTitlePeriode = $titlePeriodeInd . (!empty($titlePeriodeEn) ? "\n" . $titlePeriodeEn : "");
                 $sheet->setCellValue("B{$startHeaderRow}", $cellTitlePeriode);
@@ -488,7 +492,7 @@ class ExcelTemplateGenerator
         }
 
         // Render Header Kolom Data (Mulai dari Kolom C jika periode_baris atau runtun_waktu, atau Kolom B jika standar)
-        $startDataColIndex = ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) ? 3 : 2;
+        $startDataColIndex = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? 3 : 2;
 
         // Helper untuk merender tingkat kolom ke sel Excel
         $fillLevelCellsExcel = function(int $lvl, int $rowNum, int $startCol, int $multiplier) use ($sheet, $groups, $flatKolom, $maxDepth, $activeLevels): int {
@@ -737,7 +741,7 @@ class ExcelTemplateGenerator
                     $r = $startHeaderRow + $idx;
                     $fillLevelCellsExcel($lvl, $r, 3, 1);
                 }
-            } elseif ($posisi_hirarki === 'periode_baris') {
+            } elseif (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) {
                 // Baris 1..N: Tingkat-tingkat Kolom mulai Kolom C (Index 3)
                 foreach ($activeLevels as $idx => $lvl) {
                     $r = $startHeaderRow + $idx;
@@ -811,12 +815,19 @@ class ExcelTemplateGenerator
         // =====================================================================
         // 8. RENDER BARIS NOMOR KOLOM BPS: (1), (2), (3) ...
         // =====================================================================
-        if ($isRuntunWaktu) {
+        if ($isRuntunWaktu || $posisi_hirarki === 'periode_baris') {
             $sheet->mergeCells("A{$numRow}:B{$numRow}");
             $sheet->setCellValue("A{$numRow}", "(1)");
             for ($c = 3; $c <= $lastColIndex; $c++) {
                 $colLetter = Coordinate::stringFromColumnIndex($c);
                 $sheet->setCellValue("{$colLetter}{$numRow}", "(" . ($c - 1) . ")");
+            }
+        } elseif ($posisi_hirarki === 'periode_baris_pisah') {
+            $sheet->setCellValue("A{$numRow}", "(1)");
+            $sheet->setCellValue("B{$numRow}", "(2)");
+            for ($c = 3; $c <= $lastColIndex; $c++) {
+                $colLetter = Coordinate::stringFromColumnIndex($c);
+                $sheet->setCellValue("{$colLetter}{$numRow}", "(" . $c . ")");
             }
         } else {
             $sheet->setCellValue("A{$numRow}", "(1)");
@@ -1148,7 +1159,7 @@ class ExcelTemplateGenerator
                     }
                     $curRow++;
                 }
-            } elseif ($posisi_hirarki === 'periode_baris') {
+            } elseif (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) {
                 if ($tipeBaris === 'kategori') {
                     $rowItemsMeta[] = [
                         'excel_row' => $curRow,
@@ -1471,7 +1482,7 @@ class ExcelTemplateGenerator
         // Kolom A: Lebar proporsional untuk nama wilayah/instansi
         $sheet->getColumnDimension('A')->setWidth(38);
 
-        if ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) {
+        if (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) {
             $sheet->getColumnDimension('B')->setWidth(14);
             for ($c = 3; $c <= $lastColIndex; $c++) {
                 $cLetter = Coordinate::stringFromColumnIndex($c);
@@ -1525,7 +1536,7 @@ class ExcelTemplateGenerator
         $metaSheet->setCellValue('A9', 'ID_PERIODE_KELOMPOK');
         $metaSheet->setCellValue('B9', $id_periode);
 
-        $dataStartCol = ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) ? 'C' : 'B';
+        $dataStartCol = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? 'C' : 'B';
 
         $metaSheet->setCellValue('A10', 'DATA_START_ROW');
         $metaSheet->setCellValue('B10', $dataStartRow);
@@ -1541,7 +1552,7 @@ class ExcelTemplateGenerator
 
         // Susun daftar leaf columns dengan mapping huruf kolom Excel
         $leafColumnsMeta = [];
-        $colOffset = ($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) ? 3 : 2;
+        $colOffset = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? 3 : 2;
         foreach ($leafColumns as $idx => $lCol) {
             $colLetter = Coordinate::stringFromColumnIndex($colOffset + $idx);
             $leafColumnsMeta[] = array_merge(['excel_col' => $colLetter], $lCol);
