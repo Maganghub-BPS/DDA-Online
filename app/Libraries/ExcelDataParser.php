@@ -208,7 +208,7 @@ class ExcelDataParser
             $hasBaris    = !empty($itemsBaris);
             $cfgTotalParser = $indikator->konfigurasi_total ?? 'default';
             $isRuntunWaktu  = ($cfgTotalParser === 'runtun_waktu');
-            $colIdx      = (($posisi_hirarki === 'periode_baris' || $isRuntunWaktu) && $hasBaris) ? 3 : 2; // Mulai C jika periode_baris atau runtun_waktu (dengan baris), atau B jika kolom biasa
+            $colIdx      = ((in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) && $hasBaris) ? 3 : 2; // Mulai C jika periode_baris / periode_baris_pisah atau runtun_waktu (dengan baris), atau B jika kolom biasa
 
             // Hitung level maksimum pada seluruh kelompok baris
             $maxBarisGroupLevel = 0;
@@ -257,7 +257,7 @@ class ExcelDataParser
                 return false;
             };
 
-            if ($posisi_hirarki === 'periode_baris') {
+            if (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) {
                 if ($hasKolom) {
                     foreach ($flatKolom as $ch) {
                         $colLetter = Coordinate::stringFromColumnIndex($colIdx);
@@ -498,7 +498,7 @@ class ExcelDataParser
                         $currR++;
                     }
                 }
-            } elseif ($posisi_hirarki !== 'periode_baris') {
+            } elseif (!in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) {
                 $startR = (int)($metaPayload['data_start_row'] ?? 7);
                 $currR  = $startR;
                 foreach ($itemsBaris as $bIdx => $bItem) {

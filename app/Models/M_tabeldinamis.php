@@ -72,8 +72,11 @@ class M_tabeldinamis extends Model
 
     public function deleteKarakteristikKelompok(int $id): bool
     {
+        $this->db->transStart();
         $this->db->table('m_karakteristik_item')->where('id_kelompok', $id)->delete();
-        return $this->db->table('m_karakteristik_kelompok')->where('id', $id)->delete();
+        $this->db->table('m_karakteristik_kelompok')->where('id', $id)->delete();
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function getKarakteristikItems(int $id_kelompok): array
@@ -108,6 +111,8 @@ class M_tabeldinamis extends Model
 
     public function syncKarakteristikItems(int $id_kelompok, array $items): bool
     {
+        $this->db->transStart();
+
         $existingRows = $this->db->table('m_karakteristik_item')
             ->where('id_kelompok', $id_kelompok)
             ->orderBy('no_urut', 'ASC')
@@ -131,7 +136,8 @@ class M_tabeldinamis extends Model
                 $this->db->table('m_karakteristik_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
             }
-            return true;
+            $this->db->transComplete();
+            return $this->db->transStatus();
         }
 
         $now = date('Y-m-d H:i:s');
@@ -159,7 +165,7 @@ class M_tabeldinamis extends Model
             $grup_sub_ind   = null;
             $grup_sub_en    = null;
             $item_ind = $raw_ind;
-            $item_en  = $raw_en !== '' ? $raw_en : $raw_ind;
+            $item_en  = ($raw_en !== '') ? $raw_en : null;
             $is_standalone = 0;
 
             if (strpos($raw_ind, '||') !== false) {
@@ -173,20 +179,20 @@ class M_tabeldinamis extends Model
                     $grup_sub_ind   = $parts_ind[1];
                     $item_ind       = $parts_ind[2];
 
-                    $grup_induk_en  = $parts_en[0] ?? $grup_induk_ind;
-                    $grup_sub_en    = $parts_en[1] ?? $grup_sub_ind;
-                    $item_en        = $parts_en[2] ?? ($parts_en[0] ?? $item_ind);
+                    $grup_induk_en  = (!empty($parts_en[0])) ? $parts_en[0] : null;
+                    $grup_sub_en    = (!empty($parts_en[1])) ? $parts_en[1] : null;
+                    $item_en        = (isset($parts_en[2]) && $parts_en[2] !== '') ? $parts_en[2] : null;
                 } elseif (count($parts_ind) === 2) {
                     $grup_induk_ind = $parts_ind[0];
                     $grup_sub_ind   = null;
                     $item_ind       = $parts_ind[1];
 
-                    $grup_induk_en  = $parts_en[0] ?? $grup_induk_ind;
+                    $grup_induk_en  = (!empty($parts_en[0])) ? $parts_en[0] : null;
                     $grup_sub_en    = null;
-                    $item_en        = $parts_en[1] ?? ($parts_en[0] ?? $item_ind);
+                    $item_en        = (isset($parts_en[1]) && $parts_en[1] !== '') ? $parts_en[1] : null;
                 } else {
                     $item_ind       = $parts_ind[0];
-                    $item_en        = $parts_en[0] ?? $item_ind;
+                    $item_en        = (isset($parts_en[0]) && $parts_en[0] !== '') ? $parts_en[0] : null;
                 }
             } else {
                 $lower_ind = strtolower($raw_ind);
@@ -240,7 +246,8 @@ class M_tabeldinamis extends Model
             $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
         }
 
-        return true;
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function buildColumnStructure(array $items): array
@@ -272,7 +279,7 @@ class M_tabeldinamis extends Model
                         $groups[$l1] = [
                             'type'      => 'group',
                             'title_ind' => $l1,
-                            'title_en'  => $item->grup_induk_en ?? $l1,
+                            'title_en'  => $item->grup_induk_en ?? null,
                             'subgroups' => [],
                             'children'  => [],
                         ];
@@ -284,7 +291,7 @@ class M_tabeldinamis extends Model
                         $groups[$l1]['subgroups'][$subKey] = [
                             'type'      => !empty($l2) ? 'subgroup' : 'standalone',
                             'title_ind' => !empty($l2) ? $l2 : $item->item_ind,
-                            'title_en'  => !empty($l2) ? ($item->grup_sub_en ?? $l2) : ($item->item_en ?? $item->item_ind),
+                            'title_en'  => !empty($l2) ? ($item->grup_sub_en ?? null) : ($item->item_en ?? null),
                             'children'  => [],
                         ];
                     }
@@ -293,7 +300,7 @@ class M_tabeldinamis extends Model
                     $groups['__standalone_' . $item->id] = [
                         'type'      => 'standalone',
                         'title_ind' => $item->item_ind,
-                        'title_en'  => $item->item_en ?? $item->item_ind,
+                        'title_en'  => $item->item_en ?? null,
                         'subgroups' => [],
                         'children'  => [$item],
                     ];
@@ -316,7 +323,7 @@ class M_tabeldinamis extends Model
                         $groups[$parentName] = [
                             'type'      => 'group',
                             'title_ind' => $parentName,
-                            'title_en'  => $item->grup_induk_en ?? $parentName,
+                            'title_en'  => $item->grup_induk_en ?? null,
                             'children'  => [],
                         ];
                     }
@@ -380,8 +387,11 @@ class M_tabeldinamis extends Model
 
     public function deleteBarisKelompok(int $id): bool
     {
+        $this->db->transStart();
         $this->db->table('m_baris_item')->where('id_kelompok', $id)->delete();
-        return $this->db->table('m_baris_kelompok')->where('id', $id)->delete();
+        $this->db->table('m_baris_kelompok')->where('id', $id)->delete();
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function getBarisItems(int $id_kelompok): array
@@ -432,6 +442,8 @@ class M_tabeldinamis extends Model
 
     public function syncBarisItems(int $id_kelompok, array $items): bool
     {
+        $this->db->transStart();
+
         $builder = $this->db->table('m_baris_item');
 
         // 1. Ambil seluruh data baris existing untuk kelompok ini
@@ -457,7 +469,8 @@ class M_tabeldinamis extends Model
                 $this->db->table('m_baris_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
             }
-            return true;
+            $this->db->transComplete();
+            return $this->db->transStatus();
         }
 
         $now = date('Y-m-d H:i:s');
@@ -543,7 +556,8 @@ class M_tabeldinamis extends Model
             $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
         }
 
-        return true;
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function detectTipeBaris(string $namaInd, int $indent = 0, bool $hasChildren = false): string
@@ -730,8 +744,11 @@ class M_tabeldinamis extends Model
 
     public function deletePeriodeKelompok(int $id): bool
     {
+        $this->db->transStart();
         $this->db->table('m_periode_item')->where('id_kelompok', $id)->delete();
-        return $this->db->table('m_periode_kelompok')->where('id', $id)->delete();
+        $this->db->table('m_periode_kelompok')->where('id', $id)->delete();
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function getPeriodeItems(int $id_kelompok): array
@@ -760,6 +777,8 @@ class M_tabeldinamis extends Model
 
     public function syncPeriodeItems(int $id_kelompok, array $items): bool
     {
+        $this->db->transStart();
+
         $existingRows = $this->db->table('m_periode_item')
             ->where('id_kelompok', $id_kelompok)
             ->orderBy('no_urut', 'ASC')
@@ -783,7 +802,8 @@ class M_tabeldinamis extends Model
                 $this->db->table('m_periode_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
             }
-            return true;
+            $this->db->transComplete();
+            return $this->db->transStatus();
         }
 
         $now = date('Y-m-d H:i:s');
@@ -836,7 +856,8 @@ class M_tabeldinamis extends Model
             $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
         }
 
-        return true;
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function generatePeriodeYearRange(int $id_kelompok, int $startYear, int $endYear, string $order = 'ASC'): bool
@@ -1000,6 +1021,8 @@ class M_tabeldinamis extends Model
         $chunks = array_chunk($cells, 500);
         $totalAffected = 0;
 
+        $this->db->transStart();
+
         foreach ($chunks as $chunk) {
             $values = [];
             $params = [];
@@ -1033,6 +1056,12 @@ class M_tabeldinamis extends Model
 
             $this->db->query($sql, $params);
             $totalAffected += count($chunk);
+        }
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            throw new \RuntimeException("Gagal menyimpan data nilai sel ke database. Transaksi dibatalkan (rollback).");
         }
 
         return $totalAffected;

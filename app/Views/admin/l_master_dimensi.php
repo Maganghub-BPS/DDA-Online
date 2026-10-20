@@ -890,7 +890,7 @@
                                                         data-id="<?= $p->id; ?>" data-ind="<?= esc($p->nama_kelompok_ind); ?>"
                                                         data-en="<?= esc($p->nama_kelompok_en ?? ''); ?>"
                                                         data-judul-ind="<?= esc($p->judul_periode_ind ?? 'Tahun'); ?>"
-                                                        data-judul-en="<?= esc($p->judul_periode_en ?? 'Year'); ?>"
+                                                        data-judul-en="<?= esc($p->judul_periode_en ?? ''); ?>"
                                                         title="Edit Nama Kelompok">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
@@ -1429,7 +1429,7 @@
                             <label class="form-label fw-bold text-dark small mb-1">
                                 <i class="bi bi-translate text-primary me-1"></i> Judul Kolom Header (English)
                             </label>
-                            <input type="text" name="judul_periode_en" id="add_periode_judul_en" class="form-control form-control-sm" value="Year" placeholder="Contoh: Year, Quarter, Month">
+                            <input type="text" name="judul_periode_en" id="add_periode_judul_en" class="form-control form-control-sm" placeholder="Contoh: Year, Quarter, Month">
                             <div class="text-xxs text-muted mt-1">Label header bahasa Inggris (misal: <b>Year</b>).</div>
                         </div>
                     </div>
@@ -2096,7 +2096,7 @@ $(document).ready(function() {
                         chain.unshift(curr);
                     }
                     linesInd.push(chain.map(x => x.ind).join(' || '));
-                    linesEn.push(chain.map(x => (x.en || x.ind)).join(' || '));
+                    linesEn.push(chain.map(x => (x.en || '')).join(' || '));
                 });
             } else if (this.type === 'baris') {
                 this.items.forEach(it => {
@@ -2104,12 +2104,12 @@ $(document).ready(function() {
                     if (it.level === 2) prefix = '---- ';
                     else if (it.level === 1) prefix = '-- ';
                     linesInd.push(prefix + it.ind);
-                    linesEn.push(prefix + (it.en || it.ind));
+                    linesEn.push(prefix + (it.en || ''));
                 });
             } else { // periode
                 this.items.forEach(it => {
                     linesInd.push(it.ind);
-                    linesEn.push(it.en || it.ind);
+                    linesEn.push(it.en || '');
                 });
             }
 
@@ -2153,7 +2153,7 @@ $(document).ready(function() {
 
             this.items.forEach((item) => {
                 let cleanInd = stripExistingPrefix(item.ind);
-                let cleanEn  = stripExistingPrefix(item.en || item.ind);
+                let cleanEn  = item.en ? stripExistingPrefix(item.en) : '';
 
                 let lower = cleanInd.toLowerCase();
                 let isAggregate = isBarisTotal(cleanInd) || isBarisSubtotal(cleanInd);
@@ -2182,7 +2182,7 @@ $(document).ready(function() {
 
                 item.ind = prefix + cleanInd;
                 if (item.en) {
-                    item.en = prefix + cleanEn;
+                    item.en = cleanEn; // Penomoran otomatis hanya diterapkan pada Bahasa Indonesia
                 }
             });
 
@@ -2198,11 +2198,47 @@ $(document).ready(function() {
     // -------------------------------------------------------------------------
     // 1. ENGINE PREVIEW KARAKTERISTIK (KOLOM BERTINGKAT / ASIMETRIS HINGGA 3 LEVEL)
     // -------------------------------------------------------------------------
-    function parseKolomLinesToStructure(textInd, textEn) {
+    function parseKolomLinesToStructure(textInd, textEn, treeItems = null) {
+        if (treeItems && Array.isArray(treeItems) && treeItems.length > 0) {
+            const itemMap = {};
+            const rootItems = [];
+            let maxDepth = 1;
+
+            treeItems.forEach(it => {
+                const lvl = parseInt(it.level, 10) || 0;
+                itemMap[it.id] = {
+                    id: it.id,
+                    parentId: it.parentId || null,
+                    level: lvl,
+                    title_ind: it.ind || '',
+                    title_en: it.en || '',
+                    children: []
+                };
+                if ((lvl + 1) > maxDepth) {
+                    maxDepth = lvl + 1;
+                }
+            });
+
+            treeItems.forEach(it => {
+                const node = itemMap[it.id];
+                if (node.parentId && itemMap[node.parentId]) {
+                    itemMap[node.parentId].children.push(node);
+                } else {
+                    rootItems.push(node);
+                }
+            });
+
+            return {
+                root: { children: rootItems },
+                maxDepth: Math.min(3, Math.max(1, maxDepth)),
+                hasItems: rootItems.length > 0
+            };
+        }
+
         const linesInd = (textInd || '').split(/\r?\n/).filter(l => l.trim() !== '');
         const linesEn  = (textEn || '').split(/\r?\n/).filter(l => l.trim() !== '');
 
-        const root = { children: {}, isRoot: true };
+        const rootItems = [];
         let maxDepth = 1;
 
         linesInd.forEach(function(lInd, idx) {
@@ -2223,34 +2259,51 @@ $(document).ready(function() {
                 maxDepth = partsInd.length;
             }
 
-            let curr = root;
+            let currChildren = rootItems;
             partsInd.forEach(function(part, pIdx) {
-                let enPart = partsEn[pIdx] || part;
-                if (!curr.children[part]) {
-                    curr.children[part] = {
+                let enPart = (partsEn && partsEn[pIdx] !== undefined) ? partsEn[pIdx] : '';
+                const isLeaf = (pIdx === partsInd.length - 1);
+
+                if (!isLeaf) {
+                    let found = currChildren.find(c => c.title_ind === part && c.isGroup);
+                    if (!found) {
+                        found = {
+                            title_ind: part,
+                            title_en: enPart,
+                            level: pIdx,
+                            isGroup: true,
+                            children: []
+                        };
+                        currChildren.push(found);
+                    }
+                    currChildren = found.children;
+                } else {
+                    // Daun (leaf) selalu dibuat tersendiri agar nama sama tetap kerender
+                    const leaf = {
                         title_ind: part,
                         title_en: enPart,
                         level: pIdx,
-                        children: {}
+                        isGroup: false,
+                        children: []
                     };
+                    currChildren.push(leaf);
                 }
-                curr = curr.children[part];
             });
         });
 
         return {
-            root: root,
+            root: { children: rootItems },
             maxDepth: Math.min(3, Math.max(1, maxDepth)),
             hasItems: linesInd.length > 0
         };
     }
 
     function countKolomLeaves(node) {
-        const keys = Object.keys(node.children || {});
-        if (keys.length === 0) return 1;
+        const children = Array.isArray(node.children) ? node.children : Object.values(node.children || {});
+        if (children.length === 0) return 1;
         let total = 0;
-        keys.forEach(k => {
-            total += countKolomLeaves(node.children[k]);
+        children.forEach(c => {
+            total += countKolomLeaves(c);
         });
         return total;
     }
@@ -2274,11 +2327,12 @@ $(document).ready(function() {
         // Header kolom Baris mencakup seluruh tingkatan (rowspan = maxDepth)
         tr1.append('<th rowspan="' + maxDepth + '" style="width: 140px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px;">' + barisTitle + '</th>');
 
-        const rootChildren = Object.values(structure.root.children || {});
+        const rootChildren = Array.isArray(structure.root.children) ? structure.root.children : Object.values(structure.root.children || {});
 
         rootChildren.forEach(function(l0) {
+            const l0Children = Array.isArray(l0.children) ? l0.children : Object.values(l0.children || {});
             const l0Leaves = countKolomLeaves(l0);
-            const l0HasChildren = Object.keys(l0.children || {}).length > 0;
+            const l0HasChildren = l0Children.length > 0;
             const l0Label = formatLabel(l0.title_ind, l0.title_en, langMode);
 
             if (!l0HasChildren) {
@@ -2286,9 +2340,10 @@ $(document).ready(function() {
             } else {
                 tr1.append('<th colspan="' + l0Leaves + '" style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 8px 12px; color: #1e293b;">' + l0Label + '</th>');
 
-                Object.values(l0.children).forEach(function(l1) {
+                l0Children.forEach(function(l1) {
+                    const l1Children = Array.isArray(l1.children) ? l1.children : Object.values(l1.children || {});
                     const l1Leaves = countKolomLeaves(l1);
-                    const l1HasChildren = Object.keys(l1.children || {}).length > 0;
+                    const l1HasChildren = l1Children.length > 0;
                     const l1Label = formatLabel(l1.title_ind, l1.title_en, langMode);
 
                     if (!l1HasChildren) {
@@ -2297,7 +2352,7 @@ $(document).ready(function() {
                     } else {
                         tr2.append('<th colspan="' + l1Leaves + '" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 13px;">' + l1Label + '</th>');
 
-                        Object.values(l1.children).forEach(function(l2) {
+                        l1Children.forEach(function(l2) {
                             const l2Label = formatLabel(l2.title_ind, l2.title_en, langMode);
                             tr3.append('<th style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 12px;">' + l2Label + '</th>');
                         });
@@ -2327,8 +2382,8 @@ $(document).ready(function() {
         maxDepth: 2,
         type: 'kolom',
         itemLabel: 'Kolom',
-        onChange: function(textInd, textEn) {
-            const struct = parseKolomLinesToStructure(textInd, textEn);
+        onChange: function(textInd, textEn, jsonPayload) {
+            const struct = parseKolomLinesToStructure(textInd, textEn, jsonPayload);
             renderKolomToTable($('#table_preview_add_kolom'), struct, 'both');
         }
     });
@@ -2351,8 +2406,8 @@ $(document).ready(function() {
         maxDepth: 2,
         type: 'kolom',
         itemLabel: 'Kolom',
-        onChange: function(textInd, textEn) {
-            const struct = parseKolomLinesToStructure(textInd, textEn);
+        onChange: function(textInd, textEn, jsonPayload) {
+            const struct = parseKolomLinesToStructure(textInd, textEn, jsonPayload);
             renderKolomToTable($('#preview_table_kolom'), struct, 'both');
         }
     });
@@ -2381,7 +2436,7 @@ $(document).ready(function() {
                 res.items.forEach(function(it) {
                     const isStandalone = parseInt(it.is_standalone, 10) === 1;
                     const pInd = (it.grup_induk_ind && !isStandalone) ? it.grup_induk_ind.trim() : null;
-                    const pEn  = (it.grup_induk_en && !isStandalone) ? it.grup_induk_en.trim() : pInd;
+                    const pEn  = (it.grup_induk_en && !isStandalone) ? it.grup_induk_en.trim() : '';
 
                     if (pInd) {
                         const partsInd = pInd.split('||').map(s => s.trim()).filter(Boolean);
@@ -2392,7 +2447,7 @@ $(document).ready(function() {
 
                         partsInd.forEach(function(part, pIdx) {
                             pathKey = pathKey ? (pathKey + ' > ' + part) : part;
-                            let enPart = partsEn[pIdx] || part;
+                            let enPart = (partsEn && partsEn[pIdx] !== undefined) ? partsEn[pIdx] : '';
                             if (!parentMap[pathKey]) {
                                 const node = {
                                     id: 'node_' + (++idSeq),
@@ -2413,7 +2468,7 @@ $(document).ready(function() {
                             parentId: parentId,
                             level: partsInd.length,
                             ind: it.item_ind,
-                            en: it.item_en || it.item_ind
+                            en: it.item_en || ''
                         };
                         treeItems.push(childNode);
                     } else {
@@ -2423,7 +2478,7 @@ $(document).ready(function() {
                             parentId: null,
                             level: 0,
                             ind: it.item_ind,
-                            en: it.item_en || it.item_ind
+                            en: it.item_en || ''
                         };
                         treeItems.push(standaloneNode);
                     }
@@ -2480,7 +2535,7 @@ $(document).ready(function() {
             items.push({
                 no_urut: idx + 1,
                 nama_baris_ind: namaInd,
-                nama_baris_en: namaEn || namaInd,
+                nama_baris_en: namaEn || '',
                 level_indentasi: indent,
                 isExplicitTotal: isExplicitTotal
             });
@@ -2698,7 +2753,7 @@ $(document).ready(function() {
                         parentId: parentId,
                         level: lvl,
                         ind: it.nama_baris_ind,
-                        en: it.nama_baris_en || it.nama_baris_ind,
+                        en: it.nama_baris_en || '',
                         isTotal: (role === 'total'),
                         tipe_baris: role,
                         isUserToggled: Boolean(it.tipe_baris)
@@ -2735,7 +2790,7 @@ $(document).ready(function() {
 
             items.push({
                 nama_periode_ind: lInd,
-                nama_periode_en:  lEn || lInd
+                nama_periode_en:  lEn || ''
             });
         });
 
@@ -2829,7 +2884,7 @@ $(document).ready(function() {
         $('#edit_periode_ind').val($(this).data('ind'));
         $('#edit_periode_en').val($(this).data('en'));
         $('#edit_periode_judul_ind').val($(this).data('judul-ind') || 'Tahun');
-        $('#edit_periode_judul_en').val($(this).data('judul-en') || 'Year');
+        $('#edit_periode_judul_en').val($(this).data('judul-en') || '');
         $('#modalEditPeriode').modal('show');
     });
 
@@ -2851,7 +2906,7 @@ $(document).ready(function() {
                         parentId: null,
                         level: 0,
                         ind: item.nama_periode_ind,
-                        en: item.nama_periode_en || item.nama_periode_ind
+                        en: item.nama_periode_en || ''
                     });
                 });
                 managePeriodeBuilder.setItems(treeItems);

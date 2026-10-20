@@ -88,26 +88,15 @@ $catatan_val = $indikator->catatan ?? '';
         border-spacing: 0 !important;
     }
 
-    /* Freeze / Sticky Kolom Pertama (Kabupaten/Kota) di Kiri */
+    /* Kolom Pertama (Kabupaten/Kota/Baris) di Kiri (Non-Sticky / Normal) */
     .th-freeze-col {
-        position: sticky !important;
-        left: 0 !important;
-        z-index: 25 !important;
         background-color: #f8fafc !important;
-        min-width: 240px !important;
-        width: 240px !important;
-        border-right: 2px solid #cbd5e1 !important;
-        box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
+        min-width: 220px !important;
+        vertical-align: middle !important;
     }
     .table-matrix tbody td.td-freeze-col {
-        position: sticky !important;
-        left: 0 !important;
-        z-index: 15 !important;
         background-color: #ffffff !important;
-        min-width: 240px !important;
-        width: 240px !important;
-        border-right: 2px solid #cbd5e1 !important;
-        box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
+        min-width: 220px !important;
     }
     .row-kategori td.td-freeze-col {
         background-color: #f8fafc !important;
@@ -128,26 +117,15 @@ $catatan_val = $indikator->catatan ?? '';
         background-color: #f9a066 !important;
     }
 
-    /* Freeze / Sticky Kolom Kedua (Periode Waktu) saat Periode Baris Aktif */
+    /* Kolom Kedua (Periode Waktu) saat Periode Baris Aktif (Non-Sticky / Normal) */
     .th-freeze-col-2 {
-        position: sticky !important;
-        left: 240px !important;
-        z-index: 24 !important;
         background-color: #f8fafc !important;
-        min-width: 95px !important;
-        width: 95px !important;
-        border-right: 2px solid #cbd5e1 !important;
-        box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
+        min-width: 90px !important;
+        vertical-align: middle !important;
     }
     .table-matrix tbody td.td-freeze-col-2 {
-        position: sticky !important;
-        left: 240px !important;
-        z-index: 14 !important;
         background-color: #ffffff !important;
-        min-width: 95px !important;
-        width: 95px !important;
-        border-right: 2px solid #cbd5e1 !important;
-        box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
+        min-width: 90px !important;
     }
     .row-subtotal td.td-freeze-col-2 {
         background-color: #f9a066 !important;
@@ -485,6 +463,39 @@ $catatan_val = $indikator->catatan ?? '';
     }
     .toolbar-setting-item.disabled-posisi {
         opacity: 0.7;
+    }
+
+    /* ===== SUB-PILIHAN HEADER BARIS (GABUNG VS PISAH) ===== */
+    .sub-baris-group {
+        display: inline-flex;
+        background: #f1f5f9;
+        padding: 3px;
+        border-radius: 50px;
+        border: 1px solid #cbd5e1;
+        transition: all 0.2s ease;
+    }
+    .btn-sub-baris {
+        border: none;
+        background: transparent;
+        padding: 3px 10px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: #64748b;
+        border-radius: 50px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s ease;
+    }
+    .btn-sub-baris:hover:not(.active) {
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.6);
+    }
+    .btn-sub-baris.active {
+        background: #ffffff;
+        color: #FF6D1F;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
     /* ===== TOOLBAR PENGATURAN MATRIKS (TINGKAT, POSISI, TOTAL) ===== */
@@ -856,22 +867,38 @@ $catatan_val = $indikator->catatan ?? '';
                         <!-- Divider halus vertikal -->
                         <div class="toolbar-divider d-none d-md-block"></div>
 
-                        <!-- 2. Posisi Hirarki Header (Segmented Button Group) -->
-                        <?php $isRuntunWaktuInit = ($sel_konfigurasi_total === 'runtun_waktu'); ?>
+                        <!-- 2. Posisi Hirarki Header (Segmented Button Group + Sub-Pilihan Baris) -->
+                        <?php 
+                        $isRuntunWaktuInit = ($sel_konfigurasi_total === 'runtun_waktu'); 
+                        $isBarisInit = in_array($sel_posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true);
+                        $isBarisPisahInit = ($sel_posisi_hirarki === 'periode_baris_pisah');
+                        ?>
                         <div id="box_posisi_hirarki" class="toolbar-setting-item <?= $isRuntunWaktuInit ? 'disabled-posisi' : ''; ?>" title="<?= $isRuntunWaktuInit ? 'Terkunci: Pada mode Runtun Waktu, tata letak posisi hirarki kolom/periode dinonaktifkan karena periode disajikan khusus pada baris total' : 'Atur tata letak hirarki kolom atau periode waktu'; ?>">
                             <span class="toolbar-setting-label">
                                 <i class="bi bi-arrow-down-up text-primary me-1"></i> Posisi:
                             </span>
-                            <div class="posisi-segmented-group <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>" id="group_posisi_hirarki">
-                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'kolom_atas') ? 'active' : ''; ?>" data-val="kolom_atas" id="btn_pos_kolom" title="Karakteristik Kolom di atas, Periode di bawah" <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>>
-                                    <i class="bi bi-layout-three-columns me-1"></i> Kolom
-                                </button>
-                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'periode_atas') ? 'active' : ''; ?>" data-val="periode_atas" id="btn_pos_periode" title="Periode di atas, Karakteristik Kolom di bawah" <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>>
-                                    <i class="bi bi-calendar3 me-1"></i> Periode
-                                </button>
-                                <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'periode_baris') ? 'active' : ''; ?>" data-val="periode_baris" id="btn_pos_baris" title="Periode menjadi baris vertikal (pivot)" <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>>
-                                    <i class="bi bi-layout-sidebar-inset me-1"></i> Baris
-                                </button>
+                            <div class="d-flex align-items-center gap-1 flex-wrap">
+                                <div class="posisi-segmented-group <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>" id="group_posisi_hirarki">
+                                    <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'kolom_atas') ? 'active' : ''; ?>" data-val="kolom_atas" id="btn_pos_kolom" title="Karakteristik Kolom di atas, Periode di bawah" <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>>
+                                        <i class="bi bi-layout-three-columns me-1"></i> Kolom
+                                    </button>
+                                    <button type="button" class="btn-segmented <?= ($sel_posisi_hirarki === 'periode_atas') ? 'active' : ''; ?>" data-val="periode_atas" id="btn_pos_periode" title="Periode di atas, Karakteristik Kolom di bawah" <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>>
+                                        <i class="bi bi-calendar3 me-1"></i> Periode
+                                    </button>
+                                    <button type="button" class="btn-segmented <?= $isBarisInit ? 'active' : ''; ?>" data-val="<?= $isBarisPisahInit ? 'periode_baris_pisah' : 'periode_baris'; ?>" id="btn_pos_baris" title="Periode menjadi baris vertikal (pivot)" <?= $isRuntunWaktuInit ? 'disabled' : ''; ?>>
+                                        <i class="bi bi-layout-sidebar-inset me-1"></i> Baris
+                                    </button>
+                                </div>
+
+                                <!-- Sub-Pilihan Header Baris: Gabung vs Pisah -->
+                                <div class="sub-baris-group <?= ($isBarisInit && !$isRuntunWaktuInit) ? '' : 'd-none'; ?>" id="wrap_sub_baris" title="Format Header Baris: Gabung (1) atau Pisah (1 & 2)">
+                                    <button type="button" class="btn-sub-baris <?= !$isBarisPisahInit ? 'active' : ''; ?>" data-val="periode_baris" id="btn_sub_gabung" title="Header disatukan dalam 1 kolom (1)">
+                                        Gabung
+                                    </button>
+                                    <button type="button" class="btn-sub-baris <?= $isBarisPisahInit ? 'active' : ''; ?>" data-val="periode_baris_pisah" id="btn_sub_pisah" title="Header dipisah menjadi 2 kolom (1) dan (2)">
+                                        Pisah
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1141,6 +1168,14 @@ $(document).ready(function() {
         $('.custom-total-item').removeClass('active');
         $(this).addClass('active');
 
+        // Jika memilih Runtun Waktu, netralkan posisi hirarki ke kolom_atas
+        if (val === 'runtun_waktu') {
+            $('#input_posisi_hirarki').val('kolom_atas');
+            $('#group_posisi_hirarki .btn-segmented').removeClass('active');
+            $('#btn_pos_kolom').addClass('active');
+            $('#wrap_sub_baris').addClass('d-none');
+        }
+
         // Segera perbarui status interaktif Posisi Hirarki saat opsi total berubah
         updateHirarkiSwitchState();
 
@@ -1190,16 +1225,36 @@ $(document).ready(function() {
         $('#dropdown_total_menu_wrap').removeClass('open');
     });
 
-    // Handler switch hirarki segmented buttons: Kolom di Atas vs Periode di Atas
+    // Handler switch hirarki segmented buttons: Kolom, Periode, Baris
     $('#group_posisi_hirarki .btn-segmented').on('click', function(e) {
         e.preventDefault();
         if ($('#group_posisi_hirarki').hasClass('disabled') || $(this).prop('disabled') || $('#select_konfigurasi_total').val() === 'runtun_waktu') {
             return false;
         }
-        const val = $(this).data('val');
+        let val = $(this).data('val');
+        if ($(this).attr('id') === 'btn_pos_baris') {
+            const subVal = $('#wrap_sub_baris .btn-sub-baris.active').data('val') || 'periode_baris';
+            val = subVal;
+            $('#wrap_sub_baris').removeClass('d-none');
+        } else {
+            $('#wrap_sub_baris').addClass('d-none');
+        }
         $('#input_posisi_hirarki').val(val);
         $('#group_posisi_hirarki .btn-segmented').removeClass('active');
         $(this).addClass('active');
+
+        if (currentData) {
+            renderMatrix(currentData);
+        }
+    });
+
+    // Handler klik pada sub-baris buttons (Gabung vs Pisah)
+    $(document).on('click', '.btn-sub-baris', function(e) {
+        e.preventDefault();
+        const val = $(this).data('val');
+        $('.btn-sub-baris').removeClass('active');
+        $(this).addClass('active');
+        $('#input_posisi_hirarki').val(val);
 
         if (currentData) {
             renderMatrix(currentData);
@@ -1328,6 +1383,10 @@ $(document).ready(function() {
         // Jika mode Runtun Waktu aktif, posisi hirarki kolom vs periode TIDAK BERLAKU
         // karena dimensi periode disajikan khusus secara vertikal sebagai baris total runtun waktu multi-tahun di bagian bawah.
         if (isRuntunWaktu) {
+            $('#input_posisi_hirarki').val('kolom_atas');
+            $('#group_posisi_hirarki .btn-segmented').removeClass('active');
+            $('#btn_pos_kolom').addClass('active');
+            $('#wrap_sub_baris').addClass('d-none');
             $('#box_posisi_hirarki')
                 .addClass('disabled-posisi')
                 .attr('title', 'Terkunci: Pada mode Runtun Waktu, tata letak posisi hirarki kolom/periode dinonaktifkan karena periode disajikan khusus pada baris total');
@@ -1350,14 +1409,24 @@ $(document).ready(function() {
             $('#group_posisi_hirarki .btn-segmented').prop('disabled', false);
             const pos = $('#input_posisi_hirarki').val() || 'kolom_atas';
             $('.btn-segmented').removeClass('active');
-            if (pos === 'periode_baris') {
+            if (pos === 'periode_baris' || pos === 'periode_baris_pisah') {
                 $('#btn_pos_baris').addClass('active');
+                $('#wrap_sub_baris').removeClass('d-none');
+                $('.btn-sub-baris').removeClass('active');
+                if (pos === 'periode_baris_pisah') {
+                    $('#btn_sub_pisah').addClass('active');
+                } else {
+                    $('#btn_sub_gabung').addClass('active');
+                }
             } else if (pos === 'periode_atas') {
                 $('#btn_pos_periode').addClass('active');
+                $('#wrap_sub_baris').addClass('d-none');
             } else {
                 $('#btn_pos_kolom').addClass('active');
+                $('#wrap_sub_baris').addClass('d-none');
             }
         } else {
+            $('#wrap_sub_baris').addClass('d-none');
             $('#group_posisi_hirarki').addClass('disabled').css({'opacity': '0.45', 'pointer-events': 'none'});
             $('#group_posisi_hirarki .btn-segmented').prop('disabled', true);
             if (hasKolom) {
@@ -1432,7 +1501,8 @@ $(document).ready(function() {
         const isBilingual = $('#toggle_bilingual').is(':checked');
         const posHirarki = $('#input_posisi_hirarki').val() || 'kolom_atas';
         const isPeriodeAtas = (posHirarki === 'periode_atas');
-        const isPeriodeBaris = (posHirarki === 'periode_baris');
+        const isPeriodeBaris = (posHirarki === 'periode_baris' || posHirarki === 'periode_baris_pisah');
+        const isPeriodeBarisPisah = (posHirarki === 'periode_baris_pisah');
         const tingkatKolom = $('#input_tingkat_kolom').val() || 'semua';
         const konfigurasiTotal = $('#select_konfigurasi_total').val() || 'default';
         const isRuntunWaktu = (konfigurasiTotal === 'runtun_waktu');
@@ -1687,10 +1757,10 @@ $(document).ready(function() {
         // Dapatkan Judul Kelompok Periode secara Dinamis
         const periodeKelompok = data.periode_kelompok;
         let cleanTitlePeriode = 'Tahun';
-        let cleanTitlePeriodeEn = 'Year';
+        let cleanTitlePeriodeEn = '';
         if (periodeKelompok) {
             cleanTitlePeriode = periodeKelompok.judul_periode_ind || 'Tahun';
-            cleanTitlePeriodeEn = periodeKelompok.judul_periode_en || 'Year';
+            cleanTitlePeriodeEn = periodeKelompok.judul_periode_en || '';
         }
 
         /**
@@ -1984,19 +2054,30 @@ $(document).ready(function() {
                 // SUB-KASUS 3C: PERIODE MENJADI BARIS (PIVOT KE BARIS)
                 // =========================================================
                 theadHtml += '<tr>';
-                theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-start">';
-                theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
-                if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
-                    theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
-                }
-                theadHtml += '</th>';
+                if (!isPeriodeBarisPisah) {
+                    // MODE GABUNG HEADER: Kolom 1 & 2 disatukan (1 kesatuan kolom seperti Tabel 4.6.1)
+                    theadHtml += '<th rowspan="' + totalHeaderRows + '" colspan="2" class="th-freeze-col text-start">';
+                    theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
+                    if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
+                        theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
+                    }
+                    theadHtml += '</th>';
+                } else {
+                    // MODE PISAH HEADER: Dua kolom stub dengan judul masing-masing
+                    theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-start">';
+                    theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
+                    if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
+                        theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
+                    }
+                    theadHtml += '</th>';
 
-                theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col-2 text-center">';
-                theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
-                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
-                    theadHtml += '<span class="th-en">' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
+                    theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col-2 text-center">';
+                    theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
+                    if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                        theadHtml += '<span class="th-en">' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
+                    }
+                    theadHtml += '</th>';
                 }
-                theadHtml += '</th>';
 
                 theadHtml += getLevelCells(activeLevels[0], 1);
                 theadHtml += '</tr>';
@@ -2107,7 +2188,7 @@ $(document).ready(function() {
                 const emptyColspan = (isPeriodeBaris ? 2 : 1) + totalLeafCols;
                 tbodyHtml = '<tr><td colspan="' + emptyColspan + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';
             }
-        } else if (hasKolom && hasPeriode && isPeriodeBaris) {
+        } else if (hasKolom && hasPeriode && isPeriodeBaris && !isRuntunWaktu) {
             // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (NESTED PIVOT)
             barisItems.forEach(function(baris, bIdx) {
                 let tipe = (baris.tipe_baris || '').toLowerCase().trim();
