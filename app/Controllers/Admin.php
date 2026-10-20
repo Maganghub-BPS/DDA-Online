@@ -1391,7 +1391,7 @@ class Admin extends BaseController
 				$params_count[] = $filter_bidang;
 			}
 
-			$total_row = $this->db->query("SELECT l.id $sql_base $sql_where", $params_count)->getNumRows();
+			$total_row = (int)($this->db->query("SELECT COUNT(l.id) as total $sql_base $sql_where", $params_count)->getRow()->total ?? 0);
 			$per_page  = 20;
 
 			$awal = $this->uri->segment(4);
@@ -4551,23 +4551,10 @@ class Admin extends BaseController
 		$tab = $this->request->getGet('tab') ?? 'karakteristik';
 		$a['active_tab'] = in_array($tab, ['karakteristik', 'baris', 'periode'], true) ? $tab : 'karakteristik';
 
-		// Data Karakteristik
+		// Data Karakteristik, Baris, dan Periode (total_items sudah dihitung via agregasi query tunggal)
 		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
-		foreach ($a['list_karakteristik'] as $k) {
-			$k->total_items = count($mTabelDinamis->getKarakteristikItems((int)$k->id));
-		}
-
-		// Data Baris
-		$a['list_baris'] = $mTabelDinamis->getBarisKelompokAll();
-		foreach ($a['list_baris'] as $b) {
-			$b->total_items = count($mTabelDinamis->getBarisItems((int)$b->id));
-		}
-
-		// Data Periode
-		$a['list_periode'] = $mTabelDinamis->getPeriodeKelompokAll();
-		foreach ($a['list_periode'] as $p) {
-			$p->total_items = count($mTabelDinamis->getPeriodeItems((int)$p->id));
-		}
+		$a['list_baris']         = $mTabelDinamis->getBarisKelompokAll();
+		$a['list_periode']       = $mTabelDinamis->getPeriodeKelompokAll();
 
 		$a['page'] = 'l_master_dimensi';
 		return view('admin/index', $a);
@@ -4635,17 +4622,6 @@ class Admin extends BaseController
 		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
 		$a['list_baris']         = $mTabelDinamis->getBarisKelompokAll();
 		$a['list_periode']       = $mTabelDinamis->getPeriodeKelompokAll();
-
-		// Hitung jumlah item di masing-masing master untuk visual preview di select option
-		foreach ($a['list_karakteristik'] as $k) {
-			$k->total_items = count($mTabelDinamis->getKarakteristikItems((int)$k->id));
-		}
-		foreach ($a['list_baris'] as $b) {
-			$b->total_items = count($mTabelDinamis->getBarisItems((int)$b->id));
-		}
-		foreach ($a['list_periode'] as $p) {
-			$p->total_items = count($mTabelDinamis->getPeriodeItems((int)$p->id));
-		}
 
 		$init_max_depth = 1;
 		if (!empty($indikator->id_karakteristik_kelompok)) {

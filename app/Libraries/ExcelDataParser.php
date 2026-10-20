@@ -205,7 +205,22 @@ class ExcelDataParser
 
             $hasKolom    = !empty($flatKolom);
             $hasPeriode  = !empty($itemsPeriode);
-            $colIdx      = ($posisi_hirarki === 'periode_baris') ? 3 : 2; // Mulai C jika periode_baris, atau B jika kolom biasa
+
+            // Deteksi multi-column baris (||) untuk penyesuaian index kolom fallback
+            $isMultiBaris = false;
+            $titleBarisInd = $indikator->nama_kelompok_baris_ind ?? '';
+            if (strpos($titleBarisInd, '||') !== false) {
+                $isMultiBaris = true;
+            } else {
+                foreach ($itemsBaris as $b) {
+                    if (strpos($b->nama_baris_ind ?? '', '||') !== false) {
+                        $isMultiBaris = true;
+                        break;
+                    }
+                }
+            }
+
+            $colIdx      = ($posisi_hirarki === 'periode_baris') ? ($isMultiBaris ? 4 : 3) : ($isMultiBaris ? 3 : 2);
 
             // Hitung level maksimum pada seluruh kelompok baris
             $maxBarisGroupLevel = 0;

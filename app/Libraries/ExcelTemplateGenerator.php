@@ -103,20 +103,47 @@ class ExcelTemplateGenerator
         $titleBarisInd = !empty($kelompokBaris->judul_baris_ind) ? $kelompokBaris->judul_baris_ind : ($kelompokBaris->nama_kelompok_ind ?? 'Kabupaten/Kota');
         $titleBarisInd = preg_replace('/^\d+\s+/', '', $titleBarisInd); // Bersihkan prefix angka
         $titleBarisEn  = !empty($kelompokBaris->judul_baris_en) ? $kelompokBaris->judul_baris_en : ($kelompokBaris->nama_kelompok_en ?? '');
-        if (empty($titleBarisEn) || strtolower($titleBarisEn) === strtolower($titleBarisInd)) {
-            $lower = strtolower($titleBarisInd);
-            if (strpos($lower, 'kabupaten') !== false && strpos($lower, 'kota') !== false) {
-                $titleBarisEn = 'Regency/Municipality';
-            } elseif (strpos($lower, 'kabupaten') !== false) {
-                $titleBarisEn = 'Regency';
-            } elseif (strpos($lower, 'kota') !== false) {
-                $titleBarisEn = 'Municipality';
-            } elseif (strpos($lower, 'kecamatan') !== false) {
-                $titleBarisEn = 'District';
-            } elseif (strpos($lower, 'desa') !== false || strpos($lower, 'kelurahan') !== false) {
-                $titleBarisEn = 'Village';
-            } else {
-                $titleBarisEn = 'Detail / Region';
+
+        // Deteksi Multi-Kolom Baris (format pemisah '||')
+        $isMultiBaris = (strpos($titleBarisInd, '||') !== false);
+        if (!$isMultiBaris && !empty($itemsBaris)) {
+            foreach ($itemsBaris as $ib) {
+                if (strpos($ib->nama_baris_ind ?? '', '||') !== false) {
+                    $isMultiBaris = true;
+                    break;
+                }
+            }
+        }
+
+        if ($isMultiBaris) {
+            $pInd = array_map('trim', explode('||', $titleBarisInd));
+            $pEn  = array_map('trim', explode('||', $titleBarisEn));
+            $titleCol1Ind = $pInd[0] ?? $titleBarisInd;
+            $titleCol1En  = $pEn[0] ?? $titleCol1Ind;
+            $titleCol2Ind = $pInd[1] ?? 'Rincian / Satuan';
+            $titleCol2En  = $pEn[1] ?? $titleCol2Ind;
+        } else {
+            $titleCol1Ind = $titleBarisInd;
+            $titleCol1En  = $titleBarisEn;
+            $titleCol2Ind = '';
+            $titleCol2En  = '';
+
+            if (empty($titleBarisEn) || strtolower($titleBarisEn) === strtolower($titleBarisInd)) {
+                $lower = strtolower($titleBarisInd);
+                if (strpos($lower, 'kabupaten') !== false && strpos($lower, 'kota') !== false) {
+                    $titleBarisEn = 'Regency/Municipality';
+                } elseif (strpos($lower, 'kabupaten') !== false) {
+                    $titleBarisEn = 'Regency';
+                } elseif (strpos($lower, 'kota') !== false) {
+                    $titleBarisEn = 'Municipality';
+                } elseif (strpos($lower, 'kecamatan') !== false) {
+                    $titleBarisEn = 'District';
+                } elseif (strpos($lower, 'desa') !== false || strpos($lower, 'kelurahan') !== false) {
+                    $titleBarisEn = 'Village';
+                } else {
+                    $titleBarisEn = 'Detail / Region';
+                }
+                $titleCol1En = $titleBarisEn;
             }
         }
 
@@ -300,8 +327,11 @@ class ExcelTemplateGenerator
             }
         }
 
+        $rowHeaderCols = ($isMultiBaris ? 2 : 1) + ($posisi_hirarki === 'periode_baris' ? 1 : 0);
+        $startDataColIndex = $rowHeaderCols + 1;
+
         $totalLeafCols = count($leafColumns);
-        $lastColIndex  = ($posisi_hirarki === 'periode_baris') ? (2 + $totalLeafCols) : (1 + $totalLeafCols);
+        $lastColIndex  = $rowHeaderCols + $totalLeafCols;
         $lastColLetter = Coordinate::stringFromColumnIndex($lastColIndex);
 
         // =====================================================================
@@ -370,35 +400,34 @@ class ExcelTemplateGenerator
         $headerNumColor  = 'C2410C';
         $fontColorWhite  = 'FFFFFF';
 
-        // Kolom A: Judul Baris (Merge dari startHeaderRow sampai startHeaderRow + headerDataRows - 1)
-        $sheet->mergeCells("A{$startHeaderRow}:A" . ($numRow - 1));
-        $cellTitleBaris = $titleBarisInd . (!empty($titleBarisEn) ? "\n" . $titleBarisEn : "");
-        $sheet->setCellValue("A{$startHeaderRow}", $cellTitleBaris);
+        if ($isMultiBaris) {
+            // Kolom A: Judul Kolom 1
+            $sheet->mergeCells("A{$startHeaderRow}:A" . ($numRow - 1));
+            $cellTitleCol1 = $titleCol1Ind . (!empty($titleCol1En) && strtolower($titleCol1En) !== strtolower($titleCol1Ind) ? "\n" . $titleCol1En : "");
+            $sheet->setCellValue("A{$startHeaderRow}", $cellTitleCol1);
 
-        // Styling Kolom A Header
-        $sheet->getStyle("A{$startHeaderRow}:A" . ($numRow - 1))->applyFromArray([
-            'font' => [
-                'bold'  => true,
-                'color' => ['rgb' => $fontColorWhite],
-                'size'  => 10,
-                'name'  => 'Arial'
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical'   => Alignment::VERTICAL_CENTER,
-                'wrapText'   => true,
-            ],
-            'fill' => [
-                'fillType'   => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => $headerFillColor]
-            ]
-        ]);
+            $sheet->getStyle("A{$startHeaderRow}:A" . ($numRow - 1))->applyFromArray([
+                'font' => [
+                    'bold'  => true,
+                    'color' => ['rgb' => $fontColorWhite],
+                    'size'  => 10,
+                    'name'  => 'Arial'
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER,
+                    'wrapText'   => true,
+                ],
+                'fill' => [
+                    'fillType'   => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => $headerFillColor]
+                ]
+            ]);
 
-        if ($posisi_hirarki === 'periode_baris') {
-            // Kolom B: Judul Periode (Tahun / Year)
+            // Kolom B: Judul Kolom 2
             $sheet->mergeCells("B{$startHeaderRow}:B" . ($numRow - 1));
-            $cellTitlePeriode = $titlePeriodeInd . (!empty($titlePeriodeEn) ? "\n" . $titlePeriodeEn : "");
-            $sheet->setCellValue("B{$startHeaderRow}", $cellTitlePeriode);
+            $cellTitleCol2 = $titleCol2Ind . (!empty($titleCol2En) && strtolower($titleCol2En) !== strtolower($titleCol2Ind) ? "\n" . $titleCol2En : "");
+            $sheet->setCellValue("B{$startHeaderRow}", $cellTitleCol2);
 
             $sheet->getStyle("B{$startHeaderRow}:B" . ($numRow - 1))->applyFromArray([
                 'font' => [
@@ -417,10 +446,80 @@ class ExcelTemplateGenerator
                     'startColor' => ['rgb' => $headerFillColor]
                 ]
             ]);
-        }
 
-        // Render Header Kolom Data (Mulai dari Kolom C jika periode_baris, atau Kolom B jika standar)
-        $startDataColIndex = ($posisi_hirarki === 'periode_baris') ? 3 : 2;
+            if ($posisi_hirarki === 'periode_baris') {
+                // Kolom C: Judul Periode (Tahun / Year)
+                $sheet->mergeCells("C{$startHeaderRow}:C" . ($numRow - 1));
+                $cellTitlePeriode = $titlePeriodeInd . (!empty($titlePeriodeEn) ? "\n" . $titlePeriodeEn : "");
+                $sheet->setCellValue("C{$startHeaderRow}", $cellTitlePeriode);
+
+                $sheet->getStyle("C{$startHeaderRow}:C" . ($numRow - 1))->applyFromArray([
+                    'font' => [
+                        'bold'  => true,
+                        'color' => ['rgb' => $fontColorWhite],
+                        'size'  => 10,
+                        'name'  => 'Arial'
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical'   => Alignment::VERTICAL_CENTER,
+                        'wrapText'   => true,
+                    ],
+                    'fill' => [
+                        'fillType'   => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => $headerFillColor]
+                    ]
+                ]);
+            }
+        } else {
+            // Kolom A: Judul Baris Standar
+            $sheet->mergeCells("A{$startHeaderRow}:A" . ($numRow - 1));
+            $cellTitleBaris = $titleBarisInd . (!empty($titleBarisEn) ? "\n" . $titleBarisEn : "");
+            $sheet->setCellValue("A{$startHeaderRow}", $cellTitleBaris);
+
+            $sheet->getStyle("A{$startHeaderRow}:A" . ($numRow - 1))->applyFromArray([
+                'font' => [
+                    'bold'  => true,
+                    'color' => ['rgb' => $fontColorWhite],
+                    'size'  => 10,
+                    'name'  => 'Arial'
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER,
+                    'wrapText'   => true,
+                ],
+                'fill' => [
+                    'fillType'   => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => $headerFillColor]
+                ]
+            ]);
+
+            if ($posisi_hirarki === 'periode_baris') {
+                // Kolom B: Judul Periode (Tahun / Year)
+                $sheet->mergeCells("B{$startHeaderRow}:B" . ($numRow - 1));
+                $cellTitlePeriode = $titlePeriodeInd . (!empty($titlePeriodeEn) ? "\n" . $titlePeriodeEn : "");
+                $sheet->setCellValue("B{$startHeaderRow}", $cellTitlePeriode);
+
+                $sheet->getStyle("B{$startHeaderRow}:B" . ($numRow - 1))->applyFromArray([
+                    'font' => [
+                        'bold'  => true,
+                        'color' => ['rgb' => $fontColorWhite],
+                        'size'  => 10,
+                        'name'  => 'Arial'
+                    ],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical'   => Alignment::VERTICAL_CENTER,
+                        'wrapText'   => true,
+                    ],
+                    'fill' => [
+                        'fillType'   => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => $headerFillColor]
+                    ]
+                ]);
+            }
+        }
 
         // Helper untuk merender tingkat kolom ke sel Excel
         $fillLevelCellsExcel = function(int $lvl, int $rowNum, int $startCol, int $multiplier) use ($sheet, $groups, $flatKolom, $maxDepth, $activeLevels): int {
@@ -648,7 +747,7 @@ class ExcelTemplateGenerator
 
         if (!$hasKolom && $hasPeriode) {
             // KASUS 1: HANYA PERIODE (1 Baris)
-            $curCol = 2;
+            $curCol = $startDataColIndex;
             foreach ($itemsPeriode as $p) {
                 $pLetter = Coordinate::stringFromColumnIndex($curCol);
                 $pText   = $p->nama_periode_ind . (!empty($p->nama_periode_en) ? "\n" . $p->nama_periode_en : '');
@@ -659,20 +758,20 @@ class ExcelTemplateGenerator
             // KASUS 2: HANYA KARAKTERISTIK KOLOM
             foreach ($activeLevels as $idx => $lvl) {
                 $r = $startHeaderRow + $idx;
-                $fillLevelCellsExcel($lvl, $r, 2, 1);
+                $fillLevelCellsExcel($lvl, $r, $startDataColIndex, 1);
             }
         } elseif ($hasKolom && $hasPeriode) {
             // KASUS 3: KEDUANYA ADA
             if ($posisi_hirarki === 'periode_baris') {
-                // Baris 1..N: Tingkat-tingkat Kolom mulai Kolom C (Index 3)
+                // Baris 1..N: Tingkat-tingkat Kolom mulai startDataColIndex
                 foreach ($activeLevels as $idx => $lvl) {
                     $r = $startHeaderRow + $idx;
-                    $fillLevelCellsExcel($lvl, $r, 3, 1);
+                    $fillLevelCellsExcel($lvl, $r, $startDataColIndex, 1);
                 }
             } elseif ($posisi_hirarki === 'periode_atas') {
                 // Baris 1: Periode Waktu
                 $rPer = $startHeaderRow;
-                $curCol = 2;
+                $curCol = $startDataColIndex;
                 $colsPerPeriode = count($flatKolom);
                 foreach ($itemsPeriode as $p) {
                     $fromColLetter = Coordinate::stringFromColumnIndex($curCol);
@@ -688,7 +787,7 @@ class ExcelTemplateGenerator
                 // Baris 2..N: Tingkat-tingkat Kolom di bawah setiap periode
                 foreach ($activeLevels as $idx => $lvl) {
                     $r = $startHeaderRow + 1 + $idx;
-                    $c = 2;
+                    $c = $startDataColIndex;
                     foreach ($itemsPeriode as $p) {
                         $c = $fillLevelCellsExcel($lvl, $r, $c, 1);
                     }
@@ -697,12 +796,12 @@ class ExcelTemplateGenerator
                 // Baris 1..N: Tingkat-tingkat Kolom
                 foreach ($activeLevels as $idx => $lvl) {
                     $r = $startHeaderRow + $idx;
-                    $fillLevelCellsExcel($lvl, $r, 2, count($itemsPeriode));
+                    $fillLevelCellsExcel($lvl, $r, $startDataColIndex, count($itemsPeriode));
                 }
 
                 // Baris Terbawah: Periode Waktu di bawah setiap kolom daun
                 $rPer = $startHeaderRow + count($activeLevels);
-                $c = 2;
+                $c = $startDataColIndex;
                 foreach ($flatKolom as $child) {
                     foreach ($itemsPeriode as $p) {
                         $pLetter = Coordinate::stringFromColumnIndex($c);
@@ -918,21 +1017,63 @@ class ExcelTemplateGenerator
                             'nama'      => $namaBaris . ' (' . $p->nama_periode_ind . ')',
                         ];
 
-                        if ($pIdx === 0) {
-                            $sheet->setCellValue("A{$curRow}", $namaBaris);
-                            if ($pCount > 1) {
-                                $sheet->mergeCells("A{$curRow}:A" . ($curRow + $pCount - 1));
+                        if ($isMultiBaris) {
+                            $col1Ind = $namaBaris;
+                            $col2Ind = '';
+                            if (strpos($namaBaris, '||') !== false) {
+                                $pBaris = array_map('trim', explode('||', $namaBaris));
+                                $col1Ind = $pBaris[0] ?? $namaBaris;
+                                $col2Ind = $pBaris[1] ?? '';
                             }
-                            $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
-                            if ($isBold) {
-                                $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
-                            }
-                        }
 
-                        $sheet->setCellValue("B{$curRow}", $p->nama_periode_ind);
-                        $sheet->getStyle("B{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
-                        if ($isBold) {
-                            $sheet->getStyle("B{$curRow}")->getFont()->setBold(true);
+                            if ($pIdx === 0) {
+                                if ($col2Ind !== '') {
+                                    $sheet->setCellValue("A{$curRow}", $col1Ind);
+                                    $sheet->setCellValue("B{$curRow}", $col2Ind);
+                                    if ($pCount > 1) {
+                                        $sheet->mergeCells("A{$curRow}:A" . ($curRow + $pCount - 1));
+                                        $sheet->mergeCells("B{$curRow}:B" . ($curRow + $pCount - 1));
+                                    }
+                                    $sheet->getStyle("B{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                                } else {
+                                    $sheet->setCellValue("A{$curRow}", $col1Ind);
+                                    if ($pCount > 1) {
+                                        $sheet->mergeCells("A{$curRow}:B" . ($curRow + $pCount - 1));
+                                    } else {
+                                        $sheet->mergeCells("A{$curRow}:B{$curRow}");
+                                    }
+                                }
+                                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
+                                if ($isBold) {
+                                    $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
+                                    if ($col2Ind !== '') {
+                                        $sheet->getStyle("B{$curRow}")->getFont()->setBold(true);
+                                    }
+                                }
+                            }
+
+                            $sheet->setCellValue("C{$curRow}", $p->nama_periode_ind);
+                            $sheet->getStyle("C{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                            if ($isBold) {
+                                $sheet->getStyle("C{$curRow}")->getFont()->setBold(true);
+                            }
+                        } else {
+                            if ($pIdx === 0) {
+                                $sheet->setCellValue("A{$curRow}", $namaBaris);
+                                if ($pCount > 1) {
+                                    $sheet->mergeCells("A{$curRow}:A" . ($curRow + $pCount - 1));
+                                }
+                                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
+                                if ($isBold) {
+                                    $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
+                                }
+                            }
+
+                            $sheet->setCellValue("B{$curRow}", $p->nama_periode_ind);
+                            $sheet->getStyle("B{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                            if ($isBold) {
+                                $sheet->getStyle("B{$curRow}")->getFont()->setBold(true);
+                            }
                         }
 
                         if ($tipeBaris === 'total') {
@@ -957,7 +1098,7 @@ class ExcelTemplateGenerator
                                     ]
                                 ]
                             ]);
-                            for ($c = 3; $c <= $lastColIndex; $c++) {
+                            for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                                 $cLetter = Coordinate::stringFromColumnIndex($c);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
@@ -972,7 +1113,7 @@ class ExcelTemplateGenerator
                                     ]
                                 ]
                             ]);
-                            for ($c = 3; $c <= $lastColIndex; $c++) {
+                            for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                                 $cLetter = Coordinate::stringFromColumnIndex($c);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
@@ -990,12 +1131,36 @@ class ExcelTemplateGenerator
                     'nama'      => $namaBaris,
                 ];
 
-                // Tulis Kolom A (Label Baris)
-                $sheet->setCellValue("A{$curRow}", $namaBaris);
+                $col1Ind = $namaBaris;
+                $col2Ind = '';
+                if ($isMultiBaris) {
+                    if (strpos($namaBaris, '||') !== false) {
+                        $pBaris = array_map('trim', explode('||', $namaBaris));
+                        $col1Ind = $pBaris[0] ?? $namaBaris;
+                        $col2Ind = $pBaris[1] ?? '';
+                    }
+                }
+
+                // Tulis Kolom A (Label Baris) & Kolom B (jika multi-baris)
+                if ($isMultiBaris) {
+                    if ($col2Ind !== '') {
+                        $sheet->setCellValue("A{$curRow}", $col1Ind);
+                        $sheet->setCellValue("B{$curRow}", $col2Ind);
+                        $sheet->getStyle("B{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
+                    } else {
+                        $sheet->mergeCells("A{$curRow}:B{$curRow}");
+                        $sheet->setCellValue("A{$curRow}", $col1Ind);
+                    }
+                } else {
+                    $sheet->setCellValue("A{$curRow}", $namaBaris);
+                }
                 $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2));
                 $sheet->getStyle("A{$curRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
                 if ($isBold) {
                     $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
+                    if ($isMultiBaris && $col2Ind !== '') {
+                        $sheet->getStyle("B{$curRow}")->getFont()->setBold(true);
+                    }
                 }
 
                 // Atur Style Baris Ini
@@ -1040,7 +1205,7 @@ class ExcelTemplateGenerator
                     ]);
 
                     // Sel data total: Format angka & alignment
-                    for ($c = 2; $c <= $lastColIndex; $c++) {
+                    for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                         $cLetter = Coordinate::stringFromColumnIndex($c);
                         $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()
                             ->setFormatCode($numFormat);
@@ -1059,8 +1224,8 @@ class ExcelTemplateGenerator
                         ]
                     ]);
 
-                    // Format seluruh sel data angka (Kolom B s.d Akhir)
-                    for ($c = 2; $c <= $lastColIndex; $c++) {
+                    // Format seluruh sel data angka
+                    for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                         $cLetter = Coordinate::stringFromColumnIndex($c);
                         $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()
                             ->setFormatCode($numFormat);
@@ -1100,18 +1265,19 @@ class ExcelTemplateGenerator
         // Kolom A: Lebar proporsional untuk nama wilayah/instansi
         $sheet->getColumnDimension('A')->setWidth(38);
 
-        if ($posisi_hirarki === 'periode_baris') {
+        if ($isMultiBaris) {
+            $sheet->getColumnDimension('B')->setWidth(16);
+            if ($posisi_hirarki === 'periode_baris') {
+                $sheet->getColumnDimension('C')->setWidth(14);
+            }
+        } elseif ($posisi_hirarki === 'periode_baris') {
             $sheet->getColumnDimension('B')->setWidth(14);
-            for ($c = 3; $c <= $lastColIndex; $c++) {
-                $cLetter = Coordinate::stringFromColumnIndex($c);
-                $sheet->getColumnDimension($cLetter)->setWidth(18);
-            }
-        } else {
-            // Kolom Data (B s.d LastCol): Lebar ideal agar angka & header muat rapi
-            for ($c = 2; $c <= $lastColIndex; $c++) {
-                $cLetter = Coordinate::stringFromColumnIndex($c);
-                $sheet->getColumnDimension($cLetter)->setWidth(18);
-            }
+        }
+
+        // Kolom Data (startDataColIndex s.d LastCol): Lebar ideal agar angka & header muat rapi
+        for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
+            $cLetter = Coordinate::stringFromColumnIndex($c);
+            $sheet->getColumnDimension($cLetter)->setWidth(18);
         }
 
         // =====================================================================
@@ -1154,7 +1320,7 @@ class ExcelTemplateGenerator
         $metaSheet->setCellValue('A9', 'ID_PERIODE_KELOMPOK');
         $metaSheet->setCellValue('B9', $id_periode);
 
-        $dataStartCol = ($posisi_hirarki === 'periode_baris') ? 'C' : 'B';
+        $dataStartCol = Coordinate::stringFromColumnIndex($startDataColIndex);
 
         $metaSheet->setCellValue('A10', 'DATA_START_ROW');
         $metaSheet->setCellValue('B10', $dataStartRow);
@@ -1170,7 +1336,7 @@ class ExcelTemplateGenerator
 
         // Susun daftar leaf columns dengan mapping huruf kolom Excel
         $leafColumnsMeta = [];
-        $colOffset = ($posisi_hirarki === 'periode_baris') ? 3 : 2;
+        $colOffset = $startDataColIndex;
         foreach ($leafColumns as $idx => $lCol) {
             $colLetter = Coordinate::stringFromColumnIndex($colOffset + $idx);
             $leafColumnsMeta[] = array_merge(['excel_col' => $colLetter], $lCol);

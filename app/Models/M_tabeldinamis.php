@@ -38,8 +38,11 @@ class M_tabeldinamis extends Model
 
     public function getKarakteristikKelompokAll(): array
     {
-        return $this->db->table('m_karakteristik_kelompok')
-            ->orderBy('id', 'DESC')
+        return $this->db->table('m_karakteristik_kelompok k')
+            ->select('k.*, COUNT(i.id) AS total_items')
+            ->join('m_karakteristik_item i', 'k.id = i.id_kelompok', 'left')
+            ->groupBy('k.id')
+            ->orderBy('k.id', 'DESC')
             ->get()
             ->getResult();
     }
@@ -332,8 +335,11 @@ class M_tabeldinamis extends Model
 
     public function getBarisKelompokAll(): array
     {
-        return $this->db->table('m_baris_kelompok')
-            ->orderBy('id', 'DESC')
+        return $this->db->table('m_baris_kelompok k')
+            ->select('k.*, COUNT(i.id) AS total_items')
+            ->join('m_baris_item i', 'k.id = i.id_kelompok', 'left')
+            ->groupBy('k.id')
+            ->orderBy('k.id', 'DESC')
             ->get()
             ->getResult();
     }
@@ -663,8 +669,11 @@ class M_tabeldinamis extends Model
 
     public function getPeriodeKelompokAll(): array
     {
-        return $this->db->table('m_periode_kelompok')
-            ->orderBy('id', 'DESC')
+        return $this->db->table('m_periode_kelompok k')
+            ->select('k.*, COUNT(i.id) AS total_items')
+            ->join('m_periode_item i', 'k.id = i.id_kelompok', 'left')
+            ->groupBy('k.id')
+            ->orderBy('k.id', 'DESC')
             ->get()
             ->getResult();
     }

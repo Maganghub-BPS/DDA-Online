@@ -1856,6 +1856,16 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
+            <style>
+                .terpadu-quick-toggle-role {
+                    transition: all 0.15s ease-in-out !important;
+                }
+                .terpadu-quick-toggle-role:hover {
+                    transform: scale(1.08) !important;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.18) !important;
+                }
+            </style>
+
             <div class="modal-body p-4 bg-light">
                 <!-- STEP 1: PILIH SUMBER DATA & SHEET -->
                 <div class="card border-0 shadow-xs mb-3 rounded-3" style="border: 1px solid #e2e8f0 !important; background: #ffffff;">
@@ -2001,7 +2011,7 @@
                                     <div class="mb-3 p-2 rounded-2 border shadow-xs" id="terpadu_row_col_container" style="display: none; background: #f8fafc; border-color: #cbd5e1 !important;">
                                         <div class="d-flex justify-content-between align-items-center mb-1">
                                             <label class="form-label fw-bold text-dark text-xxs mb-0" for="terpadu_select_row_col">
-                                                <i class="bi bi-layout-sidebar-inset text-primary me-1"></i>Kolom Baris Utama:
+                                                <i class="bi bi-layout-sidebar-inset text-primary me-1"></i>Kolom Label Baris Utama:
                                             </label>
                                             <span class="badge bg-primary-soft text-primary border text-xxs" id="terpadu_row_col_detected_badge">
                                                 <i class="bi bi-magic me-1"></i>Auto-detect
@@ -2011,7 +2021,7 @@
                                             <option value="">-- Memuat Kolom --</option>
                                         </select>
                                         <div class="text-muted mt-1" style="font-size: 0.68rem; line-height: 1.15;">
-                                            <i class="bi bi-info-circle me-1"></i>Pilih kolom jika baris tabel ini berada di kolom lain.
+                                            <i class="bi bi-info-circle me-1"></i>Pilih kolom sumber nama baris utama (misal nama instansi, wilayah, dsb).
                                         </div>
                                     </div>
 
@@ -2124,13 +2134,26 @@
                                 <span class="badge px-2 py-1 border" style="background: #fff7ed; color: #c2410c; border-color: #fdba74 !important;">
                                     <i class="bi bi-square-fill me-1" style="color: #ea580c !important;"></i> Kolom Karakteristik
                                 </span>
-                                <span class="badge px-2 py-1 border" style="background: #f0fdf4; color: #15803d; border-color: #86efac !important;" id="terpadu_legend_periode">
-                                    <i class="bi bi-square-fill me-1" style="color: #16a34a !important;"></i> Periode Waktu
-                                </span>
+                                <button type="button" class="btn btn-xs terpadu-toggle-all-periode py-0 px-2 border fw-bold shadow-xs d-inline-flex align-items-center gap-1" id="terpadu_legend_periode" style="background: #f0fdf4; color: #15803d; border-color: #86efac !important; border-radius: 9999px; font-size: 0.68rem; cursor: pointer;" title="Klik untuk switch aktif/nonaktif Master Periode Waktu">
+                                    <i class="bi bi-calendar3"></i> Periode Waktu: <span id="terpadu_legend_periode_status">Aktif</span> <i class="bi bi-arrow-left-right ms-1 text-success-subtle" style="font-size: 0.6rem;"></i>
+                                </button>
                                 <span class="badge bg-light text-muted border px-2 py-1" id="terpadu_table_meta_badge">0 baris | 0 kolom</span>
                             </div>
                         </div>
                         <div class="card-body p-3 bg-white">
+                            <!-- Banner Petunjuk Kemudahan Atur Baris / Kolom / Periode Langsung di Tabel -->
+                            <div class="alert alert-light border border-primary-subtle py-2 px-3 small d-flex flex-wrap align-items-center justify-content-between mb-2 shadow-xs" style="background: #f8fafc; border-radius: 8px;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-hand-index-thumb-fill text-primary fs-6"></i>
+                                    <span style="font-size: 0.73rem;" class="text-dark">
+                                        <b>Kemudahan Pengaturan:</b> Langsung klik tombol <span class="badge py-1 px-2 border fw-bold" style="background: #eff6ff; color: #1d4ed8; border-color: #93c5fd !important;"><i class="bi bi-list-nested me-1"></i>BARIS ⇄</span>, <span class="badge py-1 px-2 border fw-bold" style="background: #fff7ed; color: #c2410c; border-color: #fdba74 !important;"><i class="bi bi-layout-three-columns me-1"></i>KOLOM ⇄</span>, atau <span class="badge py-1 px-2 border fw-bold" style="background: #f0fdf4; color: #15803d; border-color: #86efac !important;"><i class="bi bi-calendar3 me-1"></i>PERIODE ⇄</span> di kepala tabel bawah untuk mengubah peran dimensi seketika!
+                                    </span>
+                                </div>
+                                <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">
+                                    <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Reaktif &amp; Instan
+                                </span>
+                            </div>
+
                             <div class="table-responsive bg-white rounded-2 border" style="max-height: 260px; overflow: auto;">
                                 <table class="table table-bordered table-sm text-center align-middle mb-0" id="table_preview_terpadu_matrix" style="font-size: 0.74rem;">
                                     <thead id="terpadu_matrix_thead"></thead>
@@ -3863,7 +3886,7 @@ Jawa Tengah // Central Java`;
         $('#import_meta_badge').text(`${data.total_rows} baris data | ${validCols} kolom terisi`);
 
         // Render Column Dropdowns
-        populateColumnDropdowns(data.columns || []);
+        populateColumnDropdowns(data.columns || [], data.best_row_col_index);
 
         $('#import_config_section').slideDown(250);
 
@@ -3871,7 +3894,7 @@ Jawa Tengah // Central Java`;
         triggerExtractRows();
     }
 
-    function populateColumnDropdowns(columns) {
+    function populateColumnDropdowns(columns, bestRowColIdx) {
         const $indSelect = $('#import_col_ind_select');
         const $enSelect = $('#import_col_en_select');
 
@@ -3880,7 +3903,7 @@ Jawa Tengah // Central Java`;
 
         $enSelect.append('<option value="-1">[ Otomatis Terjemahkan Bulan / Ikuti Indonesia ]</option>');
 
-        let defaultIndIdx = 0;
+        let defaultIndIdx = (bestRowColIdx !== undefined && bestRowColIdx !== null) ? parseInt(bestRowColIdx) : 0;
         let defaultEnIdx = -1;
 
         columns.forEach(function(col) {
@@ -5195,23 +5218,7 @@ Jawa Tengah // Central Java`;
         $('#terpadu_baris_count_badge').text(`${autoRows.length} Baris Terdeteksi`);
 
         // Populate Dropdown Pemilih Kolom Baris Utama
-        const $rowColSelect = $('#terpadu_select_row_col');
-        $rowColSelect.empty();
-        if (data.columns && data.columns.length > 0) {
-            data.columns.forEach(function(col) {
-                const isSelected = (col.index === data.best_row_col_index) ? 'selected' : '';
-                const roleBadge = col.is_row_identifier ? ' [Baris/ID]' : '';
-                const colLetter = col.letter || String.fromCharCode(65 + col.index);
-                const colTitle = col.header || col.full_title || ('Kolom ' + (col.index + 1));
-                $rowColSelect.append(`<option value="${col.index}" ${isSelected}>Kolom ${colLetter}: ${escapeHtml(colTitle)}${roleBadge}</option>`);
-            });
-            const activeCol = data.columns.find(c => c.index === data.best_row_col_index);
-            const activeLetter = activeCol ? activeCol.letter : (String.fromCharCode(65 + (data.best_row_col_index || 0)));
-            $('#terpadu_row_col_detected_badge').html(`<i class="bi bi-magic me-1"></i>Kolom ${activeLetter}`);
-            $('#terpadu_row_col_container').show();
-        } else {
-            $('#terpadu_row_col_container').hide();
-        }
+        populateTerpaduRowColDropdown(data);
 
         // Isi Usulan Nama Kelompok Baris (Pilihan Master) & Judul Header Tabel Baris
         const suggBarisInd = data.suggested_baris_ind || 'Kabupaten/Kota';
@@ -5366,14 +5373,34 @@ Jawa Tengah // Central Java`;
         autoRows.forEach(function(row, idx) {
             const indent = row.level === 2 ? 'ms-4 ps-2 border-start border-2 border-warning' : (row.level === 1 ? 'ms-3 ps-2 border-start border-2 border-primary' : '');
             const badge = row.level === 2 ? '<span class="badge bg-light text-warning border text-xxs me-1">Sub-Sub</span>' : (row.level === 1 ? '<span class="badge bg-light text-primary border text-xxs me-1">Sub</span>' : '');
-            const enText = (row.en && row.en !== row.ind) ? `<span class="text-muted ms-1 fst-italic">(${escapeHtml(row.en)})</span>` : '';
+
+            let rowIndText = row.ind || '';
+            let subBadgeCol2 = '';
+            if (rowIndText.includes('||')) {
+                const parts = rowIndText.split('||');
+                rowIndText = parts[0].trim();
+                const col2Val = parts[1].trim();
+                subBadgeCol2 = `<span class="badge bg-light text-primary border ms-auto px-2 py-0 fw-semibold" style="font-size: 0.67rem;">${escapeHtml(col2Val)}</span>`;
+            }
+
+            let enText = '';
+            if (row.en && row.en !== row.ind) {
+                let enClean = row.en;
+                if (enClean.includes('||')) {
+                    enClean = enClean.split('||')[0].trim();
+                }
+                if (enClean && enClean.toLowerCase() !== rowIndText.toLowerCase()) {
+                    enText = `<span class="text-muted ms-1 fst-italic">(${escapeHtml(enClean)})</span>`;
+                }
+            }
 
             $list.append(`
                 <div class="py-1 border-bottom d-flex align-items-center ${indent}" style="font-size: 0.72rem;">
                     <span class="text-muted me-2" style="font-size: 0.68rem; min-width: 20px;">${idx + 1}.</span>
                     ${badge}
-                    <span class="text-dark fw-medium">${escapeHtml(row.ind)}</span>
+                    <span class="text-dark fw-medium">${escapeHtml(rowIndText)}</span>
                     ${enText}
+                    ${subBadgeCol2}
                 </div>
             `);
         });
@@ -5401,7 +5428,244 @@ Jawa Tengah // Central Java`;
         });
     }
 
-    // 5. Render Live Preview Matriks Tabel dari Sheet/File
+    // 5. Populate Dropdown Pemilih Kolom Baris Utama dengan Deduplikasi dan Pengelompokan Jelas
+    function populateTerpaduRowColDropdown(data) {
+        const $rowColSelect = $('#terpadu_select_row_col');
+        $rowColSelect.empty();
+        if (!data.columns || data.columns.length === 0) {
+            $('#terpadu_row_col_container').hide();
+            return;
+        }
+
+        const rowCols = data.columns.filter(c => c.is_row_identifier);
+        const statCols = data.columns.filter(c => !c.is_row_identifier);
+
+        // Deduplikasi kolom berturut-turut yang identik akibat merged cell di Excel (misal Kolom J, K, L, M)
+        function deduplicateCols(cols) {
+            const result = [];
+            let prevHeader = null;
+            cols.forEach(col => {
+                const headerNorm = (col.header || '').trim().toLowerCase();
+                if (headerNorm !== prevHeader) {
+                    result.push(col);
+                    prevHeader = headerNorm;
+                }
+            });
+            return result;
+        }
+
+        const dedupRowCols = deduplicateCols(rowCols);
+        const dedupStatCols = deduplicateCols(statCols);
+
+        // Group 1: Pilihan Rekomendasi (Kolom Judul Baris)
+        if (dedupRowCols.length > 0) {
+            const $optgroupRow = $('<optgroup label="🔵 Kolom Judul Baris (Rekomendasi)"></optgroup>');
+            dedupRowCols.forEach(col => {
+                const isSelected = (col.index === data.best_row_col_index) ? 'selected' : '';
+                const colLetter = col.letter || String.fromCharCode(65 + col.index);
+                const colTitle = col.header || col.full_title || ('Kolom ' + (col.index + 1));
+                $optgroupRow.append(`<option value="${col.index}" ${isSelected}>Kolom ${colLetter}: ${escapeHtml(colTitle)}</option>`);
+            });
+            $rowColSelect.append($optgroupRow);
+        }
+
+        // Group 2: Kolom Karakteristik Lainnya
+        if (dedupStatCols.length > 0) {
+            const $optgroupStat = $('<optgroup label="🟠 Kolom Karakteristik"></optgroup>');
+            dedupStatCols.forEach(col => {
+                const isSelected = (col.index === data.best_row_col_index) ? 'selected' : '';
+                const colLetter = col.letter || String.fromCharCode(65 + col.index);
+                const colTitle = col.header || col.full_title || ('Kolom ' + (col.index + 1));
+                $optgroupStat.append(`<option value="${col.index}" ${isSelected}>Kolom ${colLetter}: ${escapeHtml(colTitle)}</option>`);
+            });
+            $rowColSelect.append($optgroupStat);
+        }
+
+        const activeCol = data.columns.find(c => c.index === data.best_row_col_index);
+        const activeLetter = activeCol ? activeCol.letter : (String.fromCharCode(65 + (data.best_row_col_index || 0)));
+        $('#terpadu_row_col_detected_badge').html(`<i class="bi bi-check2-circle me-1"></i>Kolom ${activeLetter}`);
+        $('#terpadu_row_col_container').show();
+    }
+
+    // 6. Refresh Reaktif State UI saat Role Kolom Di-Toggle
+    function refreshTerpaduUIState() {
+        if (!currentTerpaduInspectData) return;
+
+        const data = currentTerpaduInspectData;
+        const validCols = (data.columns || []).filter(c => !c.is_row_identifier);
+
+        // Recompute distinct_parents
+        const seenParents = new Set();
+        const newDistinctParents = [];
+        validCols.forEach(function(c) {
+            const pInd = (c.header || '').trim();
+            const pKey = pInd.toLowerCase();
+            if (pInd && !seenParents.has(pKey) && !/^(kolom\s+[a-z0-9]+)$/i.test(pInd)) {
+                seenParents.add(pKey);
+                newDistinctParents.push({
+                    ind: pInd,
+                    en: c.header_en || pInd
+                });
+            }
+        });
+        data.distinct_parents = newDistinctParents;
+
+        // Update Kolom Count Badge
+        const isParentFmt = $('input[name="terpadu_kolom_format"]:checked').val() === 'parent';
+        const hasValidSubHeaders = validCols.some(c => (c.sub_header || '').trim() !== '');
+        const displayColCount = isParentFmt ? (newDistinctParents.length > 0 ? newDistinctParents.length : validCols.length) : (newDistinctParents.length > 0 && !hasValidSubHeaders ? newDistinctParents.length : validCols.length);
+        $('#terpadu_kolom_count_badge').text(`${displayColCount} Kolom Terdeteksi`);
+
+        // Render Kolom Preview List
+        renderTerpaduKolomPreview(validCols, newDistinctParents);
+
+        // Pastikan best_row_col_index tetap menunjuk ke kolom Baris jika ada
+        const rowCols = (data.columns || []).filter(c => c.is_row_identifier);
+        const currentBest = data.columns.find(c => c.index === data.best_row_col_index);
+        if (currentBest && !currentBest.is_row_identifier && rowCols.length > 0) {
+            data.best_row_col_index = rowCols[0].index;
+        }
+
+        // Re-populate Dropdown Pemilih Kolom Baris Utama
+        populateTerpaduRowColDropdown(data);
+
+        // Re-render Matrix Table Preview
+        renderTerpaduMatrixPreview(data);
+
+        // Validasi duplikasi input
+        validatorKolomTerpadu.check();
+        validatorBarisTerpadu.check();
+        updateTerpaduSwitchStates();
+    }
+
+    // Sinkronisasi status periode waktu jika ada override peran dari tombol tabel
+    function syncTerpaduPeriodState() {
+        if (!currentTerpaduInspectData) return;
+        const data = currentTerpaduInspectData;
+        if (!data.raw_auto_periode) {
+            data.raw_auto_periode = data.auto_periode ? JSON.parse(JSON.stringify(data.auto_periode)) : [];
+        }
+        const overrides = data.period_overrides || {};
+        const activePeriode = (data.raw_auto_periode || []).filter(p => {
+            const key = (p.ind || '').trim();
+            const cleanKey = key.replace(/\*+$/, '').trim();
+            return overrides[key] !== 'kolom' && overrides[cleanKey] !== 'kolom';
+        });
+        data.auto_periode = activePeriode;
+        $('#terpadu_periode_count_badge').text(`${activePeriode.length} Periode Terdeteksi`);
+        renderTerpaduPeriodePreview(activePeriode);
+        if (activePeriode.length === 0) {
+            $('#terpadu_opt_save_periode').prop('checked', false).trigger('change');
+        } else {
+            $('#terpadu_opt_save_periode').prop('checked', true).trigger('change');
+        }
+        updateTerpaduSwitchStates();
+    }
+
+    // 7. Toast Notifikasi Cepat di Pojok Kanan Bawah Modal
+    function showTerpaduToast(msg) {
+        let $toast = $('#terpadu_live_toast');
+        if ($toast.length === 0) {
+            $toast = $(`
+                <div id="terpadu_live_toast" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1095; display: none;">
+                    <div class="toast align-items-center text-white bg-dark border-0 shadow-lg show" role="alert" style="border-radius: 10px;">
+                        <div class="d-flex align-items-center py-2 px-3 gap-2">
+                            <i class="bi bi-info-circle-fill text-warning"></i>
+                            <div class="toast-body p-0 fw-semibold" id="terpadu_toast_msg" style="font-size: 0.75rem;"></div>
+                        </div>
+                    </div>
+                </div>
+            `);
+            $('body').append($toast);
+        }
+        $('#terpadu_toast_msg').html(msg);
+        $toast.stop(true, true).fadeIn(150).delay(2200).fadeOut(350);
+    }
+
+    // 8. Event Handler Interaktif: Klik Tombol [BARIS / KOLOM] di Kepala Tabel Preview
+    $(document).on('click', '.terpadu-quick-toggle-role', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!currentTerpaduInspectData || !currentTerpaduInspectData.columns) return;
+
+        const colIdx = parseInt($(this).data('col-idx'));
+        const spanC  = parseInt($(this).data('span-c')) || 1;
+        const rawVal = $(this).attr('data-val') !== undefined ? $(this).attr('data-val') : $(this).data('val');
+        const cellVal = String(rawVal || '').trim();
+        const overrideKey = `${colIdx}_${cellVal}`;
+
+        // Jika sel ini sebelumnya adalah override periode yang dijadikan kolom, kembalikan ke Periode
+        if (cellVal && currentTerpaduInspectData.period_overrides && 
+            (currentTerpaduInspectData.period_overrides[overrideKey] === 'kolom' || currentTerpaduInspectData.period_overrides[cellVal] === 'kolom')) {
+            delete currentTerpaduInspectData.period_overrides[overrideKey];
+            delete currentTerpaduInspectData.period_overrides[cellVal];
+            syncTerpaduPeriodState();
+            refreshTerpaduUIState();
+            showTerpaduToast(`Item "${escapeHtml(cellVal)}" dikembalikan menjadi <b>📅 Periode Waktu</b>`);
+            return;
+        }
+
+        let targetCols = currentTerpaduInspectData.columns.filter(col => col.index >= colIdx && col.index < colIdx + spanC);
+        if (targetCols.length === 0) {
+            targetCols = currentTerpaduInspectData.columns.slice(colIdx, colIdx + spanC);
+        }
+        if (targetCols.length === 0) return;
+
+        const newRole = !targetCols[0].is_row_identifier; // toggle role (true: Baris, false: Kolom)
+
+        targetCols.forEach(col => {
+            col.is_row_identifier = newRole;
+        });
+
+        refreshTerpaduUIState();
+
+        const roleBadge = newRole ? '<b>🔵 Judul Baris</b>' : '<b>🟠 Kolom Karakteristik</b>';
+        const colTitle = targetCols[0].header || targetCols[0].full_title || ('Kolom ' + (colIdx + 1));
+        showTerpaduToast(`Kolom "${escapeHtml(colTitle)}" diubah menjadi ${roleBadge}`);
+    });
+
+    // 8B. Event Handler Interaktif: Klik Tombol [PERIODE ⇄] di Kepala Tabel Preview
+    $(document).on('click', '.terpadu-quick-toggle-period', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!currentTerpaduInspectData) return;
+
+        const rawVal = $(this).attr('data-val') !== undefined ? $(this).attr('data-val') : $(this).data('val');
+        const cellVal = String(rawVal || '').trim();
+        const colIdx = parseInt($(this).data('col-idx'));
+        const overrideKey = `${colIdx}_${cellVal}`;
+
+        currentTerpaduInspectData.period_overrides = currentTerpaduInspectData.period_overrides || {};
+
+        currentTerpaduInspectData.period_overrides[overrideKey] = 'kolom';
+        currentTerpaduInspectData.period_overrides[cellVal] = 'kolom';
+
+        syncTerpaduPeriodState();
+        refreshTerpaduUIState();
+        showTerpaduToast(`Periode "${escapeHtml(cellVal)}" dialihkan menjadi <b>🟠 Kolom Karakteristik</b>`);
+    });
+
+    // 8C. Event Handler Interaktif: Klik Tombol Switch Legenda Periode Waktu
+    $(document).on('click', '.terpadu-toggle-all-periode', function(e) {
+        e.preventDefault();
+        const currentChecked = $('#terpadu_opt_save_periode').is(':checked');
+        $('#terpadu_opt_save_periode').prop('checked', !currentChecked).trigger('change');
+        const statusText = !currentChecked ? 'Diaktifkan' : 'Dinonaktifkan';
+        showTerpaduToast(`Master Periode Waktu <b>${statusText}</b>`);
+    });
+
+    $('#terpadu_opt_save_periode').on('change', function() {
+        const isChecked = $(this).is(':checked');
+        if (isChecked) {
+            $('#terpadu_legend_periode').css({ background: '#f0fdf4', color: '#15803d', borderColor: '#86efac' });
+            $('#terpadu_legend_periode_status').text('Aktif');
+        } else {
+            $('#terpadu_legend_periode').css({ background: '#f1f5f9', color: '#64748b', borderColor: '#cbd5e1' });
+            $('#terpadu_legend_periode_status').text('Nonaktif');
+        }
+    });
+
+    // 9. Render Live Preview Matriks Tabel dari Sheet/File
     function renderTerpaduMatrixPreview(data) {
         const $thead = $('#terpadu_matrix_thead');
         const $tbody = $('#terpadu_matrix_tbody');
@@ -5468,16 +5732,28 @@ Jawa Tengah // Central Java`;
                     }
 
                     // Deteksi peran sel header: Baris, Kolom, atau Periode
-                    const colMeta = columns[c] || {};
-                    let isRowCol = colMeta.is_row_identifier || c === bestRowIdx;
-                    const valLower = (val || '').toLowerCase().trim();
+                    const colMeta = (columns.find(col => col.index === c) || columns[c] || {});
+                    let isRowCol = colMeta.is_row_identifier;
+                    const valCleanStr = String(val || '').trim();
+                    const valLower = valCleanStr.toLowerCase();
                     const isSummaryHeader = /^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(valLower);
                     if (isSummaryHeader) {
                         isRowCol = false;
                     }
-                    const isYearOrPeriod = /^(19|20)\d{2}(\s*[\-\/]\s*(19|20)?\d{2})?$/.test(valLower) ||
+
+                    const overrideKey = `${c}_${valCleanStr}`;
+                    const periodOverrideVal = (currentTerpaduInspectData && currentTerpaduInspectData.period_overrides && 
+                                              (currentTerpaduInspectData.period_overrides[overrideKey] || currentTerpaduInspectData.period_overrides[valCleanStr]));
+
+                    let isYearOrPeriod = /^(19|20)\d{2}(\s*[\-\/]\s*(19|20)?\d{2})?(\s*[\*0-9\(\)a-zA-Z]+)?$/i.test(valLower) ||
                                           /^(triwulan|tw|quarter|q)\s*[1-4ivx]+\b/i.test(valLower) ||
                                           /^(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|january|february|march|may|june|july|august|october|december)\b/i.test(valLower);
+
+                    if (periodOverrideVal === 'kolom') {
+                        isYearOrPeriod = false;
+                    } else if (periodOverrideVal === 'periode') {
+                        isYearOrPeriod = true;
+                    }
 
                     let cellBg = '#fff7ed';
                     let cellColor = '#9a3412';
@@ -5493,45 +5769,236 @@ Jawa Tengah // Central Java`;
                         cellBorder = '#bbf7d0';
                     }
 
+                    // Tombol Interaktif Toggle Peran Baris / Kolom / Periode di Header
+                    let roleControl = '';
+                    if (r === 0 || spanR === numRows || isYearOrPeriod || periodOverrideVal) {
+                        if (isYearOrPeriod) {
+                            roleControl = `
+                                <div class="mb-1">
+                                    <button type="button" class="btn btn-xs terpadu-quick-toggle-period py-0 px-2 fw-bold shadow-xs border d-inline-flex align-items-center gap-1"
+                                            data-col-idx="${c}" data-span-c="${spanC}" data-val="${escapeHtml(val)}"
+                                            style="background: #ffffff; color: #15803d; border-color: #86efac !important; font-size: 0.65rem; border-radius: 9999px; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;"
+                                            title="Klik untuk ubah peran: Periode Waktu ⇆ Kolom Karakteristik">
+                                        <i class="bi bi-calendar3"></i> PERIODE <i class="bi bi-arrow-left-right ms-1 text-success-subtle" style="font-size: 0.6rem;"></i>
+                                    </button>
+                                </div>
+                            `;
+                        } else if (!isSummaryHeader) {
+                            if (isRowCol) {
+                                roleControl = `
+                                    <div class="mb-1">
+                                        <button type="button" class="btn btn-xs terpadu-quick-toggle-role py-0 px-2 fw-bold shadow-xs border d-inline-flex align-items-center gap-1"
+                                                data-col-idx="${c}" data-span-c="${spanC}" data-val="${escapeHtml(val)}"
+                                                style="background: #ffffff; color: #1d4ed8; border-color: #93c5fd !important; font-size: 0.65rem; border-radius: 9999px; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;"
+                                                title="Klik untuk ubah kolom ini menjadi Kolom Karakteristik">
+                                            <i class="bi bi-list-nested"></i> BARIS <i class="bi bi-arrow-left-right ms-1 text-primary-subtle" style="font-size: 0.6rem;"></i>
+                                        </button>
+                                    </div>
+                                `;
+                            } else {
+                                roleControl = `
+                                    <div class="mb-1">
+                                        <button type="button" class="btn btn-xs terpadu-quick-toggle-role py-0 px-2 fw-bold shadow-xs border d-inline-flex align-items-center gap-1"
+                                                data-col-idx="${c}" data-span-c="${spanC}" data-val="${escapeHtml(val)}"
+                                                style="background: #ffffff; color: #c2410c; border-color: #fdba74 !important; font-size: 0.65rem; border-radius: 9999px; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;"
+                                                title="Klik untuk ubah kolom ini menjadi Judul Baris">
+                                            <i class="bi bi-layout-three-columns"></i> KOLOM <i class="bi bi-arrow-left-right ms-1 text-warning-subtle" style="font-size: 0.6rem;"></i>
+                                        </button>
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
+
+                    // Format Teks Dwibahasa di Header
+                    let headerDisplayHtml = escapeHtml(val || '-');
+                    if (val && !isYearOrPeriod && (val.includes('\n') || val.includes('/'))) {
+                        const rawParts = val.includes('\n') ? val.split('\n') : val.split('/');
+                        const parts = rawParts.map(p => p.trim()).filter(p => p !== '');
+                        if (parts.length >= 2) {
+                            headerDisplayHtml = `
+                                <span class="d-block fw-bold">${escapeHtml(parts[0])}</span>
+                                <small class="d-block fst-italic text-opacity-75" style="font-size: 0.70rem; font-weight: normal; margin-top: 2px;">${escapeHtml(parts.slice(1).join(' / '))}</small>
+                            `;
+                        }
+                    }
+
                     const style = `background: ${cellBg}; color: ${cellColor}; border: 1px solid ${cellBorder}; font-weight: bold; padding: 6px 8px; text-align: center; vertical-align: middle;`;
-                    tr.append(`<th colspan="${spanC}" rowspan="${spanR}" style="${style}">${escapeHtml(val || '-')}</th>`);
+                    tr.append(`
+                        <th colspan="${spanC}" rowspan="${spanR}" style="${style}">
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                                ${roleControl}
+                                <div class="d-inline-block" style="max-width: 100%; white-space: normal; line-height: 1.2;">${headerDisplayHtml}</div>
+                            </div>
+                        </th>
+                    `);
                 }
                 $thead.append(tr);
             }
         } else {
             const tr = $('<tr></tr>');
-            columns.forEach(function(col) {
+            columns.forEach(function(col, cIdx) {
                 let isRowCol = col.is_row_identifier;
                 const colTitle = (col.full_title || col.header || '').toLowerCase().trim();
-                if (/^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(colTitle)) {
+                const colText = (col.header || col.full_title || '').trim();
+                const isSummaryHeader = /^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(colTitle);
+                if (isSummaryHeader) {
                     isRowCol = false;
                 }
-                const cellBg = isRowCol ? '#eff6ff' : '#fff7ed';
-                const cellColor = isRowCol ? '#1e40af' : '#9a3412';
-                const cellBorder = isRowCol ? '#bfdbfe' : '#fed7aa';
-                tr.append(`<th style="background: ${cellBg}; color: ${cellColor}; border: 1px solid ${cellBorder}; font-weight: bold; padding: 6px 8px;">${escapeHtml(col.full_title || col.header)}</th>`);
+
+                const overrideKey = `${cIdx}_${colText}`;
+                const periodOverrideVal = (currentTerpaduInspectData && currentTerpaduInspectData.period_overrides && 
+                                          (currentTerpaduInspectData.period_overrides[overrideKey] || currentTerpaduInspectData.period_overrides[colText]));
+
+                let isYearOrPeriod = /^(19|20)\d{2}(\s*[\-\/]\s*(19|20)?\d{2})?(\*|\*)?$/.test(colTitle) ||
+                                      /^(triwulan|tw|quarter|q)\s*[1-4ivx]+\b/i.test(colTitle) ||
+                                      /^(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|january|february|march|may|june|july|august|october|december)\b/i.test(colTitle);
+
+                if (periodOverrideVal === 'kolom') {
+                    isYearOrPeriod = false;
+                } else if (periodOverrideVal === 'periode') {
+                    isYearOrPeriod = true;
+                }
+
+                const cellBg = isRowCol ? '#eff6ff' : (isYearOrPeriod ? '#f0fdf4' : '#fff7ed');
+                const cellColor = isRowCol ? '#1e40af' : (isYearOrPeriod ? '#166534' : '#9a3412');
+                const cellBorder = isRowCol ? '#bfdbfe' : (isYearOrPeriod ? '#bbf7d0' : '#fed7aa');
+
+                let roleControl = '';
+                if (isYearOrPeriod) {
+                    roleControl = `
+                        <div class="mb-1">
+                            <button type="button" class="btn btn-xs terpadu-quick-toggle-period py-0 px-2 fw-bold shadow-xs border d-inline-flex align-items-center gap-1"
+                                    data-col-idx="${cIdx}" data-span-c="1" data-val="${escapeHtml(colText)}"
+                                    style="background: #ffffff; color: #15803d; border-color: #86efac !important; font-size: 0.65rem; border-radius: 9999px; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;"
+                                    title="Klik untuk ubah: Periode Waktu ⇆ Kolom Karakteristik">
+                                <i class="bi bi-calendar3"></i> PERIODE <i class="bi bi-arrow-left-right ms-1 text-success-subtle" style="font-size: 0.6rem;"></i>
+                            </button>
+                        </div>
+                    `;
+                } else if (isRowCol) {
+                    roleControl = `
+                        <div class="mb-1">
+                            <button type="button" class="btn btn-xs terpadu-quick-toggle-role py-0 px-2 fw-bold shadow-xs border d-inline-flex align-items-center gap-1"
+                                    data-col-idx="${cIdx}" data-span-c="1" data-val="${escapeHtml(colText)}"
+                                    style="background: #ffffff; color: #1d4ed8; border-color: #93c5fd !important; font-size: 0.65rem; border-radius: 9999px; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;"
+                                    title="Klik untuk ubah menjadi Kolom Karakteristik">
+                                <i class="bi bi-list-nested"></i> BARIS <i class="bi bi-arrow-left-right ms-1 text-primary-subtle" style="font-size: 0.6rem;"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    roleControl = `
+                        <div class="mb-1">
+                            <button type="button" class="btn btn-xs terpadu-quick-toggle-role py-0 px-2 fw-bold shadow-xs border d-inline-flex align-items-center gap-1"
+                                    data-col-idx="${cIdx}" data-span-c="1" data-val="${escapeHtml(colText)}"
+                                    style="background: #ffffff; color: #c2410c; border-color: #fdba74 !important; font-size: 0.65rem; border-radius: 9999px; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;"
+                                    title="Klik untuk ubah menjadi Judul Baris">
+                                <i class="bi bi-layout-three-columns"></i> KOLOM <i class="bi bi-arrow-left-right ms-1 text-warning-subtle" style="font-size: 0.6rem;"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                tr.append(`
+                    <th style="background: ${cellBg}; color: ${cellColor}; border: 1px solid ${cellBorder}; font-weight: bold; padding: 6px 8px; vertical-align: middle;">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                            ${roleControl}
+                            <span>${escapeHtml(col.full_title || col.header)}</span>
+                        </div>
+                    </th>
+                `);
             });
             $thead.append(tr);
         }
 
         // 2. Render Sample Rows
         if (sampleRows.length > 0) {
-            sampleRows.forEach(function(rowVals) {
+            // Deteksi kolom-kolom yang berstatus sebagai Baris (Row Identifier)
+            const rowColIndices = [];
+            columns.forEach(function(colMeta, cIdx) {
+                let isRowCol = colMeta.is_row_identifier;
+                const colTitle = (colMeta.full_title || colMeta.header || '').toLowerCase().trim();
+                if (/^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(colTitle)) {
+                    isRowCol = false;
+                }
+                if (isRowCol) {
+                    rowColIndices.push(cIdx);
+                }
+            });
+
+            // Pre-compute auto-rowspan untuk Kolom Baris Pertama (Tahun / Komoditi) jika nilainya sama berturut-turut
+            // Aturan Ketat BPS: Kolom Baris Kedua (Bulan / Satuan / Wilayah) DIKUNCI MATI (TIDAK PERNAH DI-MERGE)!
+            const col1RowspanMap = {};
+            const col1SkipSet = new Set();
+
+            if (rowColIndices.length >= 2) {
+                const firstRowCol = rowColIndices[0];
+                let r = 0;
+                while (r < sampleRows.length) {
+                    const curVal = (sampleRows[r][firstRowCol] || '').trim();
+                    if (!curVal) {
+                        r++;
+                        continue;
+                    }
+                    let span = 1;
+                    let nextR = r + 1;
+                    while (nextR < sampleRows.length) {
+                        const nextVal = (sampleRows[nextR][firstRowCol] || '').trim();
+                        if (nextVal === curVal) {
+                            span++;
+                            col1SkipSet.add(nextR);
+                            nextR++;
+                        } else {
+                            break;
+                        }
+                    }
+                    if (span > 1) {
+                        col1RowspanMap[r] = span;
+                    }
+                    r = nextR;
+                }
+            }
+
+            sampleRows.forEach(function(rowVals, rIdx) {
                 const tr = $('<tr></tr>');
                 rowVals.forEach(function(cellVal, cIdx) {
                     const colMeta = columns[cIdx] || {};
-                    let isRowCol = colMeta.is_row_identifier || cIdx === bestRowIdx;
+                    let isRowCol = colMeta.is_row_identifier;
                     const colTitle = (colMeta.full_title || colMeta.header || '').toLowerCase().trim();
                     if (/^(jumlah|total|sum)(\s*[\/\\]\s*(jumlah|total|sum))?$/i.test(colTitle)) {
                         isRowCol = false;
                     }
+
+                    // Jika sel ini adalah Kolom 1 yang sudah ter-merge vertikal, lewati pembuatannya
+                    if (rowColIndices.length >= 2 && cIdx === rowColIndices[0]) {
+                        if (col1SkipSet.has(rIdx)) {
+                            return;
+                        }
+                    }
+
                     let style = 'border: 1px solid #e2e8f0; padding: 4px 8px;';
                     if (isRowCol) {
                         style += 'background: #f8fafc; font-weight: 600; color: #1e293b; text-align: left;';
                     } else {
                         style += 'background: #ffffff; color: #334155; text-align: right;';
                     }
-                    tr.append(`<td style="${style}">${escapeHtml(cellVal !== '' ? cellVal : '-')}</td>`);
+
+                    let cellDisplay = escapeHtml(cellVal !== '' ? cellVal : '-');
+                    if (isRowCol && cellVal && cellVal.includes('/')) {
+                        const slashParts = cellVal.split('/');
+                        if (slashParts.length === 2 && slashParts[0].trim() && slashParts[1].trim()) {
+                            cellDisplay = `<span class="fw-semibold text-dark">${escapeHtml(slashParts[0].trim())}</span> <small class="text-muted fst-italic d-block" style="font-size: 0.68rem; font-weight: normal;">${escapeHtml(slashParts[1].trim())}</small>`;
+                        }
+                    }
+
+                    let rowspanAttr = '';
+                    if (rowColIndices.length >= 2 && cIdx === rowColIndices[0] && col1RowspanMap[rIdx]) {
+                        rowspanAttr = ` rowspan="${col1RowspanMap[rIdx]}"`;
+                        style += ' vertical-align: middle; text-align: center;';
+                    }
+
+                    tr.append(`<td${rowspanAttr} style="${style}">${cellDisplay}</td>`);
                 });
                 $tbody.append(tr);
             });
