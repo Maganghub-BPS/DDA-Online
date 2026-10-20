@@ -25,6 +25,7 @@ class M_tabeldinamis extends Model
         'konfigurasi_total',
         'label_total_kustom',
         'format_nomor_baris',
+        'tampilan_baris',
         'satuan',
         'desimal',
         'catatan',
@@ -177,11 +178,13 @@ class M_tabeldinamis extends Model
                 if (count($parts_ind) >= 3) {
                     $grup_induk_ind = $parts_ind[0];
                     $grup_sub_ind   = $parts_ind[1];
-                    $item_ind       = $parts_ind[2];
+                    $item_ind       = implode(' || ', array_slice($parts_ind, 2));
 
                     $grup_induk_en  = (!empty($parts_en[0])) ? $parts_en[0] : null;
                     $grup_sub_en    = (!empty($parts_en[1])) ? $parts_en[1] : null;
-                    $item_en        = (isset($parts_en[2]) && $parts_en[2] !== '') ? $parts_en[2] : null;
+                    $item_en        = (!empty($parts_en) && count($parts_en) >= 3)
+                        ? implode(' || ', array_slice($parts_en, 2))
+                        : ((isset($parts_en[2]) && $parts_en[2] !== '') ? $parts_en[2] : null);
                 } elseif (count($parts_ind) === 2) {
                     $grup_induk_ind = $parts_ind[0];
                     $grup_sub_ind   = null;
@@ -255,21 +258,177 @@ class M_tabeldinamis extends Model
         $hasGroupHeaders = false;
         $maxDepth = 1;
 
-        // Cek kedalaman maksimum hirarki kolom (1, 2, atau 3)
-        foreach ($items as $item) {
-            if (!empty($item->grup_sub_ind)) {
-                $maxDepth = 3;
-                $hasGroupHeaders = true;
-                break;
-            } elseif (!empty($item->grup_induk_ind)) {
-                $maxDepth = 2;
-                $hasGroupHeaders = true;
+        // 1. Ekstraksi segmen hirarki untuk setiap kolom daun (leaf)
+        $parsedItems = [];
+        foreach ($items as $colIdx => $item) {
+            $segments_ind = [];
+            $segments_en  = [];
+
+            if (!empty($item->grup_induk_ind) && empty($item->is_standalone)) {
+                $segments_ind[] = trim($item->grup_induk_ind);
+                $segments_en[]  = !empty($item->grup_induk_en) ? trim($item->grup_induk_en) : '';
             }
+
+            if (!empty($item->grup_sub_ind)) {
+                $segments_ind[] = trim($item->grup_sub_ind);
+                $segments_en[]  = !empty($item->grup_sub_en) ? trim($item->grup_sub_en) : '';
+            }
+
+            $raw_ind = trim($item->item_ind ?? '');
+            $raw_en  = trim($item->item_en ?? '');
+
+            if (strpos($raw_ind, '||') !== false) {
+                $parts_ind = array_map('trim', explode('||', $raw_ind));
+                $parts_en  = (strpos($raw_en, '||') !== false) ? array_map('trim', explode('||', $raw_en)) : [];
+                foreach ($parts_ind as $k => $p) {
+                    $segments_ind[] = $p;
+                    $segments_en[]  = isset($parts_en[$k]) ? $parts_en[$k] : '';
+                }
+            } else {
+                $segments_ind[] = $raw_ind;
+                $segments_en[]  = $raw_en;
+            }
+
+            $depth = count($segments_ind);
+            if ($depth > $maxDepth) {
+                $maxDepth = $depth;
+            }
+
+            // Simpan label daun (leaf) murni tanpa rantai induknya
+            $item->leaf_ind = end($segments_ind);
+            $item->leaf_en  = !empty($segments_en) ? end($segments_en) : '';
+            reset($segments_ind);
+
+            $parsedItems[] = [
+                'item'         => $item,
+                'col_idx'      => $colIdx,
+                'segments_ind' => $segments_ind,
+                'segments_en'  => $segments_en,
+                'depth'        => $depth,
+            ];
         }
 
-        $groups = [];
+        if ($maxDepth > 1) {
+            $hasGroupHeaders = true;
+        }
 
-        if ($maxDepth === 3) {
+        // 2. Bangun Prefix Trie Hirarki Kolom
+        $root = [
+            'title_ind' => '',
+            'title_en'  => '',
+            'children'  => [],
+            'leaf_cols' => [],
+        ];
+
+        foreach ($parsedItems as $pItem) {
+            $curr = &$root;
+            $currPath = '';
+            $depth = $pItem['depth'];
+
+            foreach ($pItem['segments_ind'] as $sIdx => $seg) {
+                $currPath .= ($currPath === '' ? '' : ' > ') . $seg;
+                $en = $pItem['segments_en'][$sIdx] ?? '';
+                $isLeaf = ($sIdx === $depth - 1);
+
+                if (!isset($curr['children'][$currPath])) {
+                    $curr['children'][$currPath] = [
+                        'key'       => $currPath,
+                        'title_ind' => $seg,
+                        'title_en'  => $en,
+                        'level'     => $sIdx + 1,
+                        'is_leaf'   => $isLeaf,
+                        'item'      => $isLeaf ? $pItem['item'] : null,
+                        'children'  => [],
+                        'leaf_cols' => [],
+                    ];
+                }
+                $curr['children'][$currPath]['leaf_cols'][] = $pItem['col_idx'];
+                $curr = &$curr['children'][$currPath];
+            }
+            unset($curr);
+        }
+
+        // 3. Hitung row_start, row_end, rowspan, dan colspan secara universal
+        $assignRows = function(&$node, int $rowStart, int $targetDepth) use (&$assignRows) {
+            $node['row_start'] = $rowStart;
+            if (empty($node['children'])) {
+                // Node daun (leaf): membentang vertikal sampai baris terbawah
+                $node['row_end'] = $targetDepth;
+                $node['rowspan'] = $node['row_end'] - $node['row_start'] + 1;
+                $node['colspan'] = count($node['leaf_cols']);
+                return;
+            }
+
+            // Cek apakah seluruh anak langsungnya adalah node daun
+            $allChildrenLeaves = true;
+            foreach ($node['children'] as $child) {
+                if (!empty($child['children'])) {
+                    $allChildrenLeaves = false;
+                    break;
+                }
+            }
+
+            if ($allChildrenLeaves) {
+                // Node induk langsung dari daun: membentang sampai baris (targetDepth - 1)
+                $node['row_end'] = $targetDepth - 1;
+                $node['rowspan'] = $node['row_end'] - $node['row_start'] + 1;
+                $node['colspan'] = count($node['leaf_cols']);
+
+                foreach ($node['children'] as &$child) {
+                    $child['row_start'] = $targetDepth;
+                    $child['row_end']   = $targetDepth;
+                    $child['rowspan']   = 1;
+                    $child['colspan']   = count($child['leaf_cols']);
+                }
+                unset($child);
+            } else {
+                // Node induk perantara: menempati 1 baris di tingkatannya
+                $node['row_end'] = $rowStart;
+                $node['rowspan'] = 1;
+                $node['colspan'] = count($node['leaf_cols']);
+
+                foreach ($node['children'] as &$child) {
+                    $assignRows($child, $rowStart + 1, $targetDepth);
+                }
+                unset($child);
+            }
+        };
+
+        foreach ($root['children'] as &$topNode) {
+            $assignRows($topNode, 1, $maxDepth);
+        }
+        unset($topNode);
+
+        // 4. Kumpulkan sel per baris header (1..maxDepth) dalam urutan kolom teratur
+        $headerRows = [];
+        for ($r = 1; $r <= $maxDepth; $r++) {
+            $headerRows[$r] = [];
+        }
+
+        $collectCells = function($node) use (&$collectCells, &$headerRows) {
+            if (isset($node['row_start'])) {
+                $headerRows[$node['row_start']][] = [
+                    'title_ind' => $node['title_ind'],
+                    'title_en'  => $node['title_en'],
+                    'row'       => $node['row_start'],
+                    'rowspan'   => $node['rowspan'],
+                    'colspan'   => $node['colspan'],
+                    'is_leaf'   => $node['is_leaf'],
+                    'item_id'   => $node['item'] ? (int)$node['item']->id : null,
+                ];
+            }
+            foreach ($node['children'] as $child) {
+                $collectCells($child);
+            }
+        };
+
+        foreach ($root['children'] as $topNode) {
+            $collectCells($topNode);
+        }
+
+        // 5. Bangun struktur kelompok warisan ($groups) untuk backward-compatibility 1..3 tingkat
+        $groups = [];
+        if ($maxDepth >= 3) {
             foreach ($items as $item) {
                 $l1 = $item->grup_induk_ind;
                 $l2 = $item->grup_sub_ind;
@@ -332,7 +491,7 @@ class M_tabeldinamis extends Model
                     $groups['__standalone_' . $item->id] = [
                         'type'      => 'standalone',
                         'title_ind' => $item->item_ind,
-                        'title_en'  => $item->item_en,
+                        'title_en'  => $item->item_en ?? null,
                         'item'      => $item,
                         'children'  => [$item],
                     ];
@@ -341,10 +500,11 @@ class M_tabeldinamis extends Model
         }
 
         return [
-            'max_depth'  => $maxDepth,
-            'has_groups' => $hasGroupHeaders,
-            'groups'     => array_values($groups),
-            'flat_items' => $items,
+            'max_depth'   => $maxDepth,
+            'has_groups'  => $hasGroupHeaders,
+            'header_rows' => $headerRows,
+            'groups'      => array_values($groups),
+            'flat_items'  => $items,
         ];
     }
 

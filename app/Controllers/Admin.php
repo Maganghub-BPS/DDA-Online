@@ -3900,12 +3900,14 @@ class Admin extends BaseController
 		// AKSI: BARIS BERTINGKAT (HIERARCHICAL ROWS)
 		// ---------------------------------------------------------------------
 		if ($action === 'add_baris') {
-			$nama_ind   = trim((string)$this->request->getPost('nama_kelompok_ind'));
-			$nama_en    = trim((string)$this->request->getPost('nama_kelompok_en'));
-			$judul_ind  = trim((string)$this->request->getPost('judul_baris_ind'));
-			$judul_en   = trim((string)$this->request->getPost('judul_baris_en'));
-			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
-			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$nama_ind      = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en       = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$judul_ind     = trim((string)$this->request->getPost('judul_baris_ind'));
+			$judul_en      = trim((string)$this->request->getPost('judul_baris_en'));
+			$judul_sub_ind = trim((string)$this->request->getPost('judul_sub_baris_ind'));
+			$judul_sub_en  = trim((string)$this->request->getPost('judul_sub_baris_en'));
+			$items_ind     = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en      = trim((string)$this->request->getPost('items_text_en'));
 
 			if (empty($nama_ind)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Kelompok Baris wajib diisi!</div>");
@@ -3928,10 +3930,12 @@ class Admin extends BaseController
 			}
 
 			$idKelompok = $mTabelDinamis->saveBarisKelompok([
-				'nama_kelompok_ind' => $nama_ind,
-				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
-				'judul_baris_ind'   => $judul_ind,
-				'judul_baris_en'    => $judul_en,
+				'nama_kelompok_ind'   => $nama_ind,
+				'nama_kelompok_en'    => !empty($nama_en) ? $nama_en : null,
+				'judul_baris_ind'     => $judul_ind,
+				'judul_baris_en'      => $judul_en,
+				'judul_sub_baris_ind' => !empty($judul_sub_ind) ? $judul_sub_ind : null,
+				'judul_sub_baris_en'  => !empty($judul_sub_en) ? $judul_sub_en : null,
 			]);
 
 			$items_json = $this->request->getPost('items_json');
@@ -3951,11 +3955,13 @@ class Admin extends BaseController
 		}
 
 		if ($action === 'edt_baris') {
-			$id        = (int)$this->request->getPost('id');
-			$nama_ind  = trim((string)$this->request->getPost('nama_kelompok_ind'));
-			$nama_en   = trim((string)$this->request->getPost('nama_kelompok_en'));
-			$judul_ind = trim((string)$this->request->getPost('judul_baris_ind'));
-			$judul_en  = trim((string)$this->request->getPost('judul_baris_en'));
+			$id            = (int)$this->request->getPost('id');
+			$nama_ind      = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en       = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$judul_ind     = trim((string)$this->request->getPost('judul_baris_ind'));
+			$judul_en      = trim((string)$this->request->getPost('judul_baris_en'));
+			$judul_sub_ind = trim((string)$this->request->getPost('judul_sub_baris_ind'));
+			$judul_sub_en  = trim((string)$this->request->getPost('judul_sub_baris_en'));
 
 			if (empty($id) || empty($nama_ind)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID dan Nama Kelompok wajib diisi!</div>");
@@ -3978,10 +3984,12 @@ class Admin extends BaseController
 			}
 
 			$mTabelDinamis->saveBarisKelompok([
-				'nama_kelompok_ind' => $nama_ind,
-				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
-				'judul_baris_ind'   => $judul_ind,
-				'judul_baris_en'    => $judul_en,
+				'nama_kelompok_ind'   => $nama_ind,
+				'nama_kelompok_en'    => !empty($nama_en) ? $nama_en : null,
+				'judul_baris_ind'     => $judul_ind,
+				'judul_baris_en'      => $judul_en,
+				'judul_sub_baris_ind' => !empty($judul_sub_ind) ? $judul_sub_ind : null,
+				'judul_sub_baris_en'  => !empty($judul_sub_en) ? $judul_sub_en : null,
 			], $id);
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Baris berhasil diperbarui!</div>");
@@ -4443,6 +4451,10 @@ class Admin extends BaseController
 		if (!in_array($format_nomor_baris, ['auto', 'none', 'reset_kategori'], true)) {
 			$format_nomor_baris = 'none';
 		}
+		$tampilan_baris       = trim((string)$this->request->getPost('tampilan_baris'));
+		if (!in_array($tampilan_baris, ['1_kolom', '2_kolom'], true)) {
+			$tampilan_baris = '1_kolom';
+		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
 		$selectedDimCount = (!empty($id_baris) ? 1 : 0) + (!empty($id_karakteristik) ? 1 : 0) + (!empty($id_periode) ? 1 : 0);
@@ -4502,6 +4514,7 @@ class Admin extends BaseController
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
 			'format_nomor_baris'        => $format_nomor_baris,
+			'tampilan_baris'            => $tampilan_baris,
 			'satuan'                    => null,
 			'desimal'                   => 0,
 			'catatan'                   => $finalCatatan,
