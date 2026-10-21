@@ -25,6 +25,7 @@ class M_tabeldinamis extends Model
         'konfigurasi_total',
         'label_total_kustom',
         'format_nomor_baris',
+        'tampilan_baris',
         'satuan',
         'desimal',
         'catatan',
@@ -75,8 +76,11 @@ class M_tabeldinamis extends Model
 
     public function deleteKarakteristikKelompok(int $id): bool
     {
+        $this->db->transStart();
         $this->db->table('m_karakteristik_item')->where('id_kelompok', $id)->delete();
-        return $this->db->table('m_karakteristik_kelompok')->where('id', $id)->delete();
+        $this->db->table('m_karakteristik_kelompok')->where('id', $id)->delete();
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function getKarakteristikItems(int $id_kelompok): array
@@ -111,6 +115,8 @@ class M_tabeldinamis extends Model
 
     public function syncKarakteristikItems(int $id_kelompok, array $items): bool
     {
+        $this->db->transStart();
+
         $existingRows = $this->db->table('m_karakteristik_item')
             ->where('id_kelompok', $id_kelompok)
             ->orderBy('no_urut', 'ASC')
@@ -134,7 +140,8 @@ class M_tabeldinamis extends Model
                 $this->db->table('m_karakteristik_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
             }
-            return true;
+            $this->db->transComplete();
+            return $this->db->transStatus();
         }
 
         $now = date('Y-m-d H:i:s');
@@ -162,7 +169,7 @@ class M_tabeldinamis extends Model
             $grup_sub_ind   = null;
             $grup_sub_en    = null;
             $item_ind = $raw_ind;
-            $item_en  = $raw_en !== '' ? $raw_en : $raw_ind;
+            $item_en  = ($raw_en !== '') ? $raw_en : null;
             $is_standalone = 0;
 
             if (strpos($raw_ind, '||') !== false) {
@@ -174,22 +181,24 @@ class M_tabeldinamis extends Model
                 if (count($parts_ind) >= 3) {
                     $grup_induk_ind = $parts_ind[0];
                     $grup_sub_ind   = $parts_ind[1];
-                    $item_ind       = $parts_ind[2];
+                    $item_ind       = implode(' || ', array_slice($parts_ind, 2));
 
-                    $grup_induk_en  = $parts_en[0] ?? $grup_induk_ind;
-                    $grup_sub_en    = $parts_en[1] ?? $grup_sub_ind;
-                    $item_en        = $parts_en[2] ?? ($parts_en[0] ?? $item_ind);
+                    $grup_induk_en  = (!empty($parts_en[0])) ? $parts_en[0] : null;
+                    $grup_sub_en    = (!empty($parts_en[1])) ? $parts_en[1] : null;
+                    $item_en        = (!empty($parts_en) && count($parts_en) >= 3)
+                        ? implode(' || ', array_slice($parts_en, 2))
+                        : ((isset($parts_en[2]) && $parts_en[2] !== '') ? $parts_en[2] : null);
                 } elseif (count($parts_ind) === 2) {
                     $grup_induk_ind = $parts_ind[0];
                     $grup_sub_ind   = null;
                     $item_ind       = $parts_ind[1];
 
-                    $grup_induk_en  = $parts_en[0] ?? $grup_induk_ind;
+                    $grup_induk_en  = (!empty($parts_en[0])) ? $parts_en[0] : null;
                     $grup_sub_en    = null;
-                    $item_en        = $parts_en[1] ?? ($parts_en[0] ?? $item_ind);
+                    $item_en        = (isset($parts_en[1]) && $parts_en[1] !== '') ? $parts_en[1] : null;
                 } else {
                     $item_ind       = $parts_ind[0];
-                    $item_en        = $parts_en[0] ?? $item_ind;
+                    $item_en        = (isset($parts_en[0]) && $parts_en[0] !== '') ? $parts_en[0] : null;
                 }
             } else {
                 $lower_ind = strtolower($raw_ind);
@@ -243,7 +252,8 @@ class M_tabeldinamis extends Model
             $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
         }
 
-        return true;
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function buildColumnStructure(array $items): array
@@ -251,21 +261,177 @@ class M_tabeldinamis extends Model
         $hasGroupHeaders = false;
         $maxDepth = 1;
 
-        // Cek kedalaman maksimum hirarki kolom (1, 2, atau 3)
-        foreach ($items as $item) {
-            if (!empty($item->grup_sub_ind)) {
-                $maxDepth = 3;
-                $hasGroupHeaders = true;
-                break;
-            } elseif (!empty($item->grup_induk_ind)) {
-                $maxDepth = 2;
-                $hasGroupHeaders = true;
+        // 1. Ekstraksi segmen hirarki untuk setiap kolom daun (leaf)
+        $parsedItems = [];
+        foreach ($items as $colIdx => $item) {
+            $segments_ind = [];
+            $segments_en  = [];
+
+            if (!empty($item->grup_induk_ind) && empty($item->is_standalone)) {
+                $segments_ind[] = trim($item->grup_induk_ind);
+                $segments_en[]  = !empty($item->grup_induk_en) ? trim($item->grup_induk_en) : '';
             }
+
+            if (!empty($item->grup_sub_ind)) {
+                $segments_ind[] = trim($item->grup_sub_ind);
+                $segments_en[]  = !empty($item->grup_sub_en) ? trim($item->grup_sub_en) : '';
+            }
+
+            $raw_ind = trim($item->item_ind ?? '');
+            $raw_en  = trim($item->item_en ?? '');
+
+            if (strpos($raw_ind, '||') !== false) {
+                $parts_ind = array_map('trim', explode('||', $raw_ind));
+                $parts_en  = (strpos($raw_en, '||') !== false) ? array_map('trim', explode('||', $raw_en)) : [];
+                foreach ($parts_ind as $k => $p) {
+                    $segments_ind[] = $p;
+                    $segments_en[]  = isset($parts_en[$k]) ? $parts_en[$k] : '';
+                }
+            } else {
+                $segments_ind[] = $raw_ind;
+                $segments_en[]  = $raw_en;
+            }
+
+            $depth = count($segments_ind);
+            if ($depth > $maxDepth) {
+                $maxDepth = $depth;
+            }
+
+            // Simpan label daun (leaf) murni tanpa rantai induknya
+            $item->leaf_ind = end($segments_ind);
+            $item->leaf_en  = !empty($segments_en) ? end($segments_en) : '';
+            reset($segments_ind);
+
+            $parsedItems[] = [
+                'item'         => $item,
+                'col_idx'      => $colIdx,
+                'segments_ind' => $segments_ind,
+                'segments_en'  => $segments_en,
+                'depth'        => $depth,
+            ];
         }
 
-        $groups = [];
+        if ($maxDepth > 1) {
+            $hasGroupHeaders = true;
+        }
 
-        if ($maxDepth === 3) {
+        // 2. Bangun Prefix Trie Hirarki Kolom
+        $root = [
+            'title_ind' => '',
+            'title_en'  => '',
+            'children'  => [],
+            'leaf_cols' => [],
+        ];
+
+        foreach ($parsedItems as $pItem) {
+            $curr = &$root;
+            $currPath = '';
+            $depth = $pItem['depth'];
+
+            foreach ($pItem['segments_ind'] as $sIdx => $seg) {
+                $currPath .= ($currPath === '' ? '' : ' > ') . $seg;
+                $en = $pItem['segments_en'][$sIdx] ?? '';
+                $isLeaf = ($sIdx === $depth - 1);
+
+                if (!isset($curr['children'][$currPath])) {
+                    $curr['children'][$currPath] = [
+                        'key'       => $currPath,
+                        'title_ind' => $seg,
+                        'title_en'  => $en,
+                        'level'     => $sIdx + 1,
+                        'is_leaf'   => $isLeaf,
+                        'item'      => $isLeaf ? $pItem['item'] : null,
+                        'children'  => [],
+                        'leaf_cols' => [],
+                    ];
+                }
+                $curr['children'][$currPath]['leaf_cols'][] = $pItem['col_idx'];
+                $curr = &$curr['children'][$currPath];
+            }
+            unset($curr);
+        }
+
+        // 3. Hitung row_start, row_end, rowspan, dan colspan secara universal
+        $assignRows = function(&$node, int $rowStart, int $targetDepth) use (&$assignRows) {
+            $node['row_start'] = $rowStart;
+            if (empty($node['children'])) {
+                // Node daun (leaf): membentang vertikal sampai baris terbawah
+                $node['row_end'] = $targetDepth;
+                $node['rowspan'] = $node['row_end'] - $node['row_start'] + 1;
+                $node['colspan'] = count($node['leaf_cols']);
+                return;
+            }
+
+            // Cek apakah seluruh anak langsungnya adalah node daun
+            $allChildrenLeaves = true;
+            foreach ($node['children'] as $child) {
+                if (!empty($child['children'])) {
+                    $allChildrenLeaves = false;
+                    break;
+                }
+            }
+
+            if ($allChildrenLeaves) {
+                // Node induk langsung dari daun: membentang sampai baris (targetDepth - 1)
+                $node['row_end'] = $targetDepth - 1;
+                $node['rowspan'] = $node['row_end'] - $node['row_start'] + 1;
+                $node['colspan'] = count($node['leaf_cols']);
+
+                foreach ($node['children'] as &$child) {
+                    $child['row_start'] = $targetDepth;
+                    $child['row_end']   = $targetDepth;
+                    $child['rowspan']   = 1;
+                    $child['colspan']   = count($child['leaf_cols']);
+                }
+                unset($child);
+            } else {
+                // Node induk perantara: menempati 1 baris di tingkatannya
+                $node['row_end'] = $rowStart;
+                $node['rowspan'] = 1;
+                $node['colspan'] = count($node['leaf_cols']);
+
+                foreach ($node['children'] as &$child) {
+                    $assignRows($child, $rowStart + 1, $targetDepth);
+                }
+                unset($child);
+            }
+        };
+
+        foreach ($root['children'] as &$topNode) {
+            $assignRows($topNode, 1, $maxDepth);
+        }
+        unset($topNode);
+
+        // 4. Kumpulkan sel per baris header (1..maxDepth) dalam urutan kolom teratur
+        $headerRows = [];
+        for ($r = 1; $r <= $maxDepth; $r++) {
+            $headerRows[$r] = [];
+        }
+
+        $collectCells = function($node) use (&$collectCells, &$headerRows) {
+            if (isset($node['row_start'])) {
+                $headerRows[$node['row_start']][] = [
+                    'title_ind' => $node['title_ind'],
+                    'title_en'  => $node['title_en'],
+                    'row'       => $node['row_start'],
+                    'rowspan'   => $node['rowspan'],
+                    'colspan'   => $node['colspan'],
+                    'is_leaf'   => $node['is_leaf'],
+                    'item_id'   => $node['item'] ? (int)$node['item']->id : null,
+                ];
+            }
+            foreach ($node['children'] as $child) {
+                $collectCells($child);
+            }
+        };
+
+        foreach ($root['children'] as $topNode) {
+            $collectCells($topNode);
+        }
+
+        // 5. Bangun struktur kelompok warisan ($groups) untuk backward-compatibility 1..3 tingkat
+        $groups = [];
+        if ($maxDepth >= 3) {
             foreach ($items as $item) {
                 $l1 = $item->grup_induk_ind;
                 $l2 = $item->grup_sub_ind;
@@ -275,7 +441,7 @@ class M_tabeldinamis extends Model
                         $groups[$l1] = [
                             'type'      => 'group',
                             'title_ind' => $l1,
-                            'title_en'  => $item->grup_induk_en ?? $l1,
+                            'title_en'  => $item->grup_induk_en ?? null,
                             'subgroups' => [],
                             'children'  => [],
                         ];
@@ -287,7 +453,7 @@ class M_tabeldinamis extends Model
                         $groups[$l1]['subgroups'][$subKey] = [
                             'type'      => !empty($l2) ? 'subgroup' : 'standalone',
                             'title_ind' => !empty($l2) ? $l2 : $item->item_ind,
-                            'title_en'  => !empty($l2) ? ($item->grup_sub_en ?? $l2) : ($item->item_en ?? $item->item_ind),
+                            'title_en'  => !empty($l2) ? ($item->grup_sub_en ?? null) : ($item->item_en ?? null),
                             'children'  => [],
                         ];
                     }
@@ -296,7 +462,7 @@ class M_tabeldinamis extends Model
                     $groups['__standalone_' . $item->id] = [
                         'type'      => 'standalone',
                         'title_ind' => $item->item_ind,
-                        'title_en'  => $item->item_en ?? $item->item_ind,
+                        'title_en'  => $item->item_en ?? null,
                         'subgroups' => [],
                         'children'  => [$item],
                     ];
@@ -319,7 +485,7 @@ class M_tabeldinamis extends Model
                         $groups[$parentName] = [
                             'type'      => 'group',
                             'title_ind' => $parentName,
-                            'title_en'  => $item->grup_induk_en ?? $parentName,
+                            'title_en'  => $item->grup_induk_en ?? null,
                             'children'  => [],
                         ];
                     }
@@ -328,7 +494,7 @@ class M_tabeldinamis extends Model
                     $groups['__standalone_' . $item->id] = [
                         'type'      => 'standalone',
                         'title_ind' => $item->item_ind,
-                        'title_en'  => $item->item_en,
+                        'title_en'  => $item->item_en ?? null,
                         'item'      => $item,
                         'children'  => [$item],
                     ];
@@ -337,10 +503,11 @@ class M_tabeldinamis extends Model
         }
 
         return [
-            'max_depth'  => $maxDepth,
-            'has_groups' => $hasGroupHeaders,
-            'groups'     => array_values($groups),
-            'flat_items' => $items,
+            'max_depth'   => $maxDepth,
+            'has_groups'  => $hasGroupHeaders,
+            'header_rows' => $headerRows,
+            'groups'      => array_values($groups),
+            'flat_items'  => $items,
         ];
     }
 
@@ -386,8 +553,11 @@ class M_tabeldinamis extends Model
 
     public function deleteBarisKelompok(int $id): bool
     {
+        $this->db->transStart();
         $this->db->table('m_baris_item')->where('id_kelompok', $id)->delete();
-        return $this->db->table('m_baris_kelompok')->where('id', $id)->delete();
+        $this->db->table('m_baris_kelompok')->where('id', $id)->delete();
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function getBarisItems(int $id_kelompok): array
@@ -438,6 +608,8 @@ class M_tabeldinamis extends Model
 
     public function syncBarisItems(int $id_kelompok, array $items): bool
     {
+        $this->db->transStart();
+
         $builder = $this->db->table('m_baris_item');
 
         // 1. Ambil seluruh data baris existing untuk kelompok ini
@@ -463,7 +635,8 @@ class M_tabeldinamis extends Model
                 $this->db->table('m_baris_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
             }
-            return true;
+            $this->db->transComplete();
+            return $this->db->transStatus();
         }
 
         $now = date('Y-m-d H:i:s');
@@ -549,7 +722,8 @@ class M_tabeldinamis extends Model
             $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
         }
 
-        return true;
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function detectTipeBaris(string $namaInd, int $indent = 0, bool $hasChildren = false): string
@@ -739,8 +913,11 @@ class M_tabeldinamis extends Model
 
     public function deletePeriodeKelompok(int $id): bool
     {
+        $this->db->transStart();
         $this->db->table('m_periode_item')->where('id_kelompok', $id)->delete();
-        return $this->db->table('m_periode_kelompok')->where('id', $id)->delete();
+        $this->db->table('m_periode_kelompok')->where('id', $id)->delete();
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function getPeriodeItems(int $id_kelompok): array
@@ -769,6 +946,8 @@ class M_tabeldinamis extends Model
 
     public function syncPeriodeItems(int $id_kelompok, array $items): bool
     {
+        $this->db->transStart();
+
         $existingRows = $this->db->table('m_periode_item')
             ->where('id_kelompok', $id_kelompok)
             ->orderBy('no_urut', 'ASC')
@@ -792,7 +971,8 @@ class M_tabeldinamis extends Model
                 $this->db->table('m_periode_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
             }
-            return true;
+            $this->db->transComplete();
+            return $this->db->transStatus();
         }
 
         $now = date('Y-m-d H:i:s');
@@ -845,7 +1025,8 @@ class M_tabeldinamis extends Model
             $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
         }
 
-        return true;
+        $this->db->transComplete();
+        return $this->db->transStatus();
     }
 
     public function generatePeriodeYearRange(int $id_kelompok, int $startYear, int $endYear, string $order = 'ASC'): bool
@@ -1009,6 +1190,8 @@ class M_tabeldinamis extends Model
         $chunks = array_chunk($cells, 500);
         $totalAffected = 0;
 
+        $this->db->transStart();
+
         foreach ($chunks as $chunk) {
             $values = [];
             $params = [];
@@ -1042,6 +1225,12 @@ class M_tabeldinamis extends Model
 
             $this->db->query($sql, $params);
             $totalAffected += count($chunk);
+        }
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            throw new \RuntimeException("Gagal menyimpan data nilai sel ke database. Transaksi dibatalkan (rollback).");
         }
 
         return $totalAffected;

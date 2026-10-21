@@ -4688,12 +4688,14 @@ class Admin extends BaseController
 		// AKSI: BARIS BERTINGKAT (HIERARCHICAL ROWS)
 		// ---------------------------------------------------------------------
 		if ($action === 'add_baris') {
-			$nama_ind   = trim((string)$this->request->getPost('nama_kelompok_ind'));
-			$nama_en    = trim((string)$this->request->getPost('nama_kelompok_en'));
-			$judul_ind  = trim((string)$this->request->getPost('judul_baris_ind'));
-			$judul_en   = trim((string)$this->request->getPost('judul_baris_en'));
-			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
-			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$nama_ind      = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en       = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$judul_ind     = trim((string)$this->request->getPost('judul_baris_ind'));
+			$judul_en      = trim((string)$this->request->getPost('judul_baris_en'));
+			$judul_sub_ind = trim((string)$this->request->getPost('judul_sub_baris_ind'));
+			$judul_sub_en  = trim((string)$this->request->getPost('judul_sub_baris_en'));
+			$items_ind     = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
+			$items_en      = trim((string)$this->request->getPost('items_text_en'));
 
 			if (empty($nama_ind)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Nama Kelompok Baris wajib diisi!</div>");
@@ -4716,10 +4718,12 @@ class Admin extends BaseController
 			}
 
 			$idKelompok = $mTabelDinamis->saveBarisKelompok([
-				'nama_kelompok_ind' => $nama_ind,
-				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
-				'judul_baris_ind'   => $judul_ind,
-				'judul_baris_en'    => $judul_en,
+				'nama_kelompok_ind'   => $nama_ind,
+				'nama_kelompok_en'    => !empty($nama_en) ? $nama_en : null,
+				'judul_baris_ind'     => $judul_ind,
+				'judul_baris_en'      => $judul_en,
+				'judul_sub_baris_ind' => !empty($judul_sub_ind) ? $judul_sub_ind : null,
+				'judul_sub_baris_en'  => !empty($judul_sub_en) ? $judul_sub_en : null,
 			]);
 
 			$items_json = $this->request->getPost('items_json');
@@ -4739,11 +4743,13 @@ class Admin extends BaseController
 		}
 
 		if ($action === 'edt_baris') {
-			$id        = (int)$this->request->getPost('id');
-			$nama_ind  = trim((string)$this->request->getPost('nama_kelompok_ind'));
-			$nama_en   = trim((string)$this->request->getPost('nama_kelompok_en'));
-			$judul_ind = trim((string)$this->request->getPost('judul_baris_ind'));
-			$judul_en  = trim((string)$this->request->getPost('judul_baris_en'));
+			$id            = (int)$this->request->getPost('id');
+			$nama_ind      = trim((string)$this->request->getPost('nama_kelompok_ind'));
+			$nama_en       = trim((string)$this->request->getPost('nama_kelompok_en'));
+			$judul_ind     = trim((string)$this->request->getPost('judul_baris_ind'));
+			$judul_en      = trim((string)$this->request->getPost('judul_baris_en'));
+			$judul_sub_ind = trim((string)$this->request->getPost('judul_sub_baris_ind'));
+			$judul_sub_en  = trim((string)$this->request->getPost('judul_sub_baris_en'));
 
 			if (empty($id) || empty($nama_ind)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID dan Nama Kelompok wajib diisi!</div>");
@@ -4766,10 +4772,12 @@ class Admin extends BaseController
 			}
 
 			$mTabelDinamis->saveBarisKelompok([
-				'nama_kelompok_ind' => $nama_ind,
-				'nama_kelompok_en'  => !empty($nama_en) ? $nama_en : null,
-				'judul_baris_ind'   => $judul_ind,
-				'judul_baris_en'    => $judul_en,
+				'nama_kelompok_ind'   => $nama_ind,
+				'nama_kelompok_en'    => !empty($nama_en) ? $nama_en : null,
+				'judul_baris_ind'     => $judul_ind,
+				'judul_baris_en'      => $judul_en,
+				'judul_sub_baris_ind' => !empty($judul_sub_ind) ? $judul_sub_ind : null,
+				'judul_sub_baris_en'  => !empty($judul_sub_en) ? $judul_sub_en : null,
 			], $id);
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Baris berhasil diperbarui!</div>");
@@ -5179,7 +5187,13 @@ class Admin extends BaseController
 		}
 
 		$countDeleted = (int)$this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults();
+		$this->db->transStart();
 		$mTabelDinamis->clearNilai((int)$indikator->id);
+		$this->db->transComplete();
+
+		if ($this->db->transStatus() === false) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal mereset data nilai. Transaksi dibatalkan (rollback).']);
+		}
 
 		return $this->response->setJSON([
 			'status'       => 'success',
@@ -5202,7 +5216,7 @@ class Admin extends BaseController
 		$id_baris             = (int)$this->request->getPost('id_baris_kelompok');
 		$id_periode           = (int)($this->request->getPost('id_periode_kelompok') ?: 0);
 		$posisi_hirarki       = trim((string)$this->request->getPost('posisi_hirarki'));
-		if (!in_array($posisi_hirarki, ['kolom_atas', 'periode_atas', 'periode_baris'], true)) {
+		if (!in_array($posisi_hirarki, ['kolom_atas', 'periode_atas', 'periode_baris', 'periode_baris_pisah'], true)) {
 			$posisi_hirarki = 'kolom_atas';
 		}
 		$tingkat_kolom        = trim((string)$this->request->getPost('tingkat_kolom'));
@@ -5213,6 +5227,9 @@ class Admin extends BaseController
 		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom', 'runtun_waktu'], true)) {
 			$konfigurasi_total = 'default';
 		}
+		if ($konfigurasi_total === 'runtun_waktu') {
+			$posisi_hirarki = 'kolom_atas';
+		}
 		$label_total_kustom   = trim((string)$this->request->getPost('label_total_kustom'));
 		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
 			$label_total_kustom = null;
@@ -5220,6 +5237,10 @@ class Admin extends BaseController
 		$format_nomor_baris   = trim((string)$this->request->getPost('format_nomor_baris'));
 		if (!in_array($format_nomor_baris, ['auto', 'none', 'reset_kategori'], true)) {
 			$format_nomor_baris = 'none';
+		}
+		$tampilan_baris       = trim((string)$this->request->getPost('tampilan_baris'));
+		if (!in_array($tampilan_baris, ['1_kolom', '2_kolom'], true)) {
+			$tampilan_baris = '1_kolom';
 		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
@@ -5280,6 +5301,7 @@ class Admin extends BaseController
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
 			'format_nomor_baris'        => $format_nomor_baris,
+			'tampilan_baris'            => $tampilan_baris,
 			'satuan'                    => null,
 			'desimal'                   => 0,
 			'catatan'                   => $finalCatatan,
@@ -5316,6 +5338,7 @@ class Admin extends BaseController
 			return redirect()->to('admin/master_tabel');
 		}
 
+		$this->db->transStart();
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$existing = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
 		if ($existing) {
@@ -5327,6 +5350,12 @@ class Admin extends BaseController
 		$this->db->table('t_tahun_tabel')
 			->where('id', $id_tahun_tabel)
 			->update(['is_dynamic' => 0]);
+		$this->db->transComplete();
+
+		if ($this->db->transStatus() === false) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill fs-5\"></i><div>Gagal mengembalikan tabel. Transaksi dibatalkan (rollback).</div></div>");
+			return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+		}
 
 		$this->session->setFlashdata("k", "<div class=\"alert alert-info d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-info-circle-fill fs-5\"></i><div>Tabel berhasil dikembalikan ke format biasa (Non-Dinamis). Seluruh konfigurasi dan sel data matriks telah dibersihkan.</div></div>");
 		return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
@@ -5503,6 +5532,8 @@ class Admin extends BaseController
 		}
 
 		try {
+			$this->db->transStart();
+
 			$parser = new \App\Libraries\ExcelDataParser();
 			$parseResult = $parser->parse($file->getTempName(), $id_tahun_tabel);
 
@@ -5519,6 +5550,12 @@ class Admin extends BaseController
 					'is_periksa'      => 1,
 					'catatan_periksa' => $catatan
 				]);
+
+			$this->db->transComplete();
+
+			if ($this->db->transStatus() === false) {
+				throw new \Exception("Gagal menyimpan data ke database. Seluruh transaksi dibatalkan (rollback).");
+			}
 
 			$successMsg = "Data tabel dinamis berhasil diimpor! Total <b>{$parseResult['filled_cells']}</b> sel data berhasil disimpan.";
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-check-circle-fill fs-5\"></i><div>{$successMsg}</div></div>");

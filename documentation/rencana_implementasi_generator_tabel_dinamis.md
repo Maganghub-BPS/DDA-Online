@@ -245,7 +245,9 @@ erDiagram
   - Endpoint `Admin::upload_excel_dinamis` dengan batch upsert performan ke `t_nilai_dinamis` via `M_tabeldinamis::batchUpsertNilai`.
   - Otomatisasi pembaruan status pengisian (`is_periksa = 1`), waktu, dan catatan jumlah sel terisi pada `t_tahun_tabel`.
   - Antarmuka upload di `l_dda.php` dilengkapi tombol interaktif "Upload Excel" & "Unduh Template", modal drag-and-drop file modern, validasi ekstensi, indikator progress animasi, dan umpan balik SweetAlert2.
-- [ ] **Sprint 6 (Frontend Publik & Visualisasi Grafik)**:
-  - Tampilan publik responsif dengan sticky header & frozen column.
-  - Render grafik otomatis (*Bar, Line, Pie*) berbasis metadata.
-  - Ekspor publik ke format Excel, CSV, dan PDF.
+- [ ] **Sprint 6 (Frontend Publik & Ekspor Data - Tanpa Grafik)**:
+  - Tampilan publik responsif menyatu dengan layout portal DDA Jawa Tengah.
+  - Sticky header berjenjang (hingga 5 tingkat) & frozen columns (nomor & nama baris/wilayah).
+  - Integrasi tautan publik dan badge "Tabel Dinamis" pada beranda (`home.php`) dan pencarian (`search.php`).
+  - Dropdown unduh publik: format Excel (.xlsx), CSV (.csv), dan Cetak/PDF (.pdf).
+  - *Catatan*: Modul grafik otomatis ditiadakan sesuai arahan teknis agar performa maksimal dan penyajian data tabel presisi 100%. Rincian lengkap tersedia di [Rencana_Implementasi_Frontend_Publik_Tabel_Dinamis.md](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/documentation/Rencana_Implementasi_Frontend_Publik_Tabel_Dinamis.md).

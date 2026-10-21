@@ -27,6 +27,7 @@ class M_frontend extends Model
             t.config_tabel,
             t.is_confirm,
             t.is_publish,
+            t.is_dynamic,
             m.id_unitkerja,
             m.kondef,
             CONCAT(
@@ -290,6 +291,20 @@ class M_frontend extends Model
         }
 
         return $query->orderBy('t.tahun', 'DESC')->orderBy('t.id', 'DESC')->get()->getRow();
+    }
+
+    /**
+     * Ambil metadata tabel dinamis spesifik untuk view_dinamis
+     */
+    public function getDynamicTableMetadata(int $table_id)
+    {
+        return $this->db->table('t_tahun_tabel t')
+            ->select($this->getBaseTableSelect(), false)
+            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
+            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
+            ->where('t.id', $table_id)
+            ->get()
+            ->getRow();
     }
 
     /**
