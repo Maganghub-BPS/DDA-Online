@@ -672,7 +672,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         $cfgTotal           = $indikator->konfigurasi_total ?? 'default';
                         $isRuntunWaktu      = ($cfgTotal === 'runtun_waktu');
                         $format_nomor_baris = 'none';
-                        $hasNoCol           = true; // Kolom No. selalu aktif 100% identik dengan view tabel API portal
+                        $hasNoCol           = false; // Kolom No. dimatikan: angka urut menyatu di kolom nama (sesuai tabel resmi BPS)
 
                         // Identifikasi id_periode aktif untuk baris rincian pada mode runtun_waktu
                         $idPeriodeAktif = 0;
@@ -1161,9 +1161,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                             ?>
                                 <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
                             <?php else: ?>
-                                <?php if ($hasNoCol && !$isRuntunWaktu): ?>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
-                                <?php endif; ?>
+                                 <?php /* Kolom No. tanpa nomor: header No. sudah rowspan sampai baris nomor ini */ ?>
 
                                 <?php if ($isRuntunWaktu || ($posisi_hirarki === 'periode_baris' && !$isMultiBaris)): ?>
                                     <th colspan="2" style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
