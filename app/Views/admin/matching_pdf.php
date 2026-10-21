@@ -705,6 +705,18 @@
         });
     }
 
+    // Setelah klik "Manual" (tab baru), muat ulang halaman begitu tab ini difokuskan lagi
+    // agar tabel yang baru dikonfigurasi langsung pindah dari daftar "Belum Dikonfigurasi".
+    let pendingManualConfig = false;
+    $(document).on('click', '#listUnreg a[target="_blank"]', function() {
+        pendingManualConfig = true;
+    });
+    window.addEventListener('focus', function() {
+        if (pendingManualConfig) {
+            pendingManualConfig = false;
+            window.location.reload();
+        }
+    });
     function autoConfigFromPdf(nomorTabel, autoFill, btnEl) {
         let item = (window.currentUnregTables || []).find(u => u.nomor_tabel === nomorTabel);
         if (!item) return;
