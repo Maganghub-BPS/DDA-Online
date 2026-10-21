@@ -213,6 +213,21 @@ class ExcelDataParser
             $hasBaris    = !empty($itemsBaris);
             $cfgTotalParser = $indikator->konfigurasi_total ?? 'default';
             $isRuntunWaktu  = ($cfgTotalParser === 'runtun_waktu');
+            // Deteksi multi-column baris (||) untuk penyesuaian index kolom fallback
+            $isMultiBaris = false;
+            if ($hasBaris) {
+                $titleBarisInd = $indikator->nama_kelompok_baris_ind ?? '';
+                if (strpos($titleBarisInd, '||') !== false) {
+                    $isMultiBaris = true;
+                } else {
+                    foreach ($itemsBaris as $b) {
+                        if (strpos($b->nama_baris_ind ?? '', '||') !== false) {
+                            $isMultiBaris = true;
+                            break;
+                        }
+                    }
+                }
+            }
 
             // Hitung level maksimum pada seluruh kelompok baris
             $maxBarisGroupLevel = 0;
@@ -228,9 +243,15 @@ class ExcelDataParser
             $titleSubBarisInd = !empty($kelompokBaris->judul_sub_baris_ind) ? $kelompokBaris->judul_sub_baris_ind : '';
             $cleanTitleSubInd = preg_replace('/^\d+\s+/', '', $titleSubBarisInd);
             $isPeriodeBaris = in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true);
-            $isBarisDuaKolom = (!$isPeriodeBaris && !$isRuntunWaktu && $hasBaris && ($indikator->tampilan_baris ?? '1_kolom') === '2_kolom');
+            $isBarisDuaKolom = (!$isPeriodeBaris && !$isRuntunWaktu && $hasBaris && (($indikator->tampilan_baris ?? '1_kolom') === '2_kolom' || $isMultiBaris));
 
-            $colIdx      = (($isPeriodeBaris || $isRuntunWaktu || $isBarisDuaKolom) && $hasBaris) ? 3 : 2; // Mulai C jika periode_baris / periode_baris_pisah atau runtun_waktu atau isBarisDuaKolom (dengan baris), atau B jika kolom biasa
+            if (!$hasBaris) {
+                $colIdx = 2;
+            } elseif ($isPeriodeBaris || $isRuntunWaktu) {
+                $colIdx = ($isMultiBaris || $isBarisDuaKolom) ? 4 : 3;
+            } else {
+                $colIdx = ($isMultiBaris || $isBarisDuaKolom) ? 3 : 2;
+            }
 
             $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
                 $cur = $items[$idx];

@@ -40,8 +40,11 @@ class M_tabeldinamis extends Model
 
     public function getKarakteristikKelompokAll(): array
     {
-        return $this->db->table('m_karakteristik_kelompok')
-            ->orderBy('id', 'DESC')
+        return $this->db->table('m_karakteristik_kelompok k')
+            ->select('k.*, COUNT(i.id) AS total_items')
+            ->join('m_karakteristik_item i', 'k.id = i.id_kelompok', 'left')
+            ->groupBy('k.id')
+            ->orderBy('k.id', 'DESC')
             ->get()
             ->getResult();
     }
@@ -514,8 +517,11 @@ class M_tabeldinamis extends Model
 
     public function getBarisKelompokAll(): array
     {
-        return $this->db->table('m_baris_kelompok')
-            ->orderBy('id', 'DESC')
+        return $this->db->table('m_baris_kelompok k')
+            ->select('k.*, COUNT(i.id) AS total_items')
+            ->join('m_baris_item i', 'k.id = i.id_kelompok', 'left')
+            ->groupBy('k.id')
+            ->orderBy('k.id', 'DESC')
             ->get()
             ->getResult();
     }
@@ -871,8 +877,11 @@ class M_tabeldinamis extends Model
 
     public function getPeriodeKelompokAll(): array
     {
-        return $this->db->table('m_periode_kelompok')
-            ->orderBy('id', 'DESC')
+        return $this->db->table('m_periode_kelompok k')
+            ->select('k.*, COUNT(i.id) AS total_items')
+            ->join('m_periode_item i', 'k.id = i.id_kelompok', 'left')
+            ->groupBy('k.id')
+            ->orderBy('k.id', 'DESC')
             ->get()
             ->getResult();
     }
@@ -1232,5 +1241,515 @@ class M_tabeldinamis extends Model
         return $this->db->table('t_nilai_dinamis')
             ->where('id_indikator', $id_indikator)
             ->delete();
+    }
+
+    // =========================================================================
+    // 6. EKSPOR MATRIKS 2D UNTUK ENGINE MATCHING & VERIFIKASI PDF
+    // =========================================================================
+
+    /**
+     * Mengekspor satu tabel dinamis berdasarkan id_tahun_tabel ke format grid 2D
+     * yang langsung kompatibel dengan compare_table.py.
+     */
+    public function exportSingleDynamicTable(int $id_tahun_tabel): ?array
+    {
+        $indikator = $this->db->table('m_indikator_tabel i')
+            ->select('i.*, t.tahun, t.no_tabel')
+            ->join('t_tahun_tabel t', 't.id = i.id_tahun_tabel', 'left')
+            ->where('i.id_tahun_tabel', $id_tahun_tabel)
+            ->get()
+            ->getRow();
+
+        if (!$indikator) {
+            return null;
+        }
+
+        return $this->buildDynamicTableExport($indikator);
+    }
+
+    /**
+     * Mengekspor seluruh tabel dinamis pada tahun tertentu sekaligus (keyed by id_tahun_tabel).
+     */
+    public function exportDynamicTablesForMatching(int $tahun): array
+    {
+        $indikators = $this->db->table('m_indikator_tabel i')
+            ->select('i.*, t.tahun, t.no_tabel')
+            ->join('t_tahun_tabel t', 't.id = i.id_tahun_tabel', 'inner')
+            ->where('t.tahun', $tahun)
+            ->get()
+            ->getResult();
+
+        if (empty($indikators)) {
+            return [];
+        }
+
+        $indIds = [];
+        $karIds = [];
+        $barIds = [];
+        $perIds = [];
+        foreach ($indikators as $ind) {
+            $indIds[] = (int)$ind->id;
+            if (!empty($ind->id_karakteristik_kelompok)) $karIds[] = (int)$ind->id_karakteristik_kelompok;
+            if (!empty($ind->id_baris_kelompok)) $barIds[] = (int)$ind->id_baris_kelompok;
+            if (!empty($ind->id_periode_kelompok)) $perIds[] = (int)$ind->id_periode_kelompok;
+        }
+        $indIds = array_values(array_unique($indIds));
+        $karIds = array_values(array_unique($karIds));
+        $barIds = array_values(array_unique($barIds));
+        $perIds = array_values(array_unique($perIds));
+
+        $cache = [
+            'kar_items' => [],
+            'bar_kel'   => [],
+            'bar_items' => [],
+            'per_kel'   => [],
+            'per_items' => [],
+            'nilai'     => [],
+        ];
+
+        if (!empty($karIds)) {
+            $rows = $this->db->table('m_karakteristik_item')->whereIn('id_kelompok', $karIds)->orderBy('no_urut', 'ASC')->orderBy('id', 'ASC')->get()->getResult();
+            foreach ($rows as $r) {
+                $cache['kar_items'][(int)$r->id_kelompok][] = $r;
+            }
+        }
+        if (!empty($barIds)) {
+            $rows = $this->db->table('m_baris_kelompok')->whereIn('id', $barIds)->get()->getResult();
+            foreach ($rows as $r) {
+                $cache['bar_kel'][(int)$r->id] = $r;
+            }
+            $rows = $this->db->table('m_baris_item')->whereIn('id_kelompok', $barIds)->orderBy('no_urut', 'ASC')->orderBy('id', 'ASC')->get()->getResult();
+            foreach ($rows as $r) {
+                $cache['bar_items'][(int)$r->id_kelompok][] = $r;
+            }
+        }
+        if (!empty($perIds)) {
+            $rows = $this->db->table('m_periode_kelompok')->whereIn('id', $perIds)->get()->getResult();
+            foreach ($rows as $r) {
+                $cache['per_kel'][(int)$r->id] = $r;
+            }
+            $rows = $this->db->table('m_periode_item')->whereIn('id_kelompok', $perIds)->orderBy('no_urut', 'ASC')->orderBy('id', 'ASC')->get()->getResult();
+            foreach ($rows as $r) {
+                $cache['per_items'][(int)$r->id_kelompok][] = $r;
+            }
+        }
+        if (!empty($indIds)) {
+            $rows = $this->db->table('t_nilai_dinamis')->whereIn('id_indikator', $indIds)->get()->getResult();
+            foreach ($rows as $row) {
+                $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$row->id_periode_item}";
+                $cache['nilai'][(int)$row->id_indikator][$key] = [
+                    'id'     => $row->id,
+                    'nilai'  => $row->nilai !== null ? (float)$row->nilai : null,
+                    'simbol' => $row->simbol,
+                ];
+            }
+        }
+
+        $exports = [];
+        foreach ($indikators as $ind) {
+            $idTahunTabel = (int)$ind->id_tahun_tabel;
+            $built = $this->buildDynamicTableExport($ind, $cache);
+            if ($built) {
+                $exports[$idTahunTabel] = $built;
+            }
+        }
+
+        return $exports;
+    }
+
+    /**
+     * Merakit grid 2D dari konfigurasi m_indikator_tabel dan isi t_nilai_dinamis.
+     */
+    protected function buildDynamicTableExport(object $indikator, ?array $cache = null): array
+    {
+        $idIndikator      = (int)$indikator->id;
+        $idKarakteristik  = (int)($indikator->id_karakteristik_kelompok ?? 0);
+        $idBaris          = (int)($indikator->id_baris_kelompok ?? 0);
+        $idPeriode        = (int)($indikator->id_periode_kelompok ?? 0);
+        $posisiHirarki    = $indikator->posisi_hirarki ?? 'kolom_atas';
+        $cfgTotal         = $indikator->konfigurasi_total ?? 'default';
+        $isRuntunWaktu    = ($cfgTotal === 'runtun_waktu');
+        $tingkatKolom     = $indikator->tingkat_kolom ?? 'semua';
+
+        if ($cache !== null) {
+            $itemsKolom      = $idKarakteristik > 0 ? ($cache['kar_items'][$idKarakteristik] ?? []) : [];
+            $kelompokBaris   = $idBaris > 0 ? ($cache['bar_kel'][$idBaris] ?? null) : null;
+            $itemsBaris      = $idBaris > 0 ? ($cache['bar_items'][$idBaris] ?? []) : [];
+            $kelompokPeriode = $idPeriode > 0 ? ($cache['per_kel'][$idPeriode] ?? null) : null;
+            $itemsPeriode    = $idPeriode > 0 ? ($cache['per_items'][$idPeriode] ?? []) : [];
+        } else {
+            $itemsKolom      = $idKarakteristik > 0 ? $this->getKarakteristikItems($idKarakteristik) : [];
+            $kelompokBaris   = $idBaris > 0 ? $this->getBarisKelompok($idBaris) : null;
+            $itemsBaris      = $idBaris > 0 ? $this->getBarisItems($idBaris) : [];
+            $kelompokPeriode = $idPeriode > 0 ? $this->getPeriodeKelompok($idPeriode) : null;
+            $itemsPeriode    = $idPeriode > 0 ? $this->getPeriodeItems($idPeriode) : [];
+        }
+        $kolomStructure = $this->buildColumnStructure($itemsKolom);
+
+        if (empty($itemsBaris)) {
+            $posisiHirarki = 'kolom_atas';
+        }
+
+        // Resolusi tingkat kolom aktif
+        $maxDepth = !empty($kolomStructure['max_depth']) ? (int)$kolomStructure['max_depth'] : (!empty($kolomStructure['has_groups']) ? 2 : 1);
+        $activeLevels = ($maxDepth === 3) ? [1, 2, 3] : (($maxDepth === 2) ? [1, 2] : [1]);
+        if (!empty($tingkatKolom) && $tingkatKolom !== 'semua') {
+            if ($tingkatKolom === 'sub_bab') {
+                $activeLevels = ($maxDepth === 3) ? [2, 3] : [2];
+            } elseif ($tingkatKolom === 'bab') {
+                $activeLevels = [1];
+            } else {
+                $parts = array_values(array_filter(array_map('intval', explode(',', $tingkatKolom)), function ($l) use ($maxDepth) {
+                    return $l >= 1 && $l <= $maxDepth;
+                }));
+                if (!empty($parts)) {
+                    $activeLevels = $parts;
+                }
+            }
+        }
+        sort($activeLevels);
+
+        $groups       = $kolomStructure['groups'] ?? [];
+        $rawFlatKolom = $kolomStructure['flat_items'] ?? $itemsKolom;
+        $flatKolom    = $rawFlatKolom;
+
+        if (!empty($kolomStructure) && $maxDepth === 3) {
+            if (in_array(3, $activeLevels)) {
+                $flatKolom = $rawFlatKolom;
+            } elseif (in_array(2, $activeLevels)) {
+                $flatKolom = [];
+                foreach ($groups as $grp) {
+                    if (!empty($grp['subgroups'])) {
+                        foreach ($grp['subgroups'] as $sub) {
+                            $firstChild = !empty($sub['children']) ? $sub['children'][0] : null;
+                            $flatKolom[] = (object)[
+                                'id'              => $firstChild ? (int)$firstChild->id : 0,
+                                'item_ind'        => $sub['title_ind'],
+                                'item_en'         => $sub['title_en'] ?? $sub['title_ind'],
+                                'group_title_ind' => $grp['title_ind'],
+                            ];
+                        }
+                    } else {
+                        $firstChild = !empty($grp['children']) ? $grp['children'][0] : ($grp['item'] ?? null);
+                        $flatKolom[] = (object)[
+                            'id'              => $firstChild ? (int)$firstChild->id : 0,
+                            'item_ind'        => $grp['title_ind'],
+                            'item_en'         => $grp['title_en'] ?? $grp['title_ind'],
+                            'group_title_ind' => null,
+                        ];
+                    }
+                }
+            } else {
+                $flatKolom = [];
+                foreach ($groups as $grp) {
+                    $firstChild = !empty($grp['children']) ? $grp['children'][0] : ($grp['item'] ?? null);
+                    $flatKolom[] = (object)[
+                        'id'              => $firstChild ? (int)$firstChild->id : 0,
+                        'item_ind'        => $grp['title_ind'],
+                        'item_en'         => $grp['title_en'] ?? $grp['title_ind'],
+                        'group_title_ind' => null,
+                    ];
+                }
+            }
+        } elseif (!empty($kolomStructure) && $maxDepth === 2 && !in_array(2, $activeLevels)) {
+            $flatKolom = [];
+            foreach ($groups as $grp) {
+                $firstChild = !empty($grp['children']) ? $grp['children'][0] : ($grp['item'] ?? null);
+                $flatKolom[] = (object)[
+                    'id'              => $firstChild ? (int)$firstChild->id : 0,
+                    'item_ind'        => $grp['title_ind'],
+                    'item_en'         => $grp['title_en'] ?? $grp['title_ind'],
+                    'group_title_ind' => null,
+                ];
+            }
+        }
+
+        $hasKolom   = !empty($flatKolom);
+        $hasPeriode = !empty($itemsPeriode);
+        $hasBaris   = !empty($itemsBaris);
+
+        $leafColumns = [];
+        if (!$hasBaris && $hasKolom && $hasPeriode) {
+            foreach ($flatKolom as $child) {
+                $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
+                $label = $grpTitle ? ($grpTitle . ' - ' . $child->item_ind) : $child->item_ind;
+                $leafColumns[] = [
+                    'item_id'    => (int)$child->id,
+                    'periode_id' => 0,
+                    'label'      => trim((string)$label),
+                ];
+            }
+        } elseif (!$hasKolom && $hasPeriode) {
+            foreach ($itemsPeriode as $p) {
+                $leafColumns[] = [
+                    'item_id'    => 0,
+                    'periode_id' => (int)$p->id,
+                    'label'      => trim((string)$p->nama_periode_ind),
+                ];
+            }
+        } elseif ($hasKolom && !$hasPeriode) {
+            foreach ($flatKolom as $child) {
+                $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
+                $label = $grpTitle ? ($grpTitle . ' - ' . $child->item_ind) : $child->item_ind;
+                $leafColumns[] = [
+                    'item_id'    => (int)$child->id,
+                    'periode_id' => 0,
+                    'label'      => trim((string)$label),
+                ];
+            }
+        } elseif ($hasKolom && $hasPeriode) {
+            if ($isRuntunWaktu || $posisiHirarki === 'periode_baris') {
+                foreach ($flatKolom as $child) {
+                    $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
+                    $label = $grpTitle ? ($grpTitle . ' - ' . $child->item_ind) : $child->item_ind;
+                    $leafColumns[] = [
+                        'item_id'    => (int)$child->id,
+                        'periode_id' => 0,
+                        'label'      => trim((string)$label),
+                    ];
+                }
+            } elseif ($posisiHirarki === 'periode_atas') {
+                foreach ($itemsPeriode as $p) {
+                    foreach ($flatKolom as $child) {
+                        $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
+                        $colName = $grpTitle ? ($grpTitle . ' ' . $child->item_ind) : $child->item_ind;
+                        $leafColumns[] = [
+                            'item_id'    => (int)$child->id,
+                            'periode_id' => (int)$p->id,
+                            'label'      => trim($p->nama_periode_ind . ' ' . $colName),
+                        ];
+                    }
+                }
+            } else {
+                foreach ($flatKolom as $child) {
+                    $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
+                    $colName = $grpTitle ? ($grpTitle . ' ' . $child->item_ind) : $child->item_ind;
+                    foreach ($itemsPeriode as $p) {
+                        $leafColumns[] = [
+                            'item_id'    => (int)$child->id,
+                            'periode_id' => (int)$p->id,
+                            'label'      => (count($itemsPeriode) > 1) ? trim($colName . ' (' . $p->nama_periode_ind . ')') : trim((string)$colName),
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Ambil nilai sel dari t_nilai_dinamis
+        $lookup = ($cache !== null) ? ($cache['nilai'][$idIndikator] ?? []) : $this->getMatrixLookup($idIndikator);
+        $filledCellCount = 0;
+        foreach ($lookup as $cell) {
+            if ($cell['nilai'] !== null || (!empty($cell['simbol']) && trim((string)$cell['simbol']) !== '')) {
+                $filledCellCount++;
+            }
+        }
+
+        $titleBaris = 'Rincian';
+        if (!$hasBaris && $kelompokPeriode) {
+            $titleBaris = $kelompokPeriode->judul_periode_ind ?: ($kelompokPeriode->nama_kelompok_ind ?? 'Tahun');
+        } elseif ($kelompokBaris) {
+            $titleBaris = $kelompokBaris->judul_baris_ind ?: ($kelompokBaris->nama_kelompok_ind ?? 'Rincian');
+            $titleBaris = preg_replace('/^\d+\s+/', '', $titleBaris);
+        }
+
+        $headerRow = [$titleBaris];
+        foreach ($leafColumns as $lc) {
+            $headerRow[] = $lc['label'];
+        }
+
+        $numRow = ['(1)'];
+        for ($i = 0; $i < count($leafColumns); $i++) {
+            $numRow[] = '(' . ($i + 2) . ')';
+        }
+
+        $grid = [$headerRow, $numRow];
+        $templateGrid = [$headerRow, $numRow];
+        $cellCoords = [];
+        $seq = 0;
+
+        $formatCellValue = function (?array $cell) {
+            if (!$cell) {
+                return null;
+            }
+            if (!empty($cell['simbol']) && $cell['nilai'] === null) {
+                return $cell['simbol'];
+            }
+            if ($cell['nilai'] !== null) {
+                $v = (float)$cell['nilai'];
+                return (floor($v) == $v) ? (int)$v : $v;
+            }
+            return $cell['simbol'] ?? null;
+        };
+
+        $pushCellWithCoord = function (array &$valRow, array &$tplRow, int $bId, int $cId, int $pId, ?array $cell) use (&$seq, &$cellCoords, $formatCellValue) {
+            $valRow[] = $formatCellValue($cell);
+            $seq++;
+            $tplRow[] = -900000 - $seq;
+            $cellCoords[(string)$seq] = [
+                'b' => $bId,
+                'k' => $cId,
+                'p' => $pId,
+            ];
+        };
+
+        $formatCategoryLabel = function (string $namaBaris): string {
+            $lower = strtolower(trim($namaBaris));
+            if ($lower === 'kabupaten') {
+                return 'Kabupaten/Regency';
+            }
+            if ($lower === 'kota') {
+                return 'Kota/Municipality';
+            }
+            return $namaBaris;
+        };
+
+        if (!$hasBaris && $hasKolom && $hasPeriode) {
+            foreach ($itemsPeriode as $p) {
+                $row = [trim((string)$p->nama_periode_ind)];
+                $tRow = [trim((string)$p->nama_periode_ind)];
+                foreach ($leafColumns as $lc) {
+                    $key = "0_{$lc['item_id']}_{$p->id}";
+                    $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
+                }
+                $grid[] = $row;
+                $templateGrid[] = $tRow;
+            }
+        } else {
+            $idPeriodeAktif = 0;
+            if (!empty($itemsPeriode)) {
+                $tahunTabel = trim((string)($indikator->tahun ?? ''));
+                foreach ($itemsPeriode as $p) {
+                    if ($tahunTabel !== '' && trim((string)$p->nama_periode_ind) === $tahunTabel) {
+                        $idPeriodeAktif = (int)$p->id;
+                        break;
+                    }
+                }
+                if (!$idPeriodeAktif) {
+                    $idPeriodeAktif = (int)$itemsPeriode[0]->id;
+                }
+            }
+
+            $hasRenderedTotal = false;
+
+            foreach ($itemsBaris as $baris) {
+                $idB = (int)$baris->id;
+                $tipeBaris = strtolower(trim($baris->tipe_baris ?? ''));
+                $namaBaris = trim((string)($baris->nama_baris_ind ?? ($baris->item_ind ?? '')));
+                $lowerBaris = strtolower($namaBaris);
+
+                if (!$tipeBaris) {
+                    if ($lowerBaris === 'kabupaten' || $lowerBaris === 'kota') {
+                        $tipeBaris = 'kategori';
+                    } elseif ($lowerBaris === 'jumlah' || $lowerBaris === 'total' || strpos($lowerBaris, 'jawa tengah') !== false) {
+                        $tipeBaris = 'total';
+                    } else {
+                        $tipeBaris = 'data';
+                    }
+                }
+
+                if ($tipeBaris === 'total') {
+                    if ($cfgTotal === 'none') {
+                        continue;
+                    }
+                    if ($cfgTotal === 'jawa_tengah') {
+                        $namaBaris = 'Jawa Tengah';
+                    } elseif ($cfgTotal === 'jumlah' || $cfgTotal === 'runtun_waktu') {
+                        $namaBaris = 'Jumlah';
+                    } elseif ($cfgTotal === 'kustom' && !empty($indikator->label_total_kustom)) {
+                        $namaBaris = $indikator->label_total_kustom;
+                    }
+                }
+
+                if (strpos($namaBaris, '||') !== false) {
+                    $parts = array_map('trim', explode('||', $namaBaris));
+                    $namaBaris = implode(' ', array_filter($parts));
+                }
+
+                if ($tipeBaris === 'kategori') {
+                    $catRow = [$formatCategoryLabel($namaBaris)];
+                    for ($i = 0; $i < count($leafColumns); $i++) {
+                        $catRow[] = null;
+                    }
+                    $grid[] = $catRow;
+                    $templateGrid[] = $catRow;
+                    continue;
+                }
+
+                if ($isRuntunWaktu) {
+                    if ($tipeBaris === 'total') {
+                        $hasRenderedTotal = true;
+                        foreach ($itemsPeriode as $p) {
+                            $row = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
+                            $tRow = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
+                            foreach ($leafColumns as $lc) {
+                                $key = "{$idB}_{$lc['item_id']}_{$p->id}";
+                                if (!isset($lookup[$key])) {
+                                    $key0 = "0_{$lc['item_id']}_{$p->id}";
+                                    $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$p->id, $lookup[$key0] ?? null);
+                                } else {
+                                    $pushCellWithCoord($row, $tRow, $idB, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
+                                }
+                            }
+                            $grid[] = $row;
+                            $templateGrid[] = $tRow;
+                        }
+                    } else {
+                        $row = [$namaBaris];
+                        $tRow = [$namaBaris];
+                        foreach ($leafColumns as $lc) {
+                            $key = "{$idB}_{$lc['item_id']}_{$idPeriodeAktif}";
+                            $pushCellWithCoord($row, $tRow, $idB, (int)$lc['item_id'], (int)$idPeriodeAktif, $lookup[$key] ?? null);
+                        }
+                        $grid[] = $row;
+                        $templateGrid[] = $tRow;
+                    }
+                } elseif ($posisiHirarki === 'periode_baris' && !empty($itemsPeriode)) {
+                    foreach ($itemsPeriode as $p) {
+                        $row = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
+                        $tRow = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
+                        foreach ($leafColumns as $lc) {
+                            $key = "{$idB}_{$lc['item_id']}_{$p->id}";
+                            $pushCellWithCoord($row, $tRow, $idB, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
+                        }
+                        $grid[] = $row;
+                        $templateGrid[] = $tRow;
+                    }
+                } else {
+                    $row = [$namaBaris];
+                    $tRow = [$namaBaris];
+                    foreach ($leafColumns as $lc) {
+                        $pId = (int)$lc['periode_id'];
+                        $cId = (int)$lc['item_id'];
+                        $key = "{$idB}_{$cId}_{$pId}";
+                        $pushCellWithCoord($row, $tRow, $idB, $cId, $pId, $lookup[$key] ?? null);
+                    }
+                    $grid[] = $row;
+                    $templateGrid[] = $tRow;
+                }
+            }
+
+            if ($isRuntunWaktu && !$hasRenderedTotal && !empty($itemsPeriode)) {
+                foreach ($itemsPeriode as $p) {
+                    $row = ['Jumlah ' . trim((string)$p->nama_periode_ind)];
+                    $tRow = ['Jumlah ' . trim((string)$p->nama_periode_ind)];
+                    foreach ($leafColumns as $lc) {
+                        $key = "0_{$lc['item_id']}_{$p->id}";
+                        $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
+                    }
+                    $grid[] = $row;
+                    $templateGrid[] = $tRow;
+                }
+            }
+        }
+
+        return [
+            'id_indikator'  => $idIndikator,
+            'is_dynamic'    => 1,
+            'dynamic_empty' => ($filledCellCount === 0),
+            'cell_count'    => $filledCellCount,
+            'dynamic_grid'  => ($filledCellCount === 0) ? [] : $grid,
+            'template_grid' => $templateGrid,
+            'cell_coords'   => $cellCoords,
+        ];
     }
 }

@@ -52,7 +52,7 @@
             </div>
             <div>
                 <h4 class="fw-bold text-dark mb-0" style="letter-spacing: -0.02em;">Data Verifier AI</h4>
-                <p class="text-muted" style="font-size: 0.85rem; margin-top: 0; margin-bottom: 0;">Sistem Deteksi Anomali & Sinkronisasi PDF vs Sumber Data (Spreadsheet/API)</p>
+                <p class="text-muted" style="font-size: 0.85rem; margin-top: 0; margin-bottom: 0;">Sistem Deteksi Anomali & Sinkronisasi PDF vs Sumber Data (Tabel Dinamis & API Satu Data)</p>
             </div>
         </div>
         <hr class="opacity-10 my-3">
@@ -158,6 +158,52 @@
 
             <!-- Dashboard Hasil -->
             <div id="resultArea" class="result-section">
+                <!-- KPI Cards Interaktif (Klik untuk Filter Cepat) & Export Global -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <span class="small fw-bold text-secondary"><i class="bi bi-speedometer2 me-1 text-primary"></i>Ringkasan Audit (Klik kartu untuk memfilter):</span>
+                    <a href="<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>" target="_blank" class="btn btn-xs btn-outline-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
+                        <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Export Rekap Global (.xls)
+                    </a>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="p-2 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between shadow-xs" style="cursor:pointer;" onclick="quickKpiFilter('all')" title="Tampilkan Semua Tabel Aktif">
+                            <div>
+                                <div class="text-muted fw-bold" style="font-size:0.7rem;">TOTAL AKTIF</div>
+                                <div class="fw-black fs-5 text-dark" id="kpiTotalCard">0</div>
+                            </div>
+                            <i class="bi bi-layers-fill text-primary fs-4 opacity-75"></i>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-2 px-3 rounded-3 border bg-success-subtle border-success-subtle d-flex align-items-center justify-content-between shadow-xs" style="cursor:pointer;" onclick="quickKpiFilter('match')" title="Filter Tabel yang 100% Cocok">
+                            <div>
+                                <div class="text-success-emphasis fw-bold" style="font-size:0.7rem;">DATA SAMA</div>
+                                <div class="fw-black fs-5 text-success" id="kpiMatchCard">0</div>
+                            </div>
+                            <i class="bi bi-check-circle-fill text-success fs-4 opacity-75"></i>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-2 px-3 rounded-3 border bg-danger-subtle border-danger-subtle d-flex align-items-center justify-content-between shadow-xs" style="cursor:pointer;" onclick="quickKpiFilter('diff')" title="Filter Tabel yang Ada Selisih">
+                            <div>
+                                <div class="text-danger-emphasis fw-bold" style="font-size:0.7rem;">DATA BERBEDA</div>
+                                <div class="fw-black fs-5 text-danger" id="kpiDiffCard">0</div>
+                            </div>
+                            <i class="bi bi-exclamation-octagon-fill text-danger fs-4 opacity-75"></i>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-2 px-3 rounded-3 border bg-warning-subtle border-warning-subtle d-flex align-items-center justify-content-between shadow-xs" style="cursor:pointer;" onclick="quickKpiFilter('api_empty')" title="Filter Tabel yang Datanya Masih Kosong">
+                            <div>
+                                <div class="text-warning-emphasis fw-bold" style="font-size:0.7rem;">DATA KOSONG</div>
+                                <div class="fw-black fs-5 text-warning-emphasis" id="kpiEmptyCard">0</div>
+                            </div>
+                            <i class="bi bi-database-slash text-warning-emphasis fs-4 opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Accordion untuk merapikan hasil -->
                 <div class="accordion" id="accordionResult">
                     
@@ -179,8 +225,8 @@
                                         </button>
                                     </li>
                                     <li class="nav-item">
-                                        <button type="button" id="tabSourceSpreadsheet" class="nav-link fw-semibold text-secondary border-0 pb-2 px-3 bg-transparent" style="font-size:0.83rem;" onclick="filterMatchedSource('spreadsheet', this)">
-                                            <i class="bi bi-file-earmark-spreadsheet-fill text-success me-1"></i> Spreadsheet (<span id="cntSourceSpreadsheet">0</span>)
+                                        <button type="button" id="tabSourceDinamis" class="nav-link fw-semibold text-secondary border-0 pb-2 px-3 bg-transparent" style="font-size:0.83rem;" onclick="filterMatchedSource('dinamis', this)">
+                                            <i class="bi bi-grid-3x3-gap-fill text-success me-1"></i> Tabel Dinamis (<span id="cntSourceDinamis">0</span>)
                                         </button>
                                     </li>
                                     <li class="nav-item">
@@ -214,8 +260,11 @@
                                     </div>
 
                                     <!-- Action & Search -->
-                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                        <button id="btnBatchVerify" onclick="startBatchValidation()" class="btn btn-sm btn-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem; background: linear-gradient(135deg, #10b981, #059669); border:none;">
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        <button id="btnBatchVerifyDinamis" onclick="startBatchValidation('dinamis')" class="btn btn-sm btn-outline-success fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Cepat (~5 detik): Hanya memvalidasi semua Tabel Dinamis">
+                                            <i class="bi bi-grid-3x3-gap-fill me-1"></i> Scan Dinamis
+                                        </button>
+                                        <button id="btnBatchVerify" onclick="startBatchValidation('all')" class="btn btn-sm btn-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem; background: linear-gradient(135deg, #10b981, #059669); border:none;" title="Validasi seluruh tabel (Tabel Dinamis & API Satu Data)">
                                             <i class="bi bi-lightning-charge-fill me-1"></i> Validasi Semua
                                         </button>
                                         <button id="btnStopBatch" onclick="stopBatchValidation()" class="btn btn-sm btn-outline-danger fw-bold px-3 py-1 rounded-pill d-none" style="font-size:0.75rem;">
@@ -259,15 +308,22 @@
                         </div>
                     </div>
 
-                    <!-- UNREGISTERED -->
+                    <!-- UNREGISTERED / BELUM DIKONFIGURASI TABEL DINAMIS -->
                     <div class="accordion-item border-0 mb-3 shadow-sm rounded">
                         <h2 class="accordion-header" id="headingUnreg">
                         <button class="accordion-button collapsed bg-danger-subtle text-danger fw-bold rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUnreg" aria-expanded="false" aria-controls="collapseUnreg">
-                            <i class="bi bi-x-circle-fill me-2"></i> Tabel Tidak Ada di Database (<span id="countUnreg">0</span>)
+                            <i class="bi bi-sliders2-vertical me-2"></i> Belum Dikonfigurasi Tabel Dinamis (<span id="countUnreg">0</span>)
                         </button>
                         </h2>
                         <div id="collapseUnreg" class="accordion-collapse collapse" aria-labelledby="headingUnreg" data-bs-parent="#accordionResult">
                         <div class="accordion-body p-0">
+                            <div class="p-2 px-3 bg-light border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Klik <strong>Konfigurasi Tabel Dinamis</strong> untuk mulai menyusun struktur tabel dari daftar ini.</span>
+                                <div class="input-group input-group-sm" style="max-width: 220px;">
+                                    <span class="input-group-text bg-white py-0 px-2"><i class="bi bi-search text-muted" style="font-size:0.75rem;"></i></span>
+                                    <input type="text" id="searchUnregInput" class="form-control form-control-sm py-1 px-2" placeholder="Cari tabel belum dikonfigurasi..." style="font-size: 0.75rem;" onkeyup="filterUnregList()">
+                                </div>
+                            </div>
                             <ul class="list-group list-group-flush" id="listUnreg"></ul>
                         </div>
                         </div>
@@ -404,20 +460,7 @@
                 }
 
                 // Populate Unregistered
-                $('#countUnreg').text(res.unregistered_in_db.length);
-                if(res.unregistered_in_db.length === 0) {
-                    $('#listUnreg').append(`<li class="list-group-item text-muted text-center py-4">Tidak ada tabel asing. Bersih!</li>`);
-                } else {
-                    res.unregistered_in_db.forEach(item => {
-                        let html = `
-                            <li class="list-group-item unreg py-3">
-                                <span class="badge bg-danger mb-1">Tabel ${item.nomor_tabel}</span>
-                                <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">${item.judul_pdf}</h6>
-                                <p class="mb-0 text-muted small"><i class="bi bi-info-circle me-1"></i> ${item.reason}</p>
-                            </li>`;
-                        $('#listUnreg').append(html);
-                    });
-                }
+                renderUnregList(res.unregistered_in_db || []);
 
             },
             error: function(xhr, status, error) {
@@ -448,12 +491,16 @@
 
         window.currentMatchedTables.forEach(item => {
             let cleanId = getSafeId(item.nomor_tabel);
-            let info = window.batchStatusMap[item.nomor_tabel] || { status: 'unverified' };
-            let link = (item.link_tabel || '').toLowerCase();
-            let srcType = item.source_type || ((link.includes('docs.google.com') || link.includes('spreadsheet')) ? 'spreadsheet' : 'api');
-            let srcBadge = srcType === 'spreadsheet'
-                ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: Google Spreadsheet"><i class="bi bi-file-earmark-spreadsheet-fill me-1"></i>Spreadsheet</span>`
-                : `<span class="badge bg-info-subtle text-primary border border-info-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: API Satudata"><i class="bi bi-hdd-network-fill me-1"></i>API</span>`;
+            let srcType = (item.source_type === 'dinamis' || parseInt(item.is_dynamic || 0) === 1) ? 'dinamis' : 'api';
+            let info = window.batchStatusMap[item.nomor_tabel];
+            if (srcType === 'dinamis' && item.dynamic_empty) {
+                info = { status: 'api_empty', reason: 'Data nilai Tabel Dinamis belum diisi di database.' };
+                window.batchStatusMap[item.nomor_tabel] = info;
+            }
+            if (!info) info = { status: 'unverified' };
+            let srcBadge = srcType === 'dinamis'
+                ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: Tabel Dinamis"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Tabel Dinamis</span>`
+                : `<span class="badge bg-info-subtle text-primary border border-info-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: API Satudata"><i class="bi bi-hdd-network-fill me-1"></i>API Satudata</span>`;
 
             let html = `
                 <li class="list-group-item matched py-3 d-flex justify-content-between align-items-center" data-status="${info.status}" data-source="${srcType}" data-tnum="${item.nomor_tabel}" id="matched_row_${cleanId}">
@@ -482,14 +529,19 @@
 
         let badgeHtml = '';
         let btnHtml = '';
+        let isDyn = (item.source_type === 'dinamis' || parseInt(item.is_dynamic || 0) === 1);
+        let dynLinkBtn = (isDyn && item.id_db)
+            ? `<a href="<?= base_url('admin/view_tabel_dinamis') ?>/${item.id_db}" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 shadow-xs" title="Buka & Edit Isi Tabel Dinamis" style="font-size:0.75rem;"><i class="bi bi-pencil-square"></i></a>`
+            : '';
 
         if (status === 'match') {
             badgeHtml = `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-check-circle-fill me-1"></i>Cocok 100% (${info.match_count ? info.match_count + ' Data' : 'OK'})</span>`;
             btnHtml = `
+                ${dynLinkBtn}
                 <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 shadow-xs" title="Unduh Laporan Validasi Data Excel (.xlsx)" style="font-size:0.75rem;">
                     <i class="bi bi-file-earmark-excel"></i>
                 </a>
-                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
+                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Klik untuk scan ulang & lihat detail tabel ini saja">
                     <i class="bi bi-search me-1"></i> Detail
                 </button>`;
         } else if (status === 'diff') {
@@ -498,17 +550,19 @@
             let matchText = (info.match_count && info.match_count > 0) ? ` <span class="opacity-75 font-monospace" style="font-size:0.7rem;">(${info.match_count} Cocok)</span>` : '';
             badgeHtml = `<span class="badge bg-danger text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-exclamation-octagon-fill me-1"></i>${diffLabel}${matchText}</span>`;
             btnHtml = `
+                ${dynLinkBtn}
                 <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-1 shadow-xs" title="Unduh Laporan Validasi Data Excel (.xlsx)" style="font-size:0.75rem;">
                     <i class="bi bi-file-earmark-excel"></i>
                 </a>
-                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-danger fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
+                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-danger fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Klik untuk scan ulang & periksa selisih tabel ini saja">
                     <i class="bi bi-search me-1"></i> Cek Beda
                 </button>`;
         } else if (status === 'api_empty') {
             badgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-database-slash me-1"></i>Data Kosong</span>`;
             btnHtml = `
-                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-secondary fw-semibold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
-                    <i class="bi bi-search me-1"></i> Detail
+                ${dynLinkBtn}
+                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm ${isDyn ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary fw-semibold'} px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="${isDyn ? 'Klik untuk tarik nilai otomatis dari PDF atau scan ulang tabel ini' : 'Klik untuk cek ulang tabel ini'}">
+                    <i class="bi ${isDyn ? 'bi-magic' : 'bi-search'} me-1"></i> ${isDyn ? 'Isi / Detail' : 'Detail'}
                 </button>`;
         } else if (status === 'checking') {
             badgeHtml = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill fw-semibold shadow-xs" style="font-size:0.75rem;"><span class="spinner-border spinner-border-sm me-1" style="width:0.65rem; height:0.65rem;"></span> Memeriksa...</span>`;
@@ -519,12 +573,14 @@
         } else if (status === 'error') {
             badgeHtml = `<span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-exclamation-circle me-1"></i>Belum Cek (Link/Format)</span>`;
             btnHtml = `
+                ${dynLinkBtn}
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-warning text-dark fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
                     <i class="bi bi-search me-1"></i> Cek Angka
                 </button>`;
         } else {
             badgeHtml = `<span class="badge bg-light text-muted border px-2 py-1 rounded-pill fw-normal" style="font-size:0.75rem;"><i class="bi bi-clock me-1"></i>Belum Dicek</span>`;
             btnHtml = `
+                ${dynLinkBtn}
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-primary fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
                     <i class="bi bi-search me-1"></i> Cek Angka
                 </button>`;
@@ -545,18 +601,21 @@
 
         let stats = {
             all: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 },
-            spreadsheet: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 },
+            dinamis: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 },
             api: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 }
         };
 
         window.currentMatchedTables.forEach(item => {
+            let srcType = (item.source_type === 'dinamis' || parseInt(item.is_dynamic || 0) === 1) ? 'dinamis' : 'api';
             let info = window.batchStatusMap[item.nomor_tabel];
+            if (srcType === 'dinamis' && item.dynamic_empty) {
+                info = { status: 'api_empty', reason: 'Data nilai Tabel Dinamis belum diisi di database.' };
+                window.batchStatusMap[item.nomor_tabel] = info;
+            }
             let status = info ? info.status : 'unverified';
             if (status !== 'diff' && status !== 'match' && status !== 'api_empty') {
                 status = 'unverified';
             }
-            let link = (item.link_tabel || '').toLowerCase();
-            let srcType = item.source_type || ((link.includes('docs.google.com') || link.includes('spreadsheet')) ? 'spreadsheet' : 'api');
 
             stats.all.all++;
             stats.all[status]++;
@@ -569,7 +628,7 @@
 
         // 1. Update Tab Counters
         $('#cntSourceAll').text(stats.all.all);
-        $('#cntSourceSpreadsheet').text(stats.spreadsheet.all);
+        $('#cntSourceDinamis').text(stats.dinamis.all);
         $('#cntSourceApi').text(stats.api.all);
 
         // 2. Update Status Pills (Dinamis sesuai Tab Sumber yang sedang aktif)
@@ -579,6 +638,149 @@
         $('#cntMatch').text(activeStats.match);
         $('#cntEmpty').text(activeStats.api_empty);
         $('#cntUnverified').text(activeStats.unverified);
+
+        // 3. Update Top Interactive KPI Cards
+        $('#kpiTotalCard').text(activeStats.all);
+        $('#kpiMatchCard').text(activeStats.match);
+        $('#kpiDiffCard').text(activeStats.diff);
+        $('#kpiEmptyCard').text(activeStats.api_empty);
+    }
+
+    function quickKpiFilter(statusType) {
+        let collapseEl = document.getElementById('collapseMatched');
+        if (collapseEl && !collapseEl.classList.contains('show')) {
+            new bootstrap.Collapse(collapseEl, { show: true });
+        }
+        let btnMap = {
+            'all': '#btnFilterAll',
+            'match': '#btnFilterMatch',
+            'diff': '#btnFilterDiff',
+            'api_empty': '#btnFilterEmpty',
+            'unverified': '#btnFilterUnverified'
+        };
+        let targetBtn = document.querySelector(btnMap[statusType] || '#btnFilterAll');
+        if (targetBtn) {
+            filterMatchedStatus(statusType, targetBtn);
+        }
+    }
+
+    function renderUnregList(unregList) {
+        window.currentUnregTables = unregList || [];
+        $('#countUnreg').text(window.currentUnregTables.length);
+        if (window.currentUnregTables.length === 0) {
+            $('#listUnreg').html('<li class="list-group-item text-muted text-center py-4">Semua tabel di PDF sudah dikonfigurasi ke Tabel Dinamis atau API Satu Data!</li>');
+            return;
+        }
+        $('#listUnreg').empty();
+        window.currentUnregTables.forEach(item => {
+            let pagesTxt = (item.pages && item.pages.length > 0) ? `Hal. PDF: ${item.pages.join(', ')}` : '';
+            let safeNo = (item.nomor_tabel || '').replace(/'/g, "\\'");
+            let manualBtn = item.id_db
+                ? `<a href="<?= base_url('admin/generator_tabel') ?>/${item.id_db}" target="_blank" class="btn btn-xs btn-outline-secondary fw-semibold rounded-pill px-2 py-1 shadow-xs" style="font-size:0.72rem;" title="Buka Generator Tabel Dinamis (Konfigurasi Manual)"><i class="bi bi-sliders2-vertical me-1"></i>Manual</a>`
+                : `<a href="<?= base_url('admin/master_tabel') ?>?q=${encodeURIComponent(item.nomor_tabel)}" target="_blank" class="btn btn-xs btn-outline-secondary fw-semibold rounded-pill px-2 py-1 shadow-xs" style="font-size:0.72rem;" title="Cari di Master Tabel"><i class="bi bi-plus-circle me-1"></i>Master</a>`;
+
+            let actionGroup = `
+                <div class="d-flex align-items-center gap-1 flex-shrink-0 flex-wrap justify-content-end">
+                    <button type="button" onclick="autoConfigFromPdf('${safeNo}', 0, this)" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-1 shadow-xs" style="font-size:0.74rem;" title="Deteksi otomatis baris, kolom & periode dari PDF lalu pindahkan ke Data Kosong">
+                        <i class="bi bi-Cpu-fill bi-magic me-1"></i>Auto-Konfigurasi PDF
+                    </button>
+                    <button type="button" onclick="autoConfigFromPdf('${safeNo}', 1, this)" class="btn btn-sm btn-success text-white fw-bold rounded-pill px-3 py-1 shadow-xs" style="font-size:0.74rem;" title="Konfigurasi struktur otomatis dari PDF sekaligus langsung isi angka ke Tabel Dinamis">
+                        <i class="bi bi-lightning-charge-fill me-1"></i>Auto-Konfig + Isi Data
+                    </button>
+                    ${manualBtn}
+                </div>`;
+
+            $('#listUnreg').append(`
+                <li class="list-group-item unreg py-3 d-flex justify-content-between align-items-center gap-3 unreg-row" id="unreg_row_${getSafeId(item.nomor_tabel)}" data-tnum="${(item.nomor_tabel || '').toLowerCase()}" data-title="${(item.judul_pdf || '').toLowerCase()}">
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                            <span class="badge bg-danger">Tabel ${item.nomor_tabel}</span>
+                            ${pagesTxt ? `<span class="badge bg-light text-secondary border font-monospace" style="font-size:0.7rem;"><i class="bi bi-file-earmark-pdf me-1"></i>${pagesTxt}</span>` : ''}
+                        </div>
+                        <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">${item.judul_pdf}</h6>
+                        <p class="mb-0 text-muted small"><i class="bi bi-info-circle me-1"></i> ${item.reason}</p>
+                    </div>
+                    ${actionGroup}
+                </li>`);
+        });
+    }
+
+    function autoConfigFromPdf(nomorTabel, autoFill, btnEl) {
+        let item = (window.currentUnregTables || []).find(u => u.nomor_tabel === nomorTabel);
+        if (!item) return;
+
+        let $btn = $(btnEl);
+        let $row = $btn.closest('li.unreg-row');
+        let origHtml = $btn.html();
+        $row.find('button, a').addClass('disabled').prop('disabled', true);
+        $btn.html(`<span class="spinner-border spinner-border-sm me-1" style="width:0.7rem;height:0.7rem;"></span>${autoFill ? 'Merakit & Mengisi...' : 'Merakit Struktur...'}`);
+
+        $.ajax({
+            url: "<?= base_url('admin/auto_config_tabel_pdf') ?>",
+            type: "POST",
+            data: {
+                nomor_tabel: item.nomor_tabel,
+                id_db: item.id_db || 0,
+                pages: JSON.stringify(item.pages || []),
+                judul_pdf: item.judul_pdf || '',
+                auto_fill: autoFill ? 1 : 0,
+                ta: activeYear
+            },
+            dataType: "json",
+            success: function(res) {
+                if (res.status === 'success') {
+                    // 1. Hapus dari daftar Belum Dikonfigurasi
+                    window.currentUnregTables = (window.currentUnregTables || []).filter(u => u.nomor_tabel !== nomorTabel);
+                    $('#countUnreg').text(window.currentUnregTables.length);
+                    $row.fadeOut(250, function() {
+                        $(this).remove();
+                        if (window.currentUnregTables.length === 0) {
+                            renderUnregList([]);
+                        }
+                    });
+
+                    // 2. Masukkan ke daftar Tabel Ditemukan (Matched) dan set statusnya (Data Kosong / Match)
+                    if (res.matched_entry) {
+                        let mEntry = res.matched_entry;
+                        let stEntry = res.state_entry || { status: 'api_empty' };
+                        window.batchStatusMap[mEntry.nomor_tabel] = stEntry;
+
+                        let existingIdx = (window.currentMatchedTables || []).findIndex(m => m.nomor_tabel === mEntry.nomor_tabel);
+                        if (existingIdx >= 0) {
+                            window.currentMatchedTables[existingIdx] = mEntry;
+                        } else {
+                            window.currentMatchedTables.unshift(mEntry);
+                        }
+                        $('#countMatched').text(window.currentMatchedTables.length);
+                        renderAllMatchedRows();
+                        updateBatchCounters();
+                        applyMatchedFilters();
+                    }
+                } else {
+                    alert("Gagal Auto-Konfigurasi: " + (res.message || "Terjadi kesalahan."));
+                    $row.find('button, a').removeClass('disabled').prop('disabled', false);
+                    $btn.html(origHtml);
+                }
+            },
+            error: function() {
+                alert("Gagal menghubungi server saat melakukan Auto-Konfigurasi PDF.");
+                $row.find('button, a').removeClass('disabled').prop('disabled', false);
+                $btn.html(origHtml);
+            }
+        });
+    }
+
+    function filterUnregList() {
+        let q = ($('#searchUnregInput').val() || '').toLowerCase().trim();
+        $('#listUnreg li.unreg-row').each(function() {
+            let tnum = $(this).attr('data-tnum') || '';
+            let title = $(this).attr('data-title') || '';
+            if (!q || tnum.includes(q) || title.includes(q)) {
+                $(this).removeClass('d-none').addClass('d-flex');
+            } else {
+                $(this).addClass('d-none').removeClass('d-flex');
+            }
+        });
     }
 
     window.currentBatchFilter = 'all';
@@ -605,7 +807,7 @@
         
         if (src === 'all') {
             $(btn).removeClass('fw-semibold text-secondary').addClass('active fw-bold text-dark border-bottom border-3 border-primary');
-        } else if (src === 'spreadsheet') {
+        } else if (src === 'dinamis') {
             $(btn).removeClass('fw-semibold text-secondary').addClass('active fw-bold text-dark border-bottom border-3 border-success');
         } else if (src === 'api') {
             $(btn).removeClass('fw-semibold text-secondary').addClass('active fw-bold text-dark border-bottom border-3 border-info');
@@ -652,7 +854,7 @@
 
     let batchPollTimer = null;
 
-    function startBatchValidation() {
+    function startBatchValidation(sourceFilter = 'all') {
         if (window.isBatchRunning) return;
         if (!window.currentMatchedTables || window.currentMatchedTables.length === 0) {
             alert("Tidak ada tabel yang siap divalidasi.");
@@ -661,19 +863,21 @@
 
         window.isBatchRunning = true;
         consecutiveStopCount = 0;
-        $('#btnBatchVerify').prop('disabled', true).addClass('opacity-50');
+        $('#btnBatchVerify, #btnBatchVerifyDinamis').prop('disabled', true).addClass('opacity-50');
         $('#btnStopBatch').removeClass('d-none');
         $('#batchProgressBox').removeClass('d-none');
         $('#batchProgressPercent').text('0%');
         $('#batchProgressBar').css('width', '0%');
-        $('#batchProgressLabel').html('<i class="bi bi-cpu-fill text-primary me-1"></i> Memulai Background Worker AI...');
+        let labelMode = sourceFilter === 'dinamis' ? 'Tabel Dinamis' : 'Semua Tabel';
+        $('#batchProgressLabel').html(`<i class="bi bi-cpu-fill text-primary me-1"></i> Memulai validasi (${labelMode})...`);
 
         $.ajax({
             url: "<?= base_url('admin/start_batch_worker') ?>",
             type: "POST",
             data: {
                 ta: activeYear,
-                tolerance: "0.0"
+                tolerance: "0.0",
+                source_filter: sourceFilter
             },
             dataType: "json",
             success: function(res) {
@@ -771,7 +975,7 @@
     function finishBatch(isSuccess = true, completed = 0, total = 0) {
         window.isBatchRunning = false;
         if (batchPollTimer) clearTimeout(batchPollTimer);
-        $('#btnBatchVerify').prop('disabled', false).removeClass('opacity-50');
+        $('#btnBatchVerify, #btnBatchVerifyDinamis').prop('disabled', false).removeClass('opacity-50');
         $('#btnStopBatch').addClass('d-none');
 
         renderAllMatchedRows();
@@ -848,12 +1052,126 @@
         }
     };
 
+
+    window.togglePdfSplitView = function(page = 1) {
+        let $pane = $('#pdfSplitPane');
+        let $main = $('#auditMainPane');
+        let $iframe = $('#pdfSplitIframe');
+        if ($pane.hasClass('d-none')) {
+            let pdfUrl = `<?= base_url('admin/serve_master_pdf') ?>?ta=${encodeURIComponent(activeYear)}#page=${page}&view=FitH`;
+            if ($iframe.attr('src') !== pdfUrl) {
+                $iframe.attr('src', pdfUrl);
+            }
+            $pane.removeClass('d-none');
+            $main.removeClass('col-lg-12').addClass('col-lg-6');
+        } else {
+            $pane.addClass('d-none');
+            $main.removeClass('col-lg-6').addClass('col-lg-12');
+        }
+    };
+
+    window.syncAutofillFromPdf = function() {
+        let res = window.lastVerifyResult;
+        if (!res || !res.id_indikator || !res.autofill_cells || res.autofill_cells.length === 0) return;
+        if (!confirm(`Isi otomatis ${res.autofill_cells.length} sel angka dari PDF ke Tabel Dinamis untuk Tabel ${window.currentTableNumber}?`)) return;
+
+        let $btn = $('#btnAutofillFromPdf');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan ke Tabel Dinamis...');
+
+        $.ajax({
+            url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
+            type: "POST",
+            data: {
+                id_indikator: res.id_indikator,
+                cells: JSON.stringify(res.autofill_cells)
+            },
+            dataType: "json",
+            success: function(syncRes) {
+                if (syncRes && syncRes.status === 'success') {
+                    verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
+                } else {
+                    alert("Gagal menyimpan nilai: " + (syncRes.message || 'Unknown error'));
+                    $btn.prop('disabled', false).html('<i class="bi bi-cloud-download-fill me-1"></i> Isi Otomatis ke Tabel Dinamis');
+                }
+            },
+            error: function() {
+                alert("Gagal menghubungi server saat menyimpan nilai Tabel Dinamis.");
+                $btn.prop('disabled', false).html('<i class="bi bi-cloud-download-fill me-1"></i> Isi Otomatis ke Tabel Dinamis');
+            }
+        });
+    };
+
+    window.syncAllDiffsToDinamis = function() {
+        let res = window.lastVerifyResult;
+        if (!res || !res.id_indikator || !res.diffs) return;
+        let cells = [];
+        res.diffs.forEach(d => {
+            if (d.coord) {
+                cells.push({
+                    id_baris_item: d.coord.id_baris_item,
+                    id_karakteristik_item: d.coord.id_karakteristik_item,
+                    id_periode_item: d.coord.id_periode_item,
+                    nilai: d.pdf_val
+                });
+            }
+        });
+        if (cells.length === 0) return;
+        if (!confirm(`Perbarui ${cells.length} sel yang selisih pada Tabel ${window.currentTableNumber} agar sama dengan angka di buku PDF?`)) return;
+
+        $.ajax({
+            url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
+            type: "POST",
+            data: {
+                id_indikator: res.id_indikator,
+                cells: JSON.stringify(cells)
+            },
+            dataType: "json",
+            success: function(syncRes) {
+                if (syncRes && syncRes.status === 'success') {
+                    verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
+                } else {
+                    alert("Gagal menyinkronkan selisih: " + (syncRes.message || 'Unknown error'));
+                }
+            }
+        });
+    };
+
+    window.syncSingleDiffCell = function(idIndikator, coord, pdfVal, btnEl) {
+        let $btn = $(btnEl);
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
+        $.ajax({
+            url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
+            type: "POST",
+            data: {
+                id_indikator: idIndikator,
+                cells: JSON.stringify([{
+                    id_baris_item: coord.id_baris_item,
+                    id_karakteristik_item: coord.id_karakteristik_item,
+                    id_periode_item: coord.id_periode_item,
+                    nilai: pdfVal
+                }])
+            },
+            dataType: "json",
+            success: function(syncRes) {
+                if (syncRes && syncRes.status === 'success') {
+                    verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
+                } else {
+                    alert("Gagal menyimpan sel: " + (syncRes.message || 'Unknown error'));
+                    $btn.prop('disabled', false).text('Gunakan Angka PDF');
+                }
+            }
+        });
+    };
+
     function verify_tabel(nomor_tabel, tolerance = 0) {
         window.currentTableNumber = nomor_tabel;
         window.currentTolerance = tolerance;
 
-        let modal = new bootstrap.Modal(document.getElementById('modalDiff'));
-        modal.show();
+        let modalEl = document.getElementById('modalDiff');
+        let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        if (!modalEl.classList.contains('show')) {
+            modal.show();
+        }
         $('#diffContent').html(`
             <div class="text-center py-5">
                 <div class="spinner-border text-primary mb-3" style="width:2.5rem; height:2.5rem;" role="status"></div>
@@ -881,13 +1199,14 @@
                     let totalPdfOnly = res.summary ? res.summary.total_pdf_only : (res.pdf_only ? res.pdf_only.length : 0);
                     let totalAll = totalDiffs + totalMatches + totalPdfOnly;
 
-                    window.currentDiffFilter = totalDiffs > 0 ? 'diff' : 'match';
+                    window.currentDiffFilter = totalDiffs > 0 ? 'diff' : (totalMatches > 0 ? 'match' : (totalPdfOnly > 0 ? 'pdf_only' : 'all'));
 
                     // Update main list badge & counters
-                    let status = totalDiffs > 0 ? 'diff' : 'match';
+                    let status = (totalDiffs > 0 || totalMatches === 0) ? 'diff' : 'match';
+                    let diffCount = totalDiffs > 0 ? totalDiffs : (totalPdfOnly > 0 ? totalPdfOnly : '!');
                     window.batchStatusMap[nomor_tabel] = {
                         status: status,
-                        diff_count: totalDiffs,
+                        diff_count: diffCount,
                         match_count: totalMatches
                     };
                     let foundItem = window.currentMatchedTables ? window.currentMatchedTables.find(t => t.nomor_tabel === nomor_tabel) : null;
@@ -908,30 +1227,60 @@
                     if (res.matches) res.matches.forEach(m => { if (m.section) sectionSet.add(m.section); });
                     if (res.pdf_only) res.pdf_only.forEach(p => { if (p.section) sectionSet.add(p.section); });
 
+                    window.lastVerifyResult = res;
+                    let firstPage = (res.pages && res.pages.length > 0) ? res.pages[0] : 1;
+                    let pagesLabel = (res.pages && res.pages.length > 0) ? `Hal. ${res.pages.join(', ')}` : '';
+                    let syncAllDiffsBtn = '';
+                    if (res.source_type === 'Tabel Dinamis' && res.id_indikator && res.diffs && res.diffs.some(d => d.coord)) {
+                        syncAllDiffsBtn = `
+                            <button type="button" onclick="syncAllDiffsToDinamis()" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-2 shadow-xs" title="Perbarui seluruh sel yang selisih di Tabel Dinamis menggunakan angka dari PDF">
+                                <i class="bi bi-magic me-1"></i> Samakan Semua Selisih ke Tabel Dinamis
+                            </button>`;
+                    }
+
                     let html = `
                         <!-- Header Box -->
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-3 border-bottom">
                             <div>
                                 <h5 class="fw-black text-dark mb-1">
                                     <i class="bi bi-table text-primary me-2"></i>Tabel ${nomor_tabel}
+                                    ${pagesLabel ? `<span class="badge bg-light text-secondary border ms-2 fw-normal" style="font-size:0.78rem;"><i class="bi bi-book me-1"></i>PDF ${pagesLabel}</span>` : ''}
                                 </h5>
                                 <div class="text-muted small">
-                                    Memverifikasi kesesuaian antara cetakan buku PDF dengan database resmi.
+                                    Hasil pemindaian langsung (live scan) tabel ${nomor_tabel} antara cetakan buku PDF dengan database resmi.
                                 </div>
                             </div>
                             <div class="d-flex align-items-center flex-wrap gap-2">
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fs-6 fw-bold">
                                     <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sumber: ${res.source_type}
                                 </span>
+                                <button type="button" onclick="togglePdfSplitView(${firstPage})" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 py-2 shadow-xs">
+                                    <i class="bi bi-layout-split me-1"></i> Sandingkan PDF Asli (${pagesLabel || 'PDF'})
+                                </button>
+                                ${syncAllDiffsBtn}
                                 <a href="${exportUrl}" target="_blank" class="btn btn-sm btn-success fw-bold rounded-pill px-3 py-2 shadow-xs">
                                     <i class="bi bi-file-earmark-excel-fill me-1"></i> Unduh Laporan Validasi (.xlsx)
                                 </a>
                             </div>
                         </div>
+                        <div class="row g-3" id="modalSplitWrapper">
+                            <div class="col-lg-6 d-none" id="pdfSplitPane">
+                                <div class="card border shadow-xs h-100">
+                                    <div class="card-header bg-dark text-white py-2 px-3 d-flex justify-content-between align-items-center">
+                                        <span class="small fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Cetakan Buku PDF Asli (${pagesLabel})</span>
+                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="togglePdfSplitView(${firstPage})"><i class="bi bi-x-lg"></i> Tutup Preview</button>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <iframe id="pdfSplitIframe" src="" style="width:100%; height:68vh; border:0;"></iframe>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-12" id="auditMainPane">
                     `;
                     
                     // Banner Verifikasi Bersih Ringkas (Jika 100% Cocok Sempurna)
-                    if (totalDiffs === 0 && totalPdfOnly === 0) {
+                    // Banner Verifikasi Bersih Ringkas (Jika 100% Cocok Sempurna)
+                    if (totalMatches > 0 && totalDiffs === 0 && totalPdfOnly === 0) {
                         html += `
                             <div class="alert alert-success border-success-subtle bg-success-subtle rounded-3 p-3 mb-3 shadow-xs d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-left: 5px solid #10b981 !important;">
                                 <div class="d-flex align-items-center">
@@ -952,9 +1301,31 @@
                                 </div>
                             </div>
                         `;
+                    } else if (totalMatches === 0 && totalPdfOnly > 0) {
+                        html += `
+                            <div class="alert alert-warning border-warning-subtle bg-warning-subtle rounded-3 p-3 mb-3 shadow-xs d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-left: 5px solid #f59e0b !important;">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center me-3 shadow-xs flex-shrink-0" style="width: 40px; height: 40px;">
+                                        <i class="bi bi-exclamation-triangle-fill fw-bold" style="font-size: 1.3rem;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold text-warning-emphasis mb-0" style="font-size: 0.95rem;">Perbedaan Struktur Data (Khusus Cetakan PDF)</h6>
+                                        <div class="text-secondary small">
+                                            Tercetak <strong>${totalPdfOnly} data</strong> pada cetakan PDF, namun barisnya tidak ditemukan di database resmi.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-white text-dark border border-warning-subtle px-3 py-1-5 rounded-pill fw-semibold shadow-xs" style="font-size: 0.78rem;">
+                                        <i class="bi bi-journal-bookmark me-1"></i> ${totalPdfOnly} Cuma di PDF
+                                    </span>
+                                </div>
+                            </div>
+                        `;
                     }
 
                     // 1. KPI Cards (Selalu ditampilkan untuk status cocok maupun beda nilai)
+                    let isPerfectMatch = (totalMatches > 0 && totalDiffs === 0 && totalPdfOnly === 0);
                     html += `
                         <div class="row g-3 mb-4">
                             <!-- KPI: Beda Nilai -->
@@ -973,19 +1344,19 @@
 
                             <!-- KPI: Cocok Sempurna (Highlight Spesial Saat 100% Cocok) -->
                             <div class="col-md-4">
-                                <div class="p-3 rounded-3 border d-flex align-items-center shadow-xs ${totalDiffs === 0 ? 'border-success' : 'border-success bg-success-subtle'}" 
-                                     onclick="switchDiffFilter('match')" 
-                                     style="cursor:pointer; ${totalDiffs === 0 ? 'border: 2px solid #10b981 !important; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important; box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.25) !important;' : ''}" 
+                                <div class="p-3 rounded-3 border d-flex align-items-center shadow-xs ${isPerfectMatch ? 'border-success' : (totalMatches > 0 ? 'border-success bg-success-subtle' : 'bg-light border-secondary-subtle')}" 
+                                     ${totalMatches > 0 ? `onclick="switchDiffFilter('match')" style="cursor:pointer;"` : 'style="opacity: 0.75;"'}
+                                     ${isPerfectMatch ? 'style="cursor:pointer; border: 2px solid #10b981 !important; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important; box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.25) !important;"' : ''} 
                                      title="Klik untuk menyaring data yang cocok">
-                                    <div class="rounded-circle p-2 bg-success text-white me-3 d-flex align-items-center justify-content-center shadow-xs" style="width:48px; height:48px;">
+                                    <div class="rounded-circle p-2 ${totalMatches > 0 ? 'bg-success text-white' : 'bg-secondary text-white'} me-3 d-flex align-items-center justify-content-center shadow-xs" style="width:48px; height:48px;">
                                         <i class="bi bi-check-lg fs-3 fw-bold"></i>
                                     </div>
                                     <div class="flex-grow-1">
                                         <div class="d-flex align-items-center justify-content-between">
-                                            <div class="fw-black fs-4 text-success mb-0">${totalMatches} Angka</div>
-                                            ${totalDiffs === 0 ? `<span class="badge bg-success text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.68rem;"><i class="bi bi-stars me-1"></i>Cocok</span>` : ''}
+                                            <div class="fw-black fs-4 ${totalMatches > 0 ? 'text-success' : 'text-muted'} mb-0">${totalMatches} Angka</div>
+                                            ${isPerfectMatch ? `<span class="badge bg-success text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.68rem;"><i class="bi bi-stars me-1"></i>Cocok</span>` : ''}
                                         </div>
-                                        <div class="small text-success fw-semibold">Cocok Sempurna ${totalDiffs === 0 ? '(100%)' : ''}</div>
+                                        <div class="small ${totalMatches > 0 ? 'text-success' : 'text-muted'} fw-semibold">Cocok Sempurna ${isPerfectMatch ? '(100%)' : ''}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1026,8 +1397,8 @@
                                     <span class="small fw-bold text-dark me-1"><i class="bi bi-funnel-fill text-secondary me-1"></i>Filter:</span>
                                     <div class="btn-group btn-group-sm" role="group">
                                         ${totalDiffs > 0 ? `<button type="button" class="btn btn-danger active btn-filter-type fw-bold px-3 py-1" data-filter="diff" onclick="setDiffType('diff', this)"><i class="bi bi-exclamation-octagon-fill me-1"></i> Beda Nilai (${totalDiffs})</button>` : ''}
-                                        <button type="button" class="btn ${totalDiffs === 0 ? 'btn-success active text-white shadow-xs' : 'btn-outline-secondary'} btn-filter-type fw-bold px-3 py-1" data-filter="match" onclick="setDiffType('match', this)"><i class="bi bi-check-circle-fill me-1"></i> Cocok (${totalMatches})</button>
-                                        ${totalPdfOnly > 0 ? `<button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" data-filter="pdf_only" onclick="setDiffType('pdf_only', this)"><i class="bi bi-journal-bookmark me-1"></i> Cuma di PDF (${totalPdfOnly})</button>` : ''}
+                                        <button type="button" class="btn ${totalDiffs === 0 && totalMatches > 0 ? 'btn-success active text-white shadow-xs' : 'btn-outline-secondary'} btn-filter-type fw-bold px-3 py-1" data-filter="match" onclick="setDiffType('match', this)"><i class="bi bi-check-circle-fill me-1"></i> Cocok (${totalMatches})</button>
+                                        ${totalPdfOnly > 0 ? `<button type="button" class="btn ${totalDiffs === 0 && totalMatches === 0 ? 'btn-warning active text-dark fw-bold shadow-xs' : 'btn-outline-secondary'} btn-filter-type px-3 py-1" data-filter="pdf_only" onclick="setDiffType('pdf_only', this)"><i class="bi bi-journal-bookmark me-1"></i> Cuma di PDF (${totalPdfOnly})</button>` : ''}
                                         <button type="button" class="btn btn-outline-secondary btn-filter-type fw-bold px-3 py-1" data-filter="all" onclick="setDiffType('all', this)">Semua (${totalAll})</button>
                                     </div>
                                 </div>
@@ -1112,6 +1483,11 @@
                                                         <div class="small mt-1" style="line-height:1.3;">
                                                             Di cetakan PDF tertulis <strong>${d.pdf_val}</strong>, tetapi di database tertulis <strong>${d.src_val}</strong>.
                                                         </div>
+                                                        ${(res.id_indikator && d.coord) ? `
+                                                            <button type="button" onclick='syncSingleDiffCell(${res.id_indikator}, ${JSON.stringify(d.coord)}, ${JSON.stringify(d.pdf_val)}, this)' class="btn btn-xs btn-danger text-white fw-bold rounded-pill mt-2 py-1 px-2 shadow-xs">
+                                                                <i class="bi bi-magic me-1"></i> Gunakan Angka PDF (${d.pdf_val})
+                                                            </button>
+                                                        ` : ''}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1202,11 +1578,12 @@
                             </div>
                         `;
 
-                        html += `</div>`; // Close comparisonList
+                        html += `</div></div></div>`; // Close comparisonList, auditMainPane, modalSplitWrapper
                     $('#diffContent').html(html);
+                    applyDiffFilters();
                 } else {
                     let msg = res.message || 'Terjadi kesalahan saat memproses data';
-                    let isApiEmpty = msg.toLowerCase().includes('tidak ada data dalam api') || res.is_api_empty;
+                    let isApiEmpty = msg.toLowerCase().includes('tidak ada data dalam api') || msg.toLowerCase().includes('belum diisi') || res.is_api_empty;
                     
                     let status = isApiEmpty ? 'api_empty' : 'diff';
                     window.batchStatusMap[nomor_tabel] = {
@@ -1227,18 +1604,98 @@
                     }
                     
                     if (isApiEmpty) {
-                        $('#diffContent').html(`
-                            <div class="text-center py-5">
-                                <div class="d-inline-flex align-items-center justify-content-center bg-warning-subtle text-warning rounded-circle mb-3 shadow-xs" style="width: 72px; height: 72px;">
-                                    <i class="bi bi-database-slash" style="font-size: 2.2rem;"></i>
+                        window.lastVerifyResult = res;
+                        let firstPage = (res.pages && res.pages.length > 0) ? res.pages[0] : 1;
+                        let pagesLabel = (res.pages && res.pages.length > 0) ? `Hal. ${res.pages.join(', ')}` : '';
+                        let autofillBox = '';
+
+                        if (res.can_autofill && res.autofill_cells && res.autofill_cells.length > 0 && res.id_indikator) {
+                            let sampleRows = res.autofill_cells.slice(0, 12).map(c => `
+                                <tr>
+                                    <td class="fw-semibold text-dark">${c.wilayah || '-'}</td>
+                                    <td class="text-secondary">${c.metric || '-'}</td>
+                                    <td class="text-end fw-bold font-monospace text-success">${c.nilai}</td>
+                                </tr>
+                            `).join('');
+                            autofillBox = `
+                                <div class="card border-success bg-success-subtle bg-opacity-25 text-start mx-auto mt-4 shadow-sm" style="max-width: 780px;">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                                            <div>
+                                                <span class="badge bg-success text-white rounded-pill px-3 py-1 fw-bold mb-1"><i class="bi bi-stars me-1"></i>AI Auto-Fill Tersedia</span>
+                                                <h6 class="fw-bold text-dark mb-0">Ditemukan <strong>${res.autofill_count} sel angka</strong> di buku PDF (${pagesLabel}) yang cocok dengan struktur Tabel Dinamis ini!</h6>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                ${res.pages && res.pages.length > 0 ? `
+                                                    <button type="button" onclick="togglePdfSplitView(${firstPage})" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3">
+                                                        <i class="bi bi-layout-split me-1"></i> Lihat PDF (${pagesLabel})
+                                                    </button>
+                                                ` : ''}
+                                                <button type="button" id="btnAutofillFromPdf" onclick="syncAutofillFromPdf()" class="btn btn-sm btn-success fw-bold rounded-pill px-4 py-2 shadow-sm">
+                                                    <i class="bi bi-cloud-download-fill me-1"></i> Isi Otomatis ke Tabel Dinamis (${res.autofill_count} Sel)
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="table-responsive bg-white rounded-3 border" style="max-height: 220px;">
+                                            <table class="table table-sm table-hover mb-0 small">
+                                                <thead class="table-light sticky-top">
+                                                    <tr>
+                                                        <th>Baris / Wilayah</th>
+                                                        <th>Kolom / Karakteristik</th>
+                                                        <th class="text-end">Nilai di PDF</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${sampleRows}
+                                                    ${res.autofill_cells.length > 12 ? `<tr><td colspan="3" class="text-center text-muted py-2">... dan ${res.autofill_cells.length - 12} sel angka lainnya siap disimpan</td></tr>` : ''}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
-                                <h5 class="fw-bold text-dark mb-2">Data Kosong</h5>
-                                <p class="text-muted small mx-auto mb-3" style="max-width: 480px;">
-                                    Sumber database belum memuat data untuk tabel ini atau data masih kosong di database pusat.
-                                </p>
-                                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 bg-light border rounded-pill text-muted small">
-                                    <i class="bi bi-info-circle text-primary"></i>
-                                    <span>Tabel tidak dapat divalidasi karena sumber data belum tersedia atau masih kosong.</span>
+                            `;
+                        } else if (res.id_db && res.source_type === 'Tabel Dinamis') {
+                            autofillBox = `
+                                <div class="mt-3 d-flex justify-content-center gap-2">
+                                    ${res.pages && res.pages.length > 0 ? `
+                                        <button type="button" onclick="togglePdfSplitView(${firstPage})" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3">
+                                            <i class="bi bi-layout-split me-1"></i> Lihat PDF Asli (${pagesLabel})
+                                        </button>
+                                    ` : ''}
+                                    <a href="<?= base_url('admin/view_tabel_dinamis') ?>/${res.id_db}" target="_blank" class="btn btn-sm btn-primary fw-bold rounded-pill px-3">
+                                        <i class="bi bi-pencil-square me-1"></i> Buka Input Tabel Dinamis
+                                    </a>
+                                    <a href="<?= base_url('admin/generator_tabel') ?>/${res.id_db}" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold rounded-pill px-3">
+                                        <i class="bi bi-sliders2-vertical me-1"></i> Cek Konfigurasi Baris/Kolom
+                                    </a>
+                                </div>
+                            `;
+                        }
+
+                        $('#diffContent').html(`
+                            <div class="row g-3" id="modalSplitWrapper">
+                                <div class="col-lg-6 d-none" id="pdfSplitPane">
+                                    <div class="card border shadow-xs h-100">
+                                        <div class="card-header bg-dark text-white py-2 px-3 d-flex justify-content-between align-items-center">
+                                            <span class="small fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Cetakan Buku PDF Asli (${pagesLabel})</span>
+                                            <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="togglePdfSplitView(${firstPage})"><i class="bi bi-x-lg"></i> Tutup Preview</button>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            <iframe id="pdfSplitIframe" src="" style="width:100%; height:68vh; border:0;"></iframe>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12" id="auditMainPane">
+                                    <div class="text-center py-4">
+                                        <div class="d-inline-flex align-items-center justify-content-center bg-warning-subtle text-warning rounded-circle mb-3 shadow-xs" style="width: 68px; height: 68px;">
+                                            <i class="bi bi-database-slash" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <h5 class="fw-bold text-dark mb-1">Data Kosong (${res.source_type || 'Database'})</h5>
+                                        <p class="text-muted small mx-auto mb-2" style="max-width: 520px;">
+                                            ${res.message || 'Sumber database belum memuat nilai untuk tabel ini.'}
+                                        </p>
+                                        ${autofillBox}
+                                    </div>
                                 </div>
                             </div>
                         `);
@@ -1288,20 +1745,7 @@
                 });
             }
 
-            $('#countUnreg').text(unregList.length);
-            if (unregList.length === 0) {
-                $('#listUnreg').html('<li class="list-group-item text-muted text-center py-4">Tidak ada tabel asing. Bersih!</li>');
-            } else {
-                $('#listUnreg').empty();
-                unregList.forEach(item => {
-                    $('#listUnreg').append(`
-                        <li class="list-group-item unreg py-3">
-                            <span class="badge bg-danger mb-1">Tabel ${item.nomor_tabel}</span>
-                            <h6 class="mb-1 fw-bold text-dark" style="font-size: 0.9rem;">${item.judul_pdf}</h6>
-                            <p class="mb-0 text-muted small"><i class="bi bi-info-circle me-1"></i> ${item.reason}</p>
-                        </li>`);
-                });
-            }
+            renderUnregList(unregList || []);
 
             renderAllMatchedRows();
             updateBatchCounters();
