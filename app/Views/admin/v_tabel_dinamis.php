@@ -669,8 +669,26 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         $posisi_hirarki     = $indikator->posisi_hirarki ?? 'kolom_atas';
                         $cfgTotal           = $indikator->konfigurasi_total ?? 'default';
                         $isRuntunWaktu      = ($cfgTotal === 'runtun_waktu');
-                        $format_nomor_baris = 'none';
-                        $hasNoCol           = true; // Kolom No. selalu aktif 100% identik dengan view tabel API portal
+                        $format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
+
+                        // Deteksi cerdas: apakah item-item master baris memiliki penomoran (misal: "1. Kayu", "1. Cilacap")
+                        $hasNumberInMaster = false;
+                        if (!empty($itemsBaris)) {
+                            foreach ($itemsBaris as $bItem) {
+                                $bTipe = strtolower(trim($bItem->tipe_baris ?? ''));
+                                if ($bTipe === 'kategori' || $bTipe === 'total' || $bTipe === 'subtotal') {
+                                    continue;
+                                }
+                                $bNama = trim($bItem->nama_baris_ind ?? '');
+                                if (preg_match('/^\s*\d+[\.\)]\s*/', $bNama)) {
+                                    $hasNumberInMaster = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Kolom No. dibuatkan otomatis HANYA jika di master baris ada nomornya
+                        $hasNoCol = $hasNumberInMaster;
 
                         // Identifikasi id_periode aktif untuk baris rincian pada mode runtun_waktu
                         $idPeriodeAktif = 0;
@@ -1159,9 +1177,6 @@ $isConfigured = ($indikator && $dimCount >= 2);
                             ?>
                                 <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
                             <?php else: ?>
-                                <?php if ($hasNoCol && !$isRuntunWaktu): ?>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
-                                <?php endif; ?>
 
                                 <?php if ($isRuntunWaktu || ($posisi_hirarki === 'periode_baris' && !$isMultiBaris)): ?>
                                     <th colspan="2" style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
@@ -1564,6 +1579,15 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 $cleanNama   = $rawNamaInd;
                                 $cleanNamaEn = $rawNamaEn;
                                 $noText      = $dataRowCounter . '.';
+
+                                // Ekstraksi & pembersihan nomor jika ada nomor pada master baris (hindari dobel nomor)
+                                if (preg_match('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', $rawNamaInd, $matches)) {
+                                    $noText = trim($matches[0]);
+                                    $cleanNama = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaInd));
+                                    if (!empty($rawNamaEn)) {
+                                        $cleanNamaEn = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaEn));
+                                    }
+                                }
 
                                 // Aturan Huruf Tebal (Bold):
                                 // Judul baris kiri SELALU TEBAL (font-weight: bold;) persis seperti di View Portal Tabel API
