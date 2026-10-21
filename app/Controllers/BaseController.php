@@ -146,8 +146,14 @@ abstract class BaseController extends Controller
         };
 
         // --- GLOBAL DATA SHARING ---
-        // Fetch static config once per request
-        $instansi = $this->db->query("SELECT * FROM tr_instansi LIMIT 1")->getRow();
+        // Cache static instansi config in session to eliminate remote DB query latency on every HTTP request
+        $instansi = $this->session->get('cached_instansi_config');
+        if (!$instansi) {
+            $instansi = $this->db->query("SELECT * FROM tr_instansi LIMIT 1")->getRow();
+            if ($instansi) {
+                $this->session->set('cached_instansi_config', $instansi);
+            }
+        }
         
         // Share with all views globally
         $GLOBALS['instansi_config'] = $instansi; 

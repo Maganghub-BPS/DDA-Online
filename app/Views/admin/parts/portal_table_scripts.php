@@ -507,13 +507,13 @@
             const isKotaRow = (curCodeInt >= 3371 && curCodeInt <= 3376);
             const tipeLabel = (fullCode === '9999') ? null : (isKotaRow ? 'Kota / Municipality' : 'Kabupaten / Regency');
             if (config.group_by_region && tipeLabel && tipeLabel !== lastTipe) {
-                html += `<tr style="background:#fff1e6; font-weight:bold; color:#000;"><td colspan="${finalCols.length + 2}" style="padding:10px 15px; border:1px solid #eee; border-left:2px solid #FF6D1F;">${tipeLabel}</td></tr>`;
+                html += `<tr style="background:#fde5ce; font-weight:bold; color:#000;"><td colspan="${finalCols.length + 2}" style="padding:10px 15px; border:1px solid #ffffff; border-left:4px solid #FF6D1F;">${tipeLabel}</td></tr>`;
                 lastTipe = tipeLabel; sectionIdx = 0;
             }
             sectionIdx++;
             
             let rowHtml = "";
-            let rowClass = (r_idx % 2 === 0 ? '' : 'background:#fff4eb;');
+            let rowClass = (r_idx % 2 === 0 ? 'background:#fde5ce;' : 'background:#fef3e6;');
             
             // --- NEW: Row Hierarchy Logic (Optimized) ---
             const fCol = finalCols[0];

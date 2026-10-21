@@ -37,6 +37,6 @@
     }
 
     .dda-table-item td {
-        border: 1px solid #eee !important;
+        border: 1px solid #ffffff !important;
     }
 </style>

@@ -20,8 +20,12 @@ if (empty($data)) {
                 <div class="d-flex flex-column gap-1">
                     <?php 
                     $link_val = trim((string)($b->link_tabel ?? ''));
-                    if (empty($link_val)): 
+                    if (!empty($b->is_dynamic)): 
                     ?>
+                        <a href="<?php echo base_url('admin/generator_tabel/' . $b->id); ?>" class="badge badge-sm text-white border-0 align-self-start fw-bold shadow-xs text-decoration-none" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px;" title="Klik untuk mengelola matriks dinamis">
+                            <i class="bi bi-boxes me-1"></i>TABEL DINAMIS
+                        </a>
+                    <?php elseif (empty($link_val)): ?>
                         <span class="badge badge-sm bg-light text-secondary border align-self-start fw-semibold" style="font-size: 10px;">
                             <i class="bi bi-dash-circle me-1"></i>BELUM ADA LINK
                         </span>
@@ -53,7 +57,7 @@ if (empty($data)) {
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 border-radius-lg p-2">
                         <li>
                             <a href="<?php echo base_URL() ?>index.php/admin/master_tabel/edt/<?php echo $b->id; ?>/1" class="dropdown-item border-radius-md py-2 text-sm">
-                                <i class="bi bi-pencil me-2 text-primary"></i> Edit Detail
+                                <i class="bi bi-pencil me-2 text-secondary"></i> Edit Detail
                             </a>
                         </li>
                         <li>
