@@ -509,12 +509,10 @@ $isConfigured = ($indikator && $dimCount >= 2);
                 </a>
             <?php endif; ?>
 
-            <!-- Tombol Upload Excel Walidata (Khusus Walidata) -->
-            <?php if (session()->get('admin_unitkerja') != 'bps'): ?>
-                <button type="button" class="btn-rounded-modern upload-btn-modern shadow-success" data-bs-toggle="modal" data-bs-target="#ModalUploadExcelDinamis">
-                    <i class="bi bi-cloud-arrow-up-fill"></i> <span class="d-none d-sm-inline">UPLOAD EXCEL</span><span class="d-inline d-sm-none">UPLOAD</span>
-                </button>
-            <?php endif; ?>
+            <!-- Tombol Upload Excel (Admin BPS & Walidata) -->
+            <button type="button" class="btn-rounded-modern upload-btn-modern shadow-success" data-bs-toggle="modal" data-bs-target="#ModalUploadExcelDinamis">
+                <i class="bi bi-cloud-arrow-up-fill"></i> <span class="d-none d-sm-inline">UPLOAD EXCEL</span><span class="d-inline d-sm-none">UPLOAD</span>
+            </button>
 
             <!-- Tombol Unduh Template Excel Berstandar BPS -->
             <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id_tahun_tabel); ?>" class="btn-rounded-modern export-btn-modern shadow-primary">
@@ -1838,7 +1836,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         <i class="bi bi-file-earmark-arrow-up-fill fs-5 text-success"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1.05rem;">Upload Berkas Excel Walidata</h5>
+                        <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1.05rem;">Upload Berkas Excel Tabel Dinamis</h5>
                         <small class="text-muted" style="font-size: 0.8rem;">Impor data pengisian tabel dinamis secara otomatis</small>
                     </div>
                 </div>

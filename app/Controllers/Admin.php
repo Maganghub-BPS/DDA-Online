@@ -1232,6 +1232,7 @@ class Admin extends BaseController
 			$judul_en            = trim($this->input->post('judul_en') ?? '');
 			$master_id           = $this->input->post("master_id");
 			$conflict_resolution = $this->input->post("conflict_resolution");
+			$is_dynamic          = $this->input->post('is_dynamic') !== null ? (int)$this->input->post('is_dynamic') : 0;
 
 			$m_id = null;
 
@@ -1264,8 +1265,8 @@ class Admin extends BaseController
 
 				// Karena ini tabel kolaborasi (nomor kembar), SELALU INSERT baris baru ke t_tahun_tabel
 				$this->db->query(
-					"INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					[$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa]
+					"INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, is_dynamic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					[$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa, $is_dynamic]
 				);
 
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel kolaborasi (Nomor Kembar {$no_tabel}) berhasil ditambahkan dan ditautkan ke Master ID #{$m_id} di Tahun {$ta}</div>");
@@ -1304,7 +1305,7 @@ class Admin extends BaseController
 			$check_in_year = $this->db->query("SELECT id FROM t_tahun_tabel WHERE id_tabel = ? AND tahun = ?", [$m_id, $ta])->getRow();
 			if ($check_in_year) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill me-2\"></i>Master tabel #{$m_id} sudah terdaftar di DDA Tahun {$ta}. Data tahunan telah diperbarui.</div>");
-				$this->db->query("UPDATE t_tahun_tabel SET no_tabel = COALESCE(?, no_tabel), periode_id = COALESCE(?, periode_id), periode_en = COALESCE(?, periode_en), link_tabel = COALESCE(NULLIF(?, ''), link_tabel) WHERE id = ?", [$no_tabel, $periode_id, $periode_en, $link_tabel, $check_in_year->id]);
+				$this->db->query("UPDATE t_tahun_tabel SET no_tabel = COALESCE(?, no_tabel), periode_id = COALESCE(?, periode_id), periode_en = COALESCE(?, periode_en), link_tabel = COALESCE(NULLIF(?, ''), link_tabel), is_dynamic = ? WHERE id = ?", [$no_tabel, $periode_id, $periode_en, $link_tabel, $is_dynamic, $check_in_year->id]);
 				return redirect()->to('admin/master_tabel/');
 			}
 
@@ -1314,7 +1315,7 @@ class Admin extends BaseController
 			}
             
 			// Masukkan data baru ke tabel tahunan DDA (t_tahun_tabel)
-			$this->db->query("INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa]);
+			$this->db->query("INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, is_dynamic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa, $is_dynamic]);
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil ditambahkan dan ditautkan ke Master ID #{$m_id} di Tahun {$ta}</div>");
 			return redirect()->to('admin/master_tabel/');
@@ -2812,9 +2813,12 @@ class Admin extends BaseController
 				// - link_sebelumnya diisi dengan link_tabel dari tahun sumber (sebagai referensi)
 				// - is_confirm diset ke '2' (belum dikonfirmasi)
 				// - is_periksa diset ke 0 (belum diperiksa)
+				// - is_dynamic dipertahankan dari tahun sumber
+				$is_dynamic = (int)($row['is_dynamic'] ?? 0);
+
 				$this->db->query("INSERT INTO t_tahun_tabel 
-					(id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, config_tabel) 
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+					(id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, config_tabel, is_dynamic) 
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
 					$row['id_tabel'],
 					$tahun_tujuan,
 					$row['no_tabel'],
@@ -2826,8 +2830,24 @@ class Admin extends BaseController
 					'-',
 					0, // status pemeriksaan awal
 					'-',
-					$row['config_tabel'] // konfigurasi layout tabel dinamis ikut disalin
+					$row['config_tabel'], // konfigurasi layout tabel dinamis ikut disalin
+					$is_dynamic
 				]);
+
+				$new_id_tahun_tabel = $this->db->insertID();
+
+				// Jika tabel sumber merupakan tabel dinamis, duplikasi juga konfigurasi perakitan dimensinya (m_indikator_tabel)
+				if ($is_dynamic === 1 && !empty($new_id_tahun_tabel)) {
+					$old_indikator = $this->db->query("SELECT * FROM m_indikator_tabel WHERE id_tahun_tabel = ?", [$row['id']])->getRowArray();
+					if ($old_indikator) {
+						unset($old_indikator['id']);
+						$old_indikator['id_tahun_tabel'] = $new_id_tahun_tabel;
+						$old_indikator['created_at']     = date('Y-m-d H:i:s');
+						$old_indikator['updated_at']     = date('Y-m-d H:i:s');
+						$this->db->table('m_indikator_tabel')->insert($old_indikator);
+					}
+				}
+
 				$count_inserted++;
 			}
 		}

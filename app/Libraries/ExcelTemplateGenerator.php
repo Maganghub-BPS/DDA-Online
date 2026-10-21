@@ -187,6 +187,7 @@ class ExcelTemplateGenerator
         $totalTingkatBaris = $maxBarisGroupLevel + 1;
         $isPeriodeBaris    = in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true);
         $cfgTotalInit      = $indikator->konfigurasi_total ?? 'default';
+        $isRuntunWaktu     = ($cfgTotalInit === 'runtun_waktu');
         $isBarisDuaKolom   = (!$isPeriodeBaris && !$isRuntunWaktu && !empty($itemsBaris) && ($indikator->tampilan_baris ?? '1_kolom') === '2_kolom');
         if ($isBarisDuaKolom && empty($cleanTitleSubInd)) {
             $cleanTitleSubInd = 'Rincian';
