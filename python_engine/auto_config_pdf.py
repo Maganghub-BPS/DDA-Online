@@ -230,7 +230,11 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                 t = clean_cell_text(r[ci])
                 if t:
                     label_parts.append(t)
+            if len(label_parts) > 1 and re.match(r'^\d+\.?$', label_parts[0].strip()):
+                label_parts = label_parts[1:]
             full_label = "\n".join(label_parts).strip()
+            full_label = re.sub(r'^[/\s]+', '', full_label).strip()
+            full_label = re.sub(r'[/\s]+$', '', full_label).strip()
             if not full_label:
                 continue
             if re.match(r'^\(\d+\)$', full_label):
