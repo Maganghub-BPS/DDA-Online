@@ -3944,7 +3944,7 @@ class Admin extends BaseController
 			'tingkat_kolom'             => 'semua',
 			'konfigurasi_total'         => $konfigurasiTotal,
 			'format_nomor_baris'        => 'none',
-			'desimal'                   => 0,
+			'desimal'                   => isset($ext['desimal']) ? (int)$ext['desimal'] : 0,
 			'updated_at'                => $now,
 		];
 

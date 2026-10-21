@@ -539,7 +539,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if 'penyinaran matahari' in t_low:
                     return 'Penyinaran Matahari'
                 t = re.sub(r'^[a-z\.\s/:\n]+(?=[A-Z0-9])', '', t).strip()
-                t = re.sub(r'^\d+[\.\s]+', '', t).strip()
+                t = re.sub(r'^(?:[IVXLCDM]+|\d+)[\.\s]+', '', t).strip()
                 lines = [l.strip() for l in t.split('\n') if l.strip()]
                 valid_lines = [l for l in lines if len(l) > 2 or any(c.isdigit() for c in l)]
                 first_line = valid_lines[0] if valid_lines else (lines[0] if lines else t)
@@ -718,6 +718,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         s_nums = s_rec['nums']
                         match_p = next((p for idx_p, p in enumerate(p_recs_y) if idx_p not in used_p and p['key'] == s_rec['key']), None)
                         if not match_p:
+                            match_p = next((
+                                p for idx_p, p in enumerate(p_recs_y)
+                                if idx_p not in used_p and len(p['key']) >= 6 and len(s_rec['key']) >= 6 and (
+                                    p['key'].startswith(s_rec['key']) or s_rec['key'].startswith(p['key']) or
+                                    p['key'].endswith(s_rec['key']) or s_rec['key'].endswith(p['key'])
+                                )
+                            ), None)
+                        if not match_p:
                             match_p = next((p for idx_p, p in enumerate(p_recs_y) if idx_p not in used_p and SequenceMatcher(None, p['display'], s_disp).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s_disp)), None)
                         if not match_p:
                             continue
@@ -761,6 +769,21 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 # Pass 1: Strict key matching
                 for idx_p, p in enumerate(p_recs):
                     match_s = next((s for s in s_recs if s['key'] == p['key']), None)
+                    if match_s:
+                        p_grouped[match_s['id']].extend(p['nums'])
+                        used_p_indices.add(idx_p)
+
+                # Pass 1.5: Prefix / suffix containment key matching (e.g. Roman numeral prefix or bilingual suffix diff)
+                for idx_p, p in enumerate(p_recs):
+                    if idx_p in used_p_indices:
+                        continue
+                    match_s = next((
+                        s for s in s_recs
+                        if len(p['key']) >= 6 and len(s['key']) >= 6 and (
+                            p['key'].startswith(s['key']) or s['key'].startswith(p['key']) or
+                            p['key'].endswith(s['key']) or s['key'].endswith(p['key'])
+                        )
+                    ), None)
                     if match_s:
                         p_grouped[match_s['id']].extend(p['nums'])
                         used_p_indices.add(idx_p)

@@ -39,6 +39,9 @@ def clean_cell_text(val):
         filtered = []
         for tok in tokens:
             t_low = tok.lower().strip()
+            if re.match(r'^[IVXLCDM]+\.?$', tok.strip()):
+                filtered.append(tok)
+                continue
             if len(t_low) == 1 and t_low in SINGLE_CHAR_WATERMARK and not t_low.isdigit():
                 continue
             if len(t_low) <= 3 and re.match(r'^[\.:\s]+$', t_low):
@@ -226,13 +229,15 @@ def extract_table_structure_from_pdf(pdf_path, pages):
             for ci in range(first_data_ci):
                 t = clean_cell_text(r[ci])
                 if t:
-                    label_parts.append(t.replace("\n", " "))
-            full_label = " ".join(label_parts).strip()
+                    label_parts.append(t)
+            full_label = "\n".join(label_parts).strip()
             if not full_label:
                 continue
             if re.match(r'^\(\d+\)$', full_label):
                 continue
             row_ind, row_en = split_bilingual(full_label)
+            row_ind = " ".join(row_ind.split()).strip()
+            row_en = " ".join(row_en.split()).strip()
             if not row_ind:
                 continue
             norm_key = row_ind.lower()
@@ -303,6 +308,30 @@ def extract_table_structure_from_pdf(pdf_path, pages):
         elif last_r in ("jumlah", "total", "jumlah/total"):
             konfigurasi_total = "jumlah"
 
+    has_decimals = False
+    try:
+        from python_engine.normalizer import parse_num
+        for pa in page_analyze:
+            grid = pa["grid"]
+            c_row_idx = pa["col_num_idx"]
+            data_c_indices = sorted([ci for ci, cn in pa["col_nums"].items() if cn > 1])
+            if not data_c_indices:
+                continue
+            first_data_ci = data_c_indices[0]
+            for r in grid[c_row_idx + 1:]:
+                for ci in range(first_data_ci, len(r)):
+                    c_raw = clean_cell_text(r[ci])
+                    v = parse_num(c_raw, is_pdf=True)
+                    if v is not None and isinstance(v, float) and not v.is_integer():
+                        has_decimals = True
+                        break
+                if has_decimals:
+                    break
+            if has_decimals:
+                break
+    except Exception:
+        pass
+
     return {
         "status": "success",
         "row_header": {"ind": rh_ind or "Rincian", "en": rh_en or "Description"},
@@ -314,6 +343,7 @@ def extract_table_structure_from_pdf(pdf_path, pages):
         "periods": periods,
         "posisi_hirarki": posisi_hirarki,
         "konfigurasi_total": konfigurasi_total,
+        "desimal": 2 if has_decimals else 0,
     }
 
 if __name__ == "__main__":
