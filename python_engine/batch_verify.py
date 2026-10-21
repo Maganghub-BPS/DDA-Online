@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from compare_table import compare_head_to_head
 
-def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progress_json_path, tolerance=0.0, max_workers=6):
+def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progress_json_path, tolerance=0.0, max_workers=6, source_filter="all"):
     stop_file = progress_json_path + ".stop"
     debug_log = progress_json_path.replace("dda_progress_", "dda_batch_debug_").replace(".json", ".log")
     
@@ -44,6 +44,10 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
         matched_data = json.load(f)
 
     tables = matched_data.get("matched_in_pdf", matched_data.get("matched_tables", []))
+    if source_filter == "dinamis":
+        tables = [t for t in tables if t.get("source_type") == "dinamis" or int(t.get("is_dynamic", 0) or 0) == 1]
+    elif source_filter == "api":
+        tables = [t for t in tables if t.get("source_type") == "api" and int(t.get("is_dynamic", 0) or 0) == 0]
     if not tables:
         log_debug("ERROR: No matched tables found")
         print(json.dumps({"status": "error", "message": "No matched tables found to verify"}))
@@ -144,7 +148,8 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
 
         try:
             # Small random delay to stagger API requests
-            time.sleep(0.05 * (hash(t_num) % 5))
+            if table_item.get("source_type") != "dinamis":
+                time.sleep(0.05 * (hash(t_num) % 5))
             
             res = compare_head_to_head(pdf_path, t_num, db_json_path, tolerance=tolerance, id_db=id_db)
             
@@ -155,7 +160,11 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
                 total_pdf_only = int(summary.get("total_pdf_only", len(res.get("pdf_only", []))))
                 
                 link_str = str(table_item.get("link_tabel", "") or "")
-                is_api = "portal" in link_str.lower() or "api" in link_str.lower() or res.get("source_type") == "API Satudata"
+                is_api_or_dyn = (
+                    "portal" in link_str.lower()
+                    or "api" in link_str.lower()
+                    or res.get("source_type") in ("API Satudata", "Tabel Dinamis")
+                )
                 
                 if total_diffs > 0:
                     status = "diff"
@@ -164,7 +173,7 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
                     if total_pdf_only > 0:
                         status = "diff"
                         diff_count = total_pdf_only
-                    elif is_api or res.get("is_api_empty"):
+                    elif is_api_or_dyn or res.get("is_api_empty"):
                         status = "api_empty"
                         diff_count = 0
                     else:
@@ -174,7 +183,13 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
                     status = "match"
                     diff_count = 0
                 match_count = total_matches
-            elif res.get("is_api_empty") or res.get("is_link_empty") or "tidak ada link" in res.get("message", "").lower() or "tidak ada data dalam api" in res.get("message", "").lower():
+            elif (
+                res.get("is_api_empty")
+                or res.get("is_link_empty")
+                or "tidak ada link" in res.get("message", "").lower()
+                or "tidak ada data dalam api" in res.get("message", "").lower()
+                or "belum diisi" in res.get("message", "").lower()
+            ):
                 status = "api_empty"
                 diff_count = 0
                 match_count = 0
@@ -257,5 +272,7 @@ if __name__ == "__main__":
     state_p = sys.argv[4]
     progress_p = sys.argv[5]
     tol = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0
+    src_f = sys.argv[7].strip().lower() if len(sys.argv) > 7 else "all"
+    workers = 6 if src_f == "dinamis" else 3
 
-    sys.exit(run_batch(pdf_p, matched_p, db_p, state_p, progress_p, tolerance=tol, max_workers=3))
+    sys.exit(run_batch(pdf_p, matched_p, db_p, state_p, progress_p, tolerance=tol, max_workers=workers, source_filter=src_f))

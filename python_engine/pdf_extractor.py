@@ -1,4 +1,4 @@
-#Untuk mengambil tabel dari pdf dan cache
+# Untuk mengambil tabel dari PDF dan cache halaman
 import os
 import re
 import json
@@ -8,28 +8,34 @@ import pdfplumber
 _PDF_PAGE_CACHE = {}
 _PDF_PAGE_CACHE_LOCK = threading.Lock()
 
+
 def is_valid_table_char(obj):
     if obj.get('object_type') != 'char':
         return True
     if not obj.get('upright', True):
         return False
-    # Filter BPS watermark characters (e.g. Arial-BoldMT size > 15)
     font = str(obj.get('fontname', ''))
     size = float(obj.get('size', 0))
     if 'Arial' in font and size > 15:
         return False
     return True
 
-def _clean_table_ghost_cols(table):
-    if not table or not isinstance(table, list) or len(table) == 0:
+
+def strip_empty_table_columns(table):
+    """Menghapus kolom artefak kosong hasil ekstraksi PDFPlumber agar indeks kolom konsisten."""
+    if not table or not isinstance(table, list):
         return table
-    num_cols = max((len(r) for r in table if isinstance(r, list)), default=0)
-    if num_cols <= 1:
+    max_cols = max((len(r) for r in table if isinstance(r, list)), default=0)
+    if max_cols <= 1:
         return table
-    non_empty_cols = [c for c in range(num_cols) if any(c < len(r) and r[c] is not None and str(r[c]).strip() for r in table if isinstance(r, list))]
-    if non_empty_cols and len(non_empty_cols) < num_cols:
-        return [[r[c] if c < len(r) else '' for c in non_empty_cols] for r in table if isinstance(r, list)]
+    valid_cols = [
+        c for c in range(max_cols)
+        if any(isinstance(r, list) and c < len(r) and r[c] is not None and str(r[c]).strip() != '' for r in table)
+    ]
+    if 0 < len(valid_cols) < max_cols:
+        return [[r[c] if c < len(r) else None for c in valid_cols] for r in table if isinstance(r, list)]
     return table
+
 
 def get_cached_page_tables(pdf_path, page_num):
     cache_key = (pdf_path, page_num)
@@ -44,11 +50,12 @@ def get_cached_page_tables(pdf_path, page_num):
             page_tables = clean_page.extract_tables()
             res = []
             for t in page_tables:
-                res.extend(_clean_table_ghost_cols(t))
+                res.extend(strip_empty_table_columns(t))
             with _PDF_PAGE_CACHE_LOCK:
                 _PDF_PAGE_CACHE[cache_key] = res
             return res
         return []
+
 
 def extract_tables_from_pdf(pdf_path, target_tables):
     up_dir = os.path.dirname(os.path.abspath(pdf_path))
@@ -56,10 +63,7 @@ def extract_tables_from_pdf(pdf_path, target_tables):
     ta = m_year.group(1) if m_year else "2026"
     candidates = [
         os.path.join(up_dir, f"dda_matched_{ta}.json"),
-        os.path.join(up_dir, f"matched_tables_{ta}.json"),
-        os.path.join(up_dir, "matched_tables_2026.json"),
-        "writable/uploads/matched_tables_2026.json",
-        "../writable/uploads/matched_tables_2026.json"
+        os.path.join(up_dir, "dda_matched_2026.json"),
     ]
     data = {}
     for cand in candidates:
@@ -76,6 +80,7 @@ def extract_tables_from_pdf(pdf_path, target_tables):
             res[t['nomor_tabel']] = t
     return res
 
+
 def extract_table_content(pdf_path, target_pdf_info):
     all_cached = True
     for tb in target_pdf_info:
@@ -85,7 +90,7 @@ def extract_table_content(pdf_path, target_pdf_info):
                 break
         if not all_cached:
             break
-            
+
     if all_cached:
         for tb in target_pdf_info:
             rows = []
@@ -105,12 +110,12 @@ def extract_table_content(pdf_path, target_pdf_info):
                 if cached is not None:
                     rows.extend(cached)
                 elif 0 <= p - 1 < len(pdf.pages):
-                    page = pdf.pages[p-1]
+                    page = pdf.pages[p - 1]
                     clean_page = page.filter(is_valid_table_char)
                     tables = clean_page.extract_tables()
                     p_rows = []
                     for t in tables:
-                        p_rows.extend(_clean_table_ghost_cols(t))
+                        p_rows.extend(strip_empty_table_columns(t))
                     with _PDF_PAGE_CACHE_LOCK:
                         _PDF_PAGE_CACHE[cache_key] = p_rows
                     rows.extend(p_rows)
