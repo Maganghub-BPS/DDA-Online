@@ -8,10 +8,12 @@ use App\Models\M_frontend;
 class Home extends BaseController
 {
     protected M_frontend $frontendModel;
+    protected \App\Models\M_tabeldinamis $tabelDinamisModel;
 
     public function __construct()
     {
         $this->frontendModel = new M_frontend();
+        $this->tabelDinamisModel = new \App\Models\M_tabeldinamis();
     }
 
     public function index()
@@ -278,6 +280,103 @@ class Home extends BaseController
             'sheet_url' => $url,
             'dda_info' => $dda_info,
             'page' => 'frontend/v_tabel_sheet'
+        ];
+
+        return view('frontend/layout', $data);
+    }
+
+    /**
+     * Tampilan publik tabel dinamis internal (Sprint 6 Frontend Publik)
+     * URL: home/view_dinamis/{id_tahun_tabel}
+     */
+    public function view_dinamis($table_id = null)
+    {
+        $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
+        if (empty($parsed_table_id)) {
+            return redirect()->to('/home/search');
+        }
+
+        $dda_info = $this->frontendModel->getDynamicTableMetadata($parsed_table_id);
+        if (!$dda_info) {
+            return redirect()->to('/home/search')->with('error', 'Tabel data tidak ditemukan.');
+        }
+
+        // Jika bukan tabel dinamis, arahkan ke endpoint yang sesuai
+        if (empty($dda_info->is_dynamic)) {
+            if (strpos($dda_info->link_tabel ?? '', 'view_portal_tabel') !== false) {
+                $portal_id = $dda_info->link_tabel;
+                if (preg_match('/[?&]id=([^&]+)/', $dda_info->link_tabel, $m_id)) {
+                    $portal_id = $m_id[1];
+                }
+                return redirect()->to("home/view_tabel?id=" . urlencode($portal_id) . "&table_id=" . $parsed_table_id);
+            }
+            return redirect()->to("home/view_sheet?url=" . urlencode($dda_info->link_tabel ?? '') . "&table_id=" . $parsed_table_id);
+        }
+
+        // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
+        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
+        if ((int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
+            return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
+        }
+
+        $dda_info->id_tahun_tabel = (int)$dda_info->id;
+
+        $indikator = $this->tabelDinamisModel->where('id_tahun_tabel', $parsed_table_id)->first();
+
+        $structureKolom  = null;
+        $itemsKolom      = [];
+        $itemsBaris      = [];
+        $kelompokBaris   = null;
+        $itemsPeriode    = [];
+        $kelompokPeriode = null;
+        $nilaiMap        = [];
+
+        if ($indikator) {
+            if (!empty($indikator->id_karakteristik_kelompok)) {
+                $itemsKolom     = $this->tabelDinamisModel->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
+                $structureKolom = $this->tabelDinamisModel->buildColumnStructure($itemsKolom);
+            }
+
+            if (!empty($indikator->id_baris_kelompok)) {
+                $kelompokBaris = $this->tabelDinamisModel->getBarisKelompok((int)$indikator->id_baris_kelompok);
+                $itemsBaris    = $this->tabelDinamisModel->getBarisItems((int)$indikator->id_baris_kelompok);
+            }
+
+            if (!empty($indikator->id_periode_kelompok)) {
+                $kelompokPeriode = $this->tabelDinamisModel->getPeriodeKelompok((int)$indikator->id_periode_kelompok);
+                $itemsPeriode    = $this->tabelDinamisModel->getPeriodeItems((int)$indikator->id_periode_kelompok);
+            }
+
+            // Ambil matriks nilai sel
+            $db = \Config\Database::connect();
+            $nilaiRows = $db->table('t_nilai_dinamis')
+                ->where('id_indikator', (int)$indikator->id)
+                ->get()
+                ->getResult();
+
+            foreach ($nilaiRows as $nr) {
+                $pid = (int)($nr->id_periode_item ?? 0);
+                $key = $nr->id_baris_item . '_' . $nr->id_karakteristik_item . '_' . $pid;
+                $val = $nr->nilai !== null ? (float)$nr->nilai : ($nr->simbol ?: null);
+                $nilaiMap[$key] = $val;
+            }
+        }
+
+        $display_title = $dda_info->judul_ind ?? 'Tabel Dinamis';
+
+        $data = [
+            'title'           => $display_title,
+            'tabel'           => $dda_info,
+            'dda_info'        => $dda_info,
+            'indikator'       => $indikator,
+            'structureKolom'  => $structureKolom,
+            'itemsKolom'      => $itemsKolom,
+            'itemsBaris'      => $itemsBaris,
+            'kelompokBaris'   => $kelompokBaris,
+            'itemsPeriode'    => $itemsPeriode,
+            'kelompokPeriode' => $kelompokPeriode,
+            'nilaiMap'        => $nilaiMap,
+            'page'            => 'frontend/v_tabel_dinamis'
         ];
 
         return view('frontend/layout', $data);

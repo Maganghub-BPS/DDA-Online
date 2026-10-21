@@ -771,9 +771,17 @@
                                                         <span class="text-muted fst-italic"> / <?= esc($b->judul_baris_en); ?></span>
                                                     <?php endif; ?>
                                                 </span>
+                                                <?php if (!empty($b->judul_sub_baris_ind)): ?>
+                                                    <span class="badge bg-light text-dark border small px-2 py-0" style="font-size: 0.75rem;" title="Judul Kolom Rincian (Format 2 Kolom)">
+                                                        <i class="bi bi-layout-split me-1 text-warning"></i>Rincian: <strong><?= esc($b->judul_sub_baris_ind); ?></strong>
+                                                        <?php if (!empty($b->judul_sub_baris_en)): ?>
+                                                            <span class="text-muted fst-italic"> / <?= esc($b->judul_sub_baris_en); ?></span>
+                                                        <?php endif; ?>
+                                                    </span>
+                                                <?php endif; ?>
                                             </div>
                                             <?php if (!empty($b->nama_kelompok_en)): ?>
-                                                <div class="text-primary item-sub mt-1"><i class="bi bi-translate me-1"></i><?= esc($b->nama_kelompok_en); ?></div>
+                                                <div class="text-primary item-sub mt-1"><i class="bi bi-globe me-1"></i><?= esc($b->nama_kelompok_en); ?></div>
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-center">
@@ -794,6 +802,8 @@
                                                         data-en="<?= esc($b->nama_kelompok_en ?? ''); ?>"
                                                         data-judul-ind="<?= esc($b->judul_baris_ind ?? $b->nama_kelompok_ind); ?>"
                                                         data-judul-en="<?= esc($b->judul_baris_en ?? $b->nama_kelompok_en ?? ''); ?>"
+                                                        data-judul-sub-ind="<?= esc($b->judul_sub_baris_ind ?? ''); ?>"
+                                                        data-judul-sub-en="<?= esc($b->judul_sub_baris_en ?? ''); ?>"
                                                         title="Edit Nama Kelompok & Judul Header">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
@@ -1125,6 +1135,19 @@
                                 </label>
                                 <input type="text" name="judul_baris_en" id="add_baris_judul_en" class="form-control form-control-sm" placeholder="Contoh: Industry">
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small mb-1">
+                                    <i class="bi bi-layout-split text-primary-orange me-1"></i>Judul Kolom Rincian / Sub-Baris (Indonesia)
+                                </label>
+                                <input type="text" name="judul_sub_baris_ind" id="add_baris_judul_sub_ind" class="form-control form-control-sm" placeholder="Contoh: Provinsi (Opsional jika 2 Kolom)">
+                                <div class="form-text text-xxs text-muted">Kosongkan jika baris biasa (1 kolom). Isi jika baris bertingkat 2 kolom (misal: Provinsi).</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-dark small mb-1">
+                                    <i class="bi bi-translate text-primary-orange me-1"></i>Judul Kolom Rincian / Sub-Baris (English)
+                                </label>
+                                <input type="text" name="judul_sub_baris_en" id="add_baris_judul_sub_en" class="form-control form-control-sm" placeholder="Contoh: Province">
+                            </div>
                         </div>
                     </div>
 
@@ -1262,6 +1285,15 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-translate me-1"></i>Judul Header Tabel Baris (English)</label>
                         <input type="text" name="judul_baris_en" id="edit_baris_judul_en" class="form-control" placeholder="Contoh: Industry">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-layout-split me-1"></i>Judul Kolom Rincian / Sub-Baris (Bahasa Indonesia)</label>
+                        <input type="text" name="judul_sub_baris_ind" id="edit_baris_judul_sub_ind" class="form-control" placeholder="Contoh: Provinsi (Opsional jika 2 Kolom)">
+                        <div class="form-text small text-muted">Kosongkan jika baris biasa (1 kolom). Isi jika baris bertingkat 2 kolom (misal: Provinsi).</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-translate me-1"></i>Judul Kolom Rincian / Sub-Baris (English)</label>
+                        <input type="text" name="judul_sub_baris_en" id="edit_baris_judul_sub_en" class="form-control" placeholder="Contoh: Province">
                     </div>
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light">
@@ -1977,20 +2009,13 @@ $(document).ready(function() {
                         </div>
                     `;
                 } else if (self.allowSub) {
-                    // Untuk kolom atau builder bertingkat non-baris: Level 1, Level 2, Level 3
-                    if (item.level === 0) {
-                        placeholderInd = 'Level 1 (Indonesia)';
-                        placeholderEn  = 'Level 1 (English)';
-                        leftBadgeHtml  = `<span class="badge bg-light text-primary border small" style="font-size: 0.72rem; min-width: 52px; text-align: center;">Level 1</span>`;
-                    } else if (item.level === 1) {
-                        placeholderInd = 'Level 2 (Indonesia)';
-                        placeholderEn  = 'Level 2 (English)';
-                        leftBadgeHtml  = `<span class="badge bg-light text-info border small" style="font-size: 0.72rem; min-width: 52px; text-align: center;">Level 2</span>`;
-                    } else if (item.level === 2) {
-                        placeholderInd = 'Level 3 (Indonesia)';
-                        placeholderEn  = 'Level 3 (English)';
-                        leftBadgeHtml  = `<span class="badge bg-light text-success border small" style="font-size: 0.72rem; min-width: 52px; text-align: center;">Level 3</span>`;
-                    }
+                    // Untuk kolom atau builder bertingkat non-baris: Level 1 sampai Level 5
+                    const lvlNum = item.level + 1;
+                    placeholderInd = `Level ${lvlNum} (Indonesia)`;
+                    placeholderEn  = `Level ${lvlNum} (English)`;
+                    const badgeClasses = ['text-primary', 'text-info', 'text-success', 'text-warning', 'text-purple', 'text-secondary'];
+                    const bColor = badgeClasses[item.level] || 'text-secondary';
+                    leftBadgeHtml  = `<span class="badge bg-light ${bColor} border small" style="font-size: 0.72rem; min-width: 52px; text-align: center;">Level ${lvlNum}</span>`;
                 }
 
                 const isTotalActive = (self.type === 'baris' && item.tipe_baris === 'total');
@@ -2230,7 +2255,7 @@ $(document).ready(function() {
 
             return {
                 root: { children: rootItems },
-                maxDepth: Math.min(3, Math.max(1, maxDepth)),
+                maxDepth: Math.max(1, maxDepth),
                 hasItems: rootItems.length > 0
             };
         }
@@ -2293,7 +2318,7 @@ $(document).ready(function() {
 
         return {
             root: { children: rootItems },
-            maxDepth: Math.min(3, Math.max(1, maxDepth)),
+            maxDepth: Math.max(1, maxDepth),
             hasItems: linesInd.length > 0
         };
     }
@@ -2320,51 +2345,41 @@ $(document).ready(function() {
         const barisTitle = formatLabel('Baris', 'Row', langMode);
         const maxDepth = structure.maxDepth;
 
-        const tr1 = $('<tr style="background: #f8fafc; font-weight: bold; border-bottom: 1px solid #cbd5e1;"></tr>');
-        const tr2 = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 1px solid #cbd5e1;"></tr>');
-        const tr3 = $('<tr style="background: #e2e8f0; font-weight: bold; border-bottom: 2px solid #cbd5e1;"></tr>');
+        const rows = [];
+        for (let r = 0; r < maxDepth; r++) {
+            const bg = (r === 0) ? '#f8fafc' : (r === 1 ? '#f1f5f9' : '#e2e8f0');
+            rows.push($('<tr style="background: ' + bg + '; font-weight: bold; border-bottom: 1px solid #cbd5e1;"></tr>'));
+        }
 
         // Header kolom Baris mencakup seluruh tingkatan (rowspan = maxDepth)
-        tr1.append('<th rowspan="' + maxDepth + '" style="width: 140px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px;">' + barisTitle + '</th>');
+        rows[0].append('<th rowspan="' + maxDepth + '" style="width: 140px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px;">' + barisTitle + '</th>');
+
+        function renderNode(node, currentLevel) {
+            const children = Array.isArray(node.children) ? node.children : Object.values(node.children || {});
+            const leaves = countKolomLeaves(node);
+            const hasKids = children.length > 0;
+            const label = formatLabel(node.title_ind, node.title_en, langMode);
+
+            if (!hasKids) {
+                const rowspan = maxDepth - currentLevel;
+                rows[currentLevel].append('<th rowspan="' + rowspan + '" style="background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 8px 12px; font-size: ' + (rowspan === 1 ? '11px' : '13px') + ';">' + label + '</th>');
+            } else {
+                const isAllKidsLeaves = children.every(c => (!c.children || (Array.isArray(c.children) ? c.children.length === 0 : Object.keys(c.children).length === 0)));
+                if (isAllKidsLeaves && currentLevel < maxDepth - 1) {
+                    const rowspan = (maxDepth - 1) - currentLevel;
+                    rows[currentLevel].append('<th colspan="' + leaves + '" rowspan="' + rowspan + '" style="background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 8px 12px; color: #1e293b;">' + label + '</th>');
+                    children.forEach(c => renderNode(c, maxDepth - 1));
+                } else {
+                    rows[currentLevel].append('<th colspan="' + leaves + '" style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 8px 12px; color: #1e293b;">' + label + '</th>');
+                    children.forEach(c => renderNode(c, currentLevel + 1));
+                }
+            }
+        }
 
         const rootChildren = Array.isArray(structure.root.children) ? structure.root.children : Object.values(structure.root.children || {});
+        rootChildren.forEach(c => renderNode(c, 0));
 
-        rootChildren.forEach(function(l0) {
-            const l0Children = Array.isArray(l0.children) ? l0.children : Object.values(l0.children || {});
-            const l0Leaves = countKolomLeaves(l0);
-            const l0HasChildren = l0Children.length > 0;
-            const l0Label = formatLabel(l0.title_ind, l0.title_en, langMode);
-
-            if (!l0HasChildren) {
-                tr1.append('<th rowspan="' + maxDepth + '" style="background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 8px 12px;">' + l0Label + '</th>');
-            } else {
-                tr1.append('<th colspan="' + l0Leaves + '" style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 8px 12px; color: #1e293b;">' + l0Label + '</th>');
-
-                l0Children.forEach(function(l1) {
-                    const l1Children = Array.isArray(l1.children) ? l1.children : Object.values(l1.children || {});
-                    const l1Leaves = countKolomLeaves(l1);
-                    const l1HasChildren = l1Children.length > 0;
-                    const l1Label = formatLabel(l1.title_ind, l1.title_en, langMode);
-
-                    if (!l1HasChildren) {
-                        const span = maxDepth - 1;
-                        tr2.append('<th rowspan="' + span + '" style="background: #f1f5f9; border: 1px solid #cbd5e1; vertical-align: middle; padding: 6px 10px; font-size: 13px;">' + l1Label + '</th>');
-                    } else {
-                        tr2.append('<th colspan="' + l1Leaves + '" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 13px;">' + l1Label + '</th>');
-
-                        l1Children.forEach(function(l2) {
-                            const l2Label = formatLabel(l2.title_ind, l2.title_en, langMode);
-                            tr3.append('<th style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 12px;">' + l2Label + '</th>');
-                        });
-                    }
-                });
-            }
-        });
-
-        thead.append(tr1);
-        if (maxDepth >= 2) thead.append(tr2);
-        if (maxDepth >= 3) thead.append(tr3);
-
+        rows.forEach(tr => thead.append(tr));
         $table.append(thead);
     }
 
@@ -2379,7 +2394,7 @@ $(document).ready(function() {
         countBadgeId: '#add_kolom_count',
         theme: '',
         allowSub: true,
-        maxDepth: 2,
+        maxDepth: 4,
         type: 'kolom',
         itemLabel: 'Kolom',
         onChange: function(textInd, textEn, jsonPayload) {
@@ -2403,7 +2418,7 @@ $(document).ready(function() {
         countBadgeId: '#manage_kolom_count',
         theme: '',
         allowSub: true,
-        maxDepth: 2,
+        maxDepth: 4,
         type: 'kolom',
         itemLabel: 'Kolom',
         onChange: function(textInd, textEn, jsonPayload) {
@@ -2435,52 +2450,72 @@ $(document).ready(function() {
 
                 res.items.forEach(function(it) {
                     const isStandalone = parseInt(it.is_standalone, 10) === 1;
-                    const pInd = (it.grup_induk_ind && !isStandalone) ? it.grup_induk_ind.trim() : null;
-                    const pEn  = (it.grup_induk_en && !isStandalone) ? it.grup_induk_en.trim() : '';
+                    const segmentsInd = [];
+                    const segmentsEn  = [];
 
-                    if (pInd) {
-                        const partsInd = pInd.split('||').map(s => s.trim()).filter(Boolean);
-                        const partsEn  = pEn ? pEn.split('||').map(s => s.trim()).filter(Boolean) : [];
-
-                        let parentId = null;
-                        let pathKey = '';
-
-                        partsInd.forEach(function(part, pIdx) {
-                            pathKey = pathKey ? (pathKey + ' > ' + part) : part;
-                            let enPart = (partsEn && partsEn[pIdx] !== undefined) ? partsEn[pIdx] : '';
-                            if (!parentMap[pathKey]) {
-                                const node = {
-                                    id: 'node_' + (++idSeq),
-                                    parentId: parentId,
-                                    level: pIdx,
-                                    ind: part,
-                                    en: enPart
-                                };
-                                parentMap[pathKey] = node;
-                                treeItems.push(node);
-                            }
-                            parentId = parentMap[pathKey].id;
+                    if (it.grup_induk_ind && !isStandalone) {
+                        segmentsInd.push(it.grup_induk_ind.trim());
+                        segmentsEn.push(it.grup_induk_en ? it.grup_induk_en.trim() : '');
+                    }
+                    if (it.grup_sub_ind) {
+                        segmentsInd.push(it.grup_sub_ind.trim());
+                        segmentsEn.push(it.grup_sub_en ? it.grup_sub_en.trim() : '');
+                    }
+                    if (it.item_ind && it.item_ind.includes('||')) {
+                        const partsInd = it.item_ind.split('||').map(s => s.trim()).filter(Boolean);
+                        const partsEn  = it.item_en ? it.item_en.split('||').map(s => s.trim()).filter(Boolean) : [];
+                        partsInd.forEach((p, idx) => {
+                            segmentsInd.push(p);
+                            segmentsEn.push(partsEn[idx] || '');
                         });
+                    } else if (it.item_ind) {
+                        segmentsInd.push(it.item_ind.trim());
+                        segmentsEn.push(it.item_en ? it.item_en.trim() : '');
+                    }
 
-                        const childNode = {
-                            id: 'node_' + (++idSeq),
-                            db_id: it.id,
-                            parentId: parentId,
-                            level: partsInd.length,
-                            ind: it.item_ind,
-                            en: it.item_en || ''
-                        };
-                        treeItems.push(childNode);
-                    } else {
+                    if (segmentsInd.length <= 1) {
                         const standaloneNode = {
                             id: 'node_' + (++idSeq),
                             db_id: it.id,
                             parentId: null,
                             level: 0,
-                            ind: it.item_ind,
-                            en: it.item_en || ''
+                            ind: segmentsInd[0] || it.item_ind,
+                            en: segmentsEn[0] || (it.item_en || '')
                         };
                         treeItems.push(standaloneNode);
+                    } else {
+                        let parentId = null;
+                        let pathKey = '';
+                        const totalSegs = segmentsInd.length;
+                        segmentsInd.forEach((seg, sIdx) => {
+                            pathKey = pathKey ? (pathKey + ' > ' + seg) : seg;
+                            const enPart = segmentsEn[sIdx] || '';
+                            const isLeaf = (sIdx === totalSegs - 1);
+                            if (!isLeaf) {
+                                if (!parentMap[pathKey]) {
+                                    const node = {
+                                        id: 'node_' + (++idSeq),
+                                        parentId: parentId,
+                                        level: sIdx,
+                                        ind: seg,
+                                        en: enPart
+                                    };
+                                    parentMap[pathKey] = node;
+                                    treeItems.push(node);
+                                }
+                                parentId = parentMap[pathKey].id;
+                            } else {
+                                const leafNode = {
+                                    id: 'node_' + (++idSeq),
+                                    db_id: it.id,
+                                    parentId: parentId,
+                                    level: sIdx,
+                                    ind: seg,
+                                    en: enPart
+                                };
+                                treeItems.push(leafNode);
+                            }
+                        });
                     }
                 });
 
@@ -2726,6 +2761,8 @@ $(document).ready(function() {
         $('#edit_baris_en').val($(this).data('en'));
         $('#edit_baris_judul_ind').val($(this).data('judul-ind') || $(this).data('ind'));
         $('#edit_baris_judul_en').val($(this).data('judul-en') || $(this).data('en') || '');
+        $('#edit_baris_judul_sub_ind').val($(this).data('judul-sub-ind') || '');
+        $('#edit_baris_judul_sub_en').val($(this).data('judul-sub-en') || '');
         $('#modalEditBaris').modal('show');
     });
 

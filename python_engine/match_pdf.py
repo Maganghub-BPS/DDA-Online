@@ -157,7 +157,7 @@ def build_index(pdf_path, db_tables=None):
     # Assign strictly non-overlapping page blocks
     for i, (k, st, v) in enumerate(table_starts):
         nxt_st = table_starts[i+1][1] if i + 1 < len(table_starts) else st + 3
-        p_range = list(range(st, min(nxt_st, st + 8)))
+        p_range = list(range(st, min(nxt_st, st + 35)))
         if not p_range: p_range = [st]
         toc[k]["pages"] = p_range
 
@@ -183,23 +183,53 @@ def normalize_title(t):
 def _score(a, b):
     return 0.5*fuzz.token_sort_ratio(a, b) + 0.3*fuzz.token_set_ratio(a, b) + 0.2*fuzz.ratio(a, b)
 
+def _resolve_source_type(item):
+    src = str(item.get("source_type", "")).strip().lower()
+    if src in ("dinamis", "api", "spreadsheet"):
+        return src
+    if int(item.get("is_dynamic", 0) or 0) == 1:
+        return "dinamis"
+    link_lower = str(item.get("link_tabel", "")).strip().lower()
+    if "view_portal_tabel" in link_lower or "satudata" in link_lower:
+        return "api"
+    return "spreadsheet"
+
+
 def match_tables(toc, db_tables, min_score=65):
-    matched, missing, used = [], [], set()
+    matched, still_missing, unreg, used = [], [], [], set()
     unmatched_db = []
-    
+
+    def route_matched_entry(entry, source_type):
+        if source_type in ("dinamis", "api"):
+            matched.append(entry)
+        else:
+            unreg.append({
+                "nomor_tabel": entry["nomor_tabel"],
+                "id_db": entry.get("id_db", ""),
+                "judul_pdf": entry["judul_pdf"],
+                "judul_db": entry.get("judul_db", ""),
+                "pages": entry.get("pages", []),
+                "source_type": "spreadsheet",
+                "reason": "Belum dikonfigurasi ke Tabel Dinamis (masih format Spreadsheet)"
+            })
+
+    # Urutkan prioritas source_type: dinamis (0) > api (1) > spreadsheet (2)
+    prio_map = {"dinamis": 0, "api": 1, "spreadsheet": 2}
+    sorted_db = sorted(db_tables, key=lambda x: prio_map.get(_resolve_source_type(x), 3))
+
     # PASS 1: Pencocokan eksak berdasarkan nomor_tabel
-    for item in db_tables:
-        t_num = item.get("nomor_tabel", "").strip()
+    for item in sorted_db:
+        t_num = str(item.get("nomor_tabel", "")).strip()
         db_id = str(item.get("id_db", item.get("id", ""))).strip()
         title = item.get("judul_tabel", item.get("judul_ind", ""))
-        
         link = item.get("link_tabel", "")
-        link_lower = link.lower()
-        source_type = "spreadsheet" if ("docs.google.com" in link_lower or "spreadsheet" in link_lower) else "api"
-        
+        source_type = _resolve_source_type(item)
+
         if t_num and t_num in toc:
+            if t_num in used:
+                continue
             used.add(t_num)
-            matched.append({
+            route_matched_entry({
                 "nomor_tabel": t_num,
                 "id_db": db_id,
                 "judul_db": title,
@@ -207,21 +237,22 @@ def match_tables(toc, db_tables, min_score=65):
                 "pages": toc[t_num]["pages"],
                 "similarity": 100.0,
                 "link_tabel": link,
-                "source_type": source_type
-            })
+                "source_type": source_type,
+                "is_dynamic": int(item.get("is_dynamic", 0) or 0),
+                "dynamic_empty": bool(item.get("dynamic_empty", False))
+            }, source_type)
         else:
-            unmatched_db.append((item, db_id, title))
-            
+            unmatched_db.append((item, db_id, title, source_type))
+
     # PASS 2: Pencocokan judul fuzzy untuk tabel yang nomor_tabel-nya kosong/belum cocok
     avail_toc = [k for k in toc if k not in used]
-    still_missing = []
-    
+
     if unmatched_db and avail_toc:
         try:
             # Optimal Hungarian Assignment (Maximum Bipartite Matching)
             cost_matrix = []
             score_matrix = []
-            for item, db_id, title in unmatched_db:
+            for item, db_id, title, source_type in unmatched_db:
                 d_norm = normalize_title(title)
                 r_scores = []
                 r_costs = []
@@ -231,22 +262,20 @@ def match_tables(toc, db_tables, min_score=65):
                     r_costs.append(100.0 - sc)
                 score_matrix.append(r_scores)
                 cost_matrix.append(r_costs)
-                
+
             row_ind, col_ind = linear_sum_assignment(np.array(cost_matrix))
             matched_db_indices = set()
             for r_idx, c_idx in zip(row_ind, col_ind):
                 best_score = score_matrix[r_idx][c_idx]
-                item, db_id, title = unmatched_db[r_idx]
-                t_num = item.get("nomor_tabel", "").strip()
+                item, db_id, title, source_type = unmatched_db[r_idx]
+                t_num = str(item.get("nomor_tabel", "")).strip()
                 best_k = avail_toc[c_idx]
                 link = item.get("link_tabel", "")
-                link_lower = link.lower()
-                source_type = "spreadsheet" if ("docs.google.com" in link_lower or "spreadsheet" in link_lower) else "api"
-                
+
                 if best_score >= min_score:
                     used.add(best_k)
                     matched_db_indices.add(r_idx)
-                    matched.append({
+                    route_matched_entry({
                         "nomor_tabel": best_k,
                         "id_db": db_id,
                         "judul_db": title,
@@ -254,31 +283,34 @@ def match_tables(toc, db_tables, min_score=65):
                         "pages": toc[best_k]["pages"],
                         "similarity": round(float(best_score), 1),
                         "link_tabel": link,
-                        "source_type": source_type
-                    })
-                else:
+                        "source_type": source_type,
+                        "is_dynamic": int(item.get("is_dynamic", 0) or 0),
+                        "dynamic_empty": bool(item.get("dynamic_empty", False))
+                    }, source_type)
+                elif source_type in ("dinamis", "api"):
                     still_missing.append({
                         "nomor_tabel": t_num or "-",
                         "judul_db": title,
                         "judul_pdf": "-",
                         "similarity": round(float(best_score), 1),
+                        "source_type": source_type,
                         "reason": f"Tidak ada kecocokan di PDF (skor tertinggi {round(float(best_score), 1)}%)"
                     })
-                    
-            for idx, (item, db_id, title) in enumerate(unmatched_db):
-                if idx not in matched_db_indices and idx not in row_ind:
-                    t_num = item.get("nomor_tabel", "").strip()
+
+            for idx, (item, db_id, title, source_type) in enumerate(unmatched_db):
+                if idx not in matched_db_indices and idx not in row_ind and source_type in ("dinamis", "api"):
+                    t_num = str(item.get("nomor_tabel", "")).strip()
                     still_missing.append({
                         "nomor_tabel": t_num or "-",
                         "judul_db": title,
                         "judul_pdf": "-",
                         "similarity": 0.0,
+                        "source_type": source_type,
                         "reason": "Tidak ada kecocokan di PDF"
                     })
         except Exception:
-            # Fallback ke greedy jika linear_sum_assignment tidak tersedia/error
-            for item, db_id, title in unmatched_db:
-                t_num = item.get("nomor_tabel", "").strip()
+            for item, db_id, title, source_type in unmatched_db:
+                t_num = str(item.get("nomor_tabel", "")).strip()
                 d_norm = normalize_title(title)
                 best_k, best_score = None, 0
                 for k in avail_toc:
@@ -289,31 +321,57 @@ def match_tables(toc, db_tables, min_score=65):
                 if best_score >= min_score and best_k and best_k not in used:
                     used.add(best_k)
                     avail_toc.remove(best_k)
-                    matched.append({
+                    route_matched_entry({
                         "nomor_tabel": best_k,
                         "id_db": db_id,
                         "judul_db": title,
                         "judul_pdf": toc[best_k]["judul_pdf"],
                         "pages": toc[best_k]["pages"],
-                        "similarity": round(float(best_score), 1)
-                    })
-                else:
+                        "similarity": round(float(best_score), 1),
+                        "link_tabel": item.get("link_tabel", ""),
+                        "source_type": source_type,
+                        "is_dynamic": int(item.get("is_dynamic", 0) or 0),
+                        "dynamic_empty": bool(item.get("dynamic_empty", False))
+                    }, source_type)
+                elif source_type in ("dinamis", "api"):
                     still_missing.append({
                         "nomor_tabel": t_num or "-",
                         "judul_db": title,
                         "judul_pdf": "-",
                         "similarity": round(float(best_score), 1),
+                        "source_type": source_type,
                         "reason": f"Tidak ada kecocokan di PDF (skor tertinggi {round(float(best_score), 1)}%)"
                     })
-            
-    unreg = [{"nomor_tabel": k, "judul_pdf": toc[k]["judul_pdf"],
-              "reason": "Ada di PDF, tidak ada judul yang mirip di Database"} for k in toc if k not in used]
-              
+    else:
+        for item, db_id, title, source_type in unmatched_db:
+            if source_type in ("dinamis", "api"):
+                t_num = str(item.get("nomor_tabel", "")).strip()
+                still_missing.append({
+                    "nomor_tabel": t_num or "-",
+                    "judul_db": title,
+                    "judul_pdf": "-",
+                    "similarity": 0.0,
+                    "source_type": source_type,
+                    "reason": "Tidak ada kecocokan di PDF"
+                })
+
+    for k in toc:
+        if k not in used:
+            unreg.append({
+                "nomor_tabel": k,
+                "judul_pdf": toc[k]["judul_pdf"],
+                "pages": toc[k].get("pages", []),
+                "source_type": "unregistered",
+                "reason": "Belum terdaftar di Database / belum dikonfigurasi Tabel Dinamis"
+            })
+
     sk = lambda x: [int(p) for p in re.findall(r'\d+', x["nomor_tabel"])]
     for L in (matched, still_missing, unreg):
-        try: L.sort(key=sk)
-        except Exception: pass
-        
+        try:
+            L.sort(key=sk)
+        except Exception:
+            pass
+
     return {"status": "success", "matched_in_pdf": matched, "missing_in_pdf": still_missing, "unregistered_in_db": unreg}
 
 
@@ -321,26 +379,36 @@ def main():
     pdf_path, db_json = sys.argv[1], sys.argv[2]
     with open(db_json, 'r', encoding='utf-8') as f:
         db = json.load(f)
-        
-    toc = build_index(pdf_path, db_tables=db)
-    with open(pdf_path + ".index.json", "w", encoding="utf-8") as f:
-        json.dump({k: {"pages": v["pages"], "display_title": v["judul_pdf"]} for k, v in toc.items()}, f, ensure_ascii=False)
-    
+
+    idx_file = pdf_path + ".index.json"
+    if os.path.exists(idx_file) and os.path.exists(pdf_path) and os.path.getmtime(idx_file) >= os.path.getmtime(pdf_path):
+        with open(idx_file, "r", encoding="utf-8") as f:
+            raw_idx = json.load(f)
+        toc = {
+            k: {
+                "pages": v.get("pages", []),
+                "judul_pdf": v.get("judul_pdf") or v.get("display_title", "")
+            }
+            for k, v in raw_idx.items()
+        }
+    else:
+        toc = build_index(pdf_path, db_tables=db)
+        with open(idx_file, "w", encoding="utf-8") as f:
+            json.dump({k: {"pages": v["pages"], "display_title": v["judul_pdf"]} for k, v in toc.items()}, f, ensure_ascii=False)
+
     matched = match_tables(toc, db)
-    
-    # Save to both standard names with UTF-8 encoding
+
     m_year = re.search(r'(\d{4})', pdf_path)
     ta = m_year.group(1) if m_year else "2026"
     up_dir = os.path.dirname(db_json)
-    
+
     dda_matched_file = os.path.join(up_dir, f"dda_matched_{ta}.json")
-    with open(dda_matched_file, 'w', encoding='utf-8') as f:
-        json.dump(matched, f, ensure_ascii=False, indent=2)
-        
-    matched_tables_file = os.path.join(up_dir, f"matched_tables_{ta}.json")
-    with open(matched_tables_file, 'w', encoding='utf-8') as f:
-        json.dump(matched, f, ensure_ascii=False, indent=2)
-    
+    try:
+        with open(dda_matched_file, 'w', encoding='utf-8') as f:
+            json.dump(matched, f, ensure_ascii=False, indent=2)
+    except PermissionError:
+        pass
+
     print(json.dumps(matched, ensure_ascii=False))
 
 if __name__ == "__main__":

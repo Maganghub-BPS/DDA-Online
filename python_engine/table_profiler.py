@@ -698,6 +698,31 @@ def normalize_api_data(api_records, pdf_rows=None, table_num=""):
             
     if reg_key:
         reg_vals = [r.get(reg_key) for r in api_records if r.get(reg_key)]
+        cat_key_cand = next((k for k in ['jenis_ppks', 'jenis_pmks', 'kategori', 'uraian'] if k in sample), None)
+        pdf_has_regions = False
+        if pdf_rows:
+            pdf_text_sample = ' '.join(str(c) for r in pdf_rows[:25] if isinstance(r, list) for c in r if c).lower()
+            pdf_has_regions = sum(1 for reg in ['cilacap', 'banyumas', 'purbalingga', 'semarang', 'surakarta', 'brebes', 'kudus', 'pati', 'jepara', 'tegal'] if reg in pdf_text_sample) >= 2
+            
+        # Jika PDF adalah rekap provinsi per kategori (bukan per kab/kota), lakukan agregasi per cat_key!
+        if cat_key_cand and (not pdf_has_regions or len(reg_vals) > len(set(reg_vals)) * 2):
+            numeric_keys = [k for k in keys if k not in {'id', 'created_at', 'updated_at', 'tahun_data', reg_key, 'kode_wilayah', 'kode_kabupatenkota', 'kode_kabupaten', cat_key_cand}]
+            numeric_keys = [k for k in numeric_keys if any(parse_num(r.get(k), is_pdf=False) is not None for r in api_records[:10])]
+            if numeric_keys:
+                categories = []
+                for r in api_records:
+                    c_val = str(r.get(cat_key_cand, '')).strip()
+                    if c_val and c_val not in categories:
+                        categories.append(c_val)
+                grid = [[cat_key_cand] + [k.replace('_', ' ').title() for k in numeric_keys]]
+                for c_val in categories:
+                    row = [c_val]
+                    for nk in numeric_keys:
+                        val = sum(parse_num(r.get(nk), is_pdf=False) or 0.0 for r in api_records if str(r.get(cat_key_cand, '')).strip() == c_val)
+                        row.append(int(val) if val.is_integer() else val)
+                    grid.append(row)
+                return grid
+
         if len(reg_vals) == len(set(reg_vals)) or len(set(reg_vals)) >= 25:
             panti_pem = next((k for k in keys if 'panti' in k and 'pemerintah' in k), None)
             panti_swa = next((k for k in keys if 'panti' in k and 'swasta' in k), None)
@@ -729,15 +754,7 @@ def normalize_api_data(api_records, pdf_rows=None, table_num=""):
             ignore_keys = {'tahun_data', 'kode_wilayah', 'kode_kabupatenkota', 'kode_kabupaten', 'id', 'created_at', 'updated_at', reg_key}
             metric_keys = [k for k in keys if k not in ignore_keys]
             
-            tahun_val = sample.get('tahun_data') or sample.get('tahun')
-            if tahun_val and len(metric_keys) == 1:
-                display_headers = [f"Tahun {tahun_val}"]
-            elif tahun_val:
-                display_headers = [f"{mk} ({tahun_val})" for mk in metric_keys]
-            else:
-                display_headers = metric_keys
-
-            headers = ['Wilayah'] + display_headers
+            headers = ['Wilayah'] + metric_keys
             grid = [headers]
             for r in api_records:
                 row = [r.get(reg_key)]
@@ -746,9 +763,9 @@ def normalize_api_data(api_records, pdf_rows=None, table_num=""):
                 grid.append(row)
             return grid
 
-    # 2. CEK APAKAH INI TABEL TALL / PIVOT (Seperti 2.2.1 dan 2.2.5)
+    # 2. CEK APAKAH INI TABEL TALL / CATEGORICAL (Seperti 2.2.1, 2.2.5, 2.3.22, 4.5.14, 4.5.15, 10.1.5)
     dim_key = None
-    for k in ['asal_partai_politik', 'dinasinstansi_pemerintahan', 'nama_sektor', 'sektor', 'uraian', 'jenis_pendapatan']:
+    for k in ['asal_partai_politik', 'dinasinstansi_pemerintahan', 'nama_sektor', 'sektor', 'uraian', 'jenis_pendapatan', 'bulan', 'nama_negara', 'negara', 'jenis_ppks', 'jenis_pmks']:
         if k in sample:
             dim_key = k
             break
@@ -804,7 +821,7 @@ def normalize_api_data(api_records, pdf_rows=None, table_num=""):
                 grid.append(row)
             return grid
 
-        # Tabel Flat Categorical (misal 2.3.22 atau 2.4.11)
+        # Tabel Flat Categorical (misal 2.3.22, 4.5.14, 4.5.15, 10.1.5 atau 2.4.11)
         ignore_keys = {'tahun_data', 'id', 'created_at', 'updated_at', dim_key}
         metric_keys = [k for k in keys if k not in ignore_keys]
         grid = [[dim_key] + metric_keys]
@@ -815,14 +832,42 @@ def normalize_api_data(api_records, pdf_rows=None, table_num=""):
             grid.append(row)
         return grid
 
-    # 3. CEK APAKAH INI TABEL TIME-SERIES MENURUT TAHUN (Seperti 8.7: Jumlah Wisatawan Mancanegara dan Domestik 2020-2025)
+    # 3. CEK APAKAH INI TABEL LONG / PIVOT (Seperti 9.1.19: tahun_data + koridor + jumlah)
+    if 'tahun_data' in sample and not reg_key:
+        dim_candidates = [k for k in keys if k not in {'id', 'created_at', 'updated_at', 'tahun_data'} and any(not str(r.get(k, '')).strip().replace('.', '').isdigit() for r in api_records if r.get(k))]
+        val_candidates = [k for k in keys if k not in {'id', 'created_at', 'updated_at', 'tahun_data'} and k not in dim_candidates]
+        if len(dim_candidates) == 1 and len(val_candidates) == 1:
+            pivot_dim = dim_candidates[0]
+            val_col = val_candidates[0]
+            years = sorted(list(set(str(r.get('tahun_data')) for r in api_records if r.get('tahun_data'))))
+            categories = []
+            for r in api_records:
+                c = str(r.get(pivot_dim, '')).strip()
+                if c and not re.search(r'\btotal\b', c, re.IGNORECASE) and c not in categories:
+                    categories.append(c)
+            if categories:
+                grid = [['Tahun Anggaran'] + categories]
+                for y in years:
+                    row = [y]
+                    for c in categories:
+                        val = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get('tahun_data')) == y and str(r.get(pivot_dim, '')).strip() == c)
+                        row.append(int(val) if val.is_integer() else val)
+                    grid.append(row)
+                return grid
+
+    # 4. CEK APAKAH INI TABEL TAHUNAN / TIME-SERIES (Baris adalah tahun_data, misal 9.1.20, 10.1.7, 8.7)
     tahun_key = next((k for k in ['tahun_data', 'tahun', 'year'] if k in sample), None)
-    if tahun_key:
+    if tahun_key and not reg_key:
         ignore_keys = {'id', 'created_at', 'updated_at', tahun_key}
         metric_keys = [k for k in keys if k not in ignore_keys]
-        grid = [['Tahun'] + metric_keys]
-        for r in api_records:
-            row = [str(r.get(tahun_key))]
+        hdr = ['Tahun Anggaran'] + [k.replace('_', ' ').title() for k in metric_keys]
+        grid = [hdr]
+        try:
+            sorted_records = sorted(api_records, key=lambda x: int(x.get(tahun_key, 0)))
+        except Exception:
+            sorted_records = api_records
+        for r in sorted_records:
+            row = [str(r.get(tahun_key, ''))]
             for mk in metric_keys:
                 row.append(r.get(mk))
             grid.append(row)

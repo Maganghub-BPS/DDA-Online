@@ -129,10 +129,12 @@ class ExcelDataParser
 
             $parseActiveLevels = function(?string $val, int $depth): array {
                 if (empty($val) || $val === 'semua') {
-                    return ($depth === 3) ? [1, 2, 3] : (($depth === 2) ? [1, 2] : [1]);
+                    $arr = [];
+                    for ($i = 1; $i <= $depth; $i++) $arr[] = $i;
+                    return $arr;
                 }
                 if ($val === 'sub_bab') {
-                    return ($depth === 3) ? [2, 3] : [2];
+                    return ($depth >= 3) ? [2, 3] : [2];
                 }
                 if ($val === 'bab') {
                     return [1];
@@ -141,7 +143,10 @@ class ExcelDataParser
                 $parts = array_values(array_filter($parts, function($l) use ($depth) {
                     return $l >= 1 && $l <= $depth;
                 }));
-                return !empty($parts) ? $parts : (($depth === 3) ? [1, 2, 3] : (($depth === 2) ? [1, 2] : [1]));
+                if (!empty($parts)) return $parts;
+                $arr = [];
+                for ($i = 1; $i <= $depth; $i++) $arr[] = $i;
+                return $arr;
             };
 
             $activeLevels = $parseActiveLevels($tingkat_kolom, $maxDepth);
@@ -152,8 +157,8 @@ class ExcelDataParser
 
             // Tentukan flatKolom yang digunakan berdasarkan tingkat aktif terendah
             $flatKolom = $rawFlatKolom;
-            if (!empty($kolomStructure) && $maxDepth === 3) {
-                if (in_array(3, $activeLevels)) {
+            if (!empty($kolomStructure) && $maxDepth >= 3) {
+                if (in_array($maxDepth, $activeLevels) || in_array(3, $activeLevels)) {
                     $flatKolom = $rawFlatKolom;
                 } elseif (in_array(2, $activeLevels)) {
                     $flatKolom = [];
@@ -208,7 +213,21 @@ class ExcelDataParser
             $hasBaris    = !empty($itemsBaris);
             $cfgTotalParser = $indikator->konfigurasi_total ?? 'default';
             $isRuntunWaktu  = ($cfgTotalParser === 'runtun_waktu');
-            $colIdx      = ((in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) && $hasBaris) ? 3 : 2; // Mulai C jika periode_baris / periode_baris_pisah atau runtun_waktu (dengan baris), atau B jika kolom biasa
+            // Deteksi multi-column baris (||) untuk penyesuaian index kolom fallback
+            $isMultiBaris = false;
+            if ($hasBaris) {
+                $titleBarisInd = $indikator->nama_kelompok_baris_ind ?? '';
+                if (strpos($titleBarisInd, '||') !== false) {
+                    $isMultiBaris = true;
+                } else {
+                    foreach ($itemsBaris as $b) {
+                        if (strpos($b->nama_baris_ind ?? '', '||') !== false) {
+                            $isMultiBaris = true;
+                            break;
+                        }
+                    }
+                }
+            }
 
             // Hitung level maksimum pada seluruh kelompok baris
             $maxBarisGroupLevel = 0;
@@ -217,6 +236,21 @@ class ExcelDataParser
                 if ($lvl > $maxBarisGroupLevel) {
                     $maxBarisGroupLevel = $lvl;
                 }
+            }
+            $totalTingkatBaris = $maxBarisGroupLevel + 1;
+
+            $kelompokBaris = $id_baris > 0 ? $this->mTabelDinamis->getBarisKelompok($id_baris) : null;
+            $titleSubBarisInd = !empty($kelompokBaris->judul_sub_baris_ind) ? $kelompokBaris->judul_sub_baris_ind : '';
+            $cleanTitleSubInd = preg_replace('/^\d+\s+/', '', $titleSubBarisInd);
+            $isPeriodeBaris = in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true);
+            $isBarisDuaKolom = (!$isPeriodeBaris && !$isRuntunWaktu && $hasBaris && (($indikator->tampilan_baris ?? '1_kolom') === '2_kolom' || $isMultiBaris));
+
+            if (!$hasBaris) {
+                $colIdx = 2;
+            } elseif ($isPeriodeBaris || $isRuntunWaktu) {
+                $colIdx = ($isMultiBaris || $isBarisDuaKolom) ? 4 : 3;
+            } else {
+                $colIdx = ($isMultiBaris || $isBarisDuaKolom) ? 3 : 2;
             }
 
             $isParentBaris = function(int $idx, array $items) use ($maxBarisGroupLevel): bool {
@@ -521,6 +555,22 @@ class ExcelDataParser
                     }
                     if ($isParentBaris($bIdx, $itemsBaris)) {
                         $tipe = 'kategori';
+                    }
+
+                    $level = (int)($bItem->level_indentasi ?? 0);
+                    $hasChildren = false;
+                    if ($level === 0) {
+                        for ($j = $bIdx + 1; $j < count($itemsBaris); $j++) {
+                            if ((int)($itemsBaris[$j]->level_indentasi ?? 0) > 0) {
+                                $hasChildren = true;
+                                break;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    if ($isBarisDuaKolom && $level === 0 && ($tipe === 'kategori' || $hasChildren)) {
+                        continue;
                     }
 
                     $cfgTotal = $indikator->konfigurasi_total ?? 'default';

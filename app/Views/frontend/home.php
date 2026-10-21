@@ -1635,25 +1635,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?php if (!empty($recent_tables)) { ?>
                         <?php foreach ($recent_tables as $idx => $row) { ?>
                             <?php 
-                                $is_sheet = (strpos($row->link_tabel, 'view_portal_tabel') === false);
-                                if ($is_sheet) {
-                                    $href = base_url('home/view_sheet?url=' . urlencode($row->link_tabel) . '&table_id=' . $row->id);
-                                } else {
+                                if (!empty($row->is_dynamic)) {
+                                    $href = base_url('home/view_dinamis/' . $row->id);
+                                    $source_type = 'dinamis';
+                                } elseif (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
                                     $portal_id = $row->link_tabel;
                                     if (preg_match('/[?&]id=([^&]+)/', $row->link_tabel, $m_id)) {
                                         $portal_id = $m_id[1];
                                     }
                                     $href = base_url('home/view_tabel?id=' . urlencode($portal_id) . '&table_id=' . $row->id);
+                                    $source_type = 'portal';
+                                } else {
+                                    $href = base_url('home/view_sheet?url=' . urlencode($row->link_tabel ?? '') . '&table_id=' . $row->id);
+                                    $source_type = 'sheet';
                                 }
                             ?>
                             <div class="swiper-slide" style="height: auto;">
                                 <div class="table-clean-card">
-                                    <!-- 1. Instansi -->
-                                    <div class="tcc-header">
-                                        <span class="tcc-agency" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
+                                    <!-- 1. Instansi & Badge Sumber -->
+                                    <div class="tcc-header d-flex justify-content-between align-items-center">
+                                        <span class="tcc-agency text-truncate me-2" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
                                             <i class="fa-solid fa-building-columns"></i>
                                             <span><?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?></span>
                                         </span>
+                                        <?php if ($source_type === 'dinamis'): ?>
+                                            <span class="badge border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px; border-color: #d8b4fe !important; color: #7e22ce !important; background-color: #f3e8ff !important;"><i class="fa-solid fa-cube me-1"></i>Dinamis</span>
+                                        <?php elseif ($source_type === 'portal'): ?>
+                                            <span class="badge bg-primary-subtle text-primary border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px;"><i class="fa-solid fa-globe me-1"></i>Portal</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-success-subtle text-success border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px;"><i class="fa-solid fa-table me-1"></i>Sheet</span>
+                                        <?php endif; ?>
                                     </div>
 
                                     <!-- 2. Judul -->
