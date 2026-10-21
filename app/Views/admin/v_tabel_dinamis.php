@@ -599,7 +599,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         $cfgTotal           = $indikator->konfigurasi_total ?? 'default';
                         $isRuntunWaktu      = ($cfgTotal === 'runtun_waktu');
                         $format_nomor_baris = 'none';
-                        $hasNoCol           = false;
+                        $hasNoCol           = true; // Kolom No. selalu aktif 100% identik dengan view tabel API portal
 
                         // Identifikasi id_periode aktif untuk baris rincian pada mode runtun_waktu
                         $idPeriodeAktif = 0;
@@ -942,7 +942,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     </th>
                                 <?php else: ?>
                                     <?php if ($hasNoCol): ?>
-                                        <th rowspan="<?= $totalHeaderRows + 1; ?>" style="border: 1px solid #fff; width: 45px; text-align: center;">No.</th>
+                                        <th rowspan="<?= $totalHeaderRows + 1; ?>" style="border: 1px solid #fff; width: 45px; text-align: center; vertical-align: middle;">No.</th>
                                     <?php endif; ?>
                                     <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 220px; text-align: center;">
                                         <?= esc($cleanTitleInd); ?>
@@ -1059,22 +1059,22 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         <?php endif; ?>
 
                         <!-- BARIS PENOMORAN KOLOM RESMI BPS: (1), (2), (3) ... -->
-                        <tr class="num-row" style="background: #f9a066; color: #000; font-size: 11px; font-weight: bold;">
+                        <tr class="num-row" style="background: var(--bps-orange, #F26522); color: #ffffff; font-size: 11px; font-weight: bold;">
                             <?php if ($isRuntunWaktu || $posisi_hirarki === 'periode_baris'): ?>
-                                <th colspan="2" style="border: 1px solid #fff; text-align: center; font-weight: bold;">(1)</th>
+                                <th colspan="2" style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(1)</th>
                                 <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $n + 1; ?>)</th>
+                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(<?= $n + 1; ?>)</th>
                                 <?php endfor; ?>
                             <?php elseif (($posisi_hirarki === 'periode_baris_pisah' || $isBarisDuaKolom) && $hasBaris): ?>
-                                <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(1)</th>
-                                <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(2)</th>
+                                <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(1)</th>
+                                <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(2)</th>
                                 <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $n + 2; ?>)</th>
+                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(<?= $n + 2; ?>)</th>
                                 <?php endfor; ?>
                             <?php else: ?>
-                                <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(1)</th>
+                                <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(1)</th>
                                 <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $n + 1; ?>)</th>
+                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(<?= $n + 1; ?>)</th>
                                 <?php endfor; ?>
                             <?php endif; ?>
                         </tr>
@@ -1258,7 +1258,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         ?>
                             <!-- BANNER PEMBATAS KATEGORI WILAYAH (PARITY 100% GAMBAR 2) -->
                             <tr style="background: #fde5ce; font-weight: bold; color: #000;">
-                                <td colspan="<?= $totalLeafCols + ($isRuntunWaktu ? 2 : ($hasNoCol ? ($isPeriodeBaris ? 3 : 2) : ($isPeriodeBaris ? 2 : 1))); ?>" style="padding: 10px 15px; border: 1px solid #ffffff !important; border-left: 4px solid #FF6D1F !important; background-color: #fde5ce !important;">
+                                <td colspan="<?= $totalLeafCols + ($isRuntunWaktu ? 2 : ($hasNoCol ? ($isPeriodeBaris ? 3 : 2) : ($isPeriodeBaris ? 2 : 1))); ?>" style="padding: 10px 15px; border: 1px solid #ffffff !important; background-color: #fde5ce !important;">
                                     <?= esc($dividerText); ?>
                                 </td>
                             </tr>
@@ -1415,24 +1415,18 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                                 $cleanNama   = $rawNamaInd;
                                 $cleanNamaEn = $rawNamaEn;
-                                $noText      = '';
+                                $noText      = $dataRowCounter . '.';
 
                                 // Aturan Huruf Tebal (Bold):
-                                // Jika 2 atau 3 tingkat, maka tingkat pertama (level 0) SELALU TEBAL terlepas kategori atau data!
-                                $isRowBold = false;
-                                if ($totalTingkat >= 2 && (int)($baris->level_indentasi ?? 0) === 0) {
-                                    $isRowBold = true;
-                                } elseif ((int)($baris->is_bold ?? 0) === 1) {
-                                    $isRowBold = true;
-                                }
-                                $fontWeightStyle = $isRowBold ? 'font-weight: bold;' : 'font-weight: normal;';
+                                // Judul baris kiri SELALU TEBAL (font-weight: bold;) persis seperti di View Portal Tabel API
+                                $fontWeightStyle = 'font-weight: bold;';
 
                                 if ($isRuntunWaktu):
                         ?>
                                     <tr class="<?= $rowClass; ?>">
                                         <!-- Kolom Nama Wilayah / Baris (Colspan 2) -->
-                                        <td colspan="2" style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?>">
-                                            <?= esc(!empty($noText) ? ($noText . ' ' . $cleanNama) : $cleanNama); ?>
+                                        <td colspan="2" style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
+                                            <?= esc($cleanNama); ?>
                                             <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
                                                 / <i style="font-weight: normal;"><?= esc($cleanNamaEn); ?></i>
                                             <?php endif; ?>
@@ -1526,13 +1520,13 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         <?php else: ?>
                                             <?php if ($hasNoCol): ?>
                                                 <!-- Kolom No. -->
-                                                <td style="text-align: center; width: 45px; border: 1px solid #ffffff; font-size: 12px;">
+                                                <td style="text-align: center; width: 45px; border: 1px solid #ffffff; font-size: 12px; vertical-align: middle;">
                                                     <?= esc($noText); ?>
                                                 </td>
                                             <?php endif; ?>
 
                                             <!-- Kolom Nama Wilayah / Baris -->
-                                            <td style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?>">
+                                            <td style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
                                                 <?= esc($cleanNama); ?>
                                                 <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
                                                     / <i style="font-weight: normal;"><?= esc($cleanNamaEn); ?></i>
