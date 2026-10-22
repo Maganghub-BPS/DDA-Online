@@ -8,9 +8,12 @@ class AddForeignKeyCascadeConstraints extends Migration
 {
     public function up()
     {
-        // 1. Bersihkan record orphan yang mungkin ada sebelum menambahkan constraint
-        $this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator NOT IN (SELECT id FROM m_indikator_tabel)");
+        // 1. Bersihkan record orphan yang mungkin ada sebelum menambahkan constraint (Urutan: Induk -> Anak)
         $this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IS NOT NULL AND id_tahun_tabel NOT IN (SELECT id FROM t_tahun_tabel)");
+        $this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator NOT IN (SELECT id FROM m_indikator_tabel)");
+        $this->db->query("DELETE FROM m_karakteristik_item WHERE id_kelompok NOT IN (SELECT id FROM m_karakteristik_kelompok)");
+        $this->db->query("DELETE FROM m_baris_item WHERE id_kelompok NOT IN (SELECT id FROM m_baris_kelompok)");
+        $this->db->query("DELETE FROM m_periode_item WHERE id_kelompok NOT IN (SELECT id FROM m_periode_kelompok)");
 
         // 2. Foreign Key: m_indikator_tabel -> t_tahun_tabel (CASCADE)
         $checkFk1 = $this->db->query("SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'm_indikator_tabel' AND CONSTRAINT_NAME = 'fk_indikator_tahun_tabel'")->getRow();
