@@ -35,8 +35,8 @@
 | 10 | Sinkronisasi API Portal & Matching PDF (Python Engine) | 6 | | | | % |
 | 11 | Forum Diskusi & Konsultasi Antar Instansi | 4 | | | | % |
 | 12 | Laporan Rekapitulasi & Master Pengguna/OPD/Tim | 6 | | | | % |
-| 13 | Keamanan & Integritas Data (CSRF, IDOR, SQLi, & Cascade Integrity) | 10 | | | | % |
-| | **TOTAL KESELURUHAN SISTEM** | **90** | | | | **%** |
+| 13 | Keamanan & Integritas Data (CSRF, IDOR, SQLi, Cascade & Anti-Truncation) | 11 | | | | % |
+| | **TOTAL KESELURUHAN SISTEM** | **91** | | | | **%** |
 
 *Status Akhir Rilis:* &nbsp;&nbsp; `[ ] SIAP RILIS (PRODUCTION READY)` &nbsp;&nbsp;&nbsp;&nbsp; `[ ] PERLU PERBAIKAN (BUGFIX REQUIRED)`
 
@@ -250,6 +250,7 @@ Pengujian mitigasi kerentanan keamanan aplikasi mencakup proteksi CSRF (*Cross-S
 | [ ] | **TC-SEC-08** | Pencegahan SQL Injection pada Paginasi & Filter Kegiatan | Masukkan karakter injeksi SQL (contoh: `' OR '1'='1`, `1 UNION SELECT`, atau `0; DROP TABLE`) pada parameter pencarian `q`, URL paginasi `LIMIT`, atau dropdown unit kerja `get_kegiatan`. | Payload SQL Injection acak | Query dievaluasi dengan *parameter binding* (`?`) dan *integer casting*; sistem tidak menampilkan *SQL syntax error* atau kebocoran data (*safe parameterized execution*). | | |
 | [ ] | **TC-SEC-09** | Efisiensi Paginasi Agregasi SQL (`COUNT(*)` vs `SELECT *`) | Buka halaman master dengan jumlah data banyak (`admin/manage_admin`, `admin/master_opd`, `admin/master_tabel_opd`, `admin/forum_diskusi`). Periksa query pada CI Debug Toolbar. | Data master skala besar | Perhitungan total baris paginasi menggunakan `SELECT COUNT(*) AS total` yang ringan tanpa mengambil seluruh kolom/record ke RAM PHP (*zero memory bottleneck*). | | |
 | [ ] | **TC-SEC-10** | Integritas Transaksi & Pembersihan Data Yatim (*Cascade Cleanup*) | Hapus tabel tahunan (`admin/master_tabel/act_del`) atau eksekusi Reset Tahun (`admin/reset_tahun`). Periksa tabel anak di database (`m_indikator_tabel` dan `t_nilai_dinamis`). | ID tabel tahunan / target tahun | Operasi terbungkus dalam transaksi database (`transStart()` / `transComplete()`); seluruh konfigurasi indikator dan ribuan nilai sel terkait bersih tuntas tanpa meninggalkan data yatim (*no orphaned rows*). | | |
+| [ ] | **TC-SEC-11** | Pencegahan Pemotongan Teks Simbol / Satuan (*Anti-Truncation*) | Unggah data sel atau teks non-numerik yang melebihi 10 karakter (contoh: `batang/truk`, `stapel meter`, `Belum Tersedia`) ke `t_nilai_dinamis`. | String non-numerik panjang (> 10 s.d. 100 karakter) | Kolom `t_nilai_dinamis.simbol` (`VARCHAR(100)`) menampung seluruh teks secara utuh tanpa terpotong (*no data truncation*) dan tanpa memicu *Fatal Error Data too long*. | | |
 
 ---
 
