@@ -1868,6 +1868,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
             </div>
             
             <form id="formUploadExcelDinamis" enctype="multipart/form-data">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_tahun_tabel" value="<?= esc($tabel->id_tahun_tabel); ?>">
                 
                 <div class="modal-body p-4">
