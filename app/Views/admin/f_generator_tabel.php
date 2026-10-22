@@ -859,7 +859,7 @@ $catatan_val = $indikator->catatan ?? '';
                                 <?php 
                                     $curDepth = $init_max_depth ?? 1;
                                     $actL = [];
-                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua' || ($sel_tingkat_kolom === '1' && $curDepth > 1)) {
+                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua') {
                                         $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                     } elseif ($sel_tingkat_kolom === 'sub_bab') {
                                         $actL = ($curDepth === 3) ? ['2', '3'] : ['2'];
@@ -869,7 +869,7 @@ $catatan_val = $indikator->catatan ?? '';
                                         $actL = array_filter(array_map('trim', explode(',', $sel_tingkat_kolom)), function($l) use ($curDepth) {
                                             return (int)$l >= 1 && (int)$l <= $curDepth;
                                         });
-                                        if (empty($actL) || ($curDepth > 1 && count($actL) === 1 && in_array('1', $actL) && empty($indikator->tingkat_kolom))) {
+                                        if (empty($actL)) {
                                             $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                         }
                                     }
@@ -1359,7 +1359,7 @@ $(document).ready(function() {
             for (let i = 1; i <= depth; i++) arr.push(String(i));
             return arr;
         }
-        if (!tingkatKolom || tingkatKolom === 'semua' || (tingkatKolom === '1' && maxDepth > 1)) {
+        if (!tingkatKolom || tingkatKolom === 'semua') {
             return getDefaultLevels(maxDepth);
         }
         if (tingkatKolom === 'sub_bab') {
@@ -1376,8 +1376,8 @@ $(document).ready(function() {
     function updateTingkatKolomUI(maxDepth) {
         const $container = $('#container_tingkat_kolom');
         let savedVal = $('#input_tingkat_kolom').val();
-        // Default tercentang semua jika baru dibuka atau kedalaman kolom bertingkat
-        if (!savedVal || savedVal === 'semua' || (savedVal === '1' && maxDepth > 1)) {
+        // Default tercentang semua jika baru dibuka atau belum diset
+        if (!savedVal || savedVal === 'semua') {
             const defArr = [];
             for (let i = 1; i <= maxDepth; i++) defArr.push(String(i));
             savedVal = defArr.join(',');
@@ -2061,7 +2061,8 @@ $(document).ready(function() {
          * Helper untuk menghasilkan string HTML elemen <th> untuk suatu tingkat kolom tertentu
          */
         function getLevelCells(lvl, multiplier) {
-            if (kolomStruct && kolomStruct.header_rows && kolomStruct.header_rows[lvl]) {
+            const isAllLevelsActive = (activeLevels.length === maxDepth);
+            if (isAllLevelsActive && kolomStruct && kolomStruct.header_rows && kolomStruct.header_rows[lvl]) {
                 let cellsHtml = '';
                 kolomStruct.header_rows[lvl].forEach(function(cell) {
                     const colspan = cell.colspan * multiplier;
