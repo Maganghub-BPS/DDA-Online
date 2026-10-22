@@ -1200,7 +1200,44 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                     <tbody>
                         <?php 
-                        $desimal = (int)($indikator->desimal ?? 2);
+                        // Deteksi otomatis format angka desimal cerdas (Opsi A)
+                        $cfgDesimal = (int)($indikator->desimal ?? 0);
+                        $hasDecimalData = false;
+                        $maxDecFound = 0;
+                        if (!empty($nilaiMap)) {
+                            foreach ($nilaiMap as $nmVal) {
+                                if (is_numeric($nmVal) && abs((float)$nmVal - round((float)$nmVal)) > 0.00001) {
+                                    $hasDecimalData = true;
+                                    $str = rtrim(rtrim(sprintf('%.4f', (float)$nmVal), '0'), '.');
+                                    $p = explode('.', $str);
+                                    if (isset($p[1])) {
+                                        $maxDecFound = max($maxDecFound, strlen($p[1]));
+                                    }
+                                }
+                            }
+                        }
+                        $desimal = ($cfgDesimal > 0) ? $cfgDesimal : ($hasDecimalData ? max(2, $maxDecFound) : 0);
+
+                        $formatCellVal = function($cellVal, int $desimal): string {
+                            if ($cellVal === null || $cellVal === '') {
+                                return '–';
+                            }
+                            if (!is_numeric($cellVal)) {
+                                return esc($cellVal);
+                            }
+                            $fVal = (float)$cellVal;
+                            if ($desimal > 0) {
+                                return number_format($fVal, $desimal, ',', '.');
+                            }
+                            if (abs($fVal - round($fVal)) > 0.00001) {
+                                $str = rtrim(rtrim(sprintf('%.4f', $fVal), '0'), '.');
+                                $p = explode('.', $str);
+                                $cellDec = isset($p[1]) ? max(2, strlen($p[1])) : 2;
+                                return number_format($fVal, $cellDec, ',', '.');
+                            }
+                            return number_format($fVal, 0, ',', '.');
+                        };
+
                         $dataRowCounter = 0;
 
                         if (!$hasBaris && $hasKolom && $hasPeriode):
@@ -1221,7 +1258,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         $cellVal = $nilaiMap[$cellKey] ?? null;
                                         ?>
                                         <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
-                                            <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                            <?= $formatCellVal($cellVal, $desimal); ?>
                                         </td>
                                     <?php endforeach; ?>
                                 </tr>
@@ -1450,7 +1487,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a066;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1472,7 +1509,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a066;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1523,7 +1560,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1547,7 +1584,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1566,7 +1603,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1628,7 +1665,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1694,7 +1731,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; padding: 6px 12px;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1794,7 +1831,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1822,7 +1859,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                     ?>
                                     <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                        <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                        <?= $formatCellVal($cellVal, $desimal); ?>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>

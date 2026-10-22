@@ -5339,7 +5339,7 @@ class Admin extends BaseController
 			'format_nomor_baris'        => $format_nomor_baris,
 			'tampilan_baris'            => $tampilan_baris,
 			'satuan'                    => null,
-			'desimal'                   => 0,
+			'desimal'                   => !empty($existing->desimal) ? (int)$existing->desimal : 0,
 			'catatan'                   => $finalCatatan,
 			'updated_at'                => $now,
 		];
