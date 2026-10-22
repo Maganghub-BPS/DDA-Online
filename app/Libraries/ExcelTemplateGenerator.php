@@ -664,7 +664,8 @@ class ExcelTemplateGenerator
 
         // Helper untuk merender tingkat kolom ke sel Excel
         $fillLevelCellsExcel = function(int $lvl, int $rowNum, int $startCol, int $multiplier) use ($sheet, $groups, $flatKolom, $maxDepth, $activeLevels, $kolomStructure): int {
-            if (!empty($kolomStructure['header_rows'][$lvl])) {
+            $isAllLevelsActive = (count($activeLevels) === $maxDepth);
+            if ($isAllLevelsActive && !empty($kolomStructure['header_rows'][$lvl])) {
                 $curCol = $startCol;
                 foreach ($kolomStructure['header_rows'][$lvl] as $cell) {
                     $span = (int)$cell['colspan'] * $multiplier;

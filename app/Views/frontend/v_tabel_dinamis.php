@@ -907,7 +907,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                             // Helper PHP untuk merender sel header suatu tingkat kolom
                             $getLevelCellsPhp = function(int $lvl, int $multiplier) use ($groups, $flatKolom, $maxDepth, $activeLevels, $structureKolom): string {
-                                if (!empty($structureKolom['header_rows'][$lvl])) {
+                                $isAllLevelsActive = (count($activeLevels) === $maxDepth);
+                                if ($isAllLevelsActive && !empty($structureKolom['header_rows'][$lvl])) {
                                     $html = '';
                                     foreach ($structureKolom['header_rows'][$lvl] as $cell) {
                                         $colspan = (int)$cell['colspan'] * $multiplier;
