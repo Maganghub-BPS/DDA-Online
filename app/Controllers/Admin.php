@@ -4610,7 +4610,7 @@ class Admin extends BaseController
 
 			if (!empty($items_ind)) {
 				$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
-				$lines_en  = !empty($items_en) ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+				$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
 				$items = [];
 				$no = 1;
 
@@ -4618,6 +4618,9 @@ class Admin extends BaseController
 					$l_ind = trim($l_ind);
 					if ($l_ind === '') continue;
 					$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+					if (preg_replace('/[\s\|]/', '', $l_en) === '') {
+						$l_en = '';
+					}
 					$items[] = [
 						'item_ind' => $l_ind,
 						'item_en'  => $l_en,
@@ -4678,16 +4681,18 @@ class Admin extends BaseController
 
 		if ($action === 'sync_karakteristik_items') {
 			$idKelompok = (int)$this->request->getPost('id_kelompok');
-			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
-			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$items_ind  = (string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text'));
+			$items_en   = (string)$this->request->getPost('items_text_en');
 
 			if (empty($idKelompok)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
 				return redirect()->to('admin/master_dimensi?tab=karakteristik');
 			}
 
+			// Jangan gunakan trim() pada keseluruhan teks sebelum split baris,
+			// agar baris awal yang kosong tidak terpotong dan indeks baris tetap selaras
 			$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
-			$lines_en  = !empty($items_en) ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+			$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
 			$items = [];
 			$no = 1;
 
@@ -4695,6 +4700,9 @@ class Admin extends BaseController
 				$l_ind = trim($l_ind);
 				if ($l_ind === '') continue;
 				$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+				if (preg_replace('/[\s\|]/', '', $l_en) === '') {
+					$l_en = '';
+				}
 				$items[] = [
 					'item_ind' => $l_ind,
 					'item_en'  => $l_en,

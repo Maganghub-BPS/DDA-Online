@@ -152,6 +152,11 @@ class M_tabeldinamis extends Model
             $raw_ind = trim($item['item_ind'] ?? '');
             $raw_en  = trim($item['item_en'] ?? '');
 
+            // Bersihkan jika raw_en hanya berupa '||' atau spasi tanpa karakter teks
+            if (preg_replace('/[\s\|]/', '', $raw_en) === '') {
+                $raw_en = '';
+            }
+
             if ($raw_ind === '') {
                 continue;
             }
