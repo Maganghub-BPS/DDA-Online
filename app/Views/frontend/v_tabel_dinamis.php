@@ -1738,7 +1738,7 @@ $cellVal = $nilaiMap[$cellKey] ?? null;
                                 ?>
                                             <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
                                                 <?php if ($pIdx === 0): ?>
-<td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1); ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 8px 14px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
+<td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1); ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679 !important; vertical-align: middle;">
                                                         <?= $totalLabel; ?>
                                                     </td>
                                                 <?php endif; ?>
@@ -1769,7 +1769,7 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . ($isRuntunWaktu ? $idPeriodeAktif : $colLeaf['periode_id']);
                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                                     ?>
-<td class="col-val" style="text-align: right; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
+<td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679 !important; vertical-align: middle;">
                                                         <?= $formatCellVal($cellVal, $desimal); ?>
                                                     </td>
                                                 <?php endforeach; ?>
