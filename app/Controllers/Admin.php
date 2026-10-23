@@ -1738,9 +1738,10 @@ class Admin extends BaseController
 
 		$id = (int)$id;
 		$data = array(
-			'is_confirm' => '0',
-			'catatan'    => '-',
-			'is_publish' => '0' // Otomatis kembalikan ke Draft demi keamanan data publik
+			'is_confirm'   => '0',
+			'catatan'      => '-',
+			'is_publish'   => '0', // Otomatis kembalikan ke Draft demi keamanan data publik
+			'published_at' => null
 		);
 		$this->db->table('t_tahun_tabel')->where('id', $id)->update($data);
 
@@ -1781,7 +1782,7 @@ class Admin extends BaseController
 
 		// Ambil info tabel
 		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, m.judul_ind')
+			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, t.is_dynamic, m.judul_ind')
 			->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
 			->where('t.id', $id)
 			->get()
@@ -1796,18 +1797,20 @@ class Admin extends BaseController
 
 		// Validasi persyaratan tampil (hanya saat mengaktifkan publikasi / is_publish = 1)
 		if ($is_publish === 1) {
-			// 1. Syarat Link: Harus memiliki tautan data
-			if (empty(trim($tabel->link_tabel ?? ''))) {
+			$is_dynamic = (!empty($tabel->is_dynamic) && (int)$tabel->is_dynamic === 1);
+
+			// 1. Syarat Link: Harus memiliki tautan data (jika bukan tabel dinamis)
+			if (!$is_dynamic && empty(trim($tabel->link_tabel ?? ''))) {
 				return $this->response->setJSON([
 					'status' => 'error',
 					'message' => 'Tabel belum memiliki tautan data (link kosong). Silakan lengkapi link terlebih dahulu sebelum mempublish.'
 				])->setStatusCode(422);
 			}
 
-			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data)
+			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data atau tabel dinamis)
 			$is_portal = (stripos($tabel->link_tabel ?? '', 'portal') !== false || 
 			              stripos($tabel->link_tabel ?? '', 'satudata') !== false);
-			$is_filled = ($tabel->is_periksa == '1' || $is_portal);
+			$is_filled = ($tabel->is_periksa == '1' || $is_portal || $is_dynamic);
 			if (!$is_filled) {
 				return $this->response->setJSON([
 					'status' => 'error',
@@ -1824,9 +1827,15 @@ class Admin extends BaseController
 			}
 		}
 
+		$now = date('Y-m-d H:i:s');
+		$update_data = [
+			'is_publish'   => $is_publish,
+			'published_at' => ($is_publish === 1) ? $now : null
+		];
+
 		$this->db->table('t_tahun_tabel')
 			->where('id', $id)
-			->update(['is_publish' => $is_publish]);
+			->update($update_data);
 
 		$judul_singkat = !empty($tabel->no_tabel) ? 'Tabel ' . trim($tabel->no_tabel) : mb_strimwidth($tabel->judul_ind, 0, 30, '...');
 

@@ -276,7 +276,7 @@ class Home extends BaseController
         }
 
         $data = [
-            'title' => $dda_info ? $dda_info->judul_ind : 'Lihat Tabel',
+            'title' => 'Lihat Tabel',
             'sheet_url' => $url,
             'dda_info' => $dda_info,
             'page' => 'frontend/v_tabel_sheet'
@@ -365,7 +365,7 @@ class Home extends BaseController
         $display_title = $dda_info->judul_ind ?? 'Tabel Dinamis';
 
         $data = [
-            'title'           => $display_title,
+            'title'           => 'Lihat Tabel',
             'tabel'           => $dda_info,
             'dda_info'        => $dda_info,
             'indikator'       => $indikator,

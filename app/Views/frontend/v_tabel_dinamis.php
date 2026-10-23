@@ -7,10 +7,10 @@
  * 1. Full-width .header-modern-v2 (Breadcrumbs, Tombol Unduh Modern Navy Pill, Tabel Label Box, & Title Details).
  * 2. Kontainer .container > .dda-body (Card putih dengan sudut melengkung dan bayangan lembut).
  * 3. Matriks Data .table-responsive-dda > .main-table.dda-table-item:
- *    - Header Oranye BPS (#F26522) dengan pembatas putih & subtitle miring.
- *    - Num-row baris penomoran (1), (2), (3)... berlatar oranye BPS (#F26522) dengan teks putih.
- *    - Baris data selang-seling warna peach khas (#fde5ce & #fef3e6) dengan grid garis putih (#ffffff).
- * 4. Catatan Kaki, Kondef, dan Sumber Resmi di bagian bawah tabel.
+ *    - Header Navy BPS (#154679) dengan pembatas halus & subtitle miring.
+ *    - Num-row baris penomoran (1), (2), (3)... berlatar Midnight Navy (#0f355c) dengan teks putih.
+ *    - Baris data selang-seling warna soft ice blue & putih (#f8fbff & #ffffff) dengan grid garis terstruktur (#e2e8f0).
+ * 4. Sumber Resmi di bagian bawah tabel.
  */
 
 // Ekstraksi Nomor Tabel & Pembersihan Judul
@@ -123,6 +123,11 @@ $isConfigured = ($indikator && $dimCount >= 2);
 ?>
 
 <style>
+    /* Sembunyikan progress box ekspor ke excel di frontend */
+    #export-progress-container {
+        display: none !important;
+    }
+
     /* Header Section Modern - 100% Persis dengan v_tabel.php */
     .header-modern-v2 {
         background: #ffffff; 
@@ -387,13 +392,13 @@ $isConfigured = ($indikator && $dimCount >= 2);
     }
 
     .main-table thead th {
-        border: 1px solid #fff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
         padding: 8px 8px;
         font-size: 12px;
         font-weight: bold;
         text-align: center;
         vertical-align: middle;
-        background: var(--bps-orange, #F26522) !important;
+        background: #154679 !important;
         color: white;
     }
 
@@ -405,37 +410,38 @@ $isConfigured = ($indikator && $dimCount >= 2);
         margin-top: 2px !important;
         line-height: 1.25 !important;
         opacity: 0.95 !important;
+        color: #e0edfd !important;
     }
 
-    /* Baris Penomoran (1), (2), (3)... 100% Identik View Tabel API (Oranye BPS #F26522 dengan Teks Putih) */
+    /* Baris Penomoran (1), (2), (3)... Tema Navy BPS (#154679) Seragam dengan Header */
     .main-table thead tr.num-row th,
     .main-table thead tr.row-nomor-kolom th {
         font-weight: bold !important;
         padding: 6px 6px;
-        background: var(--bps-orange, #F26522) !important;
+        background: #154679 !important;
         font-size: 11px;
         color: #ffffff !important;
-        border: 1px solid #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
         text-align: center;
     }
 
-    /* Zebra Striping Peach Sesuai Gambar 2 & 3 */
+    /* Zebra Striping: Turunan Biru Lembut (#f1f6fc) & Putih Bersih (#ffffff) */
     .main-table tbody tr.row-odd,
     .main-table tbody tr.row-odd td {
-        background-color: #fde5ce !important;
+        background-color: #f1f6fc !important;
     }
 
     .main-table tbody tr.row-even,
     .main-table tbody tr.row-even td {
-        background-color: #fef3e6 !important;
+        background-color: #ffffff !important;
     }
 
     .main-table tbody td {
-        border: 1px solid #ffffff !important;
-        padding: 6px 8px;
+        border: 1px solid #e2e8f0 !important;
+        padding: 7px 10px;
         font-size: 12px;
         vertical-align: middle;
-        color: #000000;
+        color: #1e293b;
     }
 
     .main-table tbody td.col-val {
@@ -446,49 +452,50 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
     /* Baris Kategori Wilayah / Master Divider */
     .main-table tr.row-category td {
-        background-color: #fde5ce !important;
+        background-color: #f1f6fc !important;
         font-weight: bold !important;
-        color: #000000 !important;
+        color: #0f2d59 !important;
+        border: 1px solid #e2e8f0 !important;
     }
 
     /* Baris Subtotal / Sub-Jumlah */
     .main-table tbody tr.row-subtotal,
     .main-table tbody tr.row-subtotal td {
-        background-color: #f9a55f !important;
-        color: #000000 !important;
+        background-color: #dbeafe !important;
+        color: #1e3a8a !important;
         font-weight: bold !important;
-        border: 1px solid #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
     }
 
     .main-table tbody tr.row-subtotal td.col-val {
-        color: #000000 !important;
+        color: #1e3a8a !important;
         text-align: right !important;
         font-weight: bold !important;
     }
 
     .main-table tbody tr.row-subtotal td i {
-        color: #000000 !important;
+        color: #1e3a8a !important;
         font-weight: normal;
     }
 
-    /* Baris Grand Total (Jumlah / Total) Menyerupai Header Sesuai Gambar 2 & Gambar 3 */
+    /* Baris Grand Total (Jumlah / Total) Sama Persis Warna Judul Kolom (#154679) */
     .main-table tbody tr.row-total,
     .main-table tbody tr.row-total td {
-        background-color: var(--bps-orange, #F26522) !important;
+        background-color: #154679 !important;
         color: #ffffff !important;
         font-weight: bold !important;
-        border: 1px solid #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
 
     .main-table tbody tr.row-total td.col-val {
         color: #ffffff !important;
         text-align: right !important;
         font-weight: bold !important;
-        background-color: var(--bps-orange, #F26522) !important;
+        background-color: #154679 !important;
     }
 
     .main-table tbody tr.row-total td i {
-        color: rgba(255, 255, 255, 0.95) !important;
+        color: #e0edfd !important;
         font-style: italic;
     }
 
@@ -621,11 +628,6 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" id="btn-export-csv">
-                            <i class="bi bi-file-earmark-text me-2.5 fs-5" style="color: #0d6efd;"></i> Format CSV (.csv)
-                        </a>
-                    </li>
-                    <li>
                         <a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" id="btn-export-pdf">
                             <i class="bi bi-file-earmark-pdf me-2.5 fs-5" style="color: #dc3545;"></i> Format PDF (.pdf)
                         </a>
@@ -668,9 +670,9 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
         <?php if (!$isConfigured): ?>
             <!-- Notifikasi Jika Konfigurasi Dimensi Belum Lengkap -->
-            <div class="alert text-center my-4 p-5" style="background: #fff3ed; border: 1px dashed #F26522; border-radius: 16px;">
-                <i class="fa-solid fa-folder-open mb-3" style="font-size: 3rem; color: #F26522; opacity: 0.5;"></i>
-                <h4 class="mb-1" style="color: #F26522; font-weight: 700;">Data Tabel Belum Tersedia</h4>
+            <div class="alert text-center my-4 p-5" style="background: #f0f7ff; border: 1px dashed #2563eb; border-radius: 16px;">
+                <i class="fa-solid fa-folder-open mb-3" style="font-size: 3rem; color: #2563eb; opacity: 0.6;"></i>
+                <h4 class="mb-1" style="color: #1e40af; font-weight: 700;">Data Tabel Belum Tersedia</h4>
                 <p class="text-muted small mb-0">Struktur matriks data tabel ini sedang dikonfigurasi oleh produsen data dan BPS Provinsi Jawa Tengah.</p>
             </div>
         <?php else: ?>
@@ -685,7 +687,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                 <!-- 3. Matriks Data Utama Responsif -->
                 <div class="table-responsive-dda" id="table-container">
                     <table class="main-table dda-table-item" id="tabel-dinamis-publik" style="width: 100% !important; min-width: 100%; border-collapse: collapse; background: #ffffff;">
-                        <thead style="background: var(--bps-orange, #F26522); color: #fff;">
+                        <thead style="background: #154679; color: #fff;">
                             <?php
                             $maxDepth       = !empty($structureKolom['max_depth']) ? (int)$structureKolom['max_depth'] : (!empty($structureKolom['has_groups']) ? 2 : 1);
                             $tingkat_kolom  = $indikator->tingkat_kolom ?? 'semua';
@@ -1221,18 +1223,18 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 </tr>
                             <?php endif; ?>
 
-                            <!-- BARIS PENOMORAN KOLOM RESMI BPS: (1), (2), (3) ... 100% IDENTIK VIEW TABEL API -->
-                            <tr class="num-row row-nomor-kolom" style="background: var(--bps-orange, #F26522); color: #ffffff; font-size: 11px; font-weight: bold;">
+                            <!-- BARIS PENOMORAN KOLOM RESMI BPS: (1), (2), (3) ... -->
+                            <tr class="num-row row-nomor-kolom" style="background: #154679; color: #ffffff; font-size: 11px; font-weight: bold;">
                                 <?php if ($isBarisDuaKolom || ($hasKolom && $hasPeriode && $posisi_hirarki === 'periode_baris_pisah')): ?>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(1)</th>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(2)</th>
+                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(1)</th>
+                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(2)</th>
                                     <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
-                                        <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(<?= $n + 2; ?>)</th>
+                                        <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $n + 2; ?>)</th>
                                     <?php endfor; ?>
                                 <?php else: ?>
-                                    <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(1)</th>
+                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(1)</th>
                                     <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
-                                        <th style="border: 1px solid #fff; text-align: center; font-weight: bold; background: var(--bps-orange, #F26522); color: #ffffff;">(<?= $n + 1; ?>)</th>
+                                        <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $n + 1; ?>)</th>
                                     <?php endfor; ?>
                                 <?php endif; ?>
                             </tr>
@@ -1418,8 +1420,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         }
                                 ?>
                                     <!-- BANNER PEMBATAS KATEGORI WILAYAH (PARITY 100% GAMBAR 2) -->
-                                    <tr style="background: #fde5ce; font-weight: bold; color: #000;">
-                                        <td colspan="<?= $totalLeafCols + ($isBarisDuaKolom ? 3 : 2); ?>" style="padding: 10px 15px; border: 1px solid #ffffff !important; background-color: #fde5ce !important;">
+                                    <?php $hasCategoryDivider = true; ?>
+                                    <tr class="row-category" style="background: #f1f6fc; font-weight: bold; color: #0f2d59;"><td colspan="<?= $totalLeafCols + ($isBarisDuaKolom ? 3 : 2); ?>" style="padding: 10px 15px; border: 1px solid #e2e8f0 !important; background-color: #f1f6fc !important; color: #0f2d59; font-weight: bold;">
                                             <?= esc($dividerText); ?>
                                         </td>
                                     </tr>
@@ -1429,16 +1431,16 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         if ($isPeriodeBaris):
                                             foreach ($itemsPeriode as $pIdx => $p):
                                 ?>
-                                            <tr class="row-subtotal" style="background: #f9a55f; font-weight: bold; color: #000000;">
+                                            <tr class="row-subtotal" style="background: #dbeafe; font-weight: bold; color: #1e3a8a;">
                                                 <?php if ($pIdx === 0): ?>
-                                                    <td colspan="<?= $isBarisDuaKolom ? 3 : 2; ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 8px 14px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #000000 !important; background: #f9a55f; vertical-align: middle;">
+                                                    <td colspan="<?= $isBarisDuaKolom ? 3 : 2; ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 8px 14px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                         <?= esc($rawNamaInd); ?>
                                                         <?php if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd): ?>
-                                                            <br><i style="font-weight: normal; color: #000000;"><?= esc($rawNamaEn); ?></i>
+                                                            <br><i style="font-weight: normal; color: #0f172a;"><?= esc($rawNamaEn); ?></i>
                                                         <?php endif; ?>
                                                     </td>
                                                 <?php endif; ?>
-                                                <td style="text-align: center; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #000000 !important; background: #f9a55f; vertical-align: middle;">
+                                                <td style="text-align: center; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                     <?= esc($p->nama_periode_ind); ?>
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
@@ -1446,7 +1448,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                                     ?>
-                                                    <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a55f; vertical-align: middle;">
+                                                    <td class="col-val" style="text-align: right; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                         <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1455,12 +1457,12 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             endforeach;
                                         else:
                                 ?>
-                                            <!-- BARIS SUBTOTAL STANDAR (TAMPILAN RESMI BPS GAMBAR 1: SAMA SEPERTI ANGKA HEADER #f9a55f) -->
-                                            <tr class="row-subtotal" style="background: #f9a55f; font-weight: bold; color: #000000;">
-                                                <td colspan="<?= ($isBarisDuaKolom ? 3 : 2); ?>" style="padding: 8px 14px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #000000 !important; background: #f9a55f; vertical-align: middle;">
+                                            <!-- BARIS SUBTOTAL STANDAR (TAMPILAN RESMI BPS: SOFT BLUE #dbeafe) -->
+                                            <tr class="row-subtotal" style="background: #dbeafe; font-weight: bold; color: #1e3a8a;">
+                                                <td colspan="<?= ($isBarisDuaKolom ? 3 : 2); ?>" style="padding: 8px 14px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                     <?= esc($rawNamaInd); ?>
                                                     <?php if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd): ?>
-                                                        <br><i style="font-weight: normal; color: #000000;"><?= esc($rawNamaEn); ?></i>
+                                                        <br><i style="font-weight: normal; color: #0f172a;"><?= esc($rawNamaEn); ?></i>
                                                     <?php endif; ?>
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
@@ -1468,7 +1470,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . ($isRuntunWaktu ? $idPeriodeAktif : $colLeaf['periode_id']);
                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                                     ?>
-                                                    <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a55f; vertical-align: middle;">
+                                                    <td class="col-val" style="text-align: right; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                         <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1505,21 +1507,21 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $hasRenderedViewTotal = true;
                                             foreach ($itemsPeriode as $pIdx => $p):
                                 ?>
-                                            <tr class="row-total" style="background: var(--bps-orange, #F26522); font-weight: bold; color: #ffffff;">
+                                            <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
                                                 <?php if ($pIdx === 0): ?>
-                                                    <td colspan="2" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                                    <td colspan="2" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= $totalLabel; ?>
                                                     </td>
                                                 <?php endif; ?>
-                                                <td style="text-align: center; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                                <td style="text-align: center; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                     <?= esc($p->nama_periode_ind); ?>
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
                                                     <?php
                                                      $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
-                                                    $cellVal = $nilaiMap[$cellKey] ?? null;
-                                                    ?>
-                                                    <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
+                                                     ?>
+                                                    <td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1529,21 +1531,21 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         elseif ($isPeriodeBaris):
                                             foreach ($itemsPeriode as $pIdx => $p):
                                 ?>
-                                            <tr class="row-total" style="background: var(--bps-orange, #F26522); font-weight: bold; color: #ffffff;">
+                                            <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
                                                 <?php if ($pIdx === 0): ?>
-                                                    <td colspan="<?= $isBarisDuaKolom ? 3 : 2; ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                                    <td colspan="<?= $isBarisDuaKolom ? 3 : 2; ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= $totalLabel; ?>
                                                     </td>
                                                 <?php endif; ?>
-                                                <td style="text-align: center; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                                <td style="text-align: center; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                     <?= esc($p->nama_periode_ind); ?>
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
                                                     <?php
-                                                    $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
-                                                    $cellVal = $nilaiMap[$cellKey] ?? null;
-                                                    ?>
-                                                    <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
+                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
+                                                     ?>
+                                                    <td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1553,8 +1555,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         else:
                                 ?>
                                             <!-- BARIS GRAND TOTAL STANDAR PERSIS GAMBAR 2 & GAMBAR 3 -->
-                                            <tr class="row-total" style="background: var(--bps-orange, #F26522); font-weight: bold; color: #ffffff;">
-                                                <td colspan="<?= ($isBarisDuaKolom ? 3 : 2); ?>" style="padding: 10px 14px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                            <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
+                                                <td colspan="<?= ($isBarisDuaKolom ? 3 : 2); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                     <?= $totalLabel; ?>
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
@@ -1562,7 +1564,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . ($isRuntunWaktu ? $idPeriodeAktif : $colLeaf['periode_id']);
                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                                     ?>
-                                                    <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: var(--bps-orange, #F26522); vertical-align: middle;">
+                                                    <td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1572,7 +1574,12 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     // 6. Baris Data Biasa
                                     else:
                                         $dataRowCounter++;
-                                        $rowClass = ($dataRowCounter % 2 === 1) ? 'row-odd' : 'row-even';
+                                        $categoryRowCounter = ($categoryRowCounter ?? 0) + 1;
+                                        if (!empty($hasCategoryDivider)) {
+                                            $rowClass = ($categoryRowCounter % 2 === 1) ? 'row-even' : 'row-odd';
+                                        } else {
+                                            $rowClass = ($dataRowCounter % 2 === 1) ? 'row-odd' : 'row-even';
+                                        }
 
                                         $cleanNama   = $rawNamaInd;
                                         $cleanNamaEn = $rawNamaEn;
@@ -1604,7 +1611,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             </tr>
                                 <?php
                                         elseif ($isPeriodeBaris):
-                                            $blockBg = 'background-color: #fde5ce !important;';
+                                            $blockBg = 'background-color: #ffffff !important; color: #0f172a !important;';
                                             foreach ($itemsPeriode as $pIdx => $p):
                                                 $pRowClass = ($pIdx % 2 === 0) ? 'row-odd' : 'row-even';
                                 ?>
@@ -1649,10 +1656,10 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                     <?php if ((int)($baris->level_indentasi ?? 0) > 0): ?>
                                                         <?php if ($isFirstChildOfParent): ?>
                                                             <!-- Kolom 1 (No.) -->
-                                                            <td rowspan="<?= $currentParentRowspan; ?>" style="border: 1px solid #ffffff !important; text-align: center; vertical-align: middle; width: 45px; font-weight: normal; background-color: #fde5ce !important;"><?= $dataRowCounter; ?>.</td>
+                                                            <td rowspan="<?= $currentParentRowspan; ?>" style="border: 1px solid #e2e8f0 !important; text-align: center; vertical-align: middle; width: 45px; font-weight: normal; background-color: #ffffff !important; color: #0f172a;"><?= $dataRowCounter; ?>.</td>
 
                                                             <!-- Kolom 2 (Induk): Rowspan sebanyak rincian anak -->
-                                                            <td rowspan="<?= $currentParentRowspan; ?>" style="padding: 8px 12px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; vertical-align: middle; background-color: #fde5ce !important;">
+                                                            <td rowspan="<?= $currentParentRowspan; ?>" style="padding: 8px 12px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; vertical-align: middle; background-color: #ffffff !important; color: #0f172a;">
                                                                 <?= esc($currentParentInd); ?>
                                                                 <?php if (!empty($currentParentEn) && strtolower($currentParentEn) !== strtolower($currentParentInd)): ?>
                                                                     / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($currentParentEn); ?></i>
@@ -1714,16 +1721,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
                     </table>
                 </div>
 
-                <!-- 4. Catatan Kaki, Kondef, dan Sumber Resmi Persis v_tabel.php -->
+                <!-- 4. Sumber Resmi (Cukup Sumber Saja, Tanpa Kondef atau Catatan) -->
                 <div style="font-size: 11px; margin-top: 14px; opacity: 0.75; line-height: 1.6;" class="table-footer-notes">
-                    <?php if (!empty($indikator->catatan)): ?>
-                        <div><b>Catatan/</b><i>Note</i>: <?= nl2br(esc($indikator->catatan)); ?></div>
-                    <?php endif; ?>
-
-                    <?php if (!empty($tabel->kondef)): ?>
-                        <div><b>Konsep &amp; Definisi:</b> <?= nl2br(esc($tabel->kondef)); ?></div>
-                    <?php endif; ?>
-
                     <div><b>Sumber/</b><i>Source</i>: <?= esc($unitkerja_nm); ?></div>
                 </div>
 
@@ -1742,6 +1741,12 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Hapus elemen progress box ekspor ke excel agar tidak muncul di frontend
+    const progressBox = document.getElementById('export-progress-container');
+    if (progressBox) {
+        progressBox.remove();
+    }
+
     // 1. Ekspor ke Excel (.xlsx)
     const btnExcel = document.getElementById('btn-export-excel');
     if (btnExcel) {
@@ -1756,16 +1761,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 2. Ekspor ke CSV (.csv)
-    const btnCsv = document.getElementById('btn-export-csv');
-    if (btnCsv) {
-        btnCsv.addEventListener('click', function(e) {
-            e.preventDefault();
-            exportTableToCSV('tabel-dinamis-publik', <?= json_encode($full_export_title); ?>);
-        });
-    }
-
-    // 3. Ekspor ke PDF (.pdf)
+    // 2. Ekspor ke PDF (.pdf)
     const btnPdf = document.getElementById('btn-export-pdf');
     if (btnPdf) {
         btnPdf.addEventListener('click', function(e) {
@@ -1775,62 +1771,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const judulEn = <?= json_encode($cleanJudulEn); ?>;
             exportTableToPDF('tabel-dinamis-publik', noTabel, judulId, judulEn);
         });
-    }
-
-    /**
-     * Ekspor Data Tabular ke Format CSV (.csv)
-     * Menggunakan Delimiter Titik Koma (;) dan UTF-8 BOM untuk Kompatibilitas Excel Indonesia
-     */
-    function exportTableToCSV(tableId, filename) {
-        const table = document.getElementById(tableId);
-        if (!table) return;
-
-        const rows = table.querySelectorAll('tr');
-        let grid = [];
-
-        rows.forEach((tr, rIdx) => {
-            let cIdx = 0;
-            if (!grid[rIdx]) grid[rIdx] = [];
-
-            const cells = tr.querySelectorAll('th, td');
-            cells.forEach(cell => {
-                while (grid[rIdx][cIdx] !== undefined) {
-                    cIdx++;
-                }
-                const rowspan = parseInt(cell.getAttribute('rowspan')) || 1;
-                const colspan = parseInt(cell.getAttribute('colspan')) || 1;
-                let text = cell.innerText.replace(/(\r\n|\n|\r)/gm, ' ').replace(/\s+/g, ' ').trim();
-
-                for (let r = 0; r < rowspan; r++) {
-                    if (!grid[rIdx + r]) grid[rIdx + r] = [];
-                    for (let c = 0; c < colspan; c++) {
-                        grid[rIdx + r][cIdx + c] = (r === 0 && c === 0) ? text : (r > 0 && colspan === 1 ? text : '');
-                    }
-                }
-                cIdx += colspan;
-            });
-        });
-
-        let csv = [];
-        grid.forEach(rowCols => {
-            let rowData = rowCols.map(val => {
-                let t = (val || '').replace(/"/g, '""');
-                return '"' + t + '"';
-            });
-            csv.push(rowData.join(';'));
-        });
-
-        const csvContent = "\uFEFF" + csv.join("\r\n");
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        const safeName = (filename || "Tabel-Dinamis").replace(/[/\\?%*:|"<>]/g, '-');
-        link.setAttribute("href", url);
-        link.setAttribute("download", safeName + ".csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
     }
 
     /**
@@ -1870,6 +1810,94 @@ document.addEventListener('DOMContentLoaded', function() {
         const enHeight = splitEn.length * 4.2;
         const firstPageStartY = Math.max(28, 14 + idHeight + enHeight + 6);
 
+        const domTable = document.getElementById(tableID);
+        const domBodyRows = domTable ? Array.from(domTable.querySelectorAll('tbody tr')) : [];
+        const domHeadRows = domTable ? Array.from(domTable.querySelectorAll('thead tr')) : [];
+
+        // Helper untuk mengekstrak elemen TR DOM asli dari hook AutoTable
+        const getDomTr = (data) => {
+            if (data.section === 'head') {
+                return (data.row.raw && data.row.raw._element) || (domHeadRows ? domHeadRows[data.row.index] : null);
+            }
+            return (data.row.raw && data.row.raw._element)
+                || (data.cell.raw && data.cell.raw._element ? data.cell.raw._element.closest('tr') : null)
+                || (data.cell.raw && data.cell.raw.closest ? data.cell.raw.closest('tr') : null)
+                || (domBodyRows ? domBodyRows[data.row.index] : null);
+        };
+
+        const getDomTd = (data) => {
+            return (data.cell.raw && data.cell.raw._element)
+                || (data.cell.raw instanceof HTMLElement ? data.cell.raw : null);
+        };
+
+        const getRowType = (data) => {
+            if (data.section === 'head') return 'head';
+            if (data.section === 'foot') return 'foot';
+
+            const trEl = getDomTr(data);
+            const tdEl = getDomTd(data);
+
+            const trClasses = trEl ? (trEl.className || '') : '';
+            const tdClasses = tdEl ? (tdEl.className || '') : '';
+            const trStyle = trEl ? (trEl.getAttribute('style') || '') : '';
+            const tdStyle = tdEl ? (tdEl.getAttribute('style') || '') : '';
+            const combinedStyle = trStyle + ' ' + tdStyle;
+
+            // 1. Deteksi Baris Grand Total (Jumlah / Total / Jawa Tengah / PDRB)
+            if (trClasses.includes('row-total') 
+                || tdClasses.includes('row-total')
+                || combinedStyle.includes('#154679') 
+                || combinedStyle.includes('21, 70, 121') 
+                || combinedStyle.includes('21,70,121')) {
+                return 'total';
+            }
+
+            // 2. Deteksi Banner Pembatas Kategori (Kabupaten / Kota)
+            if (trClasses.includes('row-category') || tdClasses.includes('row-category')) {
+                return 'category';
+            }
+
+            // 3. Deteksi Baris Subtotal
+            if (trClasses.includes('row-subtotal') 
+                || tdClasses.includes('row-subtotal')
+                || combinedStyle.includes('#dbeafe') 
+                || combinedStyle.includes('219, 234, 254')) {
+                return 'subtotal';
+            }
+
+            // 4. Fallback deteksi teks untuk Total dan Kategori
+            const rowFullText = trEl ? (trEl.textContent || '').trim().toLowerCase() : '';
+            const isLastRow = domBodyRows && data.row.index === (domBodyRows.length - 1);
+            if ((isLastRow && (rowFullText.includes('jumlah') || rowFullText.includes('total') || rowFullText.includes('jawa tengah') || rowFullText.includes('pdrb'))) 
+                || rowFullText.startsWith('jumlah') 
+                || rowFullText.startsWith('total') 
+                || rowFullText.startsWith('jawa tengah')) {
+                return 'total';
+            }
+            if (trEl && trEl.children && trEl.children.length === 1 && (rowFullText.includes('kabupaten') || rowFullText.includes('kota'))) {
+                return 'category';
+            }
+
+            // 5. Deteksi Baris Ganjil (Turunan Biru Muda #f1f6fc)
+            if (trClasses.includes('row-odd') 
+                || tdClasses.includes('row-odd')
+                || combinedStyle.includes('#f1f6fc') 
+                || combinedStyle.includes('241, 246, 252')) {
+                return 'odd';
+            }
+
+            // 6. Deteksi Baris Genap (Putih Bersih #ffffff)
+            if (trClasses.includes('row-even') 
+                || tdClasses.includes('row-even')
+                || combinedStyle.includes('#ffffff') 
+                || combinedStyle.includes('255, 255, 255')) {
+                return 'even';
+            }
+
+            // Fallback baris bergantian (selang-seling): ganjil #f1f6fc, genap #ffffff
+            return (data.row.index % 2 === 0) ? 'odd' : 'even';
+        };
+
         doc.autoTable({
             html: '#' + tableID,
             theme: 'grid',
@@ -1883,22 +1911,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 lineWidth: 0.1,
             },
             headStyles: {
-                fillColor: [255, 109, 31],
+                fillColor: [21, 70, 121], // Navy BPS (#154679)
                 textColor: [255, 255, 255],
                 fontSize: 8,
                 fontStyle: 'bold',
                 halign: 'center',
                 valign: 'middle'
             },
-            alternateRowStyles: {
-                fillColor: [254, 243, 230]
-            },
+            alternateRowStyles: {},
             didParseCell: function(data) {
                 if (data.section === 'head') {
-                    const rowEl = data.row.raw;
-                    if (rowEl && rowEl.classList && (rowEl.classList.contains('row-nomor-kolom') || rowEl.classList.contains('num-row'))) {
-                        data.cell.styles.fillColor = [249, 165, 95];
-                        data.cell.styles.textColor = [0, 0, 0];
+                    data.cell.styles.fillColor = [21, 70, 121]; // Navy BPS (#154679)
+                    data.cell.styles.textColor = [255, 255, 255];
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.halign = 'center';
+                    data.cell.styles.valign = 'middle';
+                    const headTr = getDomTr(data);
+                    if (headTr && headTr.className && (headTr.className.includes('row-nomor-kolom') || headTr.className.includes('num-row'))) {
                         data.cell.styles.fontSize = 7;
                     }
                 } else if (data.section === 'body') {
@@ -1906,21 +1935,88 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (txt !== '' && /^[\d\.\,\-\s–—]+$/.test(txt) && !/[a-zA-Z]/.test(txt)) {
                         data.cell.styles.halign = 'right';
                     }
-                    const rowEl = data.row.raw;
-                    if (rowEl && rowEl.classList) {
-                        if (rowEl.classList.contains('row-total')) {
+
+                    const tdEl = getDomTd(data);
+                    if (tdEl) {
+                        const tdWeight = tdEl.style.fontWeight || (window.getComputedStyle ? window.getComputedStyle(tdEl).fontWeight : '');
+                        if (tdWeight === 'bold' || parseInt(tdWeight) >= 600) {
                             data.cell.styles.fontStyle = 'bold';
-                            data.cell.styles.fillColor = [255, 109, 31];
-                            data.cell.styles.textColor = [255, 255, 255];
-                            data.cell.styles.lineWidth = 0.1;
-                        } else if (rowEl.classList.contains('row-subtotal')) {
-                            data.cell.styles.fillColor = [249, 165, 95];
-                            data.cell.styles.textColor = [0, 0, 0];
-                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+
+                    const rType = getRowType(data);
+
+                    if (rType === 'total') {
+                        // BARIS GRAND TOTAL: Navy BPS (#154679) + Teks Putih Tebal (Persis Gambar 2)
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [21, 70, 121]; // #154679
+                        data.cell.styles.textColor = [255, 255, 255];
+                        data.cell.styles.lineWidth = 0.1;
+                        data.cell.styles.lineColor = [255, 255, 255];
+                    } else if (rType === 'category') {
+                        // BANNER PEMBATAS KATEGORI: Turunan Biru Muda (#f1f6fc) + Teks Navy Tebal
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [241, 246, 252]; // #f1f6fc
+                        data.cell.styles.textColor = [15, 45, 89]; // #0f2d59
+                        data.cell.styles.lineWidth = 0.1;
+                        data.cell.styles.lineColor = [226, 232, 240];
+                    } else if (rType === 'subtotal') {
+                        // SUBTOTAL: Soft Blue (#dbeafe) + Teks Biru Tebal
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [219, 234, 254]; // #dbeafe
+                        data.cell.styles.textColor = [30, 58, 138];
+                        data.cell.styles.lineWidth = 0.1;
+                        data.cell.styles.lineColor = [226, 232, 240];
+                    } else if (rType === 'odd') {
+                        // BARIS GANJIL: Turunan Biru Muda (#f1f6fc)
+                        data.cell.styles.fillColor = [241, 246, 252]; // #f1f6fc
+                        data.cell.styles.textColor = [30, 41, 59];
+                        data.cell.styles.lineWidth = 0.1;
+                        data.cell.styles.lineColor = [226, 232, 240];
+                    } else if (rType === 'even') {
+                        // BARIS GENAP: Putih Bersih (#ffffff)
+                        data.cell.styles.fillColor = [255, 255, 255]; // #ffffff
+                        data.cell.styles.textColor = [30, 41, 59];
+                        data.cell.styles.lineWidth = 0.1;
+                        data.cell.styles.lineColor = [226, 232, 240];
+                    }
+                }
+            },
+            willDrawCell: function(data) {
+                if (data.section === 'head') {
+                    doc.setFillColor(21, 70, 121);
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFont(undefined, 'bold');
+                } else if (data.section === 'body') {
+                    const rType = getRowType(data);
+                    if (rType === 'total') {
+                        doc.setFillColor(21, 70, 121);
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFont(undefined, 'bold');
+                    } else if (rType === 'category') {
+                        doc.setFillColor(241, 246, 252);
+                        doc.setTextColor(15, 45, 89);
+                        doc.setFont(undefined, 'bold');
+                    } else if (rType === 'subtotal') {
+                        doc.setFillColor(219, 234, 254);
+                        doc.setTextColor(30, 58, 138);
+                        doc.setFont(undefined, 'bold');
+                    } else if (rType === 'odd') {
+                        doc.setFillColor(241, 246, 252);
+                        doc.setTextColor(30, 41, 59);
+                        if (data.cell.styles.fontStyle === 'bold') {
+                            doc.setFont(undefined, 'bold');
+                        }
+                    } else if (rType === 'even') {
+                        doc.setFillColor(255, 255, 255);
+                        doc.setTextColor(30, 41, 59);
+                        if (data.cell.styles.fontStyle === 'bold') {
+                            doc.setFont(undefined, 'bold');
                         }
                     }
                 }
             },
+
             didDrawPage: function (data) {
                 const pageNum = doc.internal.getNumberOfPages();
 
@@ -1988,6 +2084,53 @@ document.addEventListener('DOMContentLoaded', function() {
                 );
             }
         });
+
+        // Cetak Sumber di bawah tabel PDF (cukup Sumber saja, tanpa Kondef atau Catatan)
+        const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : firstPageStartY + 40;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let footerY = finalY + 7;
+        
+        if (footerY > pageHeight - 15) {
+            doc.addPage();
+            footerY = 20;
+        }
+
+        const wrapperEl = document.getElementById(tableID)?.closest('.table-wrapper') || document.querySelector('.table-wrapper');
+        let sumberText = '';
+        if (wrapperEl) {
+            const footerEl = wrapperEl.querySelector('.table-footer-notes') || wrapperEl.querySelector('div[style*="font-size: 11px"]');
+            if (footerEl) {
+                const lines = footerEl.innerText.split('\n').map(l => l.trim()).filter(Boolean);
+                const sLine = lines.find(l => /^(sumber|source)/i.test(l));
+                if (sLine) {
+                    sumberText = sLine;
+                }
+            }
+        }
+        if (!sumberText) {
+            const opdBadge = document.querySelector('.table-opd-badge span');
+            if (opdBadge && opdBadge.innerText.trim()) {
+                sumberText = 'Sumber/Source: ' + opdBadge.innerText.trim();
+            }
+        }
+
+        if (sumberText) {
+            doc.setFontSize(8.5);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(31, 41, 55);
+            doc.text("Sumber / ", marginLeft, footerY);
+            const w1 = doc.getTextWidth("Sumber / ");
+
+            doc.setFont("helvetica", "bolditalic");
+            doc.setTextColor(75, 85, 99);
+            doc.text("Source", marginLeft + w1, footerY);
+            const w2 = doc.getTextWidth("Source");
+
+            doc.setFont("helvetica", "italic");
+            doc.setTextColor(55, 65, 81);
+            const sDesc = sumberText.replace(/^(Sumber\s*[\/:]\s*Source|Sumber|Source)\s*[:]\s*/i, '').trim();
+            doc.text(": " + sDesc, marginLeft + w1 + w2, footerY);
+        }
 
         const safeTitle = cleanJudulId.substring(0, 50).replace(/[/\\?%*:|"<>]/g, '-');
         const filename = 'Tabel_' + (nomor ? nomor + '_' : '') + safeTitle + '.pdf';

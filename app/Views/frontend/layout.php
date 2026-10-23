@@ -887,12 +887,47 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 let scrollTimeout;
                 let isAutoScrolling = false;
 
+                function scrollToInstansi() {
+                    const navHeight = document.getElementById('mainNavbar')?.offsetHeight || 75;
+                    const targetY = instansiSection.getBoundingClientRect().top + window.pageYOffset - (navHeight + 10);
+                    window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+                }
+
+                function checkScrollSpy() {
+                    if (isAutoScrolling) return;
+                    const rect = instansiSection.getBoundingClientRect();
+                    const navHeight = document.getElementById('mainNavbar')?.offsetHeight || 75;
+
+                    // Section #instansi dianggap aktif HANYA ketika area Jelajahi Instansi sedang berada di fokus layar utama
+                    // (rect.top telah mendekati navbar dan rect.bottom belum terlewati ke atas)
+                    const isInInstansiView = (rect.top <= navHeight + 70 && rect.bottom >= navHeight + 70);
+
+                    if (isInInstansiView) {
+                        setActiveNav('instansi');
+                    } else {
+                        // Di luar section #instansi (baik di atasnya seperti Hero maupun di bawahnya seperti Tabel Terbaru & Kenali Fitur Portal), status nav bar adalah Beranda!
+                        setActiveNav('beranda');
+                        // Jika hash #instansi masih tersisa di URL, bersihkan secara halus
+                        if (window.location.hash === '#instansi' && history.replaceState) {
+                            history.replaceState(null, null, window.location.pathname + window.location.search);
+                        }
+                    }
+                }
+
                 // 1. Sinkronisasi status saat halaman dimuat jika terdapat hash #instansi
                 if (window.location.hash === '#instansi') {
                     setActiveNav('instansi');
+                    isAutoScrolling = true;
                     setTimeout(function() {
-                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 200);
+                        scrollToInstansi();
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
+                    }, 300);
+                } else {
+                    checkScrollSpy();
                 }
 
                 // 2. Klik menu Beranda saat berada di halaman Beranda
@@ -907,11 +942,14 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                         setActiveNav('beranda');
                         isAutoScrolling = true;
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        if (history.pushState) {
-                            history.pushState(null, null, '<?= base_url() ?>');
+                        if (history.replaceState) {
+                            history.replaceState(null, null, '<?= base_url() ?>');
                         }
                         clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(function() { isAutoScrolling = false; }, 800);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
                     });
                 }
 
@@ -926,26 +964,27 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                         }
                         setActiveNav('instansi');
                         isAutoScrolling = true;
-                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        scrollToInstansi();
                         if (history.pushState) {
                             history.pushState(null, null, '<?= base_url('#instansi') ?>');
-                        } else {
-                            window.location.hash = '#instansi';
                         }
                         clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(function() { isAutoScrolling = false; }, 800);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
                     });
                 });
 
                 // 4. ScrollSpy dinamis saat pengguna scroll manual di halaman Beranda
+                let isTicking = false;
                 window.addEventListener('scroll', function() {
-                    if (isAutoScrolling) return;
-                    const rect = instansiSection.getBoundingClientRect();
-                    // Jika section instansi berada di viewport
-                    if (rect.top <= 200 && rect.bottom >= 150) {
-                        setActiveNav('instansi');
-                    } else if (window.scrollY < 200) {
-                        setActiveNav('beranda');
+                    if (!isTicking) {
+                        window.requestAnimationFrame(function() {
+                            checkScrollSpy();
+                            isTicking = false;
+                        });
+                        isTicking = true;
                     }
                 }, { passive: true });
 
@@ -953,9 +992,15 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 window.addEventListener('hashchange', function() {
                     if (window.location.hash === '#instansi') {
                         setActiveNav('instansi');
-                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        isAutoScrolling = true;
+                        scrollToInstansi();
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
                     } else {
-                        setActiveNav('beranda');
+                        checkScrollSpy();
                     }
                 });
             }
