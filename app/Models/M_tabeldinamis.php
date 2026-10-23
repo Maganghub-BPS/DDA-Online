@@ -24,9 +24,7 @@ class M_tabeldinamis extends Model
         'tingkat_kolom',
         'konfigurasi_total',
         'label_total_kustom',
-        'format_nomor_baris',
         'tampilan_baris',
-        'satuan',
         'desimal',
         'catatan',
         'created_at',
@@ -591,24 +589,7 @@ class M_tabeldinamis extends Model
 
     public function getBarisTree(int $id_kelompok): array
     {
-        $items = $this->getBarisItems($id_kelompok);
-        $lookup = [];
-        $tree = [];
-
-        foreach ($items as $item) {
-            $item->children = [];
-            $lookup[$item->id] = $item;
-        }
-
-        foreach ($items as $item) {
-            if (!empty($item->parent_id) && isset($lookup[$item->parent_id])) {
-                $lookup[$item->parent_id]->children[] = $item;
-            } else {
-                $tree[] = $item;
-            }
-        }
-
-        return $tree;
+        return $this->getBarisItems($id_kelompok);
     }
 
     public function syncBarisItems(int $id_kelompok, array $items): bool
@@ -695,7 +676,6 @@ class M_tabeldinamis extends Model
 
             $rowPayload = [
                 'id_kelompok'     => $id_kelompok,
-                'parent_id'       => !empty($item['parent_id']) ? (int)$item['parent_id'] : null,
                 'no_urut'         => $noUrut,
                 'nama_baris_ind'  => $nama_ind,
                 'nama_baris_en'   => $nama_en !== '' ? $nama_en : null,

@@ -4006,7 +4006,6 @@ class Admin extends BaseController
 			'posisi_hirarki'            => $ext['posisi_hirarki'] ?? 'kolom_atas',
 			'tingkat_kolom'             => 'semua',
 			'konfigurasi_total'         => $konfigurasiTotal,
-			'format_nomor_baris'        => 'none',
 			'desimal'                   => 0,
 			'updated_at'                => $now,
 		];
@@ -5322,10 +5321,6 @@ class Admin extends BaseController
 		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
 			$label_total_kustom = null;
 		}
-		$format_nomor_baris   = trim((string)$this->request->getPost('format_nomor_baris'));
-		if (!in_array($format_nomor_baris, ['auto', 'none', 'reset_kategori'], true)) {
-			$format_nomor_baris = 'none';
-		}
 		$tampilan_baris       = trim((string)$this->request->getPost('tampilan_baris'));
 		if (!in_array($tampilan_baris, ['1_kolom', '2_kolom'], true)) {
 			$tampilan_baris = '1_kolom';
@@ -5388,9 +5383,7 @@ class Admin extends BaseController
 			'tingkat_kolom'             => $tingkat_kolom,
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
-			'format_nomor_baris'        => $format_nomor_baris,
 			'tampilan_baris'            => $tampilan_baris,
-			'satuan'                    => null,
 			'desimal'                   => !empty($existing->desimal) ? (int)$existing->desimal : 0,
 			'catatan'                   => $finalCatatan,
 			'updated_at'                => $now,

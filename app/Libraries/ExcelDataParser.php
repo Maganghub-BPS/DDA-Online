@@ -721,10 +721,10 @@ class ExcelDataParser
             ];
         }
 
-        // Jika bukan angka, simpan sebagai simbol teks terbatas (maks 10 char)
+        // Jika bukan angka, simpan sebagai simbol teks / satuan kustom (maks 100 char sesuai skema t_nilai_dinamis.simbol)
         return [
             'nilai'  => null,
-            'simbol' => substr($str, 0, 10)
+            'simbol' => mb_substr($str, 0, 100)
         ];
     }
 }
