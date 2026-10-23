@@ -194,6 +194,126 @@ class TestBilingualAndPdfCleaning(unittest.TestCase):
         self.assertEqual(en, "Live animals || Central Java")
 
 
+class TestEngineSymbolIntegrity(unittest.TestCase):
+    def test_compare_table_has_no_undefined_symbols(self):
+        import ast
+        import builtins
+        import glob
+
+        engine_files = [
+            os.path.join(ENGINE_DIR, "compare_table.py"),
+            os.path.join(ENGINE_DIR, "normalizer.py"),
+            os.path.join(ENGINE_DIR, "auto_config_pdf.py"),
+            os.path.join(ENGINE_DIR, "fetcher.py"),
+        ]
+
+        class ScopeVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.scopes = [set(dir(builtins))]
+                self.scopes[0].add("__file__")
+                self.undefined = set()
+
+            def visit_Import(self, node):
+                for alias in node.names:
+                    name = alias.asname or alias.name.split(".")[0]
+                    self.scopes[-1].add(name)
+
+            def visit_ImportFrom(self, node):
+                for alias in node.names:
+                    name = alias.asname or alias.name
+                    self.scopes[-1].add(name)
+
+            def visit_FunctionDef(self, node):
+                self.scopes[-1].add(node.name)
+                local_scope = set()
+                for arg in node.args.args + node.args.kwonlyargs:
+                    local_scope.add(arg.arg)
+                if node.args.vararg:
+                    local_scope.add(node.args.vararg.arg)
+                if node.args.kwarg:
+                    local_scope.add(node.args.kwarg.arg)
+                self.scopes.append(local_scope)
+                self.generic_visit(node)
+                self.scopes.pop()
+
+            def visit_AsyncFunctionDef(self, node):
+                self.visit_FunctionDef(node)
+
+            def visit_ClassDef(self, node):
+                self.scopes[-1].add(node.name)
+                self.scopes.append(set())
+                self.generic_visit(node)
+                self.scopes.pop()
+
+            def visit_ListComp(self, node):
+                local_scope = set()
+                for gen in node.generators:
+                    for n in ast.walk(gen.target):
+                        if isinstance(n, ast.Name):
+                            local_scope.add(n.id)
+                self.scopes.append(local_scope)
+                self.generic_visit(node)
+                self.scopes.pop()
+
+            def visit_SetComp(self, node):
+                self.visit_ListComp(node)
+
+            def visit_GeneratorExp(self, node):
+                self.visit_ListComp(node)
+
+            def visit_DictComp(self, node):
+                local_scope = set()
+                for gen in node.generators:
+                    for n in ast.walk(gen.target):
+                        if isinstance(n, ast.Name):
+                            local_scope.add(n.id)
+                self.scopes.append(local_scope)
+                self.generic_visit(node)
+                self.scopes.pop()
+
+            def visit_Lambda(self, node):
+                local_scope = set()
+                for arg in node.args.args + node.args.kwonlyargs:
+                    local_scope.add(arg.arg)
+                self.scopes.append(local_scope)
+                self.generic_visit(node)
+                self.scopes.pop()
+
+            def visit_For(self, node):
+                for n in ast.walk(node.target):
+                    if isinstance(n, ast.Name):
+                        self.scopes[-1].add(n.id)
+                self.generic_visit(node)
+
+            def visit_ExceptHandler(self, node):
+                if node.name:
+                    self.scopes[-1].add(node.name)
+                self.generic_visit(node)
+
+            def visit_Name(self, node):
+                if isinstance(node.ctx, ast.Store):
+                    self.scopes[-1].add(node.id)
+                elif isinstance(node.ctx, ast.Load):
+                    name = node.id
+                    found = any(name in s for s in reversed(self.scopes))
+                    if not found:
+                        self.undefined.add((name, node.lineno))
+
+        for file_path in engine_files:
+            if not os.path.exists(file_path):
+                continue
+            with open(file_path, "r", encoding="utf-8") as f:
+                tree = ast.parse(f.read(), file_path)
+            visitor = ScopeVisitor()
+            visitor.visit(tree)
+            self.assertEqual(
+                len(visitor.undefined),
+                0,
+                f"Undefined symbols found in {os.path.basename(file_path)}: {visitor.undefined}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

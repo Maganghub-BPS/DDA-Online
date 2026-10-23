@@ -38,6 +38,7 @@ from normalizer import (
     find_provinsi,
     find_wilayah_with_type,
     is_interval_label,
+    is_bps_col_num,
     is_safe_fuzzy_match,
     match_party_name,
 )
