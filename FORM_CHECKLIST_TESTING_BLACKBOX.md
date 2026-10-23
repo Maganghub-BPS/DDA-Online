@@ -35,7 +35,8 @@
 | 10 | Sinkronisasi API Portal & Matching PDF (Python Engine) | 6 | | | | % |
 | 11 | Forum Diskusi & Konsultasi Antar Instansi | 4 | | | | % |
 | 12 | Laporan Rekapitulasi & Master Pengguna/OPD/Tim | 6 | | | | % |
-| | **TOTAL KESELURUHAN SISTEM** | **80** | | | | **%** |
+| 13 | Keamanan & Integritas Data (CSRF, IDOR, SQLi, Cascade & Anti-Truncation) | 11 | | | | % |
+| | **TOTAL KESELURUHAN SISTEM** | **91** | | | | **%** |
 
 *Status Akhir Rilis:* &nbsp;&nbsp; `[ ] SIAP RILIS (PRODUCTION READY)` &nbsp;&nbsp;&nbsp;&nbsp; `[ ] PERLU PERBAIKAN (BUGFIX REQUIRED)`
 
@@ -230,6 +231,26 @@ Pengujian agregasi laporan kemajuan DDA serta master data OPD, Tim LO, dan Pengg
 | [ ] | **TC-RP-04** | Master OPD / Unit Kerja (`admin/master_opd`) | Buka menu Master OPD, lakukan penambahan atau pengubahan nama instansi dinas. | Data Instansi OPD | Perubahan nama atau penambahan instansi OPD baru tersimpan ke database `m_unitkerja`. | | |
 | [ ] | **TC-RP-05** | Master Tim LO (`admin/master_tim`) | Buka menu Master Tim, periksa pembagian anggota tim pendamping BPS. | Data Tim BPS | Pembagian PIC tim LO terhadap instansi OPD binaan tersimpan rapi. | | |
 | [ ] | **TC-RP-06** | Manajemen Pengguna & Admin (`admin/manage_admin`) | Buka menu Manajemen Admin, periksa daftar pengguna sistem beserta rolenya. | Akun Pengguna | Penambahan/pengubahan akun pengguna dan hak akses peran (*Super Admin, Admin, Diseminasi, Walidata*) bekerja normal. | | |
+
+---
+
+### Modul 13: Keamanan & Integritas Data (CSRF, Proteksi IDOR, & Pencegahan SQL Injection)
+
+Pengujian mitigasi kerentanan keamanan aplikasi mencakup proteksi CSRF (*Cross-Site Request Forgery*), otorisasi kepemilikan data antar-OPD (*Insecure Direct Object Reference* / IDOR), dan pencegahan manipulasi SQL (*Parameterized Queries*).
+
+| Check | ID Test | Skenario Uji | Langkah Pengujian | Data Uji | Hasil yang Diharapkan | Status | Catatan / Hasil Aktual |
+| :---: | :--- | :--- | :--- | :--- | :--- | :---: | :--- |
+| [ ] | **TC-SEC-01** | Penolakan Request Tanpa Token CSRF (Global CSRF Guard) | Kirim request POST ke endpoint sistem (misal: `admin/do_login` atau `admin/upload_excel_dinamis`) menggunakan Postman / curl tanpa menyertakan token CSRF. | Header / Body tanpa CSRF token | Server otomatis menolak request dengan status HTTP **403 Forbidden** (*Action not allowed / CSRF token mismatch*). | | |
+| [ ] | **TC-SEC-02** | Pengiriman Form Valid dengan Helper `csrf_field()` | Buka halaman login atau form konfirmasi modal, periksa elemen form di DevTools (F12), lalu kirim form normal. | Form HTML resmi aplikasi | Terdapat elemen `<input type="hidden" name="csrf_test_name" value="...">`; request POST berhasil diproses oleh server tanpa error 403. | | |
+| [ ] | **TC-SEC-03** | Auto-Inject Header `X-CSRF-TOKEN` pada Seluruh AJAX | Buka Network tab di browser DevTools, lakukan aksi AJAX seperti toggle status publikasi (`admin/act_toggle_publish`) atau simpan catatan admin. | Request AJAX via jQuery | Request Headers otomatis memuat `X-CSRF-TOKEN: <token_hash>`; request berhasil dieksekusi (*HTTP 200 OK*). | | |
+| [ ] | **TC-SEC-04** | Proteksi IDOR Unggah Excel Lintas OPD (`upload_excel_dinamis`) | Login sebagai akun OPD A (misal: Dinas Perikanan). Kirim POST `admin/upload_excel_dinamis` dengan menyetel parameter `id_tahun_tabel` milik OPD B (misal: Dinas Kesehatan). | `id_tahun_tabel` milik instansi lain | Server menolak request dengan status **HTTP 403 Forbidden** dan pesan error: `"Akses ditolak! Anda tidak memiliki izin untuk mengunggah data pada tabel milik OPD/instansi lain."` Data instansi lain tidak berubah. | | |
+| [ ] | **TC-SEC-05** | Unggah Excel Berhasil pada Tabel Milik Sendiri | Login sebagai akun OPD A, unggah berkas template Excel yang valid pada tabel yang memang dimiliki oleh OPD A. | Berkas `.xlsx` & `id_tahun_tabel` milik OPD A | Berkas berhasil diurai (*HTTP 200 OK*), sel data terisi ke database, dan pesan sukses muncul. | | |
+| [ ] | **TC-SEC-06** | Proteksi IDOR Simpan Catatan Lintas OPD (`simpan_catatan_tabel`) | Login sebagai akun OPD A. Kirim request AJAX ke `admin/simpan_catatan_tabel` dengan parameter `id` tabel milik OPD B. | `id` tabel milik instansi lain | Server menolak request dengan status **HTTP 403 Forbidden** dan pesan error: `"Akses ditolak! Anda tidak memiliki izin untuk memperbarui catatan tabel instansi lain."` | | |
+| [ ] | **TC-SEC-07** | Otoritas Penuh Akun BPS & Super Admin | Login sebagai akun Admin / Super Admin BPS, lakukan upload Excel atau simpan catatan pada tabel milik instansi mana saja. | Akun level: `Admin` / `Super Admin` atau `admin_unitkerja: bps` | Seluruh request berhasil diproses tanpa batasan kepemilikan OPD (*Super User privilege*). | | |
+| [ ] | **TC-SEC-08** | Pencegahan SQL Injection pada Paginasi & Filter Kegiatan | Masukkan karakter injeksi SQL (contoh: `' OR '1'='1`, `1 UNION SELECT`, atau `0; DROP TABLE`) pada parameter pencarian `q`, URL paginasi `LIMIT`, atau dropdown unit kerja `get_kegiatan`. | Payload SQL Injection acak | Query dievaluasi dengan *parameter binding* (`?`) dan *integer casting*; sistem tidak menampilkan *SQL syntax error* atau kebocoran data (*safe parameterized execution*). | | |
+| [ ] | **TC-SEC-09** | Efisiensi Paginasi Agregasi SQL (`COUNT(*)` vs `SELECT *`) | Buka halaman master dengan jumlah data banyak (`admin/manage_admin`, `admin/master_opd`, `admin/master_tabel_opd`, `admin/forum_diskusi`). Periksa query pada CI Debug Toolbar. | Data master skala besar | Perhitungan total baris paginasi menggunakan `SELECT COUNT(*) AS total` yang ringan tanpa mengambil seluruh kolom/record ke RAM PHP (*zero memory bottleneck*). | | |
+| [ ] | **TC-SEC-10** | Integritas Transaksi & Pembersihan Data Yatim (*Cascade Cleanup*) | Hapus tabel tahunan (`admin/master_tabel/act_del`) atau eksekusi Reset Tahun (`admin/reset_tahun`). Periksa tabel anak di database (`m_indikator_tabel` dan `t_nilai_dinamis`). | ID tabel tahunan / target tahun | Operasi terbungkus dalam transaksi database (`transStart()` / `transComplete()`); seluruh konfigurasi indikator dan ribuan nilai sel terkait bersih tuntas tanpa meninggalkan data yatim (*no orphaned rows*). | | |
+| [ ] | **TC-SEC-11** | Pencegahan Pemotongan Teks Simbol / Satuan (*Anti-Truncation*) | Unggah data sel atau teks non-numerik yang melebihi 10 karakter (contoh: `batang/truk`, `stapel meter`, `Belum Tersedia`) ke `t_nilai_dinamis`. | String non-numerik panjang (> 10 s.d. 100 karakter) | Kolom `t_nilai_dinamis.simbol` (`VARCHAR(100)`) menampung seluruh teks secara utuh tanpa terpotong (*no data truncation*) dan tanpa memicu *Fatal Error Data too long*. | | |
 
 ---
 
