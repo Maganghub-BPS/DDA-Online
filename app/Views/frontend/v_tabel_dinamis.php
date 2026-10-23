@@ -779,7 +779,6 @@ $isConfigured = ($indikator && $dimCount >= 2);
                             $posisi_hirarki     = $indikator->posisi_hirarki ?? 'kolom_atas';
                             $cfgTotal           = $indikator->konfigurasi_total ?? 'default';
                             $isRuntunWaktu      = ($cfgTotal === 'runtun_waktu');
-                            $format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
 
                             // Deteksi cerdas: apakah item-item master baris memiliki penomoran (misal: "1. Kayu", "1. Cilacap")
                             $hasNumberInMaster = false;
