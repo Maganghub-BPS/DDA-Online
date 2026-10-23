@@ -549,10 +549,10 @@ class Admin extends BaseController
 			$a['datpil']   = $this->db->query("SELECT t.id, m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind FROM t_tahun_tabel t JOIN m_list_tabel m_t ON t.id_tabel = m_t.id LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja WHERE t.id=?", [$id_konfirmasi])->getRow();
 			return view('admin/f_periksa', $a);
 		} else if ($mau_ke == "act_periksa") {
-			$id_data = $this->input->post('id');
-			$catatan_periksa = $this->input->post('catatan_periksa');
+			$id_data = (int)($this->request->getPost('id') ?: $this->input->post('id'));
+			$catatan_verif = trim((string)($this->request->getPost('catatan') ?: ($this->request->getPost('catatan_periksa') ?: ($this->input->post('catatan') ?: $this->input->post('catatan_periksa')))));
 
-			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan=?, catatan_periksa=? where id=?", [$catatan_periksa, $catatan_periksa, $id_data]);
+			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan=? WHERE id=?", [$catatan_verif, $id_data]);
 			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data berhasil diverifikasi</div>');
 		} else if ($mau_ke == "cari") {
 
@@ -1726,6 +1726,18 @@ class Admin extends BaseController
 
 	public function batal_isi($id)
 	{
+		$id = (int)$id;
+		$tabel = $this->db->table('t_tahun_tabel')->where('id', $id)->get()->getRow();
+		if ($tabel) {
+			$is_portal = (stripos($tabel->link_tabel, 'portal') !== false || 
+			              stripos($tabel->link_tabel, 'satudata') !== false || 
+			              !empty($tabel->id_api));
+			if (!empty($tabel->is_dynamic) || $is_portal) {
+				$this->session->setFlashdata('k', '<div class="alert alert-warning border-0 shadow-sm rounded-3 mb-3" id="alert"><i class="bi bi-exclamation-triangle-fill me-2"></i>Status pengisian Tabel Dinamis dan API Portal tidak dapat dibatalkan secara manual.</div>');
+				return redirect()->back();
+			}
+		}
+
 		$data = array(
 			'is_periksa' => '0',
 			'catatan_periksa' => '-'
@@ -1748,9 +1760,10 @@ class Admin extends BaseController
 
 		$id = (int)$id;
 		$data = array(
-			'is_confirm' => '0',
-			'catatan'    => '-',
-			'is_publish' => '0' // Otomatis kembalikan ke Draft demi keamanan data publik
+			'is_confirm'   => '0',
+			'catatan'      => '-',
+			'is_publish'   => '0', // Otomatis kembalikan ke Draft demi keamanan data publik
+			'published_at' => null
 		);
 		$this->db->table('t_tahun_tabel')->where('id', $id)->update($data);
 
@@ -1791,7 +1804,7 @@ class Admin extends BaseController
 
 		// Ambil info tabel
 		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, m.judul_ind')
+			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, t.is_dynamic, m.judul_ind')
 			->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
 			->where('t.id', $id)
 			->get()
@@ -1806,18 +1819,20 @@ class Admin extends BaseController
 
 		// Validasi persyaratan tampil (hanya saat mengaktifkan publikasi / is_publish = 1)
 		if ($is_publish === 1) {
-			// 1. Syarat Link: Harus memiliki tautan data
-			if (empty(trim($tabel->link_tabel ?? ''))) {
+			$is_dynamic = (!empty($tabel->is_dynamic) && (int)$tabel->is_dynamic === 1);
+
+			// 1. Syarat Link: Harus memiliki tautan data (jika bukan tabel dinamis)
+			if (!$is_dynamic && empty(trim($tabel->link_tabel ?? ''))) {
 				return $this->response->setJSON([
 					'status' => 'error',
 					'message' => 'Tabel belum memiliki tautan data (link kosong). Silakan lengkapi link terlebih dahulu sebelum mempublish.'
 				])->setStatusCode(422);
 			}
 
-			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data)
+			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data atau tabel dinamis)
 			$is_portal = (stripos($tabel->link_tabel ?? '', 'portal') !== false || 
 			              stripos($tabel->link_tabel ?? '', 'satudata') !== false);
-			$is_filled = ($tabel->is_periksa == '1' || $is_portal);
+			$is_filled = ($tabel->is_periksa == '1' || $is_portal || $is_dynamic);
 			if (!$is_filled) {
 				return $this->response->setJSON([
 					'status' => 'error',
@@ -1834,9 +1849,15 @@ class Admin extends BaseController
 			}
 		}
 
+		$now = date('Y-m-d H:i:s');
+		$update_data = [
+			'is_publish'   => $is_publish,
+			'published_at' => ($is_publish === 1) ? $now : null
+		];
+
 		$this->db->table('t_tahun_tabel')
 			->where('id', $id)
-			->update(['is_publish' => $is_publish]);
+			->update($update_data);
 
 		$judul_singkat = !empty($tabel->no_tabel) ? 'Tabel ' . trim($tabel->no_tabel) : mb_strimwidth($tabel->judul_ind, 0, 30, '...');
 
@@ -3669,6 +3690,21 @@ class Admin extends BaseController
 		$mDinamis = new \App\Models\M_tabeldinamis();
 		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload);
 
+		if ($affected > 0) {
+			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
+			$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
+
+			$indRow = $mDinamis->find($idIndikator);
+			if ($indRow && !empty($indRow->id_tahun_tabel)) {
+				$this->db->table('t_tahun_tabel')
+					->where('id', (int)$indRow->id_tahun_tabel)
+					->update([
+						'is_periksa'      => 1,
+						'catatan_periksa' => $catatan
+					]);
+			}
+		}
+
 		return $this->response->setJSON([
 			'status'      => 'success',
 			'saved_count' => $affected,
@@ -4091,6 +4127,16 @@ class Admin extends BaseController
 				}
 				if (!empty($upsertCells)) {
 					$filledCellsCount = $mDinamis->batchUpsertNilai($idIndikator, $upsertCells);
+					if ($filledCellsCount > 0) {
+						$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
+						$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
+						$this->db->table('t_tahun_tabel')
+							->where('id', $idTahunTabel)
+							->update([
+								'is_periksa'      => 1,
+								'catatan_periksa' => $catatan
+							]);
+					}
 					// Perbarui snapshot dda_db_{ta}.json dengan nilai yang baru diisi
 					$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idTahunTabel);
 					$dbList = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
@@ -4610,7 +4656,7 @@ class Admin extends BaseController
 
 			if (!empty($items_ind)) {
 				$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
-				$lines_en  = !empty($items_en) ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+				$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
 				$items = [];
 				$no = 1;
 
@@ -4618,6 +4664,9 @@ class Admin extends BaseController
 					$l_ind = trim($l_ind);
 					if ($l_ind === '') continue;
 					$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+					if (preg_replace('/[\s\|]/', '', $l_en) === '') {
+						$l_en = '';
+					}
 					$items[] = [
 						'item_ind' => $l_ind,
 						'item_en'  => $l_en,
@@ -4678,16 +4727,18 @@ class Admin extends BaseController
 
 		if ($action === 'sync_karakteristik_items') {
 			$idKelompok = (int)$this->request->getPost('id_kelompok');
-			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
-			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$items_ind  = (string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text'));
+			$items_en   = (string)$this->request->getPost('items_text_en');
 
 			if (empty($idKelompok)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
 				return redirect()->to('admin/master_dimensi?tab=karakteristik');
 			}
 
+			// Jangan gunakan trim() pada keseluruhan teks sebelum split baris,
+			// agar baris awal yang kosong tidak terpotong dan indeks baris tetap selaras
 			$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
-			$lines_en  = !empty($items_en) ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+			$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
 			$items = [];
 			$no = 1;
 
@@ -4695,6 +4746,9 @@ class Admin extends BaseController
 				$l_ind = trim($l_ind);
 				if ($l_ind === '') continue;
 				$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+				if (preg_replace('/[\s\|]/', '', $l_en) === '') {
+					$l_en = '';
+				}
 				$items[] = [
 					'item_ind' => $l_ind,
 					'item_en'  => $l_en,
@@ -5225,6 +5279,13 @@ class Admin extends BaseController
 		$countDeleted = (int)$this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults();
 		$this->db->transStart();
 		$mTabelDinamis->clearNilai((int)$indikator->id);
+		$this->db->table('t_tahun_tabel')
+			->where('id', $id_tahun_tabel)
+			->update([
+				'is_periksa'      => 0,
+				'catatan_periksa' => '-',
+				'is_publish'      => 0
+			]);
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
@@ -5385,7 +5446,12 @@ class Admin extends BaseController
 
 		$this->db->table('t_tahun_tabel')
 			->where('id', $id_tahun_tabel)
-			->update(['is_dynamic' => 0]);
+			->update([
+				'is_dynamic'      => 0,
+				'is_periksa'      => 0,
+				'catatan_periksa' => '-',
+				'is_publish'      => 0
+			]);
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {

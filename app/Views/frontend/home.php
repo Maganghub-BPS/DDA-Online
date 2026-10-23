@@ -831,6 +831,7 @@
         height: 100%;
         width: 100%;
         position: relative;
+        overflow: hidden;
         box-shadow: 0 3px 14px rgba(0, 0, 0, 0.03);
         transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
         text-decoration: none;
@@ -938,25 +939,24 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        transition: all 0.22s ease;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        box-shadow: none !important;
     }
 
     .table-clean-card:hover .tcc-btn,
-    .table-modern-card:hover .tcc-btn {
+    .table-modern-card:hover .tcc-btn,
+    .tcc-btn:hover,
+    .tcc-btn:focus,
+    .tcc-btn:active {
         background: var(--bps-blue);
         color: #ffffff;
         border-color: var(--bps-blue);
-        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.25);
+        box-shadow: none !important;
+        outline: none;
     }
 
     .tcc-btn i {
         font-size: 0.78rem;
-        transition: transform 0.2s ease;
-    }
-
-    .table-clean-card:hover .tcc-btn i,
-    .table-modern-card:hover .tcc-btn i {
-        transform: translateX(3px);
     }
 
     /* Custom Swiper Pagination Dots */
@@ -1157,8 +1157,8 @@
     <div class="container hero-container position-relative" style="z-index: 2; width: 100%; max-width: 960px;">
         <!-- JUDUL -->
         <h1 class="hero-title mx-auto mb-3" style="font-size: clamp(2.9rem, 5.4vw, 4.4rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.14; max-width: 920px; color: #0d2c4d;">
-            Satu Data Daerah <br>
-            <span style="background: linear-gradient(135deg, #F26522 0%, #D65518 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Dalam Angka</span>
+            Satu Data <br>
+            <span style="background: linear-gradient(135deg, #F26522 0%, #D65518 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Daerah Dalam Angka</span>
         </h1>
         
         <!-- SUB JUDUL -->
@@ -1257,57 +1257,89 @@
         <div class="text-center mb-4 pb-1">
             <h2 class="stats-section-title">Jelajahi Instansi</h2>
             <p class="stats-section-subtitle">
-                Telusuri ketersediaan data dan publikasi statistik resmi berdasarkan Organisasi Perangkat Daerah di Jawa Tengah.
+                Telusuri ketersediaan data statistik resmi berdasarkan Organisasi Perangkat Daerah (OPD) dan Instansi Vertikal di Jawa Tengah.
             </p>
         </div>
 
         <?php
+        if (!function_exists('isOpdCategory')) {
+            function isOpdCategory($id, $name) {
+                $id = strtolower(trim((string)$id));
+                $nameLower = strtolower(trim((string)$name));
+
+                // Daftar ID resmi Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah
+                $opd_ids = [
+                    'bkd', 'bpbd', 'bpkad', 'bppd', 'biropem', 'esdm', 'arsip', 'dkp', 'pemudaor',
+                    'dinkes', 'koperasi', 'lingkunganhidup', 'binamarga', 'disdukcapil', 'dinsos',
+                    'pertanian', 'ternaksehat', 'disnaker', 'modal', 'perakim', 'dishub', 'inspektorat',
+                    'sekdprd', 'dinpendidikan', 'disperindag', 'dp3akb', 'kesbangpol', 'bappeda'
+                ];
+
+                if (in_array($id, $opd_ids)) {
+                    return true;
+                }
+
+                // Kata kunci pengecualian untuk Instansi Vertikal / Lembaga Pusat / BUMN / Non-OPD
+                $vertikal_keywords = [
+                    'kanwil', 'kementerian', 'kantor wilayah', 'bkn', 'bkkbn', 'bpkp', 'bpom',
+                    'balai pom', 'bank indonesia', 'ojk', 'polda', 'kejaksaan', 'pengadilan',
+                    'ptun', 'kpu', 'koni', 'kadin', 'lldikti', 'kopertais', 'stasiun klimatologi',
+                    'bmkg', 'perum', 'pt.', 'pt ', 'bpjs', 'taspen', 'pelabuhan', 'tanjung emas',
+                    'bea dan cukai', 'perbendaharaan', 'pajak', 'imigrasi', 'pemasyarakatan',
+                    'aliran sungai', 'tim statistik'
+                ];
+
+                foreach ($vertikal_keywords as $vk) {
+                    if (strpos($nameLower, $vk) !== false) {
+                        return false;
+                    }
+                }
+
+                // Kata kunci OPD Pemprov
+                if (strpos($nameLower, 'dinas') !== false || 
+                    strpos($nameLower, 'badan kepegawaian') !== false ||
+                    strpos($nameLower, 'badan penanggulangan') !== false ||
+                    strpos($nameLower, 'badan pengelola') !== false ||
+                    strpos($nameLower, 'badan perencanaan') !== false ||
+                    strpos($nameLower, 'badan kesatuan bangsa') !== false ||
+                    strpos($nameLower, 'inspektorat') !== false ||
+                    strpos($nameLower, 'sekretariat dprd') !== false ||
+                    strpos($nameLower, 'biro ') !== false) {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
         $cat_counts = [
             'all' => !empty($opd_list) ? count($opd_list) : 0,
-            'badan' => 0,
-            'dinas' => 0,
-            'balai' => 0,
-            'lembaga' => 0,
-            'lainnya' => 0
+            'opd' => 0,
+            'vertikal' => 0
         ];
 
         if (!empty($opd_list)) {
             foreach ($opd_list as $opd_item) {
-                $l = strtolower($opd_item->unitkerja_ind);
-                if (strpos($l, 'badan') !== false) {
-                    $cat_counts['badan']++;
-                } elseif (strpos($l, 'dinas') !== false) {
-                    $cat_counts['dinas']++;
-                } elseif (strpos($l, 'balai') !== false || strpos($l, 'rsud') !== false || strpos($l, 'upt') !== false || strpos($l, 'laboratorium') !== false) {
-                    $cat_counts['balai']++;
-                } elseif (strpos($l, 'lembaga') !== false || strpos($l, 'sekretariat') !== false || strpos($l, 'biro') !== false || strpos($l, 'inspektorat') !== false || strpos($l, 'dewan') !== false || strpos($l, 'komisi') !== false || strpos($l, 'bank') !== false || strpos($l, 'kantor') !== false) {
-                    $cat_counts['lembaga']++;
+                $uid = isset($opd_item->id_unitkerja) ? $opd_item->id_unitkerja : '';
+                if (isOpdCategory($uid, $opd_item->unitkerja_ind)) {
+                    $cat_counts['opd']++;
                 } else {
-                    $cat_counts['lainnya']++;
+                    $cat_counts['vertikal']++;
                 }
             }
         }
 
         if (!function_exists('getOpdDirectoryMeta')) {
-            function getOpdDirectoryMeta($name, $index) {
+            function getOpdDirectoryMeta($name, $index, $id = '') {
                 $lower = strtolower($name);
                 
-                // Category
-                if (strpos($lower, 'badan') !== false) {
-                    $catSlug = 'badan';
-                    $catLabel = 'Badan Daerah';
-                } elseif (strpos($lower, 'dinas') !== false) {
-                    $catSlug = 'dinas';
-                    $catLabel = 'Dinas Daerah';
-                } elseif (strpos($lower, 'balai') !== false || strpos($lower, 'rsud') !== false || strpos($lower, 'upt') !== false || strpos($lower, 'laboratorium') !== false) {
-                    $catSlug = 'balai';
-                    $catLabel = 'Balai & UPT';
-                } elseif (strpos($lower, 'lembaga') !== false || strpos($lower, 'sekretariat') !== false || strpos($lower, 'biro') !== false || strpos($lower, 'inspektorat') !== false || strpos($lower, 'dewan') !== false || strpos($lower, 'komisi') !== false || strpos($lower, 'bank') !== false || strpos($lower, 'kantor') !== false) {
-                    $catSlug = 'lembaga';
-                    $catLabel = 'Lembaga / Sekretariat';
+                // Category classification (OPD vs Instansi Vertikal)
+                if (isOpdCategory($id, $name)) {
+                    $catSlug = 'opd';
+                    $catLabel = 'Organisasi Perangkat Daerah';
                 } else {
-                    $catSlug = 'lainnya';
-                    $catLabel = 'Instansi Lainnya';
+                    $catSlug = 'vertikal';
+                    $catLabel = 'Instansi Vertikal & Lembaga';
                 }
 
                 // Specific Icon per instansi
@@ -1370,7 +1402,7 @@
         ?>
 
         <div class="row g-4 align-items-start">
-            <!-- Left Sidebar Toolbar (Image 1 reference) -->
+            <!-- Left Sidebar Toolbar (Image 1 & 2 reference) -->
             <div class="col-lg-3 col-md-4">
                 <div class="opd-sidebar-card">
                     <!-- Quick search inside sidebar -->
@@ -1391,40 +1423,19 @@
                             </span>
                             <span class="opd-sidebar-badge"><?= $cat_counts['all'] ?></span>
                         </button>
-                        <button type="button" class="opd-sidebar-item" data-filter="badan">
+                        <button type="button" class="opd-sidebar-item" data-filter="opd">
                             <span class="opd-sidebar-label">
-                                <i class="fa-solid fa-users"></i>
-                                <span>Badan</span>
+                                <i class="fa-solid fa-landmark"></i>
+                                <span>OPD</span>
                             </span>
-                            <span class="opd-sidebar-badge"><?= $cat_counts['badan'] ?></span>
+                            <span class="opd-sidebar-badge"><?= $cat_counts['opd'] ?></span>
                         </button>
-                        <button type="button" class="opd-sidebar-item" data-filter="dinas">
+                        <button type="button" class="opd-sidebar-item" data-filter="vertikal">
                             <span class="opd-sidebar-label">
-                                <i class="fa-solid fa-building"></i>
-                                <span>Dinas</span>
+                                <i class="fa-solid fa-building-columns"></i>
+                                <span>Instansi Vertikal</span>
                             </span>
-                            <span class="opd-sidebar-badge"><?= $cat_counts['dinas'] ?></span>
-                        </button>
-                        <button type="button" class="opd-sidebar-item" data-filter="balai">
-                            <span class="opd-sidebar-label">
-                                <i class="fa-solid fa-house-laptop"></i>
-                                <span>Balai</span>
-                            </span>
-                            <span class="opd-sidebar-badge"><?= $cat_counts['balai'] ?></span>
-                        </button>
-                        <button type="button" class="opd-sidebar-item" data-filter="lembaga">
-                            <span class="opd-sidebar-label">
-                                <i class="fa-solid fa-scale-balanced"></i>
-                                <span>Lembaga</span>
-                            </span>
-                            <span class="opd-sidebar-badge"><?= $cat_counts['lembaga'] ?></span>
-                        </button>
-                        <button type="button" class="opd-sidebar-item" data-filter="lainnya">
-                            <span class="opd-sidebar-label">
-                                <i class="fa-solid fa-boxes-stacked"></i>
-                                <span>Lainnya</span>
-                            </span>
-                            <span class="opd-sidebar-badge"><?= $cat_counts['lainnya'] ?></span>
+                            <span class="opd-sidebar-badge"><?= $cat_counts['vertikal'] ?></span>
                         </button>
                     </div>
                 </div>
@@ -1435,7 +1446,7 @@
                 <div class="row g-3" id="opd-grid">
                     <?php if (!empty($opd_list)) { ?>
                         <?php foreach($opd_list as $index => $opd) { 
-                            $meta = getOpdDirectoryMeta($opd->unitkerja_ind, $index);
+                            $meta = getOpdDirectoryMeta($opd->unitkerja_ind, $index, $opd->id_unitkerja ?? '');
                         ?>
                             <div class="col-md-6 col-12 opd-item" data-category="<?= $meta['catSlug'] ?>" data-name="<?= strtolower(htmlspecialchars($opd->unitkerja_ind)) ?>" <?= $index >= 8 ? 'style="display:none;"' : '' ?>>
                                 <a href="<?= base_url('home/search?opd_search=' . urlencode($opd->unitkerja_ind)) ?>" class="opd-strip-card" title="<?= htmlspecialchars($opd->unitkerja_ind) ?>">
@@ -1619,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="text-center mb-4 pb-2">
             <h2 class="stats-section-title">Tabel Terbaru</h2>
             <p class="stats-section-subtitle">
-                Rilis dataset tabular dan publikasi statistik sektoral teraktual dari berbagai instansi di Jawa Tengah.
+                Rilis dataset tabular statistik sektoral teraktual dari berbagai instansi di Jawa Tengah.
             </p>
         </div>
 
@@ -1652,19 +1663,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             ?>
                             <div class="swiper-slide" style="height: auto;">
                                 <div class="table-clean-card">
-                                    <!-- 1. Instansi & Badge Sumber -->
-                                    <div class="tcc-header d-flex justify-content-between align-items-center">
-                                        <span class="tcc-agency text-truncate me-2" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
+                                    <!-- 1. Instansi -->
+                                    <div class="tcc-header d-flex align-items-center">
+                                        <span class="tcc-agency text-truncate" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
                                             <i class="fa-solid fa-building-columns"></i>
                                             <span><?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?></span>
                                         </span>
-                                        <?php if ($source_type === 'dinamis'): ?>
-                                            <span class="badge border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px; border-color: #d8b4fe !important; color: #7e22ce !important; background-color: #f3e8ff !important;"><i class="fa-solid fa-cube me-1"></i>Dinamis</span>
-                                        <?php elseif ($source_type === 'portal'): ?>
-                                            <span class="badge bg-primary-subtle text-primary border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px;"><i class="fa-solid fa-globe me-1"></i>Portal</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-success-subtle text-success border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px;"><i class="fa-solid fa-table me-1"></i>Sheet</span>
-                                        <?php endif; ?>
                                     </div>
 
                                     <!-- 2. Judul -->

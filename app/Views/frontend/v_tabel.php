@@ -485,31 +485,49 @@ function get_dda_label_nested($col)
     }
 
     .main-table thead th {
-        border: 1px solid #000;
+        border: 1px solid rgba(255, 255, 255, 0.25);
         padding: 8px 4px;
         font-size: 12px;
         font-weight: bold;
         text-align: center;
         vertical-align: middle;
-        background: var(--bps-orange, #F26522); /* Orange Header like Image 4 */
+        background: #154679; /* Navy BPS Header */
         color: white;
     }
 
     .main-table thead tr.num-row th {
-        font-weight: normal;
-        padding: 2px;
-        background: #e05e15; /* Darker orange for num-row */
-        font-size: 10px;
+        font-weight: bold;
+        padding: 6px 4px;
+        background: #154679;
+        font-size: 11px;
         color: white;
+        border: 1px solid rgba(255, 255, 255, 0.25);
     }
 
     .main-table tbody td {
-        border: 1px solid #ccc;
-        border-left: 1px solid #000;
-        border-right: 1px solid #000;
-        padding: 6px 8px;
+        border: 1px solid #e2e8f0;
+        padding: 7px 10px;
         font-size: 12px;
-        vertical-align: top;
+        vertical-align: middle;
+        color: #1e293b;
+    }
+
+    .main-table tbody tr.row-odd,
+    .main-table tbody tr.row-odd td {
+        background-color: #f1f6fc !important;
+    }
+
+    .main-table tbody tr.row-even,
+    .main-table tbody tr.row-even td {
+        background-color: #ffffff !important;
+    }
+
+    .main-table tbody tr.row-total,
+    .main-table tbody tr.row-total td {
+        background-color: #154679 !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
 
     .table-responsive-dda {
@@ -624,18 +642,18 @@ function get_dda_label_nested($col)
     }
 
     .export-btn-modern {
-        background: #FF6D1F;
+        background: #154679;
         color: #fff;
     }
 
     .export-btn-modern:hover {
-        background: #e05e15;
+        background: #0f355c;
         color: #fff;
     }
 
     /* Progress Bar Styles */
     #export-progress-container {
-        display: none;
+        display: none !important;
         position: fixed;
         bottom: 20px;
         right: 20px;
@@ -734,9 +752,9 @@ function get_dda_label_nested($col)
     }
 
     #configModal .nav-link.active {
-        background: #FF6D1F;
+        background: #154679;
         color: #fff;
-        border-color: #FF6D1F;
+        border-color: #154679;
     }
 
     .col-item {
@@ -1291,7 +1309,7 @@ if ($primary_result):
         }
 
         .filter-box-modern:hover {
-            border-color: #FF6D1F;
+            border-color: #154679;
         }
 
         .form-select-modern {
@@ -1638,14 +1656,14 @@ if ($primary_result):
 
                     <!-- TABEL DATA UTAMA -->
                     <?php if ($is_empty_data): ?>
-                        <div class="alert text-center mt-4 mb-5 p-5" style="background: #fff3ed; border: 1px dashed #F26522; border-radius: 16px;">
-                            <i class="fa-solid fa-folder-open mb-3" style="font-size: 3rem; color: #F26522; opacity: 0.5;"></i>
-                            <h4 class="mb-0" style="color: #F26522; font-weight: 700;">Data Tabel Belum Tersedia</h4>
+                        <div class="alert text-center mt-4 mb-5 p-5" style="background: #f0f7ff; border: 1px dashed #2563eb; border-radius: 16px;">
+                            <i class="fa-solid fa-folder-open mb-3" style="font-size: 3rem; color: #2563eb; opacity: 0.6;"></i>
+                            <h4 class="mb-0" style="color: #1e40af; font-weight: 700;">Data Tabel Belum Tersedia</h4>
                         </div>
                     <?php else: ?>
                     <div class="table-responsive-dda">
                         <table class="main-table dda-table-item" id="dda-table-<?php echo $idx_res; ?>">
-                        <thead style="background: #FF6D1F; color: #fff;">
+                        <thead style="background: #154679; color: #fff;">
                             <!-- BARIS HEADER 1: INDUK -->
                             <tr>
                                 <?php foreach ($structure as $item): ?>
@@ -1669,7 +1687,7 @@ if ($primary_result):
                                 </tr>
                             <?php endif; ?>
                             <!-- BARIS PENOMORAN (1), (2), (3) ... -->
-                            <tr class="num-row" style="background:#f9a066; color:#000;">
+                            <tr class="num-row" style="background:#154679; color:#ffffff;">
                                 <?php
                                 $col_count_n = 0;
                                 foreach ($columns as $idx_c => $col):
@@ -1709,7 +1727,8 @@ if ($primary_result):
                             foreach ($rows as $r_idx => $row):
                                 $rowYearValue = (string)($row[$thKey] ?? '');
                             ?>
-                                <tr data-tahun="<?php echo $rowYearValue; ?>">
+                                <?php $sRowBg = ($r_idx % 2 === 0) ? '#f1f6fc' : '#ffffff'; ?>
+                                <tr data-tahun="<?php echo $rowYearValue; ?>" class="<?php echo ($r_idx % 2 === 0) ? 'row-odd' : 'row-even'; ?>" style="background:<?php echo $sRowBg; ?>;">
                                     <?php
                                     foreach ($columns as $c_idx => $c_key):
                                         $val = $row[$c_key] ?? '';
@@ -1729,8 +1748,7 @@ if ($primary_result):
                     <?php endif; ?>
 
                     <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;">
-                        <div><b>Catatan/</b><i>Note</i>: Data berasal dari Portal Data Jawa Tengah (API ID: <?php echo $api_result['id_api'] ?? ''; ?>)</div>
-                        <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($api_result['unitkerja_ind'] ?? '-'); ?></i></div>
+                        <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($api_result['unitkerja_ind'] ?? '-'); ?></div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -1739,12 +1757,717 @@ if ($primary_result):
 
 
 
-    <?php echo view('admin/parts/portal_table_styles'); ?>
+<style>
+    /* Styling Tabel Standar Bersih - Tema Resmi Navy BPS */
+    .bg-orange, .bg-navy, .bg-bps-primary {
+        background-color: #154679 !important;
+        color: #ffffff !important;
+    }
 
-    <!-- Load SortableJS for Drag and Drop -->
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    
-    <?php echo view('admin/parts/portal_table_scripts'); ?>
+    .dda-table-item {
+        border-collapse: collapse !important;
+        width: 100%;
+        background-color: #ffffff;
+    }
+
+    .dda-table-item thead th {
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        vertical-align: middle !important;
+        background-color: #154679 !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        padding: 9px 8px !important;
+        text-align: center !important;
+    }
+
+    .dda-table-item thead tr.num-row th,
+    .dda-table-item thead tr.row-nomor-kolom th {
+        background-color: #154679 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        padding: 6px 6px !important;
+        text-align: center !important;
+    }
+
+    .dda-table-item th i {
+        display: block;
+        font-weight: normal;
+        font-size: 0.85em;
+        margin-top: 2px;
+        color: #e0edfd;
+        font-style: italic;
+    }
+
+    /* Sel Data: Turunan Biru Lembut (#f1f6fc) & Putih Bersih (#ffffff) */
+    .dda-table-item tbody tr,
+    .dda-table-item tbody tr td {
+        border: 1px solid #e2e8f0 !important;
+        padding: 7px 10px !important;
+        font-size: 12px;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+
+    .dda-table-item tbody tr.row-odd,
+    .dda-table-item tbody tr.row-odd td {
+        background-color: #f1f6fc !important;
+    }
+
+    .dda-table-item tbody tr.row-even,
+    .dda-table-item tbody tr.row-even td {
+        background-color: #ffffff !important;
+    }
+
+    .dda-table-item tr.row-category td,
+    .dda-table-item tbody tr.row-category td {
+        background-color: #f1f6fc !important;
+        font-weight: bold !important;
+        color: #0f2d59 !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+
+    .dda-table-item tbody tr.row-total,
+    .dda-table-item tbody tr.row-total td {
+        background-color: #154679 !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    }
+</style>
+
+<script>
+/**
+ * JAVASCRIPT ENGINE: VIEWER & PARSER TABEL DINAMIS PORTAL DATA
+ * Palet Warna Resmi Navy BPS (#154679) & Putih Bersih (#ffffff)
+ */
+    const BPS_REGIONAL_MAP = {
+        "3301": "Cilacap",
+        "3302": "Banyumas",
+        "3303": "Purbalingga",
+        "3304": "Banjarnegara",
+        "3305": "Kebumen",
+        "3306": "Purworejo",
+        "3307": "Wonosobo",
+        "3308": "Magelang",
+        "3309": "Boyolali",
+        "3310": "Klaten",
+        "3311": "Sukoharjo",
+        "3312": "Wonogiri",
+        "3313": "Karanganyar",
+        "3314": "Sragen",
+        "3315": "Grobogan",
+        "3316": "Blora",
+        "3317": "Rembang",
+        "3318": "Pati",
+        "3319": "Kudus",
+        "3320": "Jepara",
+        "3321": "Demak",
+        "3322": "Semarang",
+        "3323": "Temanggung",
+        "3324": "Kendal",
+        "3325": "Batang",
+        "3326": "Pekalongan",
+        "3327": "Pemalang",
+        "3328": "Tegal",
+        "3329": "Brebes",
+        "3371": "Kota Magelang",
+        "3372": "Kota Surakarta",
+        "3373": "Kota Salatiga",
+        "3374": "Kota Semarang",
+        "3375": "Kota Pekalongan",
+        "3376": "Kota Tegal"
+    };
+
+    const REGENCY_NAME_MAP = {};
+    const CITY_NAME_MAP = {};
+    Object.entries(BPS_REGIONAL_MAP).forEach(([code, name]) => {
+        const clean = name.replace(/^Kota\s+/i, '').toLowerCase();
+        if (parseInt(code) >= 3371) {
+            CITY_NAME_MAP[clean] = code;
+        } else {
+            REGENCY_NAME_MAP[clean] = code;
+        }
+    });
+
+    function getBpsCode(item) {
+        const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah', 'daerah', 'kab_kot'];
+        const kodeKey = Object.keys(item).find(k => keywords.some(key => k.toLowerCase().includes(key)));
+
+        if (kodeKey) {
+            let raw = String(item[kodeKey] || '').trim();
+            if (/^\d{4}$/.test(raw) && BPS_REGIONAL_MAP[raw]) return raw;
+
+            let cleanCode = raw.replace(/\./g, '');
+            if (cleanCode.length > 4) cleanCode = cleanCode.substring(0, 4);
+
+            if (raw.includes('.')) {
+                let parts = raw.split('.');
+                if (parts.length >= 2) {
+                    let prov = parts[0];
+                    let kab = parts[1] || "";
+                    let tryExact = prov + kab;
+                    if (BPS_REGIONAL_MAP[tryExact]) return tryExact;
+                    if (kab.length === 1) {
+                        if (BPS_REGIONAL_MAP[prov + kab + '0']) return prov + kab + '0';
+                        if (BPS_REGIONAL_MAP[prov + '0' + kab]) return prov + '0' + kab;
+                    }
+                }
+            }
+            if (BPS_REGIONAL_MAP[cleanCode]) return cleanCode;
+            let match = raw.match(/\d{4}/);
+            if (match && BPS_REGIONAL_MAP[match[0]]) return match[0];
+        }
+
+        const nameKeywords = ['wilayah', 'kab', 'kot', 'nama', 'label', 'unit'];
+        const nameKey = Object.keys(item).find(k => nameKeywords.some(kw => k.toLowerCase().includes(kw)));
+        if (nameKey) {
+            const rawValue = String(item[nameKey] || '').toLowerCase();
+            if (/^\d{4}$/.test(rawValue.trim())) {
+                const cleanCode = rawValue.trim();
+                if (BPS_REGIONAL_MAP[cleanCode]) return cleanCode;
+            }
+
+            const isKota = rawValue.includes('kota') || rawValue.includes('city');
+            const isKab = rawValue.includes('kab.') || rawValue.includes('kabupaten') || rawValue.includes('regency');
+            const clean = rawValue.replace(/^kab\.\s*|^kabupaten\s*|^kota\s*/i, '').trim();
+            if (isKota) return CITY_NAME_MAP[clean] || '9999';
+            if (isKab) return REGENCY_NAME_MAP[clean] || '9999';
+            return REGENCY_NAME_MAP[clean] || CITY_NAME_MAP[clean] || '9999';
+        }
+        return '9999';
+    }
+
+    function getNormalizedRegencyName(item) {
+        const code = getBpsCode(item);
+        return code !== '9999' ? BPS_REGIONAL_MAP[code] : null;
+    }
+
+    function formatVal(val, formatType = 'number') {
+        if (val === '-' || val === null || val === undefined) return '-';
+        const num = parseFloat(String(val).replace(',', '.')) || 0;
+        if (isNaN(num)) return val;
+        if (num === 0) return '-';
+        switch (formatType) {
+            case 'decimal':
+                return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            case 'percent':
+                return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+            case 'currency':
+                return 'Rp' + num.toLocaleString('id-ID', { minimumFractionDigits: 0 });
+            case 'ribuan':
+                return Math.round(num / 1000).toLocaleString('id-ID');
+            case 'jutaan':
+                return Math.round(num / 1000000).toLocaleString('id-ID');
+            default:
+                return num.toLocaleString('id-ID');
+        }
+    }
+
+    function sortArrayWithOrder(arr, order) {
+        if (!order || !Array.isArray(order) || order.length === 0) {
+            return arr.sort((a, b) => String(a).localeCompare(String(b)));
+        }
+        return arr.sort((a, b) => {
+            let idxA = order.indexOf(a);
+            let idxB = order.indexOf(b);
+            if (idxA === -1) idxA = 999;
+            if (idxB === -1) idxB = 999;
+            if (idxA === idxB) return String(a).localeCompare(String(b));
+            return idxA - idxB;
+        });
+    }
+
+    function getRowsFromApiResult(apiResult) {
+        if (!apiResult) return [];
+        if (apiResult.data && Array.isArray(apiResult.data)) {
+            if (apiResult.data[0] && typeof apiResult.data[0] === 'object') return apiResult.data;
+        }
+        if (apiResult.data && apiResult.data.rows) return apiResult.data.rows;
+        if (Array.isArray(apiResult)) return apiResult;
+        return [];
+    }
+
+    function pivotData(data, config) {
+        const rowKeys = config.pivot.row || [];
+        const colKeys = config.pivot.col || [];
+        const valKeys = config.pivot.val || [];
+        if (data.length === 0) return data;
+        if (!config.pivot.metrics_as_row) {
+            if (rowKeys.length === 0 || colKeys.length === 0 || valKeys.length === 0) return data;
+        } else {
+            if (colKeys.length === 0 || valKeys.length === 0) return data;
+        }
+        const normalizedData = data.map(item => {
+            const newItem = { ...item };
+            const bakuName = getNormalizedRegencyName(newItem);
+            if (bakuName) {
+                const possibleNameKeys = Object.keys(newItem).filter(k => k.toLowerCase().includes('wilayah') || k.toLowerCase().includes('kab') || k.toLowerCase().includes('kot'));
+                possibleNameKeys.forEach(nk => newItem[nk] = bakuName);
+            }
+            rowKeys.forEach(rk => {
+                const val = String(newItem[rk] || '').trim();
+                const mapping = config.pivot.mappings?.[val];
+                if (mapping) newItem[rk] = mapping.label_id;
+            });
+            colKeys.forEach(ck => {
+                const val = String(newItem[ck] || '').trim();
+                const mapping = config.pivot.mappings?.[val];
+                if (mapping) newItem[ck] = mapping.label_id;
+            });
+
+            return newItem;
+        });
+        const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A').trim()).join(' || ');
+        let categories = [...new Set(normalizedData.map(item => generateKey(item, colKeys)))];
+        sortArrayWithOrder(categories, config.pivot.mapping_order);
+        if (config.pivot.metrics_as_row) {
+            const results = [];
+            if (rowKeys.length > 0) {
+                const groups = [...new Set(normalizedData.map(item => generateKey(item, rowKeys)))];
+                groups.forEach(groupKey => {
+                    valKeys.forEach(vk => {
+                        const metricLabel = config.pivot.mappings?.[vk]?.label_id || vk;
+                        const metricParts = metricLabel.split(/\s*\|\|\s*/);
+                        const combinedKey = groupKey + ' || ' + metricParts[0];
+                        const row = { 'Uraian': combinedKey, 'isMetricRow': true, 'originalKey': vk };
+                        const groupItems = normalizedData.filter(item => generateKey(item, rowKeys) === groupKey);
+                        if (groupItems.length > 0) {
+                            rowKeys.forEach((rk, rkIdx) => {
+                                if (rkIdx === 0) {
+                                    row[rk] = combinedKey;
+                                } else {
+                                    if (metricParts[rkIdx]) {
+                                        row[rk] = metricParts[rkIdx];
+                                    } else {
+                                        row[rk] = groupItems[0][rk];
+                                    }
+                                }
+                            });
+                        }
+
+                        categories.forEach(cat => {
+                            const cellData = groupItems.filter(item => generateKey(item, colKeys) === cat);
+                            const sum = cellData.reduce((acc, item) => acc + (parseFloat(item[vk]) || 0), 0);
+                            row[cat] = sum;
+                        });
+                        if (config.pivot.total_row) row['Jumlah'] = categories.reduce((acc, cat) => acc + (row[cat] || 0), 0);
+                        results.push(row);
+                    });
+                });
+            } else {
+                valKeys.forEach(vk => {
+                    const row = { 'Uraian': vk, 'isMetricRow': true, 'originalKey': vk };
+                    categories.forEach(cat => {
+                        const cellData = normalizedData.filter(item => generateKey(item, colKeys) === cat);
+                        const sum = cellData.reduce((acc, item) => acc + (parseFloat(item[vk]) || 0), 0);
+                        row[cat] = sum;
+                    });
+                    if (config.pivot.total_row) row['Jumlah'] = categories.reduce((acc, cat) => acc + (row[cat] || 0), 0);
+                    results.push(row);
+                });
+            }
+            return results;
+        }
+        const grouped = {};
+        normalizedData.forEach(item => {
+            const groupKey = generateKey(item, rowKeys);
+            if (!grouped[groupKey]) {
+                grouped[groupKey] = {};
+                rowKeys.forEach(rk => grouped[groupKey][rk] = item[rk]);
+                const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah', 'daerah', 'kab_kot'];
+                const kodeKey = Object.keys(item).find(k => keywords.some(key => k.toLowerCase().includes(key)));
+                if (kodeKey) grouped[groupKey][kodeKey] = item[kodeKey];
+                categories.forEach(cat => { valKeys.forEach(vk => { grouped[groupKey][cat + ' || ' + vk] = 0; }); });
+                if (config.pivot.total_row) grouped[groupKey]['Jumlah'] = 0;
+            }
+            const catKey = generateKey(item, colKeys);
+            valKeys.forEach(vk => {
+                const currentVal = parseFloat(item[vk]) || 0;
+                const finalKey = catKey + ' || ' + vk;
+                grouped[groupKey][finalKey] = (grouped[groupKey][finalKey] || 0) + currentVal;
+                if (config.pivot.total_row) grouped[groupKey]['Jumlah'] += currentVal;
+            });
+        });
+        const finalArray = Object.values(grouped);
+        const order = config.pivot.mapping_order || [];
+        finalArray.sort((a, b) => {
+            const codeA = getBpsCode(a);
+            const codeB = getBpsCode(b);
+            if (codeA !== codeB && codeA !== '9999' && codeB !== '9999') return codeA.localeCompare(codeB);
+            const nameA = String(a[rowKeys[0]] || '');
+            const nameB = String(b[rowKeys[0]] || '');
+            let idxA = order.indexOf(nameA);
+            let idxB = order.indexOf(nameB);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return nameA.localeCompare(nameB);
+        });
+        return finalArray;
+    }
+
+    function renderCustomTable(tableIdx, config, targetEl = null, limitRows = 0) {
+        const tableId = 'dda-table-' + tableIdx;
+        const tableEl = targetEl || document.getElementById(tableId);
+        if (!tableEl) return;
+        let rawDataFull = [];
+        const isPreview = (targetEl !== null);
+        if (config.merge_datasets) {
+            const allWrappers = document.querySelectorAll('.table-wrapper');
+            allWrappers.forEach((w, i) => { if (!isPreview && i > 0) w.style.display = 'none'; });
+            rawApiResults.forEach(res => {
+                const rows = getRowsFromApiResult(res);
+                const sourceName = res.judul || res.name || res.label || "Dataset " + (res.id_portal || "");
+                rows.forEach(r => { let newRow = { ...r }; newRow['Nama Dataset'] = sourceName; rawDataFull.push(newRow); });
+            });
+        } else {
+            rawDataFull = getRowsFromApiResult(rawApiResults[tableIdx]);
+            if (!isPreview) {
+                const allWrappers = document.querySelectorAll('.table-wrapper');
+                allWrappers.forEach(w => w.style.display = '');
+            }
+        }
+        if (rawDataFull.length === 0) {
+            if (targetEl) targetEl.innerHTML = '<div class="alert alert-info">Tidak ada data yang tersedia untuk parameter ini.</div>';
+            return;
+        }
+        rawDataFull.sort((a, b) => {
+            const codeA = getBpsCode(a);
+            const codeB = getBpsCode(b);
+            if (codeA !== codeB) return codeA.localeCompare(codeB);
+            return String(a.kab_ko || '').localeCompare(String(b.kab_ko || ''));
+        });
+        let rawData = rawDataFull;
+        if (currentSelectedYears.length > 0) {
+            rawData = rawDataFull.filter(item => {
+                const itemYear = String(item.tahun || item.tahun_data || item.year || "");
+                return currentSelectedYears.includes(itemYear);
+            });
+        }
+        let finalCols = [];
+        let isPivotReady = config.pivot.enabled && config.pivot.col?.length > 0 && config.pivot.val?.length > 0;
+        if (isPivotReady && !config.pivot.metrics_as_row && config.pivot.row?.length === 0) isPivotReady = false;
+        if (isPivotReady) {
+            const rowKeys = config.pivot.row || [];
+            const colKeys = config.pivot.col;
+            const valKeys = config.pivot.val;
+            const generateKey = (item, keys) => keys.map(k => String(item[k] || 'N/A')).join(' || ');
+            let categories = [...new Set(rawData.map(item => generateKey(item, colKeys)))];
+            sortArrayWithOrder(categories, config.pivot.mapping_order);
+            sortArrayWithOrder(valKeys, config.pivot.mapping_order);
+            sortArrayWithOrder(rowKeys, config.pivot.mapping_order);
+            rawData = pivotData(rawData, config);
+            if (config.pivot.metrics_as_row) {
+                if (rowKeys.length > 0) {
+                    rowKeys.forEach(rk => {
+                        const colConfig = config.columns.find(c => c.key === rk) || { key: rk, label_id: rk, label_en: '' };
+                        finalCols.push({ ...colConfig, isRow: true });
+                    });
+                } else {
+                    finalCols.push({ key: 'Uraian', label_id: 'Uraian', label_en: 'Description', isRow: true });
+                }
+                categories.forEach(cat => {
+                    const mapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
+                    const prefix = config.pivot.prefix ? (config.pivot.prefix.trim() + ' || ') : '';
+                    const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en.trim() + ' || ') : '';
+                    finalCols.push({ key: cat, label_id: prefix + mapping.label_id, label_en: prefix_en + mapping.label_en, format: 'number' });
+                });
+            } else {
+                rowKeys.forEach(rk => {
+                    const mapping = config.pivot.mappings?.[rk] || { label_id: rk, label_en: '' };
+                    finalCols.push({ key: rk, label_id: mapping.label_id, label_en: mapping.label_en, isRow: true });
+                });
+                const loops = config.pivot.metric_first ? [valKeys, categories] : [categories, valKeys];
+                loops[0].forEach(outer => {
+                    loops[1].forEach(inner => {
+                        const cat = config.pivot.metric_first ? inner : outer;
+                        const vk = config.pivot.metric_first ? outer : inner;
+                        const catMapping = config.pivot.mappings?.[cat] || { label_id: cat, label_en: '' };
+                        const valMapping = config.pivot.mappings?.[vk] || { label_id: vk, label_en: '' };
+                        const prefix = config.pivot.prefix ? (config.pivot.prefix.trim() + ' || ') : '';
+                        const prefix_en = config.pivot.prefix_en ? (config.pivot.prefix_en.trim() + ' || ') : '';
+                        let labelID = config.pivot.metric_first ? (prefix + valMapping.label_id + (categories.length > 0 ? ' || ' + catMapping.label_id : '')) : (prefix + catMapping.label_id + (valKeys.length > 1 ? ' || ' + valMapping.label_id : ''));
+                        let labelEN = config.pivot.metric_first ? (prefix_en + (valMapping.label_en || '') + (categories.length > 0 ? ' || ' + (catMapping.label_en || '') : '')) : (prefix_en + (catMapping.label_en || '') + (valKeys.length > 1 ? ' || ' + (valMapping.label_en || '') : ''));
+                        finalCols.push({ key: cat + ' || ' + vk, label_id: labelID, label_en: labelEN, format: config.columns.find(c => c.key === vk)?.format || 'number', hidden: config.pivot.only_total || false });
+                    });
+                });
+            }
+            if (config.pivot.total_row) finalCols.push({ key: 'Jumlah', label_id: 'Jumlah', label_en: 'Total', format: 'number' });
+        } else {
+            finalCols = config.columns.filter(c => c.visible);
+        }
+
+        // Sub-total per Group
+        if (config.show_group_total) {
+            const newFinalCols = [];
+            let currentGroupCols = [];
+            let lastGroup = null;
+
+            finalCols.forEach((col, idx) => {
+                const parts = (col.label_id || col.key).split(' || ');
+                const mainGroup = parts[0];
+
+                if (lastGroup !== null && mainGroup !== lastGroup) {
+                    if (currentGroupCols.length > 1) {
+                        newFinalCols.push({
+                            key: 'group_total_' + idx,
+                            label_id: lastGroup + ' || Jumlah',
+                            label_en: lastGroup + ' || Total',
+                            isGroupTotal: true,
+                            sourceKeys: currentGroupCols.map(c => c.key),
+                            format: 'number'
+                        });
+                    }
+                    currentGroupCols = [];
+                }
+
+                newFinalCols.push(col);
+                if (!col.isRow && !col.key.toLowerCase().includes('tahun')) {
+                    currentGroupCols.push(col);
+                }
+                lastGroup = mainGroup;
+            });
+
+            if (currentGroupCols.length > 1 && lastGroup !== null) {
+                newFinalCols.push({
+                    key: 'group_total_last',
+                    label_id: lastGroup + ' || Jumlah',
+                    label_en: lastGroup + ' || Total',
+                    isGroupTotal: true,
+                    sourceKeys: currentGroupCols.map(c => c.key),
+                    format: 'number'
+                });
+            }
+            finalCols = newFinalCols;
+        }
+        const parseHeaderTree = (columns) => {
+            const tree = [];
+            columns.filter(c => !c.hidden).forEach(col => {
+                const idParts = (col.label_id || col.key).split(' || ');
+                const enParts = (col.label_en || '').split(' || ');
+                let currentNode = tree;
+                idParts.forEach((part, depth) => {
+                    let node = currentNode.find(n => n.label === part);
+                    if (!node) { node = { label: part, label_en: enParts[depth] || '', children: [], depth: depth, key: col.key }; currentNode.push(node); }
+                    currentNode = node.children;
+                });
+            });
+            return tree;
+        };
+        const headerTree = parseHeaderTree(finalCols);
+        const getMaxDepth = (nodes) => Math.max(0, ...nodes.map(n => n.children.length > 0 ? 1 + getMaxDepth(n.children) : 1));
+        const maxHeaderRows = getMaxDepth(headerTree);
+        const calculateColspan = (node) => {
+            if (node.children.length === 0) return 1;
+            node.colspan = node.children.reduce((sum, child) => sum + calculateColspan(child), 0);
+            return node.colspan;
+        };
+        headerTree.forEach(calculateColspan);
+        const headerRows = Array.from({ length: maxHeaderRows }, () => []);
+        const fillHeaderRows = (nodes, currentRow) => {
+            nodes.forEach(node => {
+                if (node.children.length > 0) {
+                    headerRows[currentRow].push({ label: node.label, label_en: node.label_en, colspan: node.colspan, rowspan: 1 });
+                    fillHeaderRows(node.children, currentRow + 1);
+                } else {
+                    headerRows[currentRow].push({ label: node.label, label_en: node.label_en, colspan: 1, rowspan: maxHeaderRows - currentRow });
+                }
+            });
+        };
+        fillHeaderRows(headerTree, 0);
+        const rowspanMap = {};
+        const lastRowValues = {};
+        const startIndices = {};
+        const rowHeaderCols = finalCols.filter(c => c.isRow);
+        rawData.forEach((row, r_idx) => {
+            let path = "";
+            rowHeaderCols.forEach((col, c_idx) => {
+                path += (c_idx > 0 ? "||" : "") + String(row[col.key] || '');
+                if (!lastRowValues[col.key] || lastRowValues[col.key] !== path) { rowspanMap[col.key + '-' + r_idx] = 0; startIndices[col.key] = r_idx; lastRowValues[col.key] = path; }
+                rowspanMap[col.key + '-' + startIndices[col.key]]++;
+            });
+        });
+        const hasVisibleApiTotal = finalCols.some(c => !c.hidden && !c.isRow && (((c.label_id || c.key || '').toLowerCase().includes('jumlah')) || ((c.label_id || c.key || '').toLowerCase().includes('total'))));
+        const showTotal = (config.show_total_col || (config.pivot && config.pivot.enabled && config.pivot.total_row)) && !hasVisibleApiTotal;
+        
+        // --- RENDERING TABEL STANDAR BERSIH: NAVY BPS (#154679) & DATA PUTIH (#ffffff) ---
+        let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#ffffff;">`;
+        html += '<thead style="background:#154679; color:#ffffff;">';
+        headerRows.forEach((row, rIdx) => {
+            html += '<tr>';
+            if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid rgba(255,255,255,0.25); width:45px; background:#154679; color:#ffffff; text-align:center; vertical-align:middle; font-weight:700;">No.</th>`;
+            row.forEach(cell => { html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid rgba(255,255,255,0.25); padding:8px 6px; text-align:center; background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">${cell.label}${cell.label_en ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${cell.label_en}</i>` : ''}</th>`; });
+            if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid rgba(255,255,255,0.25); background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">Jumlah<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">Total</i></th>`;
+            html += '</tr>';
+        });
+        html += '<tr style="background:#154679; color:#ffffff; font-size:11px;">';
+        finalCols.filter(c => !c.hidden).forEach((c, idx) => html += `<th style="border:1px solid rgba(255,255,255,0.2); text-align:center; background:#154679; color:#ffffff; font-weight:600; padding:6px 6px; border:1px solid rgba(255,255,255,0.25);">(${idx + 1})</th>`);
+        if (showTotal) html += `<th style="border:1px solid rgba(255,255,255,0.2); text-align:center; background:#154679; color:#ffffff; font-weight:600; padding:6px 6px; border:1px solid rgba(255,255,255,0.25);">(${finalCols.filter(c => !c.hidden).length + 1})</th>`;
+        html += '</tr></thead><tbody>';
+        
+        let lastTipe = null; 
+        let lastLevel1 = null; 
+        let lastLevel2 = null;
+        let lastRowGroup = null;
+        let sectionIdx = 0;
+        const displayData = limitRows > 0 ? rawData.slice(0, limitRows) : rawData;
+        const verticalTotals = {};
+        finalCols.forEach(col => verticalTotals[col.key] = 0);
+        displayData.forEach((row, r_idx) => {
+            const fullCode = getBpsCode(row);
+            const curCodeInt = parseInt(fullCode);
+            const isKotaRow = (curCodeInt >= 3371 && curCodeInt <= 3376);
+            const tipeLabel = (fullCode === '9999') ? null : (isKotaRow ? 'Kota / Municipality' : 'Kabupaten / Regency');
+            if (config.group_by_region && tipeLabel && tipeLabel !== lastTipe) {
+                // Pembatas Kategori Wilayah: Bersih Putih Seragam dengan Huruf Tebal
+                html += `<tr class="row-category" style="background:#f1f6fc; font-weight:bold; color:#0f2d59;"><td colspan="${finalCols.length + 2}" style="padding:10px 15px; border:1px solid #e2e8f0; font-size:12.5px; background:#f1f6fc; font-weight:bold; color:#0f2d59;">${tipeLabel}</td></tr>`;
+                lastTipe = tipeLabel; sectionIdx = 0;
+            }
+            sectionIdx++;
+            
+            // Baris Data: Selang-seling diawali dari Putih (#ffffff) karena Kategori di atasnya sudah Biru (#f1f6fc)
+            let isOdd = (sectionIdx % 2 === 1);
+            let isWhiteFirst = Boolean(config.group_by_region);
+            let rowBg = isWhiteFirst ? (isOdd ? '#ffffff' : '#f1f6fc') : (isOdd ? '#f1f6fc' : '#ffffff');
+            let rowClass = isWhiteFirst ? (isOdd ? 'row-even' : 'row-odd') : (isOdd ? 'row-odd' : 'row-even');
+            
+            const fCol = finalCols[0];
+            let rawFVal = (fCol.isGroupTotal) 
+                ? fCol.sourceKeys.reduce((acc, k) => acc + (parseFloat(String(row[k] || 0).replace(',', '.')) || 0), 0)
+                : (row[fCol.key] ?? 0);
+            
+            let fMapped = rawFVal;
+            if (config.pivot.metrics_as_row && fCol.key === 'Uraian' && row.originalKey) {
+                const mapping = config.pivot.mappings?.[row.originalKey];
+                if (mapping) fMapped = mapping.label_id || rawFVal;
+            } else {
+                const mapping = config.pivot.mappings?.[rawFVal];
+                if (mapping) fMapped = mapping.label_id || rawFVal;
+            }
+
+            const rowParts = String(fMapped).split(/\s*\|\|\s*/);
+            const visibleCols = finalCols.filter(c => !c.hidden).length;
+            const totalColSpan = visibleCols + (showTotal ? 2 : 1);
+
+            if (rowParts.length > 1) {
+                const level1 = rowParts[0];
+                const level2 = rowParts.length > 2 ? rowParts[1] : null;
+
+                if (level1 !== lastLevel1) {
+                    html += `<tr class="row-category" style="background:#f1f6fc; font-weight:bold; color:#0f2d59;"><td colspan="${totalColSpan}" style="padding:10px 15px; border:1px solid #e2e8f0; font-weight:bold; background:#f1f6fc; color:#0f2d59;">${level1}</td></tr>`;
+                    lastLevel1 = level1;
+                    lastLevel2 = null;
+                }
+
+                if (level2 && level2 !== lastLevel2) {
+                    html += `<tr style="background:#f1f6fc; font-weight:bold; color:#1e3a8a;"><td colspan="${totalColSpan}" style="padding:8px 15px; border:1px solid #e2e8f0; font-weight:bold; background:#f1f6fc; color:#1e3a8a;">${level2}</td></tr>`;
+                    lastLevel2 = level2;
+                }
+            } else {
+                lastLevel1 = null;
+                lastLevel2 = null;
+            }
+
+            html += `<tr class="${rowClass}" style="background:${rowBg};">`;
+            const firstRowCol = rowHeaderCols[0]?.key;
+            const noRowspan = firstRowCol ? rowspanMap[firstRowCol + '-' + r_idx] : 1;
+            if (noRowspan !== 0) html += `<td ${noRowspan > 1 ? `rowspan="${noRowspan}"` : ''} style="border:1px solid #e2e8f0; text-align:center; vertical-align:middle; padding:7px 4px; font-weight:600; color:#334155; background:${rowBg};">${config.group_by_region ? sectionIdx : r_idx + 1}.</td>`;
+            let rowSum = 0;
+            finalCols.forEach((col, c_idx) => {
+                const rsValue = rowspanMap[col.key + '-' + r_idx];
+                if (rsValue === 0) return;
+
+                let rawVal = 0;
+                if (col.isGroupTotal) {
+                    rawVal = col.sourceKeys.reduce((acc, k) => acc + (parseFloat(String(row[k] || 0).replace(',', '.')) || 0), 0);
+                } else {
+                    rawVal = row[col.key] ?? 0;
+                }
+
+                let num = parseFloat(String(rawVal).replace(',', '.')) || 0;
+                let isNumeric = !isNaN(parseFloat(String(rawVal))) && isFinite(String(rawVal).replace(',', '.'));
+                const colLabel = (col.label_id || col.key || '').toLowerCase();
+                const isTotalInLabel = colLabel.includes('jumlah') || colLabel.includes('total');
+                const isTahunCol = (col.key || '').toLowerCase().includes('tahun') || (col.key || '').toLowerCase().includes('year');
+                
+                if (isNumeric && !col.isRow && !isTahunCol) { 
+                    verticalTotals[col.key] = (verticalTotals[col.key] || 0) + num; 
+                    if (!isTotalInLabel) rowSum += num; 
+                }
+                let displayVal = rawVal;
+                if (col.isRow || c_idx === 0) {
+                    const bakuName = getNormalizedRegencyName(row);
+                    displayVal = String(rawVal).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                    
+                    if (c_idx === 0 && !config.pivot.metrics_as_row) {
+                        if (bakuName) {
+                            displayVal = bakuName;
+                        }
+                        if (bakuName && !config.group_by_region && !displayVal.includes('Kabupaten') && !displayVal.includes('Kota') && !displayVal.includes('Provinsi')) {
+                            displayVal = (isKotaRow ? 'Kota ' : 'Kabupaten ') + displayVal;
+                        }
+                    }
+
+                    let mappingKey = rawVal;
+                    if (config.pivot.metrics_as_row && col.key === 'Uraian' && row.originalKey) mappingKey = row.originalKey;
+                    const mapping = config.pivot.mappings?.[mappingKey] || config.pivot.mappings?.[rawVal];
+                    if (mapping) {
+                        displayVal = mapping.label_id || displayVal;
+                    }
+                    
+                    const parts = displayVal.split(/\s*\|\|\s*/);
+                    if (parts.length > 1) {
+                        const indent = (parts.length - 1) * 20;
+                        displayVal = `<span style="padding-left:${indent}px">${parts[parts.length - 1]}</span>`;
+                    }
+                } 
+                else { 
+                    let cleanForZero = String(rawVal).replace(/[\.,\s]/g, '');
+                    if (cleanForZero === '0' || cleanForZero === '-0') {
+                        displayVal = '-';
+                    } else {
+                        displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal;
+                    }
+                }
+                if (col.hidden) return;
+                
+                let align = 'center';
+                let strVal = String(rawVal).trim();
+                let isFormattedNum = /^[-0-9.,]+$/.test(strVal) && strVal !== '';
+                if (col.isRow || c_idx === 0) align = 'left';
+                else if ((isNumeric || isFormattedNum || displayVal === '-') && !isTahunCol) align = 'right';
+
+                html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #e2e8f0; padding:7px 10px; text-align:${align}; color:#1e293b; background:${rowBg}; ${col.isRow || c_idx === 0 ? 'font-weight:600;' : ''}">${displayVal}</td>`;
+            });
+            if (showTotal) html += `<td style="border:1px solid #e2e8f0; text-align:right; font-weight:bold; background:${rowBg}; color:#154679; font-weight:bold; padding:7px 10px;">${formatVal(rowSum, 'number')}</td>`;
+            html += '</tr>';
+        });
+
+        // Grand Total Baris (Jawa Tengah / Total Kolom)
+        if (config.pivot.total_col) {
+            const jtMapping = config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: 'Central Java' };
+            html += `<tr class="row-total" style="background: #154679; color: #ffffff; font-weight: bold;"><td colspan="2" style="padding:10px 12px; border:1px solid rgba(255,255,255,0.25); color:#ffffff; vertical-align:middle; background:#154679;">${jtMapping.label_id}${jtMapping.label_en ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${jtMapping.label_en}</i>` : ''}</td>`;
+            let grandTotal = 0;
+            finalCols.forEach((col, c_idx) => {
+                if (c_idx === 0 || col.hidden) return;
+                if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:1px solid rgba(255,255,255,0.25); background:#154679;"></td>`;
+                else {
+                    const sum = verticalTotals[col.key];
+                    const colLabel = (col.label_id || col.key || '').toLowerCase();
+                    if (!(colLabel.includes('jumlah') || colLabel.includes('total'))) grandTotal += sum;
+                    html += `<td style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${formatVal(sum, col.format || 'number')}</td>`;
+                }
+            });
+            if (showTotal) 
+                html += `<th style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${formatVal(grandTotal, 'number')}</th>`;
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        tableEl.innerHTML = html;
+    }
+</script>
 
     <script>
         // Store raw data from PHP
@@ -1778,6 +2501,10 @@ if ($primary_result):
                     }
                 }
             });
+
+            // Hapus elemen progress box ekspor ke excel agar tidak muncul di frontend
+            const progressBox = document.getElementById('export-progress-container');
+            if (progressBox) progressBox.remove();
 
             // Berikan jeda halus agar rendering tabel selesai & stabil sebelum skeleton memudar
             setTimeout(hideTableSkeleton, 250);
@@ -1831,6 +2558,95 @@ if ($primary_result):
             const firstPageStartY = Math.max(30, 15 + idHeight + enHeight + 5);
             
             // Konfigurasi Autotable
+            const domTable = document.getElementById(tableID);
+            const domBodyRows = domTable ? Array.from(domTable.querySelectorAll('tbody tr')) : [];
+            const domHeadRows = domTable ? Array.from(domTable.querySelectorAll('thead tr')) : [];
+
+            // Helper untuk mengekstrak elemen TR DOM asli dari hook AutoTable
+            const getDomTr = (data) => {
+                if (data.section === 'head') {
+                    return (data.row.raw && data.row.raw._element) || (domHeadRows ? domHeadRows[data.row.index] : null);
+                }
+                return (data.row.raw && data.row.raw._element)
+                    || (data.cell.raw && data.cell.raw._element ? data.cell.raw._element.closest('tr') : null)
+                    || (data.cell.raw && data.cell.raw.closest ? data.cell.raw.closest('tr') : null)
+                    || (domBodyRows ? domBodyRows[data.row.index] : null);
+            };
+
+            const getDomTd = (data) => {
+                return (data.cell.raw && data.cell.raw._element)
+                    || (data.cell.raw instanceof HTMLElement ? data.cell.raw : null);
+            };
+
+            const getRowType = (data) => {
+                if (data.section === 'head') return 'head';
+                if (data.section === 'foot') return 'foot';
+
+                const trEl = getDomTr(data);
+                const tdEl = getDomTd(data);
+
+                const trClasses = trEl ? (trEl.className || '') : '';
+                const tdClasses = tdEl ? (tdEl.className || '') : '';
+                const trStyle = trEl ? (trEl.getAttribute('style') || '') : '';
+                const tdStyle = tdEl ? (tdEl.getAttribute('style') || '') : '';
+                const combinedStyle = trStyle + ' ' + tdStyle;
+
+                // 1. Deteksi Baris Grand Total (Jumlah / Total / Jawa Tengah / PDRB)
+                if (trClasses.includes('row-total') 
+                    || tdClasses.includes('row-total')
+                    || combinedStyle.includes('#154679') 
+                    || combinedStyle.includes('21, 70, 121') 
+                    || combinedStyle.includes('21,70,121')) {
+                    return 'total';
+                }
+
+                // 2. Deteksi Banner Pembatas Kategori (Kabupaten / Kota)
+                if (trClasses.includes('row-category') || tdClasses.includes('row-category')) {
+                    return 'category';
+                }
+
+                // 3. Deteksi Baris Subtotal
+                if (trClasses.includes('row-subtotal') 
+                    || tdClasses.includes('row-subtotal')
+                    || combinedStyle.includes('#dbeafe') 
+                    || combinedStyle.includes('219, 234, 254')) {
+                    return 'subtotal';
+                }
+
+                // 4. Fallback deteksi teks untuk Total dan Kategori
+                const rowFullText = trEl ? (trEl.textContent || '').trim().toLowerCase() : '';
+                const isLastRow = domBodyRows && data.row.index === (domBodyRows.length - 1);
+                if ((isLastRow && (rowFullText.includes('jumlah') || rowFullText.includes('total') || rowFullText.includes('jawa tengah') || rowFullText.includes('pdrb'))) 
+                    || rowFullText.startsWith('jumlah') 
+                    || rowFullText.startsWith('total') 
+                    || rowFullText.startsWith('jawa tengah')) {
+                    return 'total';
+                }
+                if (trEl && trEl.children && trEl.children.length === 1 && (rowFullText.includes('kabupaten') || rowFullText.includes('kota'))) {
+                    return 'category';
+                }
+
+                // 5. Deteksi Baris Ganjil (Turunan Biru Muda #f1f6fc)
+                if (trClasses.includes('row-odd') 
+                    || tdClasses.includes('row-odd')
+                    || combinedStyle.includes('#f1f6fc') 
+                    || combinedStyle.includes('241, 246, 252')) {
+                    return 'odd';
+                }
+
+                // 6. Deteksi Baris Genap (Putih Bersih #ffffff)
+                if (trClasses.includes('row-even') 
+                    || tdClasses.includes('row-even')
+                    || combinedStyle.includes('#ffffff') 
+                    || combinedStyle.includes('255, 255, 255')) {
+                    return 'even';
+                }
+
+                // Fallback baris bergantian (selang-seling): ganjil #f1f6fc, genap #ffffff
+                return (data.row.index % 2 === 0) ? 'odd' : 'even';
+            };
+
+            // Konfigurasi Autotable
             doc.autoTable({
                 html: '#' + tableID,
                 theme: 'grid',
@@ -1844,25 +2660,113 @@ if ($primary_result):
                     lineWidth: 0.1,
                 },
                 headStyles: {
-                    fillColor: [255, 109, 31],
+                    fillColor: [21, 70, 121],
                     textColor: [255, 255, 255],
                     fontSize: 9,
                     fontStyle: 'bold',
                     halign: 'center',
                     valign: 'middle'
                 },
-                alternateRowStyles: {
-                    fillColor: [255, 244, 235]
-                },
+                alternateRowStyles: {},
                 didParseCell: function(data) {
-                    if (data.section === 'body') {
+                    if (data.section === 'head') {
+                        data.cell.styles.fillColor = [21, 70, 121]; // Navy BPS (#154679)
+                        data.cell.styles.textColor = [255, 255, 255];
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.halign = 'center';
+                        data.cell.styles.valign = 'middle';
+                        const headTr = getDomTr(data);
+                        if (headTr && headTr.className && (headTr.className.includes('row-nomor-kolom') || headTr.className.includes('num-row'))) {
+                            data.cell.styles.fontSize = 7.5;
+                        }
+                    } else if (data.section === 'body') {
                         let txt = data.cell.text.join(' ').trim();
                         // Rata kanan jika isinya angka atau tanda strip
-                        if (txt !== '' && /^[\d\.\,\-\s]+$/.test(txt) && !/[a-zA-Z]/.test(txt)) {
+                        if (txt !== '' && /^[\d\.\,\-\s–—]+$/.test(txt) && !/[a-zA-Z]/.test(txt)) {
                             data.cell.styles.halign = 'right';
+                        }
+                        
+                        const tdEl = getDomTd(data);
+                        if (tdEl) {
+                            const tdWeight = tdEl.style.fontWeight || (window.getComputedStyle ? window.getComputedStyle(tdEl).fontWeight : '');
+                            if (tdWeight === 'bold' || parseInt(tdWeight) >= 600) {
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
+
+                        const rType = getRowType(data);
+
+                        if (rType === 'total') {
+                            // BARIS GRAND TOTAL: Navy BPS (#154679) + Teks Putih Tebal (Persis Gambar 2)
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.fillColor = [21, 70, 121]; // #154679
+                            data.cell.styles.textColor = [255, 255, 255];
+                            data.cell.styles.lineWidth = 0.1;
+                            data.cell.styles.lineColor = [255, 255, 255];
+                        } else if (rType === 'category') {
+                            // BANNER PEMBATAS KATEGORI: Turunan Biru Muda (#f1f6fc) + Teks Navy Tebal
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.fillColor = [241, 246, 252]; // #f1f6fc
+                            data.cell.styles.textColor = [15, 45, 89]; // #0f2d59
+                            data.cell.styles.lineWidth = 0.1;
+                            data.cell.styles.lineColor = [226, 232, 240];
+                        } else if (rType === 'subtotal') {
+                            // SUBTOTAL: Soft Blue (#dbeafe) + Teks Biru Tebal
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.fillColor = [219, 234, 254]; // #dbeafe
+                            data.cell.styles.textColor = [30, 58, 138];
+                            data.cell.styles.lineWidth = 0.1;
+                            data.cell.styles.lineColor = [226, 232, 240];
+                        } else if (rType === 'odd') {
+                            // BARIS GANJIL: Turunan Biru Muda (#f1f6fc)
+                            data.cell.styles.fillColor = [241, 246, 252]; // #f1f6fc
+                            data.cell.styles.textColor = [30, 41, 59];
+                            data.cell.styles.lineWidth = 0.1;
+                            data.cell.styles.lineColor = [226, 232, 240];
+                        } else if (rType === 'even') {
+                            // BARIS GENAP: Putih Bersih (#ffffff)
+                            data.cell.styles.fillColor = [255, 255, 255]; // #ffffff
+                            data.cell.styles.textColor = [30, 41, 59];
+                            data.cell.styles.lineWidth = 0.1;
+                            data.cell.styles.lineColor = [226, 232, 240];
                         }
                     }
                 },
+                willDrawCell: function(data) {
+                    if (data.section === 'head') {
+                        doc.setFillColor(21, 70, 121);
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFont(undefined, 'bold');
+                    } else if (data.section === 'body') {
+                        const rType = getRowType(data);
+                        if (rType === 'total') {
+                            doc.setFillColor(21, 70, 121);
+                            doc.setTextColor(255, 255, 255);
+                            doc.setFont(undefined, 'bold');
+                        } else if (rType === 'category') {
+                            doc.setFillColor(241, 246, 252);
+                            doc.setTextColor(15, 45, 89);
+                            doc.setFont(undefined, 'bold');
+                        } else if (rType === 'subtotal') {
+                            doc.setFillColor(219, 234, 254);
+                            doc.setTextColor(30, 58, 138);
+                            doc.setFont(undefined, 'bold');
+                        } else if (rType === 'odd') {
+                            doc.setFillColor(241, 246, 252);
+                            doc.setTextColor(30, 41, 59);
+                            if (data.cell.styles.fontStyle === 'bold') {
+                                doc.setFont(undefined, 'bold');
+                            }
+                        } else if (rType === 'even') {
+                            doc.setFillColor(255, 255, 255);
+                            doc.setTextColor(30, 41, 59);
+                            if (data.cell.styles.fontStyle === 'bold') {
+                                doc.setFont(undefined, 'bold');
+                            }
+                        }
+                    }
+                },
+
                 didDrawPage: function (data) {
                     const pageNum = doc.internal.getNumberOfPages();
                     
@@ -1920,6 +2824,54 @@ if ($primary_result):
                     }
                 }
             });
+
+            // Cetak Sumber di bawah tabel PDF (cukup Sumber saja, tanpa Catatan)
+            const finalY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : firstPageStartY + 40;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            let footerY = finalY + 7;
+            
+            // Jika posisi mendekati batas bawah halaman, buat halaman baru
+            if (footerY > pageHeight - 15) {
+                doc.addPage();
+                footerY = 20;
+            }
+
+            const wrapperEl = document.getElementById(tableID)?.closest('.table-wrapper') || document.querySelector('.table-wrapper');
+            let sumberText = '';
+            if (wrapperEl) {
+                const footerEl = wrapperEl.querySelector('div[style*="font-size: 11px"]');
+                if (footerEl) {
+                    const lines = footerEl.innerText.split('\n').map(l => l.trim()).filter(Boolean);
+                    const sLine = lines.find(l => /^(sumber|source)/i.test(l));
+                    if (sLine) {
+                        sumberText = sLine;
+                    }
+                }
+            }
+            if (!sumberText) {
+                const opdBadge = document.querySelector('.table-opd-badge span');
+                if (opdBadge && opdBadge.innerText.trim()) {
+                    sumberText = 'Sumber/Source: ' + opdBadge.innerText.trim();
+                }
+            }
+
+            if (sumberText) {
+                doc.setFontSize(8.5);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(31, 41, 55);
+                doc.text("Sumber / ", marginLeft, footerY);
+                const w1 = doc.getTextWidth("Sumber / ");
+
+                doc.setFont("helvetica", "bolditalic");
+                doc.setTextColor(75, 85, 99);
+                doc.text("Source", marginLeft + w1, footerY);
+                const w2 = doc.getTextWidth("Source");
+
+                doc.setFont("helvetica", "italic");
+                doc.setTextColor(55, 65, 81);
+                const sDesc = sumberText.replace(/^(Sumber\s*[\/:]\s*Source|Sumber|Source)\s*[:]\s*/i, '').trim();
+                doc.text(": " + sDesc, marginLeft + w1 + w2, footerY);
+            }
 
             const safeTitle = cleanJudulId.substring(0, 50).replace(/[/\\?%*:|"<>]/g, '-');
             const filename = 'Tabel_' + (nomor || "") + '_' + safeTitle + '.pdf';
