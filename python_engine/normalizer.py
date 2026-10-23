@@ -159,10 +159,40 @@ def is_safe_fuzzy_match(s1, s2):
         return False
     return True
 
+class AmbiguousFloat(float):
+    """float yang membawa interpretasi alternatif (alts) untuk string ambigu seperti '1.234'
+    (ribuan 1234 atau desimal 1,234). Perilaku aritmetika/JSON identik dengan float biasa."""
+    alts = ()
+
+
+def _with_alts(value, alts):
+    out = AmbiguousFloat(value)
+    out.alts = tuple(a for a in alts if a != value)
+    return out if out.alts else float(value)
+
+
+_MINUS_CHARS = '\u2212\u2013\u2014\u2012\u2015\u2011'
+_PERIOD_LABEL_RE = re.compile(r'^\s*(?:19|20)\d{2}\s*[/\-\u2013]\s*(?:(?:19|20)?\d{2})\s*[a-zA-Z]?\s*$')
+
+
 def parse_num(val_str, is_pdf=False):
     if val_str is None: return None
+    # Angka native (dari DB/JSON) dipakai apa adanya: JANGAN dikonversi ke string lalu ditebak ulang
+    # (mis. 123.456 tidak boleh berubah menjadi 123456).
+    if isinstance(val_str, bool):
+        return None
+    if isinstance(val_str, (int, float)):
+        f = float(val_str)
+        return f if f == f and f not in (float('inf'), float('-inf')) else None
     s = str(val_str).strip()
     if not s: return None
+
+    # Label periode seperti '2023/2024' bukan angka
+    if _PERIOD_LABEL_RE.match(s) and not re.match(r'^\s*-', s):
+        return None
+    # Tanda minus unicode di depan angka -> '-' ASCII (agar angka negatif tidak hilang)
+    if s[0] in _MINUS_CHARS and len(s) > 1 and (s[1].isdigit() or s[1] in '.,'):
+        s = '-' + s[1:]
 
     # Strip footnote markers: 1), *), **), a)
     s = re.sub(r'\s*\b\d+\)$', '', s)
@@ -214,11 +244,23 @@ def parse_num(val_str, is_pdf=False):
     s = re.sub(r'[^\d,\.\-–—−\u2212\ufffd\u2026…]', '', s).strip()
     if not s: return None
 
+    has_accounting_dash = bool(re.search(r'[,.](?:–|-|—|−|\u2212)+$', s))
+    has_id_unit = bool(re.search(r'(?i)\b(?:km[23]?|m[23]?|cm[23]?|dm[23]?|mm[23]?|ha|kg|ton|jiwa|orang|rupiah|persen|ribu|juta|miliar|triliun|sm)\b', s_raw_token))
+    is_formatted_text = is_pdf or has_accounting_dash or has_id_unit
+
     # Handle trailing accounting dash (e.g. '3.500.828.821.04–' -> '3.500.828.821.040', '100,-' -> '100')
     s = re.sub(r'[,.](?:–|-|—|−|\u2212)+$', '', s)
     s = re.sub(r'(\d)(?:–|-|—|−|\u2212)$', r'\g<1>0', s)
 
     if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s): return 0.0
+
+    ambiguous_alt = None
+    # Sisi sumber murni (DB/API tanpa format teks/akuntansi): titik tunggal = desimal programatik
+    if not is_formatted_text and re.fullmatch(r'-?\d+\.\d+', s):
+        # Jika tepat 3 digit desimal (mis. '1.234'), berikan interpretasi alternatif ribuan
+        if re.fullmatch(r'-?[1-9]\d{0,2}\.\d{3}', s):
+            return _with_alts(float(s), [float(s.replace('.', ''))])
+        return float(s)
 
     if ',' in s and '.' in s:
         comma_idx = s.rfind(',')
@@ -226,16 +268,28 @@ def parse_num(val_str, is_pdf=False):
         if comma_idx > dot_idx: s = s.replace('.', '').replace(',', '.')
         else: s = s.replace(',', '')
     elif ',' in s:
-        if s.count(',') >= 2 or re.match(r'^[1-9]\d{0,2}(,\d{3})+$', s):
+        if s.count(',') >= 2 or re.match(r'^-?[1-9]\d{0,2}(,\d{3})+$', s):
+            if s.count(',') == 1:
+                ambiguous_alt = s.replace(',', '.')   # '1,234' bisa juga desimal 1.234
             s = s.replace(',', '')
         else:
             s = s.replace(',', '.')
     elif '.' in s:
-        if s.count('.') >= 2 or re.match(r'^[1-9]\d{0,2}(\.\d{3})+$', s):
+        if s.count('.') >= 2 or re.match(r'^-?[1-9]\d{0,2}(\.\d{3})+$', s):
+            if s.count('.') == 1:
+                ambiguous_alt = s                      # '1.234' bisa juga desimal 1.234
             s = s.replace('.', '')
 
-    try: return float(s)
-    except: return None
+    try:
+        value = float(s)
+    except ValueError:
+        return None
+    if ambiguous_alt is not None:
+        try:
+            return _with_alts(value, [float(ambiguous_alt)])
+        except ValueError:
+            pass
+    return value
 
 def clean_header_text(c):
     if not c: return ""
@@ -346,66 +400,65 @@ def match_party_name(text):
     if 'JAWA TENGAH' in t or 'TOTAL' in t or 'JUMLAH' in t: return 'TOTAL'
     return None
 
-def evaluate_cell_match(pv, sv, tolerance=0.0):
+def _exactly_equal(a, b):
+    """Sama persis; toleransi hanya untuk derau floating-point (1e-9 relatif), bukan selisih data."""
+    return a == b or abs(a - b) <= 1e-9 * max(1.0, abs(a), abs(b))
+
+
+def _candidates(v):
+    return (v,) + tuple(getattr(v, 'alts', ()))
+
+
+def explain_mismatch(pv, sv):
+    """Petunjuk (bukan pembenaran) penyebab selisih. String kosong bila tidak ada pola dikenal.
+    Selisih TETAP dianggap beda; ini hanya membantu penelusuran."""
     if pv is None or sv is None:
-        return False, False, 0.0
-    
-    diff_val = round(sv - pv, 3)
-    
-    # 1. Exact match
-    if pv == sv or abs(pv - sv) < 0.0001:
-        return True, False, diff_val
-        
-    # 2. Scaling by 1000 (Ribu) or Rupiah vs Ribuan Rupiah rounding (e.g. 837565 vs 838)
+        return ""
     if pv != 0 and sv != 0:
-        if abs(sv - (pv * 1000)) <= 5.0 or abs(pv - (sv / 1000.0)) <= 0.01:
-            return True, True, diff_val
-        if abs(pv - (sv * 1000)) <= 5.0 or abs(sv - (pv / 1000.0)) <= 0.01:
-            return True, True, diff_val
-        if max(abs(pv), abs(sv)) >= 1000:
-            if abs(round(pv / 1000.0) - sv) == 0 or abs(round(sv / 1000.0) - pv) == 0:
-                return True, True, diff_val
-
-    # 3. Scaling by 1,000,000 (Juta)
-    if pv != 0 and sv != 0:
-        if abs(sv - (pv * 1000000)) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01:
-            return True, True, diff_val
-        if abs(pv - (sv * 1000000)) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01:
-            return True, True, diff_val
-
-    # 4. Exact Power of 10 formatting glitch from Dinas Google Sheets (e.g. 10^1, 10^2, 10^4, 10^8, 10^10, 10^12)
-    if pv != 0 and sv != 0:
+        if abs(sv - pv * 1000) <= 5.0 or abs(pv - sv * 1000) <= 5.0:
+            return "pola: beda satuan ribuan (x1000)"
+        if abs(sv - pv * 1000000) <= 2000.0 or abs(pv - sv * 1000000) <= 2000.0:
+            return "pola: beda satuan jutaan (x1.000.000)"
         r = max(abs(sv), abs(pv)) / min(abs(sv), abs(pv))
         if r >= 9.9:
             import math
             l = math.log10(r)
-            if abs(l - round(l)) < 1e-4 and round(l) in [1, 2, 3, 4, 6, 8, 10, 12]:
-                return True, True, diff_val
-
-    # 5. Footnote superscript digit in PDF (e.g. 3601 vs 360, 5101 vs 510, 6921 vs 692)
+            if abs(l - round(l)) < 1e-4 and round(l) in (1, 2, 3, 4, 6, 8, 10, 12):
+                return f"pola: kelipatan 10^{int(round(l))} (kemungkinan salah format satuan/desimal)"
     if pv > 10 and sv > 10:
         try:
-            s_pv = str(int(round(pv)))
-            s_sv = str(int(round(sv)))
-            if len(s_pv) == len(s_sv) + 1 and s_pv[:-1] == s_sv and s_pv[-1] in '123':
-                return True, True, diff_val
-            if len(s_sv) == len(s_pv) + 1 and s_sv[:-1] == s_pv and s_sv[-1] in '123':
-                return True, True, diff_val
-        except:
+            s_pv, s_sv = str(int(round(pv))), str(int(round(sv)))
+            if (len(s_pv) == len(s_sv) + 1 and s_pv[:-1] == s_sv and s_pv[-1] in '123') or \
+               (len(s_sv) == len(s_pv) + 1 and s_sv[:-1] == s_pv and s_sv[-1] in '123'):
+                return "pola: digit catatan kaki menempel pada angka"
+        except (ValueError, OverflowError):
             pass
-
-    # 6. Integer rounding
-    if abs(pv - round(sv)) < 0.0001 and abs(pv - sv) < 1.0:
-        return True, True, diff_val
-    if abs(sv - round(pv)) < 0.0001 and abs(pv - sv) < 1.0:
-        return True, True, diff_val
-
-    # 7. Rounding noise (decimal tolerance <= 0.02, cetak BPS <= 0.5)
+    if abs(pv - round(sv)) < 0.0001 and abs(pv - sv) < 1.0 or abs(sv - round(pv)) < 0.0001 and abs(pv - sv) < 1.0:
+        return "pola: pembulatan ke bilangan bulat"
     if rounding_noise(pv, sv):
-        return True, True, diff_val
+        return "pola: pembulatan desimal"
+    return ""
 
-    # 8. User tolerance
+
+def evaluate_cell_match(pv, sv, tolerance=0.0):
+    """Mengembalikan (is_match, is_tolerance_match, diff_val) dengan diff_val = sv - pv.
+
+    - Cocok bila angka sama persis, atau sama persis menurut salah satu interpretasi format
+      penulisan (mis. '1.234' sebagai 1234 atau 1,234).
+    - is_tolerance_match hanya True bila pengguna EKSPLISIT memberi tolerance > 0.
+    """
+    if pv is None or sv is None:
+        return False, False, 0.0
+
+    diff_val = round(sv - pv, 3)
+
+    for a in _candidates(pv):
+        for b in _candidates(sv):
+            if _exactly_equal(a, b):
+                return True, False, diff_val
+
     if tolerance > 0 and abs(pv - sv) <= tolerance:
         return True, True, diff_val
 
     return False, False, diff_val
+

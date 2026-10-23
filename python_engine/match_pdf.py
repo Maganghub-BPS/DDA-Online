@@ -77,9 +77,6 @@ def parse_toc(doc):
         }
     return out
 
-def _head(doc, p, _c={}):
-    if (id(doc), p) not in _c: _c[(id(doc), p)] = doc[p].get_text()[:500]
-    return _c[(id(doc), p)]
 
 def detect_offset(doc, toc, sample=40):
     """Selisih (nomor halaman fisik PDF 1-based - nomor halaman cetak), dicari lewat nomor tabel."""
@@ -308,7 +305,8 @@ def match_tables(toc, db_tables, min_score=65):
                         "source_type": source_type,
                         "reason": "Tidak ada kecocokan di PDF"
                     })
-        except Exception:
+        except Exception as e:
+            sys.stderr.write(f"[WARN] Hungarian assignment failed ({e}), falling back to greedy matching\n")
             for item, db_id, title, source_type in unmatched_db:
                 t_num = str(item.get("nomor_tabel", "")).strip()
                 d_norm = normalize_title(title)
@@ -406,8 +404,8 @@ def main():
     try:
         with open(dda_matched_file, 'w', encoding='utf-8') as f:
             json.dump(matched, f, ensure_ascii=False, indent=2)
-    except PermissionError:
-        pass
+    except Exception as e:
+        sys.stderr.write(f"[WARN] Gagal menyimpan dda_matched cache file: {e}\n")
 
     print(json.dumps(matched, ensure_ascii=False))
 

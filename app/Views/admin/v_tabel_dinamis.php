@@ -62,7 +62,11 @@ if ($isMultiBaris) {
         $titleCol2Ind = $pInd[1] ?? '';
     } else {
         $titleCol1Ind = $cleanTitleInd;
-        // Cerdas deteksi isi kolom 2 dari itemsBaris jika cleanTitleInd tidak mengandung ||
+        $titleCol2Ind = '';
+    }
+
+    if (empty($titleCol2Ind)) {
+        // Cerdas deteksi isi kolom 2 dari itemsBaris jika titleCol2Ind belum terisi
         $col2Samples = [];
         if (!empty($itemsBaris)) {
             foreach ($itemsBaris as $ib) {
@@ -80,7 +84,7 @@ if ($isMultiBaris) {
         if (strpos($sampleJoined, 'maret') !== false || strpos($sampleJoined, 'september') !== false || strpos($sampleJoined, 'januari') !== false || strpos($sampleJoined, 'desember') !== false || strpos($sampleJoined, 'juni') !== false) {
             $titleCol2Ind = 'Bulan';
             $titleCol2En  = 'Month';
-        } elseif (strpos($sampleJoined, 'jakarta') !== false || strpos($sampleJoined, 'jawa') !== false || strpos($sampleJoined, 'bali') !== false || strpos($sampleJoined, 'sumatera') !== false || strpos($sampleJoined, 'yogyakarta') !== false) {
+        } elseif (strpos($sampleJoined, 'jakarta') !== false || strpos($sampleJoined, 'jawa') !== false || strpos($sampleJoined, 'bali') !== false || strpos($sampleJoined, 'sumatera') !== false || strpos($sampleJoined, 'yogyakarta') !== false || strpos($sampleJoined, 'kalimantan') !== false || strpos($sampleJoined, 'sulawesi') !== false) {
             $titleCol2Ind = 'Provinsi';
             $titleCol2En  = 'Province';
         } elseif (strpos($sampleJoined, 'unit') !== false || strpos($sampleJoined, 'juta') !== false || strpos($sampleJoined, 'rupiah') !== false || strpos($sampleJoined, 'persen') !== false || strpos($sampleJoined, '%') !== false || strpos($sampleJoined, 'ton') !== false || strpos($sampleJoined, 'kg') !== false) {
@@ -1083,25 +1087,25 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     <th rowspan="<?= $totalHeaderRows + 1; ?>" style="border: 1px solid #fff; width: 45px; text-align: center;">No.</th>
                                 <?php endif; ?>
 
-                                <?php if ($isMultiBaris && strpos($cleanTitleInd, '||') === false): ?>
-                                    <!-- Header tunggal di-merge horizontal colspan 2 (persis tabel BPS asli!) -->
+                                <?php if ($isMultiBaris && !empty($titleCol2Ind)): ?>
+                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 180px; text-align: center; vertical-align: middle;">
+                                        <?= esc($titleCol1Ind); ?>
+                                        <?php if (!empty($titleCol1En) && strtolower($titleCol1En) !== strtolower($titleCol1Ind)): ?>
+                                            <i><?= esc($titleCol1En); ?></i>
+                                        <?php endif; ?>
+                                    </th>
+                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 90px; text-align: center; vertical-align: middle;">
+                                        <?= esc($titleCol2Ind); ?>
+                                        <?php if (!empty($titleCol2En) && strtolower($titleCol2En) !== strtolower($titleCol2Ind)): ?>
+                                            <i><?= esc($titleCol2En); ?></i>
+                                        <?php endif; ?>
+                                    </th>
+                                <?php elseif ($isMultiBaris): ?>
+                                    <!-- Header tunggal di-merge horizontal colspan 2 jika tidak ada rincian kolom 2 -->
                                     <th rowspan="<?= $totalHeaderRows; ?>" colspan="2" style="border: 1px solid #fff; min-width: 270px; text-align: center; vertical-align: middle;">
                                         <?= esc($titleCol1Ind); ?>
                                         <?php if (!empty($titleCol1En) && strtolower($titleCol1En) !== strtolower($titleCol1Ind)): ?>
                                             <i><?= esc($titleCol1En); ?></i>
-                                        <?php endif; ?>
-                                    </th>
-                                <?php elseif ($isMultiBaris): ?>
-                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 180px; text-align: center;">
-                                        <?= esc($titleCol1Ind); ?>
-                                        <?php if (!empty($titleCol1En) && strtolower($titleCol1En) !== strtolower($titleCol1Ind)): ?>
-                                            <i><?= esc($titleCol1En); ?></i>
-                                        <?php endif; ?>
-                                    </th>
-                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 90px; text-align: center;">
-                                        <?= esc($titleCol2Ind); ?>
-                                        <?php if (!empty($titleCol2En) && strtolower($titleCol2En) !== strtolower($titleCol2Ind)): ?>
-                                            <i><?= esc($titleCol2En); ?></i>
                                         <?php endif; ?>
                                     </th>
                                 <?php elseif ($isRuntunWaktu): ?>
@@ -1760,12 +1764,14 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 $cleanNamaEn = $rawNamaEn;
                                 $noText      = $dataRowCounter . '.';
 
-                                // Ekstraksi & pembersihan nomor jika ada nomor pada master baris (hindari dobel nomor)
-                                if (preg_match('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', $rawNamaInd, $matches)) {
-                                    $noText = trim($matches[0]);
-                                    $cleanNama = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaInd));
-                                    if (!empty($rawNamaEn)) {
-                                        $cleanNamaEn = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaEn));
+                                // Ekstraksi & pembersihan nomor HANYA jika ada kolom No. tersendiri (hindari nomor hilang jika tidak ada kolom No.)
+                                if ($hasNoCol) {
+                                    if (preg_match('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', $rawNamaInd, $matches)) {
+                                        $noText = trim($matches[0]);
+                                        $cleanNama = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaInd));
+                                        if (!empty($rawNamaEn)) {
+                                            $cleanNamaEn = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaEn));
+                                        }
                                     }
                                 }
 

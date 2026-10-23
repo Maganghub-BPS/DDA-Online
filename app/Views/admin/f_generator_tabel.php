@@ -1983,7 +1983,7 @@ $(document).ready(function() {
                 if (sampleJoined.includes('maret') || sampleJoined.includes('september') || sampleJoined.includes('januari') || sampleJoined.includes('desember') || sampleJoined.includes('juni')) {
                     titleCol2Ind = 'Bulan';
                     titleCol2En = 'Month';
-                } else if (sampleJoined.includes('jakarta') || sampleJoined.includes('jawa') || sampleJoined.includes('bali') || sampleJoined.includes('sumatera') || sampleJoined.includes('yogyakarta')) {
+                } else if (sampleJoined.includes('jakarta') || sampleJoined.includes('jawa') || sampleJoined.includes('bali') || sampleJoined.includes('sumatera') || sampleJoined.includes('yogyakarta') || sampleJoined.includes('kalimantan') || sampleJoined.includes('sulawesi') || sampleJoined.includes('papua') || sampleJoined.includes('maluku') || sampleJoined.includes('aceh') || sampleJoined.includes('lampung') || sampleJoined.includes('riau') || sampleJoined.includes('banten') || sampleJoined.includes('bengkulu') || sampleJoined.includes('jambi') || sampleJoined.includes('gorontalo') || sampleJoined.includes('ntb') || sampleJoined.includes('ntt')) {
                     titleCol2Ind = 'Provinsi';
                     titleCol2En = 'Province';
                 } else if (sampleJoined.includes('unit') || sampleJoined.includes('juta') || sampleJoined.includes('rupiah') || sampleJoined.includes('persen') || sampleJoined.includes('%') || sampleJoined.includes('ton') || sampleJoined.includes('kg')) {
@@ -2064,7 +2064,7 @@ $(document).ready(function() {
                 return html;
             }
 
-            if (isMultiBaris && !cleanTitleInd.includes('||')) {
+            if (isMultiBaris && !titleCol2Ind) {
                 let th = '<th rowspan="' + rowspan + '" colspan="2" class="th-freeze-col text-center" style="vertical-align: middle;">';
                 th += '<span>' + escapeHtml(titleCol1Ind) + '</span>';
                 if (isBilingual && titleCol1En && titleCol1En.trim().toLowerCase() !== titleCol1Ind.trim().toLowerCase()) {

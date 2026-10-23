@@ -31,6 +31,7 @@ from fetcher import fetch_data_from_link
 from normalizer import (
     KAB_KOTA_JATENG,
     evaluate_cell_match,
+    explain_mismatch,
     parse_num,
     resolve_jateng_entity,
     resolve_provinsi_entity,
@@ -50,6 +51,17 @@ from table_profiler import (
     detect_table_archetype,
     normalize_api_data,
 )
+
+
+def _hint(pv, sv):
+    """Sufiks petunjuk pola selisih untuk kolom 'note' (kosong bila tidak ada pola)."""
+    h = explain_mismatch(pv, sv)
+    return f" — {h}" if h else ""
+
+
+def _to_num(v):
+    """Angka dari sisi sumber (API) -> float atau None; tidak pernah melempar."""
+    return v if isinstance(v, float) else parse_num(v, is_pdf=False)
 
 
 def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None):
@@ -195,9 +207,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         if isinstance(source_data, dict) and "error" in source_data:
             err_msg = source_data.get('error', '')
             detail_msg = source_data.get('detail', '')
-            if source_data.get("is_api_empty") or "tidak ada data dalam api" in err_msg.lower() or "500" in str(detail_msg) or "500" in str(err_msg) or "view_portal_tabel" in link:
+            if source_data.get("is_api_empty") or source_data.get("error_kind") == "empty":
                 return {"status": "error", "source_type": "API Satudata", "message": "Tidak ada data dalam API", "detail": detail_msg or err_msg, "is_api_empty": True, "pages": target_pages or []}
-            return {"status": "error", "message": f"Gagal mengambil data dari link: {err_msg}", "pages": target_pages or []}
+            return {"status": "error", "source_type": "API Satudata", "message": f"Gagal mengambil data dari link: {err_msg}", "detail": detail_msg, "error_kind": source_data.get("error_kind", ""), "pages": target_pages or []}
 
         if not source_data:
             return {"status": "error", "source_type": "API Satudata", "message": "Tidak ada data dalam API", "is_api_empty": True, "pages": target_pages or []}
@@ -263,17 +275,25 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             elif metric == 'Jumlah':
                                 metric = 'Total'
 
-                            if pv == av:
-                                results["matches"].append({"wilayah": party_name, "section": "DPRD", "metric": metric, "val": av})
+                            av = _to_num(av)
+                            if av is None:
+                                results["diffs"].append({
+                                    "wilayah": party_name, "section": "DPRD", "metric": metric,
+                                    "pdf_val": int(pv) if pv.is_integer() else pv, "src_val": None,
+                                    "diff": None, "note": "Nilai di API kosong / tidak terbaca", "type": "replace"
+                                })
+                                continue
+                            is_m, _, d_val = evaluate_cell_match(pv, av, tolerance=tolerance)
+                            if is_m:
+                                results["matches"].append({"wilayah": party_name, "section": "DPRD", "metric": metric, "val": int(av) if av.is_integer() else av})
                             else:
-                                d_val = round(av - pv, 2)
                                 abs_diff = int(abs(d_val)) if abs(d_val).is_integer() else abs(d_val)
                                 results["diffs"].append({
                                     "wilayah": party_name, "section": "DPRD", "metric": metric,
                                     "pdf_val": int(pv) if pv.is_integer() else pv,
                                     "src_val": int(av) if av.is_integer() else av,
                                     "diff": d_val,
-                                    "note": f"Selisih {abs_diff} (PDF {'lebih sedikit' if d_val > 0 else 'lebih banyak'})",
+                                    "note": f"Selisih {abs_diff} (PDF {'lebih sedikit' if d_val > 0 else 'lebih banyak'})" + _hint(pv, av),
                                     "type": "replace"
                                 })
 
@@ -355,12 +375,19 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         metrics_chk = [("Negeri", pdf_neg_25, api_neg), ("Swasta", pdf_swa_25, api_swa), ("Total", pdf_tot_25, api_tot)]
                         for m_lbl, p_v, a_v in metrics_chk:
                             m_full = f"{s_name} Negeri" if m_lbl == "Negeri" else f"{s_name} Swasta" if m_lbl == "Swasta" else f"Total {s_name}"
-                            if p_v == a_v:
-                                results["matches"].append({"wilayah": w, "section": s_name, "metric": m_full, "val": a_v})
+                            is_m, _, d_val = evaluate_cell_match(p_v, a_v, tolerance=tolerance) if (p_v is not None and a_v is not None) else (False, False, None)
+                            if is_m:
+                                results["matches"].append({"wilayah": w, "section": s_name, "metric": m_full, "val": int(a_v) if a_v.is_integer() else a_v})
+                            elif a_v is None or p_v is None:
+                                results["diffs"].append({
+                                    "wilayah": w, "section": s_name, "metric": m_full,
+                                    "pdf_val": None if p_v is None else (int(p_v) if p_v.is_integer() else p_v),
+                                    "src_val": None if a_v is None else (int(a_v) if a_v.is_integer() else a_v),
+                                    "diff": None, "note": "Nilai kosong / tidak terbaca di salah satu sisi", "type": "replace"
+                                })
                             else:
-                                d_val = round(a_v - p_v, 2)
                                 abs_diff = int(abs(d_val)) if abs(d_val).is_integer() else abs(d_val)
-                                note = f"Selisih {abs_diff} ({s_name} di PDF {'lebih sedikit' if d_val > 0 else 'lebih banyak'})"
+                                note = f"Selisih {abs_diff} ({s_name} di PDF {'lebih sedikit' if d_val > 0 else 'lebih banyak'})" + _hint(p_v, a_v)
                                 results["diffs"].append({
                                     "wilayah": w, "section": s_name, "metric": m_full,
                                     "pdf_val": int(p_v) if p_v.is_integer() else p_v, "src_val": int(a_v) if a_v.is_integer() else a_v,
@@ -374,12 +401,19 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     elif len(p_nums) == 3:
                         pdf_metrics = [(f"{s_name} Negeri", p_nums[0], api_neg), (f"{s_name} Swasta", p_nums[1], api_swa), (f"Total {s_name}", p_nums[2], api_tot)]
                         for m_lbl, p_v, a_v in pdf_metrics:
-                            if p_v == a_v:
-                                results["matches"].append({"wilayah": w, "section": s_name, "metric": m_lbl, "val": a_v})
+                            is_m, _, d_val = evaluate_cell_match(p_v, a_v, tolerance=tolerance) if (p_v is not None and a_v is not None) else (False, False, None)
+                            if is_m:
+                                results["matches"].append({"wilayah": w, "section": s_name, "metric": m_lbl, "val": int(a_v) if a_v.is_integer() else a_v})
+                            elif a_v is None or p_v is None:
+                                results["diffs"].append({
+                                    "wilayah": w, "section": s_name, "metric": m_lbl,
+                                    "pdf_val": None if p_v is None else (int(p_v) if p_v.is_integer() else p_v),
+                                    "src_val": None if a_v is None else (int(a_v) if a_v.is_integer() else a_v),
+                                    "diff": None, "note": "Nilai kosong / tidak terbaca di salah satu sisi", "type": "replace"
+                                })
                             else:
-                                d_val = round(a_v - p_v, 2)
                                 abs_diff = int(abs(d_val)) if abs(d_val).is_integer() else abs(d_val)
-                                note = f"Selisih {abs_diff} ({s_name} di PDF {'lebih sedikit' if d_val > 0 else 'lebih banyak'})"
+                                note = f"Selisih {abs_diff} ({s_name} di PDF {'lebih sedikit' if d_val > 0 else 'lebih banyak'})" + _hint(p_v, a_v)
                                 results["diffs"].append({
                                     "wilayah": w, "section": s_name, "metric": m_lbl, "pdf_val": int(p_v) if p_v.is_integer() else p_v,
                                     "src_val": int(a_v) if a_v.is_integer() else a_v, "diff": d_val, "note": note, "type": "replace"
@@ -412,9 +446,21 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         sample_rows = [r for r in source_data[:35] if isinstance(r, list) and not is_title_row(r) and not is_header_or_metadata_row(r)]
         prov_matches = sum(1 for r in sample_rows if resolve_provinsi_entity(' '.join(str(c) for c in r[:3]))[0] not in [None, '00', '33.00', 'Total Jawa Tengah', 'Indonesia'])
         jateng_matches = sum(1 for r in sample_rows if resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] not in [None, '33.00', 'Total Jawa Tengah'])
+
+        # Cek apakah wilayah muncul berulang kali di baris-baris data (indikasi kuat tabel bertingkat / kategori x wilayah)
+        prov_entities = [resolve_provinsi_entity(' '.join(str(c) for c in r[:3]))[0] for r in sample_rows]
+        prov_entities = [p for p in prov_entities if p not in [None, '00', '33.00', 'Total Jawa Tengah', 'Indonesia']]
+        has_dup_prov = len(prov_entities) > len(set(prov_entities))
+
+        jateng_entities = [resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] for r in sample_rows]
+        jateng_entities = [j for j in jateng_entities if j not in [None, '33.00', 'Total Jawa Tengah']]
+        has_dup_jateng = len(jateng_entities) > len(set(jateng_entities))
+
+        has_duplicate_regions = has_dup_prov or has_dup_jateng
+
         is_univ_table = any(k in str(headers).lower() for k in ['perguruan tinggi', 'universitas', 'dosen']) or target_table in ['4.1.20', '4.1.21']
-        is_regional = (prov_matches >= 3 or jateng_matches >= 3) and not is_univ_table
-        is_categorical = not is_regional and (archetype in ["MULTI_PAGE_ROW_CONTINUATION", "MULTI_PAGE_SECTION_PER_PAGE", "SINGLE_PAGE_CATEGORICAL"])
+        is_regional = (prov_matches >= 3 or jateng_matches >= 3) and not is_univ_table and not has_duplicate_regions
+        is_categorical = (not is_regional and (archetype in ["MULTI_PAGE_ROW_CONTINUATION", "MULTI_PAGE_SECTION_PER_PAGE", "SINGLE_PAGE_CATEGORICAL"])) or has_duplicate_regions
 
         if is_categorical:
             clean_pdf_rows = []
@@ -599,6 +645,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 records = []
                 cur_sec = ""
                 use_cols = target_cols if target_cols is not None else active_cat_cols
+                last_parent_label = ""
                 for r in data_list:
                     if not isinstance(r, list):
                         continue
@@ -665,6 +712,15 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                         raw_label = c_str
                                     else:
                                         raw_label += ' ' + c_str
+
+                    if is_pdf:
+                        col0_txt = str(r[0]).strip() if len(r) > 0 and r[0] is not None else ''
+                        col1_txt = str(r[1]).strip() if len(r) > 1 and r[1] is not None else ''
+                        if col0_txt and parse_num(col0_txt, is_pdf=True) is None and not is_bps_col_num(col0_txt):
+                            last_parent_label = col0_txt
+                        if not col0_txt and col1_txt and last_parent_label and parse_num(col1_txt, is_pdf=True) is None:
+                            if last_parent_label not in raw_label:
+                                raw_label = f"{last_parent_label} {raw_label}".strip()
 
                     if not raw_label:
                         label_candidates = [str(c).strip() for c in r[:2] if str(c).strip()]
@@ -752,7 +808,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                     m_item["tolerance_diff"] = round(diff_val, 4)
                                 results["matches"].append(m_item)
                             else:
-                                note = f"Selisih {abs_diff} (PDF {'lebih sedikit' if diff_val > 0 else 'lebih banyak'})"
+                                note = f"Selisih {abs_diff} (PDF {'lebih sedikit' if diff_val > 0 else 'lebih banyak'})" + _hint(pv, sv)
                                 results["diffs"].append({
                                     "wilayah": s_disp, "section": sec_b, "metric": base_h,
                                     "pdf_val": p_disp, "src_val": src_disp,
@@ -864,7 +920,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 m_item["tolerance_diff"] = round(diff_val, 4)
                             results["matches"].append(m_item)
                         else:
-                            note = f"Selisih {abs_diff} (PDF {'lebih sedikit' if diff_val > 0 else 'lebih banyak'})"
+                            note = f"Selisih {abs_diff} (PDF {'lebih sedikit' if diff_val > 0 else 'lebih banyak'})" + _hint(pv, sv)
                             results["diffs"].append({
                                 "wilayah": s_disp, "section": p_sec, "metric": base_h,
                                 "pdf_val": p_disp, "src_val": src_disp,
@@ -1243,7 +1299,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         if s_idx in empty_src_cols and sv == 0.0:
                             note = f"Di cetakan PDF tertulis {p_disp}, tetapi di database kolom ini kosong"
                         else:
-                            note = f"Selisih {abs_diff} (PDF {'lebih sedikit' if diff_val > 0 else 'lebih banyak'})"
+                            note = f"Selisih {abs_diff} (PDF {'lebih sedikit' if diff_val > 0 else 'lebih banyak'})" + _hint(pv, sv)
                         results["diffs"].append({
                             "wilayah": w, "section": reg_page_label, "metric": metric_name, "pdf_val": p_disp,
                             "src_val": int(sv) if sv.is_integer() else sv, "diff": diff_val, "note": note, "type": "replace"
