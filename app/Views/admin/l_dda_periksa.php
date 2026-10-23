@@ -242,12 +242,6 @@
                                                     title="Tambahkan atau Ubah Catatan untuk Walidata">
                                                 <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
                                             </button>
-                                            <a href="<?php echo base_url(); ?>admin/batal_isi/<?php echo $b->id; ?>" 
-                                               class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-isi" 
-                                               data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
-                                               title="Batalkan Status">
-                                                <i class="bi bi-arrow-counterclockwise me-1"></i> Batal
-                                            </a>
                                         </div>
                                         <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
                                             <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">

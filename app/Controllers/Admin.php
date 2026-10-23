@@ -549,10 +549,10 @@ class Admin extends BaseController
 			$a['datpil']   = $this->db->query("SELECT t.id, m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind FROM t_tahun_tabel t JOIN m_list_tabel m_t ON t.id_tabel = m_t.id LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja WHERE t.id=?", [$id_konfirmasi])->getRow();
 			return view('admin/f_periksa', $a);
 		} else if ($mau_ke == "act_periksa") {
-			$id_data = $this->input->post('id');
-			$catatan_periksa = $this->input->post('catatan_periksa');
+			$id_data = (int)($this->request->getPost('id') ?: $this->input->post('id'));
+			$catatan_verif = trim((string)($this->request->getPost('catatan') ?: ($this->request->getPost('catatan_periksa') ?: ($this->input->post('catatan') ?: $this->input->post('catatan_periksa')))));
 
-			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan=?, catatan_periksa=? where id=?", [$catatan_periksa, $catatan_periksa, $id_data]);
+			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan=? WHERE id=?", [$catatan_verif, $id_data]);
 			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data berhasil diverifikasi</div>');
 		} else if ($mau_ke == "cari") {
 
@@ -1726,6 +1726,18 @@ class Admin extends BaseController
 
 	public function batal_isi($id)
 	{
+		$id = (int)$id;
+		$tabel = $this->db->table('t_tahun_tabel')->where('id', $id)->get()->getRow();
+		if ($tabel) {
+			$is_portal = (stripos($tabel->link_tabel, 'portal') !== false || 
+			              stripos($tabel->link_tabel, 'satudata') !== false || 
+			              !empty($tabel->id_api));
+			if (!empty($tabel->is_dynamic) || $is_portal) {
+				$this->session->setFlashdata('k', '<div class="alert alert-warning border-0 shadow-sm rounded-3 mb-3" id="alert"><i class="bi bi-exclamation-triangle-fill me-2"></i>Status pengisian Tabel Dinamis dan API Portal tidak dapat dibatalkan secara manual.</div>');
+				return redirect()->back();
+			}
+		}
+
 		$data = array(
 			'is_periksa' => '0',
 			'catatan_periksa' => '-'
@@ -3669,6 +3681,21 @@ class Admin extends BaseController
 		$mDinamis = new \App\Models\M_tabeldinamis();
 		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload);
 
+		if ($affected > 0) {
+			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
+			$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
+
+			$indRow = $mDinamis->find($idIndikator);
+			if ($indRow && !empty($indRow->id_tahun_tabel)) {
+				$this->db->table('t_tahun_tabel')
+					->where('id', (int)$indRow->id_tahun_tabel)
+					->update([
+						'is_periksa'      => 1,
+						'catatan_periksa' => $catatan
+					]);
+			}
+		}
+
 		return $this->response->setJSON([
 			'status'      => 'success',
 			'saved_count' => $affected,
@@ -4091,6 +4118,16 @@ class Admin extends BaseController
 				}
 				if (!empty($upsertCells)) {
 					$filledCellsCount = $mDinamis->batchUpsertNilai($idIndikator, $upsertCells);
+					if ($filledCellsCount > 0) {
+						$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
+						$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
+						$this->db->table('t_tahun_tabel')
+							->where('id', $idTahunTabel)
+							->update([
+								'is_periksa'      => 1,
+								'catatan_periksa' => $catatan
+							]);
+					}
 					// Perbarui snapshot dda_db_{ta}.json dengan nilai yang baru diisi
 					$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idTahunTabel);
 					$dbList = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
@@ -5233,6 +5270,13 @@ class Admin extends BaseController
 		$countDeleted = (int)$this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults();
 		$this->db->transStart();
 		$mTabelDinamis->clearNilai((int)$indikator->id);
+		$this->db->table('t_tahun_tabel')
+			->where('id', $id_tahun_tabel)
+			->update([
+				'is_periksa'      => 0,
+				'catatan_periksa' => '-',
+				'is_publish'      => 0
+			]);
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
@@ -5393,7 +5437,12 @@ class Admin extends BaseController
 
 		$this->db->table('t_tahun_tabel')
 			->where('id', $id_tahun_tabel)
-			->update(['is_dynamic' => 0]);
+			->update([
+				'is_dynamic'      => 0,
+				'is_periksa'      => 0,
+				'catatan_periksa' => '-',
+				'is_publish'      => 0
+			]);
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
