@@ -804,7 +804,7 @@ class M_tabeldinamis extends Model
             $items[] = [
                 'db_id'           => !empty($it['db_id']) ? (int)$it['db_id'] : null,
                 'nama_baris_ind'  => $nama_ind,
-                'nama_baris_en'   => !empty($nama_en) ? $nama_en : $nama_ind,
+                'nama_baris_en'   => !empty($nama_en) ? $nama_en : null,
                 'level_indentasi' => $lvl,
                 'tipe_baris'      => $is_total ? 'total' : ($it['tipe_baris'] ?? 'data'),
                 'is_total'        => $is_total ? 1 : 0,
@@ -862,7 +862,7 @@ class M_tabeldinamis extends Model
 
             $items[] = [
                 'nama_baris_ind'  => $nama_ind,
-                'nama_baris_en'   => !empty($nama_en) ? $nama_en : $nama_ind,
+                'nama_baris_en'   => !empty($nama_en) ? $nama_en : null,
                 'level_indentasi' => $indent,
                 'no_urut'         => $no++,
             ];
@@ -1043,7 +1043,7 @@ class M_tabeldinamis extends Model
         foreach ($years as $year) {
             $items[] = [
                 'nama_periode_ind' => (string)$year,
-                'nama_periode_en'  => (string)$year,
+                'nama_periode_en'  => null,
                 'no_urut'          => $no++,
             ];
         }
@@ -1080,7 +1080,7 @@ class M_tabeldinamis extends Model
 
             $items[] = [
                 'nama_periode_ind' => $trimmed_ind,
-                'nama_periode_en'  => $trimmed_en !== '' ? $trimmed_en : $trimmed_ind,
+                'nama_periode_en'  => $trimmed_en !== '' ? $trimmed_en : null,
                 'no_urut'          => $no++,
             ];
         }

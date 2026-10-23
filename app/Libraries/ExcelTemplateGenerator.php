@@ -187,6 +187,7 @@ class ExcelTemplateGenerator
         $totalTingkatBaris = $maxBarisGroupLevel + 1;
         $isPeriodeBaris    = in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true);
         $cfgTotalInit      = $indikator->konfigurasi_total ?? 'default';
+        $isRuntunWaktu     = ($cfgTotalInit === 'runtun_waktu');
         $isBarisDuaKolom   = (!$isPeriodeBaris && !$isRuntunWaktu && !empty($itemsBaris) && ($indikator->tampilan_baris ?? '1_kolom') === '2_kolom');
         if ($isBarisDuaKolom && empty($cleanTitleSubInd)) {
             $cleanTitleSubInd = 'Rincian';
@@ -464,15 +465,64 @@ class ExcelTemplateGenerator
         $row++;
         $startHeaderRow = $row;
 
+        // Deteksi Periode Bertingkat (Format pemisah '||', misal: "2024 || Maret")
+        $hasMultiPeriode = false;
+        $parsedPeriode = [];
+        $periodeGroups = [];
+
+        if (!empty($itemsPeriode)) {
+            foreach ($itemsPeriode as $p) {
+                if (strpos($p->nama_periode_ind ?? '', '||') !== false) {
+                    $hasMultiPeriode = true;
+                    break;
+                }
+            }
+
+            if ($hasMultiPeriode) {
+                $currGroup = null;
+                foreach ($itemsPeriode as $p) {
+                    $pInd = array_map('trim', explode('||', $p->nama_periode_ind ?? ''));
+                    $pEn  = !empty($p->nama_periode_en) ? array_map('trim', explode('||', $p->nama_periode_en)) : [];
+                    $itemObj = (object)[
+                        'raw'       => $p,
+                        'id'        => $p->id,
+                        'parentInd' => $pInd[0] ?? '',
+                        'childInd'  => $pInd[1] ?? ($pInd[0] ?? ''),
+                        'parentEn'  => $pEn[0] ?? '',
+                        'childEn'   => $pEn[1] ?? '',
+                    ];
+                    $parsedPeriode[] = $itemObj;
+
+                    if ($currGroup === null || $currGroup['parentInd'] !== $itemObj->parentInd) {
+                        if ($currGroup !== null) {
+                            $periodeGroups[] = $currGroup;
+                        }
+                        $currGroup = [
+                            'parentInd' => $itemObj->parentInd,
+                            'parentEn'  => $itemObj->parentEn,
+                            'children'  => [$itemObj]
+                        ];
+                    } else {
+                        $currGroup['children'][] = $itemObj;
+                    }
+                }
+                if ($currGroup !== null) {
+                    $periodeGroups[] = $currGroup;
+                }
+            }
+        }
+
+        $extraPeriodeRow = ($hasMultiPeriode && !in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) && !$isRuntunWaktu) ? 1 : 0;
+
         // Hitung baris tingkatan header
         $isRuntunWaktu = ($cfgTotalInit === 'runtun_waktu');
         $headerDataRows = 1; // Default: 1 baris
         if ($hasKolom && $hasPeriode) {
-            $headerDataRows = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1);
+            $headerDataRows = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1 + $extraPeriodeRow);
         } elseif ($hasKolom) {
             $headerDataRows = count($activeLevels);
         } elseif ($hasPeriode) {
-            $headerDataRows = 1;
+            $headerDataRows = 1 + $extraPeriodeRow;
         }
 
         $numRow = $startHeaderRow + $headerDataRows; // Baris nomor kolom: (1), (2), (3) ...
@@ -663,7 +713,8 @@ class ExcelTemplateGenerator
 
         // Helper untuk merender tingkat kolom ke sel Excel
         $fillLevelCellsExcel = function(int $lvl, int $rowNum, int $startCol, int $multiplier) use ($sheet, $groups, $flatKolom, $maxDepth, $activeLevels, $kolomStructure): int {
-            if (!empty($kolomStructure['header_rows'][$lvl])) {
+            $isAllLevelsActive = (count($activeLevels) === $maxDepth);
+            if ($isAllLevelsActive && !empty($kolomStructure['header_rows'][$lvl])) {
                 $curCol = $startCol;
                 foreach ($kolomStructure['header_rows'][$lvl] as $cell) {
                     $span = (int)$cell['colspan'] * $multiplier;
@@ -904,13 +955,39 @@ class ExcelTemplateGenerator
         };
 
         if (!$hasKolom && $hasPeriode) {
-            // KASUS 1: HANYA PERIODE (1 Baris)
-            $curCol = $startDataColIndex;
-            foreach ($itemsPeriode as $p) {
-                $pLetter = Coordinate::stringFromColumnIndex($curCol);
-                $pText   = $p->nama_periode_ind . (!empty($p->nama_periode_en) ? "\n" . $p->nama_periode_en : '');
-                $sheet->setCellValue("{$pLetter}{$startHeaderRow}", $pText);
-                $curCol++;
+            // KASUS 1: HANYA PERIODE
+            if ($hasMultiPeriode) {
+                // Baris 1: Parent Periode (colspan)
+                $curCol = $startDataColIndex;
+                foreach ($periodeGroups as $g) {
+                    $span = count($g['children']);
+                    $fromLetter = Coordinate::stringFromColumnIndex($curCol);
+                    $toLetter   = Coordinate::stringFromColumnIndex($curCol + $span - 1);
+                    if ($span > 1) {
+                        $sheet->mergeCells("{$fromLetter}{$startHeaderRow}:{$toLetter}{$startHeaderRow}");
+                    }
+                    $text = $g['parentInd'] . (!empty($g['parentEn']) && $g['parentEn'] !== $g['parentInd'] ? "\n" . $g['parentEn'] : '');
+                    $sheet->setCellValue("{$fromLetter}{$startHeaderRow}", $text);
+                    $curCol += $span;
+                }
+
+                // Baris 2: Child Periode
+                $curCol = $startDataColIndex;
+                $rowChild = $startHeaderRow + 1;
+                foreach ($parsedPeriode as $p) {
+                    $pLetter = Coordinate::stringFromColumnIndex($curCol);
+                    $pText   = $p->childInd . (!empty($p->childEn) && $p->childEn !== $p->childInd ? "\n" . $p->childEn : '');
+                    $sheet->setCellValue("{$pLetter}{$rowChild}", $pText);
+                    $curCol++;
+                }
+            } else {
+                $curCol = $startDataColIndex;
+                foreach ($itemsPeriode as $p) {
+                    $pLetter = Coordinate::stringFromColumnIndex($curCol);
+                    $pText   = $p->nama_periode_ind . (!empty($p->nama_periode_en) ? "\n" . $p->nama_periode_en : '');
+                    $sheet->setCellValue("{$pLetter}{$startHeaderRow}", $pText);
+                    $curCol++;
+                }
             }
         } elseif ($hasKolom && !$hasPeriode) {
             // KASUS 2: HANYA KARAKTERISTIK KOLOM
@@ -957,15 +1034,46 @@ class ExcelTemplateGenerator
                     $fillLevelCellsExcel($lvl, $r, $startDataColIndex, count($itemsPeriode));
                 }
 
-                // Baris Terbawah: Periode Waktu di bawah setiap kolom daun
-                $rPer = $startHeaderRow + count($activeLevels);
-                $c = $startDataColIndex;
-                foreach ($flatKolom as $child) {
-                    foreach ($itemsPeriode as $p) {
-                        $pLetter = Coordinate::stringFromColumnIndex($c);
-                        $pText   = $p->nama_periode_ind . (!empty($p->nama_periode_en) ? "\n" . $p->nama_periode_en : '');
-                        $sheet->setCellValue("{$pLetter}{$rPer}", $pText);
-                        $c++;
+                if ($hasMultiPeriode) {
+                    // Baris Periode Tingkat 1 (Parent, misal Tahun)
+                    $rP1 = $startHeaderRow + count($activeLevels);
+                    $c = $startDataColIndex;
+                    foreach ($flatKolom as $child) {
+                        foreach ($periodeGroups as $g) {
+                            $span = count($g['children']);
+                            $fromLetter = Coordinate::stringFromColumnIndex($c);
+                            $toLetter   = Coordinate::stringFromColumnIndex($c + $span - 1);
+                            if ($span > 1) {
+                                $sheet->mergeCells("{$fromLetter}{$rP1}:{$toLetter}{$rP1}");
+                            }
+                            $text = $g['parentInd'] . (!empty($g['parentEn']) && $g['parentEn'] !== $g['parentInd'] ? "\n" . $g['parentEn'] : '');
+                            $sheet->setCellValue("{$fromLetter}{$rP1}", $text);
+                            $c += $span;
+                        }
+                    }
+
+                    // Baris Periode Tingkat 2 (Child, misal Bulan / Triwulan)
+                    $rP2 = $rP1 + 1;
+                    $c = $startDataColIndex;
+                    foreach ($flatKolom as $child) {
+                        foreach ($parsedPeriode as $p) {
+                            $pLetter = Coordinate::stringFromColumnIndex($c);
+                            $pText   = $p->childInd . (!empty($p->childEn) && $p->childEn !== $p->childInd ? "\n" . $p->childEn : '');
+                            $sheet->setCellValue("{$pLetter}{$rP2}", $pText);
+                            $c++;
+                        }
+                    }
+                } else {
+                    // Baris Terbawah: Periode Waktu di bawah setiap kolom daun
+                    $rPer = $startHeaderRow + count($activeLevels);
+                    $c = $startDataColIndex;
+                    foreach ($flatKolom as $child) {
+                        foreach ($itemsPeriode as $p) {
+                            $pLetter = Coordinate::stringFromColumnIndex($c);
+                            $pText   = $p->nama_periode_ind . (!empty($p->nama_periode_en) ? "\n" . $p->nama_periode_en : '');
+                            $sheet->setCellValue("{$pLetter}{$rPer}", $pText);
+                            $c++;
+                        }
                     }
                 }
             }

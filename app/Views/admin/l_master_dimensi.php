@@ -2846,16 +2846,69 @@ $(document).ready(function() {
         const barisTitle = formatLabel('Baris', 'Row', langMode);
         const count = items.length;
 
-        // Header: Kolom Baris + langsung Kolom-kolom Periode
-        let trHead = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 2px solid #cbd5e1;"></tr>');
-        trHead.append('<th style="width: 160px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px; color: #1e293b;">' + barisTitle + '</th>');
+        // Cek apakah item periode mengandung pemisah bertingkat '||'
+        const hasMulti = items.some(it => (it.nama_periode_ind || '').includes('||'));
 
-        items.forEach(function(item) {
-            let pLbl = formatLabel(item.nama_periode_ind, item.nama_periode_en, langMode);
-            trHead.append('<th style="border: 1px solid #cbd5e1; padding: 8px 14px; font-size: 13px; background: #ffffff; color: #1e293b;">' + pLbl + '</th>');
-        });
+        if (hasMulti) {
+            // Periode Bertingkat (misal: Tahun || Bulan atau Tahun || Triwulan)
+            const parsedItems = items.map(it => {
+                const indParts = (it.nama_periode_ind || '').split('||').map(s => s.trim());
+                const enParts  = (it.nama_periode_en || '').split('||').map(s => s.trim());
+                return {
+                    parentInd: indParts[0] || '',
+                    childInd:  indParts[1] || indParts[0] || '',
+                    parentEn:  enParts[0] || '',
+                    childEn:   enParts[1] || ''
+                };
+            });
 
-        thead.append(trHead);
+            // Kelompokkan tingkat 1 (Parent) yang berurutan
+            const groups = [];
+            let currGroup = null;
+            parsedItems.forEach(it => {
+                if (!currGroup || currGroup.parentInd !== it.parentInd) {
+                    currGroup = {
+                        parentInd: it.parentInd,
+                        parentEn:  it.parentEn,
+                        children: [it]
+                    };
+                    groups.push(currGroup);
+                } else {
+                    currGroup.children.push(it);
+                }
+            });
+
+            // Baris 1: Kolom Baris (rowspan 2) + Header Tingkat 1 (Parent Periode dengan colspan)
+            let trHead1 = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 1px solid #cbd5e1;"></tr>');
+            trHead1.append('<th rowspan="2" style="width: 160px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px; color: #1e293b; text-align: center;">' + barisTitle + '</th>');
+
+            groups.forEach(function(g) {
+                let pLbl = formatLabel(g.parentInd, g.parentEn, langMode);
+                trHead1.append('<th colspan="' + g.children.length + '" style="border: 1px solid #cbd5e1; padding: 8px 14px; font-size: 13px; background: #f8fafc; color: #1e293b; text-align: center;">' + pLbl + '</th>');
+            });
+            thead.append(trHead1);
+
+            // Baris 2: Header Tingkat 2 (Child Periode)
+            let trHead2 = $('<tr style="background: #ffffff; font-weight: 600; border-bottom: 2px solid #cbd5e1;"></tr>');
+            parsedItems.forEach(function(it) {
+                let cLbl = formatLabel(it.childInd, it.childEn, langMode);
+                trHead2.append('<th style="border: 1px solid #cbd5e1; padding: 6px 12px; font-size: 12px; background: #ffffff; color: #1e293b; text-align: center;">' + cLbl + '</th>');
+            });
+            thead.append(trHead2);
+
+        } else {
+            // Header Standar (1 Baris)
+            let trHead = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 2px solid #cbd5e1;"></tr>');
+            trHead.append('<th style="width: 160px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px; color: #1e293b; text-align: center;">' + barisTitle + '</th>');
+
+            items.forEach(function(item) {
+                let pLbl = formatLabel(item.nama_periode_ind, item.nama_periode_en, langMode);
+                trHead.append('<th style="border: 1px solid #cbd5e1; padding: 8px 14px; font-size: 13px; background: #ffffff; color: #1e293b; text-align: center;">' + pLbl + '</th>');
+            });
+
+            thead.append(trHead);
+        }
+
         $table.append(thead);
 
         let tbody = $('<tbody></tbody>');

@@ -509,12 +509,10 @@ $isConfigured = ($indikator && $dimCount >= 2);
                 </a>
             <?php endif; ?>
 
-            <!-- Tombol Upload Excel Walidata (Khusus Walidata) -->
-            <?php if (session()->get('admin_unitkerja') != 'bps'): ?>
-                <button type="button" class="btn-rounded-modern upload-btn-modern shadow-success" data-bs-toggle="modal" data-bs-target="#ModalUploadExcelDinamis">
-                    <i class="bi bi-cloud-arrow-up-fill"></i> <span class="d-none d-sm-inline">UPLOAD EXCEL</span><span class="d-inline d-sm-none">UPLOAD</span>
-                </button>
-            <?php endif; ?>
+            <!-- Tombol Upload Excel (Admin BPS & Walidata) -->
+            <button type="button" class="btn-rounded-modern upload-btn-modern shadow-success" data-bs-toggle="modal" data-bs-target="#ModalUploadExcelDinamis">
+                <i class="bi bi-cloud-arrow-up-fill"></i> <span class="d-none d-sm-inline">UPLOAD EXCEL</span><span class="d-inline d-sm-none">UPLOAD</span>
+            </button>
 
             <!-- Tombol Unduh Template Excel Berstandar BPS -->
             <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id_tahun_tabel); ?>" class="btn-rounded-modern export-btn-modern shadow-primary">
@@ -671,8 +669,26 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         $posisi_hirarki     = $indikator->posisi_hirarki ?? 'kolom_atas';
                         $cfgTotal           = $indikator->konfigurasi_total ?? 'default';
                         $isRuntunWaktu      = ($cfgTotal === 'runtun_waktu');
-                        $format_nomor_baris = 'none';
-                        $hasNoCol           = false; // Kolom No. dimatikan: angka urut menyatu di kolom nama (sesuai tabel resmi BPS)
+                        $format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
+
+                        // Deteksi cerdas: apakah item-item master baris memiliki penomoran (misal: "1. Kayu", "1. Cilacap")
+                        $hasNumberInMaster = false;
+                        if (!empty($itemsBaris)) {
+                            foreach ($itemsBaris as $bItem) {
+                                $bTipe = strtolower(trim($bItem->tipe_baris ?? ''));
+                                if ($bTipe === 'kategori' || $bTipe === 'total' || $bTipe === 'subtotal') {
+                                    continue;
+                                }
+                                $bNama = trim($bItem->nama_baris_ind ?? '');
+                                if (preg_match('/^\s*\d+[\.\)]\s*/', $bNama)) {
+                                    $hasNumberInMaster = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Kolom No. dibuatkan otomatis HANYA jika di master baris ada nomornya
+                        $hasNoCol = $hasNumberInMaster;
 
                         // Identifikasi id_periode aktif untuk baris rincian pada mode runtun_waktu
                         $idPeriodeAktif = 0;
@@ -708,16 +724,65 @@ $isConfigured = ($indikator && $dimCount >= 2);
                             $titleSubBarisEn  = 'Details';
                         }
 
+                        // Deteksi Periode Bertingkat (Format pemisah '||', misal: "2024 || Maret")
+                        $hasMultiPeriode = false;
+                        $parsedPeriode = [];
+                        $periodeGroups = [];
+
+                        if (!empty($itemsPeriode)) {
+                            foreach ($itemsPeriode as $p) {
+                                if (strpos($p->nama_periode_ind ?? '', '||') !== false) {
+                                    $hasMultiPeriode = true;
+                                    break;
+                                }
+                            }
+
+                            if ($hasMultiPeriode) {
+                                $currGroup = null;
+                                foreach ($itemsPeriode as $p) {
+                                    $pInd = array_map('trim', explode('||', $p->nama_periode_ind ?? ''));
+                                    $pEn  = !empty($p->nama_periode_en) ? array_map('trim', explode('||', $p->nama_periode_en)) : [];
+                                    $itemObj = (object)[
+                                        'raw'       => $p,
+                                        'id'        => $p->id,
+                                        'parentInd' => $pInd[0] ?? '',
+                                        'childInd'  => $pInd[1] ?? ($pInd[0] ?? ''),
+                                        'parentEn'  => $pEn[0] ?? '',
+                                        'childEn'   => $pEn[1] ?? '',
+                                    ];
+                                    $parsedPeriode[] = $itemObj;
+
+                                    if ($currGroup === null || $currGroup['parentInd'] !== $itemObj->parentInd) {
+                                        if ($currGroup !== null) {
+                                            $periodeGroups[] = $currGroup;
+                                        }
+                                        $currGroup = [
+                                            'parentInd' => $itemObj->parentInd,
+                                            'parentEn'  => $itemObj->parentEn,
+                                            'children'  => [$itemObj]
+                                        ];
+                                    } else {
+                                        $currGroup['children'][] = $itemObj;
+                                    }
+                                }
+                                if ($currGroup !== null) {
+                                    $periodeGroups[] = $currGroup;
+                                }
+                            }
+                        }
+
+                        $extraPeriodeRow = ($hasMultiPeriode && !$isPeriodeBaris && !$isRuntunWaktu) ? 1 : 0;
+
                         // Tentukan jumlah baris header
                         $totalHeaderRows = 1;
                         if (!$hasBaris && $hasKolom && $hasPeriode) {
                             $totalHeaderRows = count($activeLevels);
                         } elseif ($hasKolom && $hasPeriode) {
-                            $totalHeaderRows = ($isPeriodeBaris || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1);
+                            $totalHeaderRows = ($isPeriodeBaris || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1 + $extraPeriodeRow);
                         } elseif ($hasKolom) {
                             $totalHeaderRows = count($activeLevels);
                         } elseif ($hasPeriode) {
-                            $totalHeaderRows = 1;
+                            $totalHeaderRows = 1 + $extraPeriodeRow;
                         }
 
                         // Hitung daftar kolom leaf terujung
@@ -783,7 +848,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                         // Helper PHP untuk merender sel header suatu tingkat kolom
                         $getLevelCellsPhp = function(int $lvl, int $multiplier) use ($groups, $flatKolom, $maxDepth, $activeLevels, $structureKolom): string {
-                            if (!empty($structureKolom['header_rows'][$lvl])) {
+                            $isAllLevelsActive = (count($activeLevels) === $maxDepth);
+                            if ($isAllLevelsActive && !empty($structureKolom['header_rows'][$lvl])) {
                                 $html = '';
                                 foreach ($structureKolom['header_rows'][$lvl] as $cell) {
                                     $colspan = (int)$cell['colspan'] * $multiplier;
@@ -990,12 +1056,27 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         <tr>
                             <?php if (!$hasBaris && $hasKolom && $hasPeriode): ?>
                                 <!-- KASUS KHUSUS: TANPA DIMENSI BARIS (PERIODE WAKTU SEBAGAI SUMBU BARIS) -->
-                                <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 140px; text-align: center; vertical-align: middle;">
-                                    <?= esc($titlePeriodeInd); ?>
-                                    <?php if (!empty($titlePeriodeEn) && $titlePeriodeEn !== $titlePeriodeInd): ?>
-                                        <i><?= esc($titlePeriodeEn); ?></i>
-                                    <?php endif; ?>
-                                </th>
+                                <?php if ($hasMultiPeriode): ?>
+                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 140px; text-align: center; vertical-align: middle;">
+                                        <?= esc($titlePeriodeInd); ?>
+                                        <?php if (!empty($titlePeriodeEn) && $titlePeriodeEn !== $titlePeriodeInd): ?>
+                                            <i><?= esc($titlePeriodeEn); ?></i>
+                                        <?php endif; ?>
+                                    </th>
+                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 110px; text-align: center; vertical-align: middle;">
+                                        Rincian
+                                        <?php if (!empty($titlePeriodeEn)): ?>
+                                            <i>Details</i>
+                                        <?php endif; ?>
+                                    </th>
+                                <?php else: ?>
+                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 140px; text-align: center; vertical-align: middle;">
+                                        <?= esc($titlePeriodeInd); ?>
+                                        <?php if (!empty($titlePeriodeEn) && $titlePeriodeEn !== $titlePeriodeInd): ?>
+                                            <i><?= esc($titlePeriodeEn); ?></i>
+                                        <?php endif; ?>
+                                    </th>
+                                <?php endif; ?>
                                 <?= $getLevelCellsPhp($activeLevels[0], 1); ?>
                             <?php else: ?>
                                 <?php if ($hasNoCol && !$isRuntunWaktu): ?>
@@ -1066,14 +1147,25 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                                 <?php if (!$hasKolom && $hasPeriode): ?>
                                     <!-- KASUS 1: Hanya Periode Waktu -->
-                                    <?php foreach ($itemsPeriode as $p): ?>
-                                        <th style="border: 1px solid #fff; text-align: center;">
-                                            <?= esc($p->nama_periode_ind); ?>
-                                            <?php if (!empty($p->nama_periode_en) && $p->nama_periode_en !== $p->nama_periode_ind): ?>
-                                                <i><?= esc($p->nama_periode_en); ?></i>
-                                            <?php endif; ?>
-                                        </th>
-                                    <?php endforeach; ?>
+                                    <?php if ($hasMultiPeriode): ?>
+                                        <?php foreach ($periodeGroups as $g): ?>
+                                            <th colspan="<?= count($g['children']); ?>" style="border: 1px solid #fff; text-align: center; font-weight: bold;">
+                                                <?= esc($g['parentInd']); ?>
+                                                <?php if (!empty($g['parentEn']) && $g['parentEn'] !== $g['parentInd']): ?>
+                                                    <i><?= esc($g['parentEn']); ?></i>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <?php foreach ($itemsPeriode as $p): ?>
+                                            <th style="border: 1px solid #fff; text-align: center;">
+                                                <?= esc($p->nama_periode_ind); ?>
+                                                <?php if (!empty($p->nama_periode_en) && $p->nama_periode_en !== $p->nama_periode_ind): ?>
+                                                    <i><?= esc($p->nama_periode_en); ?></i>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
 
                                 <?php elseif ($hasKolom && !$hasPeriode): ?>
                                     <!-- KASUS 2: Hanya Karakteristik Kolom (Baris 1) -->
@@ -1141,16 +1233,46 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 </tr>
                             <?php endfor; ?>
 
-                            <!-- Baris Header Terbawah: Periode Waktu diulang di bawah masing-masing kolom daun -->
-                            <tr>
-                                <?php for ($c = 0; $c < count($flatKolom); $c++): ?>
-                                    <?php foreach ($itemsPeriode as $p): ?>
-                                        <th style="border: 1px solid #fff; text-align: center; padding: 4px 6px; font-size: 11px;">
-                                            <?= esc($p->nama_periode_ind); ?>
-                                        </th>
-                                    <?php endforeach; ?>
-                                <?php endfor; ?>
-                            </tr>
+                            <?php if ($hasMultiPeriode): ?>
+                                <!-- Baris Header Periode Tingkat 1 (Parent, misal Tahun) -->
+                                <tr>
+                                    <?php for ($c = 0; $c < count($flatKolom); $c++): ?>
+                                        <?php foreach ($periodeGroups as $g): ?>
+                                            <th colspan="<?= count($g['children']); ?>" style="border: 1px solid #fff; text-align: center; padding: 4px 6px; font-size: 11px; font-weight: bold;">
+                                                <?= esc($g['parentInd']); ?>
+                                                <?php if (!empty($g['parentEn']) && $g['parentEn'] !== $g['parentInd']): ?>
+                                                    <i><?= esc($g['parentEn']); ?></i>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php endforeach; ?>
+                                    <?php endfor; ?>
+                                </tr>
+
+                                <!-- Baris Header Periode Tingkat 2 (Child, misal Bulan / Triwulan) -->
+                                <tr>
+                                    <?php for ($c = 0; $c < count($flatKolom); $c++): ?>
+                                        <?php foreach ($parsedPeriode as $p): ?>
+                                            <th style="border: 1px solid #fff; text-align: center; padding: 4px 6px; font-size: 11px;">
+                                                <?= esc($p->childInd); ?>
+                                                <?php if (!empty($p->childEn) && $p->childEn !== $p->childInd): ?>
+                                                    <i><?= esc($p->childEn); ?></i>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php endforeach; ?>
+                                    <?php endfor; ?>
+                                </tr>
+                            <?php else: ?>
+                                <!-- Baris Header Terbawah: Periode Waktu diulang di bawah masing-masing kolom daun -->
+                                <tr>
+                                    <?php for ($c = 0; $c < count($flatKolom); $c++): ?>
+                                        <?php foreach ($itemsPeriode as $p): ?>
+                                            <th style="border: 1px solid #fff; text-align: center; padding: 4px 6px; font-size: 11px;">
+                                                <?= esc($p->nama_periode_ind); ?>
+                                            </th>
+                                        <?php endforeach; ?>
+                                    <?php endfor; ?>
+                                </tr>
+                            <?php endif; ?>
                         <?php endif; ?>
 
                         <!-- BARIS PENOMORAN KOLOM RESMI BPS: (1), (2), (3) ... -->
@@ -1161,7 +1283,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                             ?>
                                 <th style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
                             <?php else: ?>
-                                 <?php /* Kolom No. tanpa nomor: header No. sudah rowspan sampai baris nomor ini */ ?>
+
 
                                 <?php if ($isRuntunWaktu || ($posisi_hirarki === 'periode_baris' && !$isMultiBaris)): ?>
                                     <th colspan="2" style="border: 1px solid #fff; text-align: center; font-weight: bold;">(<?= $colNum++; ?>)</th>
@@ -1184,33 +1306,106 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                     <tbody>
                         <?php 
-                        $desimal = (int)($indikator->desimal ?? 2);
+                        // Deteksi otomatis format angka desimal cerdas (Opsi A)
+                        $cfgDesimal = (int)($indikator->desimal ?? 0);
+                        $hasDecimalData = false;
+                        $maxDecFound = 0;
+                        if (!empty($nilaiMap)) {
+                            foreach ($nilaiMap as $nmVal) {
+                                if (is_numeric($nmVal) && abs((float)$nmVal - round((float)$nmVal)) > 0.00001) {
+                                    $hasDecimalData = true;
+                                    $str = rtrim(rtrim(sprintf('%.4f', (float)$nmVal), '0'), '.');
+                                    $p = explode('.', $str);
+                                    if (isset($p[1])) {
+                                        $maxDecFound = max($maxDecFound, strlen($p[1]));
+                                    }
+                                }
+                            }
+                        }
+                        $desimal = ($cfgDesimal > 0) ? $cfgDesimal : ($hasDecimalData ? max(2, $maxDecFound) : 0);
+
+                        $formatCellVal = function($cellVal, int $desimal): string {
+                            if ($cellVal === null || $cellVal === '') {
+                                return '–';
+                            }
+                            if (!is_numeric($cellVal)) {
+                                return esc($cellVal);
+                            }
+                            $fVal = (float)$cellVal;
+                            if ($desimal > 0) {
+                                return number_format($fVal, $desimal, ',', '.');
+                            }
+                            if (abs($fVal - round($fVal)) > 0.00001) {
+                                $str = rtrim(rtrim(sprintf('%.4f', $fVal), '0'), '.');
+                                $p = explode('.', $str);
+                                $cellDec = isset($p[1]) ? max(2, strlen($p[1])) : 2;
+                                return number_format($fVal, $cellDec, ',', '.');
+                            }
+                            return number_format($fVal, 0, ',', '.');
+                        };
+
                         $dataRowCounter = 0;
 
                         if (!$hasBaris && $hasKolom && $hasPeriode):
-                            foreach ($itemsPeriode as $pIdx => $p):
-                                $dataRowCounter++;
-                                $rowClass = ($dataRowCounter % 2 === 1) ? 'row-odd' : 'row-even';
+                            if ($hasMultiPeriode):
+                                foreach ($periodeGroups as $g):
+                                    foreach ($g['children'] as $cIdx => $p):
+                                        $dataRowCounter++;
+                                        $rowClass = ($dataRowCounter % 2 === 1) ? 'row-odd' : 'row-even';
                         ?>
-                                <tr class="<?= $rowClass; ?>">
-                                    <td style="text-align: center; border: 1px solid #ffffff; padding: 6px 12px; font-weight: bold; font-size: 12px; vertical-align: middle;">
-                                        <?= esc($p->nama_periode_ind); ?>
-                                        <?php if (!empty($p->nama_periode_en) && $p->nama_periode_en !== $p->nama_periode_ind): ?>
-                                            / <i style="font-weight: normal;"><?= esc($p->nama_periode_en); ?></i>
-                                        <?php endif; ?>
-                                    </td>
-                                    <?php foreach ($leafColumns as $colLeaf): ?>
-                                        <?php
-                                        $cellKey = '0_' . $colLeaf['item_id'] . '_' . $p->id;
-                                        $cellVal = $nilaiMap[$cellKey] ?? null;
-                                        ?>
-                                        <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
-                                            <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
-                                        </td>
-                                    <?php endforeach; ?>
-                                </tr>
+                                        <tr class="<?= $rowClass; ?>">
+                                            <?php if ($cIdx === 0): ?>
+                                                <td rowspan="<?= count($g['children']); ?>" style="text-align: center; border: 1px solid #ffffff; padding: 6px 12px; font-weight: bold; font-size: 12px; vertical-align: middle;">
+                                                    <?= esc($g['parentInd']); ?>
+                                                    <?php if (!empty($g['parentEn']) && $g['parentEn'] !== $g['parentInd']): ?>
+                                                        / <i style="font-weight: normal;"><?= esc($g['parentEn']); ?></i>
+                                                    <?php endif; ?>
+                                                </td>
+                                            <?php endif; ?>
+                                            <td style="text-align: left; border: 1px solid #ffffff; padding: 6px 12px; font-weight: 600; font-size: 12px; vertical-align: middle;">
+                                                <?= esc($p->childInd); ?>
+                                                <?php if (!empty($p->childEn) && $p->childEn !== $p->childInd): ?>
+                                                    / <i style="font-weight: normal;"><?= esc($p->childEn); ?></i>
+                                                <?php endif; ?>
+                                            </td>
+                                            <?php foreach ($leafColumns as $colLeaf): ?>
+                                                <?php
+                                                $cellKey = '0_' . $colLeaf['item_id'] . '_' . $p->id;
+                                                $cellVal = $nilaiMap[$cellKey] ?? null;
+                                                ?>
+                                                <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
+                                                    <?= $formatCellVal($cellVal, $desimal); ?>
+                                                </td>
+                                            <?php endforeach; ?>
+                                        </tr>
                         <?php
-                            endforeach;
+                                    endforeach;
+                                endforeach;
+                            else:
+                                foreach ($itemsPeriode as $pIdx => $p):
+                                    $dataRowCounter++;
+                                    $rowClass = ($dataRowCounter % 2 === 1) ? 'row-odd' : 'row-even';
+                        ?>
+                                    <tr class="<?= $rowClass; ?>">
+                                        <td style="text-align: center; border: 1px solid #ffffff; padding: 6px 12px; font-weight: bold; font-size: 12px; vertical-align: middle;">
+                                            <?= esc($p->nama_periode_ind); ?>
+                                            <?php if (!empty($p->nama_periode_en) && $p->nama_periode_en !== $p->nama_periode_ind): ?>
+                                                / <i style="font-weight: normal;"><?= esc($p->nama_periode_en); ?></i>
+                                            <?php endif; ?>
+                                        </td>
+                                        <?php foreach ($leafColumns as $colLeaf): ?>
+                                            <?php
+                                            $cellKey = '0_' . $colLeaf['item_id'] . '_' . $p->id;
+                                            $cellVal = $nilaiMap[$cellKey] ?? null;
+                                            ?>
+                                            <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
+                                            </td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                        <?php
+                                endforeach;
+                            endif;
                         else:
                             // Hitung level maksimum pada seluruh kelompok baris
                             $maxBarisGroupLevel = 0;
@@ -1434,7 +1629,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a066;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1456,7 +1651,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #000000 !important; background: #f9a066;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1507,7 +1702,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1531,7 +1726,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1550,7 +1745,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1564,6 +1759,15 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 $cleanNama   = $rawNamaInd;
                                 $cleanNamaEn = $rawNamaEn;
                                 $noText      = $dataRowCounter . '.';
+
+                                // Ekstraksi & pembersihan nomor jika ada nomor pada master baris (hindari dobel nomor)
+                                if (preg_match('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', $rawNamaInd, $matches)) {
+                                    $noText = trim($matches[0]);
+                                    $cleanNama = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaInd));
+                                    if (!empty($rawNamaEn)) {
+                                        $cleanNamaEn = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaEn));
+                                    }
+                                }
 
                                 // Aturan Huruf Tebal (Bold):
                                 // Judul baris kiri SELALU TEBAL (font-weight: bold;) persis seperti di View Portal Tabel API
@@ -1603,7 +1807,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1669,7 +1873,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; padding: 6px 12px;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1769,7 +1973,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cellVal = $nilaiMap[$cellKey] ?? null;
                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff; font-size: 12px; padding: 6px 12px;">
-                                                <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -1797,7 +2001,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                     ?>
                                     <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #FF6D1F;">
-                                        <?= ($cellVal !== null && $cellVal !== '') ? (is_numeric($cellVal) ? number_format((float)$cellVal, $desimal, ',', '.') : esc($cellVal)) : '–'; ?>
+                                        <?= $formatCellVal($cellVal, $desimal); ?>
                                     </td>
                                 <?php endforeach; ?>
                             </tr>
@@ -1836,7 +2040,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         <i class="bi bi-file-earmark-arrow-up-fill fs-5 text-success"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1.05rem;">Upload Berkas Excel Walidata</h5>
+                        <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1.05rem;">Upload Berkas Excel Tabel Dinamis</h5>
                         <small class="text-muted" style="font-size: 0.8rem;">Impor data pengisian tabel dinamis secara otomatis</small>
                     </div>
                 </div>
@@ -1844,6 +2048,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
             </div>
             
             <form id="formUploadExcelDinamis" enctype="multipart/form-data">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_tahun_tabel" value="<?= esc($tabel->id_tahun_tabel); ?>">
                 
                 <div class="modal-body p-4">

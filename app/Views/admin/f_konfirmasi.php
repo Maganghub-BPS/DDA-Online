@@ -23,6 +23,7 @@
 
         <div class="modal-body p-4">
             <form action="<?php echo site_url('admin/dda/act_konfirmasi'); ?>" name="modal_popup" method="POST">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" value="<?php echo $id; ?>" />
 
                 <div class="alert bg-primary-soft text-primary border-0 rounded-3 mb-4 d-flex align-items-center">
