@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagram Arsitektur Tabel Dinamis (Versi Presentasi) - BPS Jateng</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 30px;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 1050px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #0f172a;
+      border-bottom: 3px solid #ff6d1f;
+      padding-bottom: 12px;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 30px;
+      font-size: 1.05rem;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      padding: 25px 30px;
+      margin-bottom: 35px;
+      border: 1px solid #e2e8f0;
+    }
+    .card h2 {
+      margin-top: 0;
+      color: #1e3a8a;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 12px;
+      font-size: 1.25rem;
+    }
+    .card p {
+      color: #475569;
+      line-height: 1.5;
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      background: #ffffff;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: #ffedd5;
+      color: #c2410c;
+      margin-bottom: 10px;
+    }
+  </style>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <span class="badge">BPS Provinsi Jawa Tengah</span>
+    <h1>📊 Arsitektur Tabel Dinamis DDA (Versi Presentasi)</h1>
+    <div class="subtitle">Diagram sederhana dan terfokus untuk bahan presentasi & penjelasan logika data</div>
+
+    <!-- DIAGRAM 1 -->
+    <div class="card">
+      <h2>📌 Diagram 1: Hubungan Antar Tabel (3 Lapisan Logika)</h2>
+      <p>Menjelaskan pemisahan data dari Judul Master, Perakitan Dimensi, hingga Titik Nilai Sel.</p>
+      <div class="mermaid">
+flowchart TD
+    subgraph L1["LAPISAN 1: MASTER PUBLIKASI DDA"]
+        MLT["<b>m_list_tabel</b><br>(Kamus Judul Master BPS)"]
+        TTT["<b>t_tahun_tabel</b><br>(Edisi Tahun: 2023, 2024, 2025)"]
+        MLT -->|1 : N| TTT
+    end
+
+    subgraph L2["LAPISAN 2: PERAKITAN MATRIKS"]
+        MIT["<b>m_indikator_tabel</b><br>(Otak Perakitan Matriks)"]
+        TTT -->|1 : 1| MIT
+
+        subgraph DIMS["Kamus 3 Dimensi Reusable"]
+            KOL["<b>Dimensi Kolom</b><br>m_karakteristik_kelompok<br>↓<br>m_karakteristik_item"]
+            BAR["<b>Dimensi Baris</b><br>m_baris_kelompok<br>↓<br>m_baris_item"]
+            WKT["<b>Dimensi Waktu</b><br>m_periode_kelompok<br>↓<br>m_periode_item"]
+        end
+
+        MIT -->|Merakit Kolom| KOL
+        MIT -->|Merakit Baris| BAR
+        MIT -->|Merakit Waktu| WKT
+    end
+
+    subgraph L3["LAPISAN 3: SEL ANGKA DATA"]
+        TND["<b>t_nilai_dinamis</b><br>Perpotongan Sel: [Tabel] x [Baris] x [Kolom] x [Waktu] = Nilai Angka BPS"]
+        KOL --> TND
+        BAR --> TND
+        WKT --> TND
+        MIT --> TND
+    end
+
+    style L1 fill:#eff6ff,stroke:#3b82f6,stroke-width:2px
+    style L2 fill:#fff7ed,stroke:#f97316,stroke-width:2px
+    style L3 fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
+      </div>
+    </div>
+
+    <!-- DIAGRAM 2 -->
+    <div class="card">
+      <h2>📌 Diagram 2: Hubungan Antar Kolom (Kunci Penghubung / Foreign Keys)</h2>
+      <p>Hanya menampilkan kolom kunci utama yang menghubungkan seluruh tabel ke sel nilai.</p>
+      <div class="mermaid">
+flowchart TD
+    MLT["m_list_tabel<br>🔑 <b>id</b>"] -->|id -> id_tabel| TTT["t_tahun_tabel<br>🔗 <b>id_tabel</b><br>🔑 <b>id</b>"]
+    TTT -->|id -> id_tahun_tabel| MIT["m_indikator_tabel<br>🔗 <b>id_tahun_tabel</b><br>🔑 <b>id</b>"]
+
+    MIT -->|id_karakteristik_kelompok| MKI["m_karakteristik_item<br>🔑 <b>id</b> (Kolom / X)"]
+    MIT -->|id_baris_kelompok| MBI["m_baris_item<br>🔑 <b>id</b> (Baris / Y)"]
+    MIT -->|id_periode_kelompok| MPI["m_periode_item<br>🔑 <b>id</b> (Waktu / Z)"]
+
+    MIT -->|id| TND["<b>t_nilai_dinamis</b><br>───────────────<br>🔗 <b>id_indikator</b> (Tabel)<br>🔗 <b>id_baris_item</b> (Baris)<br>🔗 <b>id_karakteristik_item</b> (Kolom)<br>🔗 <b>id_periode_item</b> (Waktu)<br>───────────────<br>📊 <b>nilai</b> (Angka Sel)<br>🔣 <b>simbol</b> (-, NA)"]
+    MKI -->|id| TND
+    MBI -->|id| TND
+    MPI -->|id| TND
+
+    style TND fill:#dcfce7,stroke:#16a34a,stroke-width:2px
+      </div>
+    </div>
+  </div>
+</body>
+</html>

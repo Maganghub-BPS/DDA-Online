@@ -508,6 +508,76 @@
 .btn-clear-search-dimensi:hover {
     color: #ef4444;
 }
+
+/* =========================================================================
+   GAYA VISUAL DRAG & DROP BARIS BERTINGKAT (Pilihan 1 & Opsi A)
+   ========================================================================= */
+.drag-handle-group,
+.drag-handle-sub {
+    cursor: grab;
+    color: #94a3b8;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.drag-handle-group:hover {
+    color: #2563eb;
+    background: #eff6ff;
+}
+
+.drag-handle-sub:hover {
+    color: #0284c7;
+    background: #f0f9ff;
+}
+
+.drag-handle-group:active,
+.drag-handle-sub:active {
+    cursor: grabbing;
+}
+
+.tree-group-card {
+    background: transparent;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: box-shadow 0.2s ease;
+}
+
+.tree-sub-container {
+    min-height: 2px;
+}
+
+/* Penanda area drop saat di-drag */
+.tree-sortable-placeholder {
+    border: 2px dashed #3b82f6 !important;
+    background: #eff6ff !important;
+    border-radius: 8px !important;
+    margin-bottom: 6px !important;
+    visibility: visible !important;
+    height: 46px !important;
+}
+
+.tree-sub-sortable-placeholder {
+    border: 2px dashed #0284c7 !important;
+    background: #f0f9ff !important;
+    border-radius: 8px !important;
+    margin-bottom: 6px !important;
+    margin-left: 28px !important;
+    visibility: visible !important;
+    height: 44px !important;
+}
+
+/* Efek visual saat item sedang diangkat / di-drag */
+.ui-sortable-helper {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    opacity: 0.95 !important;
+    background: #ffffff !important;
+    z-index: 9999 !important;
+}
 </style>
 
     <!-- 3 Dimension Cards -->
@@ -1933,6 +2003,9 @@ $(document).ready(function() {
                 return;
             }
 
+            let currentGroupEl = null;
+            let currentSubContainer = null;
+
             this.items.forEach(function(item) {
                 let placeholderInd = 'Indonesia';
                 let placeholderEn  = 'English (opsional)';
@@ -2029,9 +2102,16 @@ $(document).ready(function() {
 
                 const rowClass = `tree-item-row level-${item.level} ${self.theme} ${rowExtraClass}`;
 
+                // Handle Drag: Level 0 menggunakan drag-handle-group, Level > 0 menggunakan drag-handle-sub
+                const isLevelZero = (item.level === 0);
+                const dragHandleHtml = isLevelZero 
+                    ? `<span class="drag-handle-group" title="Tarik untuk geser kelompok baris ini (beserta seluruh anak-anaknya)"><i class="bi bi-grip-vertical fs-6"></i></span>`
+                    : `<span class="drag-handle-sub" title="Tarik untuk geser urutan sub-baris ini"><i class="bi bi-grip-vertical fs-6"></i></span>`;
+
                 const row = $(`
                     <div class="${rowClass}" data-id="${item.id}">
                         <div class="d-flex align-items-center gap-2">
+                            ${dragHandleHtml}
                             <div class="tree-badge-container">${leftBadgeHtml}</div>
                             <div class="tree-item-inputs">
                                 <input type="text" class="form-control form-control-sm item-input-ind ${isTotalActive || isKategoriActive || isSubtotalActive ? 'fw-bold text-dark' : ''}" placeholder="${placeholderInd}" value="${escapeHtml(item.ind)}">
@@ -2093,8 +2173,84 @@ $(document).ready(function() {
                     self.removeItem(item.id);
                 });
 
-                self.listEl.append(row);
+                // Susun DOM Hierarki (Pilihan 1: Induk & Anak dalam satu Wrapper Grup)
+                if (isLevelZero) {
+                    currentGroupEl = $('<div class="tree-group-card"></div>');
+                    currentGroupEl.append(row);
+                    currentSubContainer = $('<div class="tree-sub-container"></div>');
+                    currentGroupEl.append(currentSubContainer);
+                    self.listEl.append(currentGroupEl);
+                } else {
+                    if (currentSubContainer) {
+                        currentSubContainer.append(row);
+                    } else {
+                        currentGroupEl = $('<div class="tree-group-card"></div>');
+                        currentGroupEl.append(row);
+                        self.listEl.append(currentGroupEl);
+                    }
+                }
             });
+
+            this.initSortable();
+        }
+
+        initSortable() {
+            const self = this;
+
+            // 1. Sortable Level Induk: Menggeser seluruh grup (induk + anak)
+            if (this.listEl.data('ui-sortable')) {
+                this.listEl.sortable('destroy');
+            }
+            this.listEl.sortable({
+                handle: '.drag-handle-group',
+                items: '> .tree-group-card',
+                axis: 'y',
+                containment: 'parent',
+                tolerance: 'pointer',
+                placeholder: 'tree-sortable-placeholder',
+                forcePlaceholderSize: true,
+                stop: function() {
+                    self.syncItemsOrderFromDOM();
+                }
+            });
+
+            // 2. Sortable Level Anak: Menggeser urutan sub-baris di dalam induk yang sama
+            const subContainers = this.listEl.find('.tree-sub-container');
+            subContainers.each(function() {
+                if ($(this).data('ui-sortable')) {
+                    $(this).sortable('destroy');
+                }
+            });
+            subContainers.sortable({
+                handle: '.drag-handle-sub',
+                items: '> .tree-item-row',
+                axis: 'y',
+                containment: 'parent',
+                tolerance: 'pointer',
+                placeholder: 'tree-sub-sortable-placeholder',
+                forcePlaceholderSize: true,
+                stop: function() {
+                    self.syncItemsOrderFromDOM();
+                }
+            });
+        }
+
+        syncItemsOrderFromDOM() {
+            const itemMap = {};
+            this.items.forEach(it => { itemMap[it.id] = it; });
+
+            const newItems = [];
+
+            this.listEl.find('.tree-item-row').each(function() {
+                const id = $(this).data('id');
+                const it = itemMap[id];
+                if (it) {
+                    newItems.push(it);
+                }
+            });
+
+            this.items = newItems;
+            this.notify();
         }
 
         notify() {
@@ -2120,8 +2276,15 @@ $(document).ready(function() {
                         curr = itemMap[curr.parentId];
                         chain.unshift(curr);
                     }
-                    linesInd.push(chain.map(x => x.ind).join(' || '));
-                    linesEn.push(chain.map(x => (x.en || '')).join(' || '));
+                    linesInd.push(chain.map(x => (x.ind || '').trim()).join(' || '));
+
+                    // Hanya gabungkan ' || ' jika setidaknya ada 1 teks bahasa Inggris yang terisi
+                    const hasAnyEn = chain.some(x => Boolean(x.en && x.en.trim()));
+                    if (hasAnyEn) {
+                        linesEn.push(chain.map(x => (x.en || '').trim()).join(' || '));
+                    } else {
+                        linesEn.push('');
+                    }
                 });
             } else if (this.type === 'baris') {
                 this.items.forEach(it => {
@@ -2846,16 +3009,69 @@ $(document).ready(function() {
         const barisTitle = formatLabel('Baris', 'Row', langMode);
         const count = items.length;
 
-        // Header: Kolom Baris + langsung Kolom-kolom Periode
-        let trHead = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 2px solid #cbd5e1;"></tr>');
-        trHead.append('<th style="width: 160px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px; color: #1e293b;">' + barisTitle + '</th>');
+        // Cek apakah item periode mengandung pemisah bertingkat '||'
+        const hasMulti = items.some(it => (it.nama_periode_ind || '').includes('||'));
 
-        items.forEach(function(item) {
-            let pLbl = formatLabel(item.nama_periode_ind, item.nama_periode_en, langMode);
-            trHead.append('<th style="border: 1px solid #cbd5e1; padding: 8px 14px; font-size: 13px; background: #ffffff; color: #1e293b;">' + pLbl + '</th>');
-        });
+        if (hasMulti) {
+            // Periode Bertingkat (misal: Tahun || Bulan atau Tahun || Triwulan)
+            const parsedItems = items.map(it => {
+                const indParts = (it.nama_periode_ind || '').split('||').map(s => s.trim());
+                const enParts  = (it.nama_periode_en || '').split('||').map(s => s.trim());
+                return {
+                    parentInd: indParts[0] || '',
+                    childInd:  indParts[1] || indParts[0] || '',
+                    parentEn:  enParts[0] || '',
+                    childEn:   enParts[1] || ''
+                };
+            });
 
-        thead.append(trHead);
+            // Kelompokkan tingkat 1 (Parent) yang berurutan
+            const groups = [];
+            let currGroup = null;
+            parsedItems.forEach(it => {
+                if (!currGroup || currGroup.parentInd !== it.parentInd) {
+                    currGroup = {
+                        parentInd: it.parentInd,
+                        parentEn:  it.parentEn,
+                        children: [it]
+                    };
+                    groups.push(currGroup);
+                } else {
+                    currGroup.children.push(it);
+                }
+            });
+
+            // Baris 1: Kolom Baris (rowspan 2) + Header Tingkat 1 (Parent Periode dengan colspan)
+            let trHead1 = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 1px solid #cbd5e1;"></tr>');
+            trHead1.append('<th rowspan="2" style="width: 160px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px; color: #1e293b; text-align: center;">' + barisTitle + '</th>');
+
+            groups.forEach(function(g) {
+                let pLbl = formatLabel(g.parentInd, g.parentEn, langMode);
+                trHead1.append('<th colspan="' + g.children.length + '" style="border: 1px solid #cbd5e1; padding: 8px 14px; font-size: 13px; background: #f8fafc; color: #1e293b; text-align: center;">' + pLbl + '</th>');
+            });
+            thead.append(trHead1);
+
+            // Baris 2: Header Tingkat 2 (Child Periode)
+            let trHead2 = $('<tr style="background: #ffffff; font-weight: 600; border-bottom: 2px solid #cbd5e1;"></tr>');
+            parsedItems.forEach(function(it) {
+                let cLbl = formatLabel(it.childInd, it.childEn, langMode);
+                trHead2.append('<th style="border: 1px solid #cbd5e1; padding: 6px 12px; font-size: 12px; background: #ffffff; color: #1e293b; text-align: center;">' + cLbl + '</th>');
+            });
+            thead.append(trHead2);
+
+        } else {
+            // Header Standar (1 Baris)
+            let trHead = $('<tr style="background: #f1f5f9; font-weight: bold; border-bottom: 2px solid #cbd5e1;"></tr>');
+            trHead.append('<th style="width: 160px; background: #e2e8f0; border: 1px solid #cbd5e1; vertical-align: middle; padding: 10px; color: #1e293b; text-align: center;">' + barisTitle + '</th>');
+
+            items.forEach(function(item) {
+                let pLbl = formatLabel(item.nama_periode_ind, item.nama_periode_en, langMode);
+                trHead.append('<th style="border: 1px solid #cbd5e1; padding: 8px 14px; font-size: 13px; background: #ffffff; color: #1e293b; text-align: center;">' + pLbl + '</th>');
+            });
+
+            thead.append(trHead);
+        }
+
         $table.append(thead);
 
         let tbody = $('<tbody></tbody>');

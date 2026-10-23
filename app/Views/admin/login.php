@@ -281,6 +281,7 @@
             <?php endif; ?>
 
             <form action="<?php echo base_URL(); ?>index.php/admin/do_login" method="post">
+                <?= csrf_field(); ?>
                 <!-- Username -->
                 <div class="mb-2">
                     <label class="form-label">Username</label>

@@ -859,7 +859,7 @@ $catatan_val = $indikator->catatan ?? '';
                                 <?php 
                                     $curDepth = $init_max_depth ?? 1;
                                     $actL = [];
-                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua' || ($sel_tingkat_kolom === '1' && $curDepth > 1)) {
+                                    if (empty($sel_tingkat_kolom) || $sel_tingkat_kolom === 'semua') {
                                         $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                     } elseif ($sel_tingkat_kolom === 'sub_bab') {
                                         $actL = ($curDepth === 3) ? ['2', '3'] : ['2'];
@@ -869,7 +869,7 @@ $catatan_val = $indikator->catatan ?? '';
                                         $actL = array_filter(array_map('trim', explode(',', $sel_tingkat_kolom)), function($l) use ($curDepth) {
                                             return (int)$l >= 1 && (int)$l <= $curDepth;
                                         });
-                                        if (empty($actL) || ($curDepth > 1 && count($actL) === 1 && in_array('1', $actL) && empty($indikator->tingkat_kolom))) {
+                                        if (empty($actL)) {
                                             $actL = ($curDepth === 3) ? ['1', '2', '3'] : (($curDepth === 2) ? ['1', '2'] : ['1']);
                                         }
                                     }
@@ -1359,7 +1359,7 @@ $(document).ready(function() {
             for (let i = 1; i <= depth; i++) arr.push(String(i));
             return arr;
         }
-        if (!tingkatKolom || tingkatKolom === 'semua' || (tingkatKolom === '1' && maxDepth > 1)) {
+        if (!tingkatKolom || tingkatKolom === 'semua') {
             return getDefaultLevels(maxDepth);
         }
         if (tingkatKolom === 'sub_bab') {
@@ -1376,8 +1376,8 @@ $(document).ready(function() {
     function updateTingkatKolomUI(maxDepth) {
         const $container = $('#container_tingkat_kolom');
         let savedVal = $('#input_tingkat_kolom').val();
-        // Default tercentang semua jika baru dibuka atau kedalaman kolom bertingkat
-        if (!savedVal || savedVal === 'semua' || (savedVal === '1' && maxDepth > 1)) {
+        // Default tercentang semua jika baru dibuka atau belum diset
+        if (!savedVal || savedVal === 'semua') {
             const defArr = [];
             for (let i = 1; i <= maxDepth; i++) defArr.push(String(i));
             savedVal = defArr.join(',');
@@ -1857,16 +1857,52 @@ $(document).ready(function() {
         // =====================================================================
         let theadHtml = '';
 
+        // Deteksi Periode Bertingkat (Format pemisah '||', misal: "2024 || Maret")
+        const hasMultiPeriode = periodeItems.some(p => (p.nama_periode_ind || '').includes('||'));
+        const extraPeriodeRow = (hasMultiPeriode && !isPeriodeBaris && !isRuntunWaktu) ? 1 : 0;
+
         // Tentukan jumlah baris header
         let totalHeaderRows = 1;
         if (!hasBaris && hasKolom && hasPeriode) {
             totalHeaderRows = activeLevels.length;
         } else if (hasKolom && hasPeriode) {
-            totalHeaderRows = (isPeriodeBaris || isRuntunWaktu) ? activeLevels.length : (activeLevels.length + 1);
+            totalHeaderRows = (isPeriodeBaris || isRuntunWaktu) ? activeLevels.length : (activeLevels.length + 1 + extraPeriodeRow);
         } else if (hasKolom) {
             totalHeaderRows = activeLevels.length;
         } else if (hasPeriode) {
-            totalHeaderRows = 1;
+            totalHeaderRows = 1 + extraPeriodeRow;
+        }
+
+        // Struktur data Periode Bertingkat
+        let parsedPeriode = [];
+        let periodeGroups = [];
+        if (hasMultiPeriode) {
+            parsedPeriode = periodeItems.map(p => {
+                const indParts = (p.nama_periode_ind || '').split('||').map(s => s.trim());
+                const enParts  = (p.nama_periode_en || '').split('||').map(s => s.trim());
+                return {
+                    raw: p,
+                    id: p.id,
+                    parentInd: indParts[0] || '',
+                    childInd:  indParts[1] || indParts[0] || '',
+                    parentEn:  enParts[0] || '',
+                    childEn:   enParts[1] || ''
+                };
+            });
+
+            let currPGroup = null;
+            parsedPeriode.forEach(item => {
+                if (!currPGroup || currPGroup.parentInd !== item.parentInd) {
+                    currPGroup = {
+                        parentInd: item.parentInd,
+                        parentEn:  item.parentEn,
+                        children: [item]
+                    };
+                    periodeGroups.push(currPGroup);
+                } else {
+                    currPGroup.children.push(item);
+                }
+            });
         }
 
         // Dapatkan Judul Kelompok Baris secara Dinamis
@@ -2061,7 +2097,8 @@ $(document).ready(function() {
          * Helper untuk menghasilkan string HTML elemen <th> untuk suatu tingkat kolom tertentu
          */
         function getLevelCells(lvl, multiplier) {
-            if (kolomStruct && kolomStruct.header_rows && kolomStruct.header_rows[lvl]) {
+            const isAllLevelsActive = (activeLevels.length === maxDepth);
+            if (isAllLevelsActive && kolomStruct && kolomStruct.header_rows && kolomStruct.header_rows[lvl]) {
                 let cellsHtml = '';
                 kolomStruct.header_rows[lvl].forEach(function(cell) {
                     const colspan = cell.colspan * multiplier;
@@ -2272,12 +2309,28 @@ $(document).ready(function() {
         // -------------------------------------------------------------
         if (!hasBaris && hasKolom && hasPeriode) {
             theadHtml += '<tr>';
-            theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-center" style="vertical-align: middle;">';
-            theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
-            if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
-                theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
+            if (hasMultiPeriode) {
+                theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-center" style="vertical-align: middle;">';
+                theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
+                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                    theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
+                }
+                theadHtml += '</th>';
+
+                theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col-2 text-center" style="vertical-align: middle;">';
+                theadHtml += '<span>Rincian</span>';
+                if (isBilingual) {
+                    theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ Details</span>';
+                }
+                theadHtml += '</th>';
+            } else {
+                theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-center" style="vertical-align: middle;">';
+                theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
+                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                    theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
+                }
+                theadHtml += '</th>';
             }
-            theadHtml += '</th>';
 
             // Baris 1: Tingkat Kolom Pertama
             theadHtml += getLevelCells(activeLevels[0], 1);
@@ -2295,18 +2348,45 @@ $(document).ready(function() {
         // KASUS 1: Hanya Periode Waktu (Tanpa Karakteristik Kolom)
         // -------------------------------------------------------------
         else if (!hasKolom && hasPeriode) {
-            theadHtml += '<tr>';
-            theadHtml += getRowHeaderTh(totalHeaderRows);
+            if (hasMultiPeriode) {
+                // Baris 1: Parent Periode (colspan)
+                theadHtml += '<tr>';
+                theadHtml += getRowHeaderTh(totalHeaderRows);
+                periodeGroups.forEach(function(g) {
+                    theadHtml += '<th colspan="' + g.children.length + '" class="th-group-col text-center" style="font-weight: bold;">';
+                    theadHtml += '<span>' + escapeHtml(g.parentInd) + '</span>';
+                    if (isBilingual && g.parentEn && g.parentEn !== g.parentInd) {
+                        theadHtml += '<span class="th-en">' + escapeHtml(g.parentEn) + '</span>';
+                    }
+                    theadHtml += '</th>';
+                });
+                theadHtml += '</tr>';
 
-            periodeItems.forEach(function(p) {
-                theadHtml += '<th class="th-data-col text-center">';
-                theadHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
-                if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
-                    theadHtml += '<span class="th-en">' + escapeHtml(p.nama_periode_en) + '</span>';
-                }
-                theadHtml += '</th>';
-            });
-            theadHtml += '</tr>';
+                // Baris 2: Child Periode
+                theadHtml += '<tr>';
+                parsedPeriode.forEach(function(p) {
+                    theadHtml += '<th class="th-data-col text-center">';
+                    theadHtml += '<span>' + escapeHtml(p.childInd) + '</span>';
+                    if (isBilingual && p.childEn && p.childEn !== p.childInd) {
+                        theadHtml += '<span class="th-en">' + escapeHtml(p.childEn) + '</span>';
+                    }
+                    theadHtml += '</th>';
+                });
+                theadHtml += '</tr>';
+            } else {
+                theadHtml += '<tr>';
+                theadHtml += getRowHeaderTh(totalHeaderRows);
+
+                periodeItems.forEach(function(p) {
+                    theadHtml += '<th class="th-data-col text-center">';
+                    theadHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
+                    if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
+                        theadHtml += '<span class="th-en">' + escapeHtml(p.nama_periode_en) + '</span>';
+                    }
+                    theadHtml += '</th>';
+                });
+                theadHtml += '</tr>';
+            }
         }
 
         // -------------------------------------------------------------
@@ -2437,19 +2517,49 @@ $(document).ready(function() {
                     theadHtml += '</tr>';
                 }
 
-                // Baris Terbawah: Periode Waktu di bawah setiap kolom daun
-                theadHtml += '<tr>';
-                flatKolom.forEach(function() {
-                    periodeItems.forEach(function(p) {
-                        theadHtml += '<th class="py-1 text-center th-periode-col" style="font-size: 0.78rem !important;">';
-                        theadHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
-                        if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
-                            theadHtml += '<span class="th-en">' + escapeHtml(p.nama_periode_en) + '</span>';
-                        }
-                        theadHtml += '</th>';
+                if (hasMultiPeriode) {
+                    // Baris Tingkat Periode 1 (Parent, misal Tahun)
+                    theadHtml += '<tr>';
+                    flatKolom.forEach(function() {
+                        periodeGroups.forEach(function(g) {
+                            theadHtml += '<th colspan="' + g.children.length + '" class="py-1 text-center th-group-col" style="font-size: 0.82rem !important; font-weight: bold;">';
+                            theadHtml += '<span>' + escapeHtml(g.parentInd) + '</span>';
+                            if (isBilingual && g.parentEn && g.parentEn !== g.parentInd) {
+                                theadHtml += '<span class="th-en">' + escapeHtml(g.parentEn) + '</span>';
+                            }
+                            theadHtml += '</th>';
+                        });
                     });
-                });
-                theadHtml += '</tr>';
+                    theadHtml += '</tr>';
+
+                    // Baris Tingkat Periode 2 (Child, misal Bulan / Triwulan)
+                    theadHtml += '<tr>';
+                    flatKolom.forEach(function() {
+                        parsedPeriode.forEach(function(p) {
+                            theadHtml += '<th class="py-1 text-center th-periode-col" style="font-size: 0.78rem !important;">';
+                            theadHtml += '<span>' + escapeHtml(p.childInd) + '</span>';
+                            if (isBilingual && p.childEn && p.childEn !== p.childInd) {
+                                theadHtml += '<span class="th-en">' + escapeHtml(p.childEn) + '</span>';
+                            }
+                            theadHtml += '</th>';
+                        });
+                    });
+                    theadHtml += '</tr>';
+                } else {
+                    // Baris Terbawah: Periode Waktu di bawah setiap kolom daun
+                    theadHtml += '<tr>';
+                    flatKolom.forEach(function() {
+                        periodeItems.forEach(function(p) {
+                            theadHtml += '<th class="py-1 text-center th-periode-col" style="font-size: 0.78rem !important;">';
+                            theadHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
+                            if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
+                                theadHtml += '<span class="th-en">' + escapeHtml(p.nama_periode_en) + '</span>';
+                            }
+                            theadHtml += '</th>';
+                        });
+                    });
+                    theadHtml += '</tr>';
+                }
             }
         }
 
@@ -2464,19 +2574,45 @@ $(document).ready(function() {
         if (barisItems.length === 0) {
             if (!hasBaris && hasKolom && hasPeriode) {
                 // RENDER TBODY KHUSUS: PERIODE MENJADI BARIS (RUNTUN WAKTU MAKRO / PROVINSI)
-                periodeItems.forEach(function(p) {
-                    tbodyHtml += '<tr class="row-data">';
-                    tbodyHtml += '<td class="td-freeze-col text-center fw-semibold text-dark" style="vertical-align: middle; font-size: 0.85rem;">';
-                    tbodyHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
-                    if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
-                        tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(p.nama_periode_en) + '</span>';
-                    }
-                    tbodyHtml += '</td>';
-                    for (let i = 0; i < totalLeafCols; i++) {
-                        tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
-                    }
-                    tbodyHtml += '</tr>';
-                });
+                if (hasMultiPeriode) {
+                    periodeGroups.forEach(function(g) {
+                        g.children.forEach(function(p, cIdx) {
+                            tbodyHtml += '<tr class="row-data">';
+                            if (cIdx === 0) {
+                                tbodyHtml += '<td rowspan="' + g.children.length + '" class="td-freeze-col text-center fw-bold text-dark" style="vertical-align: middle; font-size: 0.85rem;">';
+                                tbodyHtml += '<span>' + escapeHtml(g.parentInd) + '</span>';
+                                if (isBilingual && g.parentEn && g.parentEn !== g.parentInd) {
+                                    tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(g.parentEn) + '</span>';
+                                }
+                                tbodyHtml += '</td>';
+                            }
+                            tbodyHtml += '<td class="td-freeze-col-2 text-start fw-semibold text-dark" style="vertical-align: middle; font-size: 0.85rem; padding-left: 12px;">';
+                            tbodyHtml += '<span>' + escapeHtml(p.childInd) + '</span>';
+                            if (isBilingual && p.childEn && p.childEn !== p.childInd) {
+                                tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(p.childEn) + '</span>';
+                            }
+                            tbodyHtml += '</td>';
+                            for (let i = 0; i < totalLeafCols; i++) {
+                                tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
+                            }
+                            tbodyHtml += '</tr>';
+                        });
+                    });
+                } else {
+                    periodeItems.forEach(function(p) {
+                        tbodyHtml += '<tr class="row-data">';
+                        tbodyHtml += '<td class="td-freeze-col text-center fw-semibold text-dark" style="vertical-align: middle; font-size: 0.85rem;">';
+                        tbodyHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
+                        if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
+                            tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(p.nama_periode_en) + '</span>';
+                        }
+                        tbodyHtml += '</td>';
+                        for (let i = 0; i < totalLeafCols; i++) {
+                            tbodyHtml += '<td class="cell-numeric-placeholder">–</td>';
+                        }
+                        tbodyHtml += '</tr>';
+                    });
+                }
             } else {
                 const emptyColspan = (isPeriodeBaris ? (isMultiBaris ? 3 : 2) : (isMultiBaris ? 2 : 1)) + totalLeafCols;
                 tbodyHtml = '<tr><td colspan="' + emptyColspan + '" class="text-center py-4 text-muted">Belum ada baris dalam master yang dipilih.</td></tr>';

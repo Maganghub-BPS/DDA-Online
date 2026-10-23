@@ -6,6 +6,7 @@
     <title>.:: Jateng Dalam Angka ::.</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
+    <meta name="<?= csrf_token() ?>" content="<?= csrf_hash() ?>" id="meta-csrf">
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -756,6 +757,42 @@
     <!-- Sidebar Toggle & Global UI Handler Script -->
     <script>
         $(document).ready(function() {
+            // Global CSRF Protection Setup for AJAX & Forms
+            var csrfTokenName = '<?= csrf_token() ?>';
+            var csrfHash = '<?= csrf_hash() ?>';
+
+            // Global jQuery AJAX Setup: Otomatis kirim X-CSRF-TOKEN header pada request non-GET
+            $.ajaxSetup({
+                beforeSend: function(xhr, settings) {
+                    if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                        xhr.setRequestHeader('X-CSRF-TOKEN', csrfHash);
+                    }
+                }
+            });
+
+            // Injeksi otomatis input hidden CSRF pada semua form POST yang belum memilikinya
+            function injectCsrfToForms() {
+                $('form').each(function() {
+                    var method = ($(this).attr('method') || '').toUpperCase();
+                    if (method === 'POST') {
+                        if ($(this).find('input[name="' + csrfTokenName + '"]').length === 0) {
+                            $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + csrfHash + '">');
+                        }
+                    }
+                });
+            }
+            injectCsrfToForms();
+
+            // Tangani form dinamis / modal saat submit
+            $(document).on('submit', 'form', function() {
+                var method = ($(this).attr('method') || '').toUpperCase();
+                if (method === 'POST') {
+                    if ($(this).find('input[name="' + csrfTokenName + '"]').length === 0) {
+                        $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + csrfHash + '">');
+                    }
+                }
+            });
+
             $('#sidebarCollapse').on('click', function() {
                 $('#sidebar').toggleClass('active');
             });
