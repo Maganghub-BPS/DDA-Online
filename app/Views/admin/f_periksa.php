@@ -43,7 +43,7 @@
 
                 <div class="mb-2">
                     <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary ls-1 mb-1">Catatan Pemeriksaan</label>
-                    <textarea name="catatan_periksa" class="form-control border-radius-md" rows="3" placeholder="Tambahkan catatan jika diperlukan..."></textarea>
+                    <textarea name="catatan" class="form-control border-radius-md" rows="3" placeholder="Tambahkan catatan jika diperlukan..."></textarea>
                 </div>
 
                 <div class="modal-footer border-0 px-0 pb-0 pt-3">
