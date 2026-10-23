@@ -3,6 +3,7 @@ $uri = uri_string();
 $isHome = ($uri == '' || $uri == '/' || strpos($uri, 'search') !== false || strpos($uri, 'instansi') !== false);
 $isBeranda = ($uri == '' || $uri == '/' || $uri == 'home' || $uri == 'home/index' || current_url() == base_url() || current_url() == base_url('home'));
 $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search') !== false);
+$isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !== false);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -217,6 +218,64 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
             opacity: 1;
         }
 
+        /* ===== SOLID NAVY BLUE LOGIN CTA BUTTON (SIMPLE & CLEAN) ===== */
+        .navbar-custom .btn-nav-login {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 22px !important;
+            font-family: 'Inter', "Inter Fallback", sans-serif;
+            font-weight: 700;
+            font-size: 0.93rem;
+            line-height: 1.2;
+            color: #ffffff !important;
+            text-decoration: none;
+            background: var(--bps-blue) !important;
+            border: none !important;
+            border-radius: 50px;
+            box-shadow: 0 2px 6px rgba(21, 70, 121, 0.2);
+            transition: background-color 0.15s ease, opacity 0.15s ease !important;
+            cursor: pointer;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login i {
+            font-size: 0.92rem;
+            color: #ffffff !important;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login span {
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #ffffff !important;
+        }
+
+        .navbar-custom .btn-nav-login:hover {
+            background: #113861 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 6px rgba(21, 70, 121, 0.25) !important;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login:active {
+            opacity: 0.9 !important;
+            transform: none !important;
+        }
+
+        .navbar-custom .btn-nav-login.active {
+            background: #113861 !important;
+        }
+
+        .navbar-custom.scrolled .btn-nav-login {
+            background: var(--bps-blue) !important;
+        }
+
+        .navbar-custom.scrolled .btn-nav-login:hover {
+            background: #113861 !important;
+        }
+
         /* Mobile Navbar */
         .navbar-custom .navbar-toggler i { color: var(--bps-blue) !important; }
 
@@ -234,6 +293,12 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                 width: 32px;
                 right: auto;
                 bottom: 2px;
+            }
+            .navbar-custom .btn-nav-login {
+                width: 100%;
+                justify-content: center;
+                padding: 9px 20px 9px 12px !important;
+                margin-top: 6px;
             }
         }
 
@@ -652,6 +717,12 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                             <i class="fa-solid fa-compass me-1"></i> Jelajah Data
                         </a>
                     </li>
+                    <li class="nav-item ms-lg-2">
+                        <a class="btn-nav-login <?= $isLogin ? 'active' : '' ?>" id="nav-link-login" href="<?= base_url('admin/login') ?>" title="Login Portal Pengelola">
+                            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                            <span>Login</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -816,12 +887,47 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                 let scrollTimeout;
                 let isAutoScrolling = false;
 
+                function scrollToInstansi() {
+                    const navHeight = document.getElementById('mainNavbar')?.offsetHeight || 75;
+                    const targetY = instansiSection.getBoundingClientRect().top + window.pageYOffset - (navHeight + 10);
+                    window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+                }
+
+                function checkScrollSpy() {
+                    if (isAutoScrolling) return;
+                    const rect = instansiSection.getBoundingClientRect();
+                    const navHeight = document.getElementById('mainNavbar')?.offsetHeight || 75;
+
+                    // Section #instansi dianggap aktif HANYA ketika area Jelajahi Instansi sedang berada di fokus layar utama
+                    // (rect.top telah mendekati navbar dan rect.bottom belum terlewati ke atas)
+                    const isInInstansiView = (rect.top <= navHeight + 70 && rect.bottom >= navHeight + 70);
+
+                    if (isInInstansiView) {
+                        setActiveNav('instansi');
+                    } else {
+                        // Di luar section #instansi (baik di atasnya seperti Hero maupun di bawahnya seperti Tabel Terbaru & Kenali Fitur Portal), status nav bar adalah Beranda!
+                        setActiveNav('beranda');
+                        // Jika hash #instansi masih tersisa di URL, bersihkan secara halus
+                        if (window.location.hash === '#instansi' && history.replaceState) {
+                            history.replaceState(null, null, window.location.pathname + window.location.search);
+                        }
+                    }
+                }
+
                 // 1. Sinkronisasi status saat halaman dimuat jika terdapat hash #instansi
                 if (window.location.hash === '#instansi') {
                     setActiveNav('instansi');
+                    isAutoScrolling = true;
                     setTimeout(function() {
-                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 200);
+                        scrollToInstansi();
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
+                    }, 300);
+                } else {
+                    checkScrollSpy();
                 }
 
                 // 2. Klik menu Beranda saat berada di halaman Beranda
@@ -836,11 +942,14 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                         setActiveNav('beranda');
                         isAutoScrolling = true;
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        if (history.pushState) {
-                            history.pushState(null, null, '<?= base_url() ?>');
+                        if (history.replaceState) {
+                            history.replaceState(null, null, '<?= base_url() ?>');
                         }
                         clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(function() { isAutoScrolling = false; }, 800);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
                     });
                 }
 
@@ -855,26 +964,27 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                         }
                         setActiveNav('instansi');
                         isAutoScrolling = true;
-                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        scrollToInstansi();
                         if (history.pushState) {
                             history.pushState(null, null, '<?= base_url('#instansi') ?>');
-                        } else {
-                            window.location.hash = '#instansi';
                         }
                         clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(function() { isAutoScrolling = false; }, 800);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
                     });
                 });
 
                 // 4. ScrollSpy dinamis saat pengguna scroll manual di halaman Beranda
+                let isTicking = false;
                 window.addEventListener('scroll', function() {
-                    if (isAutoScrolling) return;
-                    const rect = instansiSection.getBoundingClientRect();
-                    // Jika section instansi berada di viewport
-                    if (rect.top <= 200 && rect.bottom >= 150) {
-                        setActiveNav('instansi');
-                    } else if (window.scrollY < 200) {
-                        setActiveNav('beranda');
+                    if (!isTicking) {
+                        window.requestAnimationFrame(function() {
+                            checkScrollSpy();
+                            isTicking = false;
+                        });
+                        isTicking = true;
                     }
                 }, { passive: true });
 
@@ -882,9 +992,15 @@ $isSearch = (strpos($uri, 'search') !== false || strpos(current_url(), 'search')
                 window.addEventListener('hashchange', function() {
                     if (window.location.hash === '#instansi') {
                         setActiveNav('instansi');
-                        instansiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        isAutoScrolling = true;
+                        scrollToInstansi();
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(function() {
+                            isAutoScrolling = false;
+                            checkScrollSpy();
+                        }, 800);
                     } else {
-                        setActiveNav('beranda');
+                        checkScrollSpy();
                     }
                 });
             }

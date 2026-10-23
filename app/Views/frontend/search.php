@@ -497,14 +497,19 @@
         align-items: center;
         gap: 6px;
         transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        box-shadow: none !important;
     }
 
     .table-clean-card:hover .tcc-btn,
     .table-modern-card:hover .tcc-btn,
-    .tcc-btn:hover {
+    .tcc-btn:hover,
+    .tcc-btn:focus,
+    .tcc-btn:active {
         background: var(--bps-blue);
         color: #ffffff;
         border-color: var(--bps-blue);
+        box-shadow: none !important;
+        outline: none;
     }
 
     .tcc-btn i {
@@ -974,7 +979,7 @@
                     <div class="fb-group select-group fb-opd">
                         <i class="fa-solid fa-building-columns"></i>
                         <select name="opd_search" id="select-opd">
-                            <option value="">Semua OPD</option>
+                            <option value="">Semua Instansi</option>
                             <?php foreach($unique_units as $u): ?>
                                 <?php if (!empty($u->unitkerja_ind)): ?>
                                     <option value="<?= htmlspecialchars($u->unitkerja_ind) ?>" <?= ((isset($opd_search) && $opd_search === $u->unitkerja_ind) || (!empty($_GET['opd_search']) && $_GET['opd_search'] === $u->unitkerja_ind)) ? 'selected' : '' ?>>
@@ -1075,19 +1080,12 @@
                         ?>
                         <div class="col-lg-3 col-md-6">
                             <div class="table-clean-card">
-                                <!-- 1. Instansi & Badge Sumber -->
-                                <div class="tcc-header d-flex justify-content-between align-items-center">
-                                    <span class="tcc-agency text-truncate me-2" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
+                                <!-- 1. Instansi -->
+                                <div class="tcc-header d-flex align-items-center">
+                                    <span class="tcc-agency text-truncate" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
                                         <i class="fa-solid fa-building-columns"></i>
                                         <span><?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?></span>
                                     </span>
-                                    <?php if ($source_type === 'dinamis'): ?>
-                                        <span class="badge border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px; border-color: #d8b4fe !important; color: #7e22ce !important; background-color: #f3e8ff !important;"><i class="fa-solid fa-cube me-1"></i>Dinamis</span>
-                                    <?php elseif ($source_type === 'portal'): ?>
-                                        <span class="badge bg-primary-subtle text-primary border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px;"><i class="fa-solid fa-globe me-1"></i>Portal</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-success-subtle text-success border flex-shrink-0" style="font-size: 0.65rem; padding: 2px 6px;"><i class="fa-solid fa-table me-1"></i>Sheet</span>
-                                    <?php endif; ?>
                                 </div>
 
                                 <!-- 2. Judul -->
@@ -1152,19 +1150,6 @@
                                         <i class="fa-regular fa-calendar"></i>
                                         <?= htmlspecialchars($row->tahun ?? '-') ?>
                                     </span>
-                                    <?php if ($source_type === 'dinamis'): ?>
-                                        <span class="rc-badge" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;">
-                                            <i class="fa-solid fa-cube me-1"></i> Tabel Dinamis
-                                        </span>
-                                    <?php elseif ($source_type === 'portal'): ?>
-                                        <span class="rc-badge" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;">
-                                            <i class="fa-solid fa-globe me-1"></i> Portal Data
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="rc-badge" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
-                                            <i class="fa-solid fa-table me-1"></i> Spreadsheet
-                                        </span>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                             

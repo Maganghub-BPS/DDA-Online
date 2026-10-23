@@ -27,6 +27,7 @@ class M_frontend extends Model
             t.config_tabel,
             t.is_confirm,
             t.is_publish,
+            t.published_at,
             t.is_dynamic,
             m.id_unitkerja,
             m.kondef,
@@ -90,6 +91,7 @@ class M_frontend extends Model
             ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
             ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
             ->where('t.is_publish', 1)
+            ->orderBy('t.published_at', 'DESC')
             ->orderBy('t.id', 'DESC')
             ->limit($limit)
             ->get()
@@ -213,7 +215,7 @@ class M_frontend extends Model
             $builder->where('t.tahun', $tahun);
         }
 
-        $builder->orderBy('t.id', 'DESC');
+        $builder->orderBy('t.published_at', 'DESC')->orderBy('t.id', 'DESC');
 
         // Hitung total sebelum limit
         $total = $builder->countAllResults(false);
