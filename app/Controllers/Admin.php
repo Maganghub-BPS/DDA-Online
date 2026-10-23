@@ -4728,35 +4728,48 @@ class Admin extends BaseController
 			$idKelompok = (int)$this->request->getPost('id_kelompok');
 			$items_ind  = (string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text'));
 			$items_en   = (string)$this->request->getPost('items_text_en');
+			$items_json = $this->request->getPost('items_json');
 
 			if (empty($idKelompok)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
 				return redirect()->to('admin/master_dimensi?tab=karakteristik');
 			}
 
-			// Jangan gunakan trim() pada keseluruhan teks sebelum split baris,
-			// agar baris awal yang kosong tidak terpotong dan indeks baris tetap selaras
-			$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
-			$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
-			$items = [];
-			$no = 1;
-
-			foreach ($lines_ind as $idx => $l_ind) {
-				$l_ind = trim($l_ind);
-				if ($l_ind === '') continue;
-				$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
-				if (preg_replace('/[\s\|]/', '', $l_en) === '') {
-					$l_en = '';
+			try {
+				if (!empty($items_json)) {
+					$decoded = json_decode($items_json, true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$mTabelDinamis->syncKarakteristikFromTreeItems($idKelompok, $decoded);
+						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item kolom karakteristik berhasil disimpan!</div>");
+						return redirect()->to('admin/master_dimensi?tab=karakteristik');
+					}
 				}
-				$items[] = [
-					'item_ind' => $l_ind,
-					'item_en'  => $l_en,
-					'no_urut'  => $no++,
-				];
-			}
 
-			$mTabelDinamis->syncKarakteristikItems($idKelompok, $items);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item kolom karakteristik berhasil disimpan! (" . count($items) . " kolom)</div>");
+				// Fallback jika hanya input teks biasa
+				$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
+				$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+				$items = [];
+				$no = 1;
+
+				foreach ($lines_ind as $idx => $l_ind) {
+					$l_ind = trim($l_ind);
+					if ($l_ind === '') continue;
+					$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+					if (preg_replace('/[\s\|]/', '', $l_en) === '') {
+						$l_en = '';
+					}
+					$items[] = [
+						'item_ind' => $l_ind,
+						'item_en'  => $l_en,
+						'no_urut'  => $no++,
+					];
+				}
+
+				$mTabelDinamis->syncKarakteristikItems($idKelompok, $items);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item kolom karakteristik berhasil disimpan! (" . count($items) . " kolom)</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=karakteristik');
 		}
 
@@ -4903,17 +4916,21 @@ class Admin extends BaseController
 				return redirect()->to('admin/master_dimensi?tab=baris');
 			}
 
-			if (!empty($items_json)) {
-				$decoded = json_decode($items_json, true);
-				if (is_array($decoded) && !empty($decoded)) {
-					$mTabelDinamis->syncBarisFromTreeItems($idKelompok, $decoded);
-					$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
-					return redirect()->to('admin/master_dimensi?tab=baris');
+			try {
+				if (!empty($items_json)) {
+					$decoded = json_decode($items_json, true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$mTabelDinamis->syncBarisFromTreeItems($idKelompok, $decoded);
+						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+						return redirect()->to('admin/master_dimensi?tab=baris');
+					}
 				}
-			}
 
-			$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+				$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=baris');
 		}
 
@@ -5047,8 +5064,12 @@ class Admin extends BaseController
 				return redirect()->to('admin/master_dimensi?tab=periode');
 			}
 
-			$mTabelDinamis->generatePeriodeYearRange($idKelompok, $year_start, $year_end, $year_order);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Rentang tahun {$year_start}-{$year_end} berhasil di-generate!</div>");
+			try {
+				$mTabelDinamis->generatePeriodeYearRange($idKelompok, $year_start, $year_end, $year_order);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Rentang tahun {$year_start}-{$year_end} berhasil di-generate!</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=periode');
 		}
 
@@ -5056,14 +5077,28 @@ class Admin extends BaseController
 			$idKelompok = (int)$this->request->getPost('id_kelompok');
 			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
 			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$items_json = $this->request->getPost('items_json');
 
 			if (empty($idKelompok)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
 				return redirect()->to('admin/master_dimensi?tab=periode');
 			}
 
-			$mTabelDinamis->parsePeriodeFromText($idKelompok, $items_ind, $items_en);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item periode waktu berhasil disimpan!</div>");
+			try {
+				if (!empty($items_json)) {
+					$decoded = json_decode($items_json, true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$mTabelDinamis->syncPeriodeFromTreeItems($idKelompok, $decoded);
+						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item periode waktu berhasil disimpan!</div>");
+						return redirect()->to('admin/master_dimensi?tab=periode');
+					}
+				}
+
+				$mTabelDinamis->parsePeriodeFromText($idKelompok, $items_ind, $items_en);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item periode waktu berhasil disimpan!</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=periode');
 		}
 
