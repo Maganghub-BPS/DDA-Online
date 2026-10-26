@@ -905,11 +905,23 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
                 grid.append(row)
         return grid
 
-    # 4. FLAT MULTI-METRIC CATEGORICAL (misal 10.1.5 PMA Menurut Negara, 2.3.22 ASN per Dinas)
+    # 4. FLAT MULTI-METRIC CATEGORICAL (misal 10.1.5 PMA Menurut Negara, 2.3.22 ASN per Dinas, 2.3.9 PNS Golongan)
     if len(cat_cols) == 1 and len(metric_cols) >= 1:
         dim_col = cat_cols[0]
         code_col = code_cols[0] if code_cols else None
-        grid_headers = ([code_col] if code_col else []) + [dim_col] + metric_cols
+
+        def clean_metric_label(m):
+            ml = m.lower()
+            if re.search(r'(?:^|_|\b)(?:laki[\s\-_]?laki|lakilaki|male)(?:$|_|\b)', ml):
+                return 'Laki-Laki'
+            if re.search(r'(?:^|_|\b)(?:perempuan|female)(?:$|_|\b)', ml):
+                return 'Perempuan'
+            if ml in ['jumlah_pns', 'jumlah_asn', 'jumlah_total', 'total', 'jumlah']:
+                return 'Jumlah'
+            return m.replace('_', ' ').title()
+
+        clean_metrics = [clean_metric_label(m) for m in metric_cols]
+        grid_headers = ([code_col.replace('_', ' ').title()] if code_col else []) + [dim_col.replace('_', ' ').title()] + clean_metrics
         grid = [grid_headers]
         for r in api_records:
             row = ([r.get(code_col)] if code_col else []) + [r.get(dim_col)]

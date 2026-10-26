@@ -359,6 +359,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 return results
 
         # Fallback / General API Normalizer: convert dict list into 2D grid and let CASE 2 process it!
+        api_year = None
+        if isinstance(source_data, list) and source_data and isinstance(source_data[0], dict):
+            api_years = sorted(list(set(str(r.get('tahun_data', r.get('tahun', ''))).strip() for r in source_data if r.get('tahun_data') or r.get('tahun'))))
+            if len(api_years) == 1 and api_years[0].isdigit() and len(api_years[0]) == 4:
+                api_year = api_years[0]
+
         grid = normalize_api_data(source_data, rows, target_table)
         if grid and len(grid) > 1:
             source_data = grid
@@ -378,8 +384,17 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         prov_entities = [p for p in prov_entities if p not in [None, '00', '33.00', 'Total Jawa Tengah', 'Indonesia']]
         has_dup_prov = len(prov_entities) > len(set(prov_entities))
 
-        jateng_entities = [resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] for r in sample_rows]
-        jateng_entities = [j for j in jateng_entities if j not in [None, '33.00', 'Total Jawa Tengah']]
+        jateng_entities = []
+        is_kota_scan = False
+        for r in sample_rows:
+            txt_scan = ' '.join(str(c) for c in r).lower()
+            if 'kota' in txt_scan and ('kabupaten' not in txt_scan or txt_scan.find('kota') < txt_scan.find('kabupaten')):
+                is_kota_scan = True
+            ent, _ = resolve_jateng_entity(' '.join(str(c) for c in r[:3]), is_kota_mode=is_kota_scan)
+            if ent and ent not in [None, '33.00', 'Total Jawa Tengah']:
+                jateng_entities.append(ent)
+                if ent == '33.29':  # Brebes adalah kabupaten terakhir di urutan BPS Jawa Tengah
+                    is_kota_scan = True
         has_dup_jateng = len(jateng_entities) > len(set(jateng_entities))
 
         has_duplicate_regions = has_dup_prov or has_dup_jateng
@@ -525,7 +540,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             headers = detect_col_headers(clean_db_rows)
             src_title = ' '.join(str(c) for c in (source_data[0] if source_data else []))
             title_years = re.findall(r'\b(20\d{2})\b', src_title)
-            target_year = title_years[-1] if title_years else None
+            target_year = title_years[-1] if title_years else (api_year if 'api_year' in locals() and api_year else None)
             db_header_years = set(re.findall(r'\b(20\d{2})\b', ' '.join(headers)))
 
             pdf_by_year = {}
@@ -561,11 +576,13 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     return "Kabupaten"
                 elif re.search(r'\b(kota|municipality)\b', all_txt) and not re.search(r'\b(kabupaten|regency)\b', all_txt):
                     return "Kota"
-                if ('laki-laki' in all_txt or re.search(r'\bmale\b', all_txt)) and ('perempuan' in all_txt or re.search(r'\bfemale\b', all_txt)):
+                has_male = bool(re.search(r'\b(laki[\s\-_]?laki|lakilaki|male)\b', all_txt))
+                has_female = bool(re.search(r'\b(perempuan|female)\b', all_txt))
+                if has_male and has_female:
                     return None
-                if 'laki-laki' in all_txt or re.search(r'\bmale\b', all_txt):
+                if has_male:
                     return "Laki-Laki"
-                elif 'perempuan' in all_txt or re.search(r'\bfemale\b', all_txt):
+                elif has_female:
                     return "Perempuan"
                 return None
 
@@ -583,12 +600,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if any(k in all_txt for k in ['sumber:', 'source:', 'catatan:', 'note:', 'sumber/source', 'catatan/note']):
                         break
 
+                    if is_header_or_metadata_row(r):
+                        continue
+
                     sec = get_gender_sec(all_txt, r)
                     if sec:
                         cur_sec = sec
-                        continue
-
-                    if is_header_or_metadata_row(r):
                         continue
 
                     code = None
