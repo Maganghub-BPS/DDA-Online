@@ -316,7 +316,81 @@ class TestEngineSymbolIntegrity(unittest.TestCase):
             )
 
 
+class TestGenericSchemaProfiler(unittest.TestCase):
+    def test_schema_profiling_roles(self):
+        from table_profiler import profile_api_schema
+        records = [
+            {
+                "id": 1,
+                "tahun_data": 2025,
+                "kode_wilayah": "33.01",
+                "nama_wilayah": "Kab. Cilacap",
+                "jumlah_pma": "15",
+                "nilai_investasi": "1250000.5",
+            },
+            {
+                "id": 2,
+                "tahun_data": 2025,
+                "kode_wilayah": "33.02",
+                "nama_wilayah": "Kab. Banyumas",
+                "jumlah_pma": "8",
+                "nilai_investasi": "750000.0",
+            },
+            {
+                "id": 3,
+                "tahun_data": 2025,
+                "kode_wilayah": "33.03",
+                "nama_wilayah": "Kab. Purbalingga",
+                "jumlah_pma": "3",
+                "nilai_investasi": "250000.0",
+            },
+        ]
+        roles = profile_api_schema(records)
+        self.assertEqual(roles.get("id"), "system")
+        self.assertEqual(roles.get("tahun_data"), "temporal")
+        self.assertEqual(roles.get("kode_wilayah"), "code")
+        self.assertEqual(roles.get("nama_wilayah"), "region")
+        self.assertEqual(roles.get("jumlah_pma"), "metric")
+        self.assertEqual(roles.get("nilai_investasi"), "metric")
+
+
+class TestGenericApiNormalizer(unittest.TestCase):
+    def test_crosstab_pivot_normalization(self):
+        from table_profiler import normalize_api_data
+        records = [
+            {"asal_partai_politik": "Partai A", "jenis_kelamin": "L", "jumlah": 10},
+            {"asal_partai_politik": "Partai A", "jenis_kelamin": "P", "jumlah": 5},
+            {"asal_partai_politik": "Partai B", "jenis_kelamin": "L", "jumlah": 7},
+            {"asal_partai_politik": "Partai B", "jenis_kelamin": "P", "jumlah": 3},
+        ]
+        grid = normalize_api_data(records, pdf_rows=[["Laki-Laki", "Perempuan", "Jumlah"]])
+        self.assertIsNotNone(grid)
+        self.assertIn("Laki-Laki", grid[0])
+        self.assertIn("Perempuan", grid[0])
+        self.assertIn("Jumlah", grid[0])
+        # Cek row Partai A
+        row_a = next(r for r in grid if r[0] == "Partai A")
+        self.assertEqual(row_a[1], 10)  # L
+        self.assertEqual(row_a[2], 5)   # P
+        self.assertEqual(row_a[3], 15)  # Total
+
+    def test_time_series_pivot_normalization(self):
+        from table_profiler import normalize_api_data
+        records = [
+            {"tahun_data": 2024, "jenis_belanja": "Belanja Pegawai", "realisasi": 500},
+            {"tahun_data": 2025, "jenis_belanja": "Belanja Pegawai", "realisasi": 600},
+            {"tahun_data": 2024, "jenis_belanja": "Belanja Barang", "realisasi": 200},
+            {"tahun_data": 2025, "jenis_belanja": "Belanja Barang", "realisasi": 250},
+        ]
+        grid = normalize_api_data(records)
+        self.assertIsNotNone(grid)
+        self.assertEqual(grid[0], ["Jenis Belanja", "Tahun 2024", "Tahun 2025"])
+        row_peg = next(r for r in grid if r[0] == "Belanja Pegawai")
+        self.assertEqual(row_peg, ["Belanja Pegawai", 500, 600])
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 

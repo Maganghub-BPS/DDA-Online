@@ -685,245 +685,256 @@ def detect_table_archetype(pdf_path, target_table, target_pages, source_data):
 
     return "MULTI_PAGE_SECTION_PER_PAGE"
 
-def normalize_api_data(api_records, pdf_rows=None, table_num=""):
+def profile_api_schema(api_records):
     """
-    Mengonversi list of dict dari API Satudata menjadi representasi 2D tabular
-    yang kompatibel dengan matching engine compare_table.py.
+    Menganalisis skema record API secara generik berbasis statistik, tipe nilai,
+    dan karakteristik entitas domain tanpa bergantung pada kamus nama kolom hardcoded.
+    Mengembalikan dictionary: {col_name: role} di mana role adalah salah satu dari:
+    'system', 'temporal', 'code', 'region', 'metric', 'categorical'.
     """
-    if not isinstance(api_records, list) or not api_records or not isinstance(api_records[0], dict):
+    if not api_records or not isinstance(api_records, list) or not isinstance(api_records[0], dict):
         return None
 
     sample = api_records[0]
     keys = list(sample.keys())
 
-    # 1. CEK APAKAH INI TABEL WILAYAH (35 Kab/Kota)
-    reg_key = None
-    for k in ['nama_wilayah', 'nama_kabupatenkota', 'nama_wiayah', 'kabupaten_kota', 'wilayah']:
-        if k in sample:
-            reg_key = k
-            break
-            
-    if reg_key:
-        reg_vals = [r.get(reg_key) for r in api_records if r.get(reg_key)]
-        cat_key_cand = next((k for k in ['jenis_ppks', 'jenis_pmks', 'kategori', 'uraian'] if k in sample), None)
-        pdf_has_regions = False
-        if pdf_rows:
-            pdf_text_sample = ' '.join(str(c) for r in pdf_rows[:25] if isinstance(r, list) for c in r if c).lower()
-            pdf_has_regions = sum(1 for reg in ['cilacap', 'banyumas', 'purbalingga', 'semarang', 'surakarta', 'brebes', 'kudus', 'pati', 'jepara', 'tegal'] if reg in pdf_text_sample) >= 2
-            
-        # Jika PDF adalah rekap provinsi per kategori (bukan per kab/kota), lakukan agregasi per cat_key!
-        if cat_key_cand and (not pdf_has_regions or len(reg_vals) > len(set(reg_vals)) * 2):
-            numeric_keys = [k for k in keys if k not in {'id', 'created_at', 'updated_at', 'tahun_data', reg_key, 'kode_wilayah', 'kode_kabupatenkota', 'kode_kabupaten', cat_key_cand}]
-            numeric_keys = [k for k in numeric_keys if any(parse_num(r.get(k), is_pdf=False) is not None for r in api_records[:10])]
-            if numeric_keys:
+    col_roles = {}
+    for col in keys:
+        cl = col.lower().strip()
+        # 1. System / Metadata keys
+        if cl in {'id', '_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'deleted_at'}:
+            col_roles[col] = 'system'
+            continue
+
+        # 2. Temporal dimensions (tahun, bulan, triwulan, dsb.)
+        if re.search(r'^(tahun|year|bulan|month|triwulan|semester)(_|$)', cl):
+            col_roles[col] = 'temporal'
+            continue
+
+        # 3. Identifiers / Classification codes (kode rekening, no urut, dsb.)
+        if re.search(r'^(kode|code|no|nomor)(_|$)', cl) or 'kode_' in cl:
+            col_roles[col] = 'code'
+            continue
+
+        vals = [r.get(col) for r in api_records if r.get(col) is not None and str(r.get(col)).strip() != '']
+        if not vals:
+            col_roles[col] = 'empty'
+            continue
+
+        # 4. Regional / Geographic dimension
+        if any(w in cl for w in ['wilayah', 'kabupaten', 'kota', 'regency', 'municipality', 'daerah', 'provinsi']):
+            jateng_matches = sum(1 for v in set(vals) if resolve_jateng_entity(v)[0] not in [None, 'Total Jawa Tengah'])
+            if jateng_matches >= 3 or len(set(vals)) >= 25:
+                col_roles[col] = 'region'
+                continue
+
+        # 5. Nilai Numerik (Metric) vs Nilai Teks (Categorical)
+        num_count = sum(1 for v in vals if parse_num(v, is_pdf=False) is not None)
+        ratio = num_count / len(vals)
+        if ratio >= 0.75:
+            col_roles[col] = 'metric'
+        else:
+            col_roles[col] = 'categorical'
+
+    return col_roles
+
+
+def normalize_api_data(api_records, pdf_rows=None, target_table=None):
+    """
+    Mengonversi list of dict dari API Satudata menjadi representasi 2D tabular generik
+    yang kompatibel dengan matching engine compare_table.py (CASE 2).
+    Mendukung 5 layout generik:
+      1. Regional (35 Kab/Kota)
+      2. Multi-Dimensional Cross-Tabulation Pivot (misal Partai Politik x Gender / Umur)
+      3. Multi-Year Time Series Pivot (misal Belanja Daerah x Multi-Tahun)
+      4. Flat Multi-Metric Categorical (misal PMA Menurut Negara, ASN per Dinas)
+      5. Temporal Summary Rows (misal Wisatawan per Tahun)
+    """
+    if not isinstance(api_records, list) or not api_records or not isinstance(api_records[0], dict):
+        return None
+
+    roles = profile_api_schema(api_records)
+    if not roles:
+        return None
+
+    region_cols = [c for c, r in roles.items() if r == 'region']
+    code_cols = [c for c, r in roles.items() if r == 'code']
+    temporal_cols = [c for c, r in roles.items() if r == 'temporal']
+    cat_cols = [c for c, r in roles.items() if r == 'categorical']
+    metric_cols = [c for c, r in roles.items() if r == 'metric']
+
+    # 1. LAYOUT REGIONAL (35 Kab/Kota)
+    if region_cols:
+        reg_col = region_cols[0]
+        # Jika ada kolom kategori breakdown juga di tabel wilayah (misal jenis_ppks per kab/kota)
+        if cat_cols:
+            cat_col = cat_cols[0]
+            pdf_text = ""
+            if pdf_rows:
+                pdf_text = " ".join(str(c) for r in pdf_rows[:25] if isinstance(r, list) for c in r if c).lower()
+            pdf_has_regions = sum(1 for reg in ['cilacap', 'banyumas', 'purbalingga', 'semarang', 'surakarta'] if reg in pdf_text) >= 2
+
+            if not pdf_has_regions and metric_cols:
+                # PDF adalah rekap provinsi per kategori: agregasikan nilai metrik per kategori
                 categories = []
                 for r in api_records:
-                    c_val = str(r.get(cat_key_cand, '')).strip()
+                    c_val = str(r.get(cat_col, '')).strip()
                     if c_val and c_val not in categories:
                         categories.append(c_val)
-                grid = [[cat_key_cand] + [k.replace('_', ' ').title() for k in numeric_keys]]
+                grid = [[cat_col.replace('_', ' ').title()] + [m.replace('_', ' ').title() for m in metric_cols]]
                 for c_val in categories:
                     row = [c_val]
-                    for nk in numeric_keys:
-                        val = sum(parse_num(r.get(nk), is_pdf=False) or 0.0 for r in api_records if str(r.get(cat_key_cand, '')).strip() == c_val)
+                    for mk in metric_cols:
+                        val = sum(parse_num(r.get(mk), is_pdf=False) or 0.0 for r in api_records if str(r.get(cat_col, '')).strip() == c_val)
                         row.append(int(val) if val.is_integer() else val)
                     grid.append(row)
                 return grid
 
-        if len(reg_vals) == len(set(reg_vals)) or len(set(reg_vals)) >= 25:
-            panti_pem = next((k for k in keys if 'panti' in k and 'pemerintah' in k), None)
-            panti_swa = next((k for k in keys if 'panti' in k and 'swasta' in k), None)
-            penghuni_pem = next((k for k in keys if 'penghuni' in k and 'pemerintah' in k), None)
-            penghuni_swa = next((k for k in keys if 'penghuni' in k and 'swasta' in k), None)
-            
-            if panti_pem and panti_swa and penghuni_pem and penghuni_swa:
-                headers = [
-                    'Wilayah',
-                    'Panti Pemerintah',
-                    'Panti Swasta',
-                    'Panti Jumlah',
-                    'Penghuni Pemerintah',
-                    'Penghuni Swasta',
-                    'Penghuni Jumlah'
-                ]
-                grid = [headers]
-                for r in api_records:
-                    w_val = r.get(reg_key)
-                    pp = parse_num(r.get(panti_pem)) or 0.0
-                    ps = parse_num(r.get(panti_swa)) or 0.0
-                    pt = pp + ps
-                    hp = parse_num(r.get(penghuni_pem)) or 0.0
-                    hs = parse_num(r.get(penghuni_swa)) or 0.0
-                    ht = hp + hs
-                    grid.append([w_val, pp, ps, pt, hp, hs, ht])
-                return grid
-
-            ignore_keys = {'tahun_data', 'kode_wilayah', 'kode_kabupatenkota', 'kode_kabupaten', 'id', 'created_at', 'updated_at', reg_key}
-            metric_keys = [k for k in keys if k not in ignore_keys]
-            
-            headers = ['Wilayah'] + metric_keys
-            grid = [headers]
-            for r in api_records:
-                row = [r.get(reg_key)]
-                for mk in metric_keys:
-                    row.append(r.get(mk))
-                grid.append(row)
-            return grid
-
-    # 2. CEK APAKAH INI TABEL TALL / CATEGORICAL (Seperti 2.2.1, 2.2.5, 2.3.22, 4.5.14, 4.5.15, 10.1.5)
-    dim_key = None
-    for k in ['asal_partai_politik', 'dinasinstansi_pemerintahan', 'nama_sektor', 'sektor', 'uraian', 'jenis_pendapatan', 'jenis_belanja', 'belanja', 'pos_belanja', 'jenis_pembiayaan', 'pembiayaan', 'mata_anggaran', 'rincian', 'kategori', 'pos', 'bulan', 'nama_negara', 'negara', 'jenis_ppks', 'jenis_pmks']:
-        if k in sample:
-            dim_key = k
-            break
-            
-    if dim_key:
-        pdf_text = ""
-        if pdf_rows:
-            for r in pdf_rows[:5]:
-                if isinstance(r, list):
-                    pdf_text += " " + " ".join(str(c) for c in r)
-        pdf_text_lower = pdf_text.lower()
-        
-        has_gender = 'jenis_kelamin' in sample and ('laki' in pdf_text_lower or 'gender' in pdf_text_lower or 'sex' in pdf_text_lower or 'perempuan' in pdf_text_lower or '(2)' in pdf_text)
-        has_age = 'usia' in sample and ('umur' in pdf_text_lower or 'age' in pdf_text_lower or '21' in pdf_text_lower or '35' in pdf_text_lower)
-        
-        # Kasus 2.2.1: Menurut Partai Politik dan Jenis Kelamin
-        if has_gender and not has_age:
-            parties = []
-            for r in api_records:
-                p = r.get(dim_key, '').strip()
-                if p and p not in parties:
-                    parties.append(p)
-            
-            grid = [['Partai Politik', 'L', 'P', 'Jumlah']]
-            for p in parties:
-                l_val = sum(float(r.get('jumlah') or 0) for r in api_records if r.get(dim_key, '').strip() == p and str(r.get('jenis_kelamin', '')).strip().upper() == 'L')
-                p_val = sum(float(r.get('jumlah') or 0) for r in api_records if r.get(dim_key, '').strip() == p and str(r.get('jenis_kelamin', '')).strip().upper() == 'P')
-                tot = l_val + p_val
-                grid.append([p, int(l_val) if l_val.is_integer() else l_val, int(p_val) if p_val.is_integer() else p_val, int(tot) if tot.is_integer() else tot])
-            return grid
-            
-        # Kasus 2.2.5: Menurut Partai Politik dan Kelompok Umur
-        if has_age:
-            parties = []
-            for r in api_records:
-                p = r.get(dim_key, '').strip()
-                if p and p not in parties:
-                    parties.append(p)
-            
-            age_brackets = ['21-35', '36-49', '50-59', '60+']
-            grid = [['Partai Politik'] + age_brackets + ['Jumlah']]
-            for p in parties:
-                row = [p]
-                tot = 0
-                for ab in age_brackets:
-                    if ab == '60+':
-                        val = sum(float(r.get('jumlah') or 0) for r in api_records if r.get(dim_key, '').strip() == p and '60' in str(r.get('usia', '')))
-                    else:
-                        val = sum(float(r.get('jumlah') or 0) for r in api_records if r.get(dim_key, '').strip() == p and ab in str(r.get('usia', '')).replace('–', '-'))
-                    row.append(int(val) if val.is_integer() else val)
-                    tot += val
-                row.append(int(tot) if tot.is_integer() else tot)
-                grid.append(row)
-            return grid
-
-        # Tabel Flat / Multi-Tahun Categorical (misal 2.3.22, 4.5.14, 4.5.15, 10.1.5, 2.4.2, 2.4.11)
-        code_key = next((k for k in ['kode_rekening', 'kode', 'kode_rekening_belanja', 'kode_rekening_pendapatan', 'no_rekening'] if k in sample), None)
-        ignore_keys = {'tahun_data', 'tahun', 'id', 'created_at', 'updated_at', dim_key}
-        if code_key:
-            ignore_keys.add(code_key)
-        metric_keys = [k for k in keys if k not in ignore_keys]
-        years = sorted(list(set(str(r.get('tahun_data')) for r in api_records if r.get('tahun_data'))))
-
-        if len(metric_keys) == 1 and years:
-            val_col = metric_keys[0]
-            col_headers = [f"Tahun {y}" for y in years]
-            if code_key:
-                grid = [['Kode Rekening', dim_key.replace('_', ' ').title()] + col_headers]
-            else:
-                grid = [[dim_key.replace('_', ' ').title()] + col_headers]
-
-            if len(years) == 1:
-                y = years[0]
-                for r in api_records:
-                    v = parse_num(r.get(val_col), is_pdf=False)
-                    v_clean = int(v) if isinstance(v, float) and v.is_integer() else v
-                    if code_key:
-                        grid.append([str(r.get(code_key, '')).strip(), r.get(dim_key), v_clean])
-                    else:
-                        grid.append([r.get(dim_key), v_clean])
-            else:
-                categories = []
-                for r in api_records:
-                    item_id = (str(r.get(code_key, '')).strip(), r.get(dim_key)) if code_key else r.get(dim_key)
-                    if item_id and item_id not in categories:
-                        categories.append(item_id)
-                for item_id in categories:
-                    if code_key:
-                        c_code, c_name = item_id
-                        row = [c_code, c_name]
-                        for y in years:
-                            val = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get('tahun_data')) == y and str(r.get(code_key, '')).strip() == c_code)
-                            row.append(int(val) if val.is_integer() else val)
-                    else:
-                        c_name = item_id
-                        row = [c_name]
-                        for y in years:
-                            val = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get('tahun_data')) == y and str(r.get(dim_key, '')).strip() == c_name.strip())
-                            row.append(int(val) if val.is_integer() else val)
-                    grid.append(row)
-            return grid
-
-        # Fallback flat categorical (multi metrics, seperti 10.1.5, 2.4.11)
-        grid_headers = ([code_key] if code_key else []) + [dim_key] + metric_keys
-        grid = [grid_headers]
+        # Standar Regional: Baris = 35 Kab/Kota, Kolom = Metrik numerik
+        headers = ['Wilayah'] + [m.replace('_', ' ').title() for m in metric_cols]
+        grid = [headers]
         for r in api_records:
-            row = ([r.get(code_key)] if code_key else []) + [r.get(dim_key)]
-            for mk in metric_keys:
-                row.append(r.get(mk))
+            row = [r.get(reg_col)]
+            for mk in metric_cols:
+                v = parse_num(r.get(mk), is_pdf=False)
+                row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
             grid.append(row)
         return grid
 
-    # 3. CEK APAKAH INI TABEL LONG / PIVOT (Seperti 9.1.19: tahun_data + koridor + jumlah)
-    if 'tahun_data' in sample and not reg_key:
-        dim_candidates = [k for k in keys if k not in {'id', 'created_at', 'updated_at', 'tahun_data'} and any(not str(r.get(k, '')).strip().replace('.', '').isdigit() for r in api_records if r.get(k))]
-        val_candidates = [k for k in keys if k not in {'id', 'created_at', 'updated_at', 'tahun_data'} and k not in dim_candidates]
-        if len(dim_candidates) == 1 and len(val_candidates) == 1:
-            pivot_dim = dim_candidates[0]
-            val_col = val_candidates[0]
-            years = sorted(list(set(str(r.get('tahun_data')) for r in api_records if r.get('tahun_data'))))
+    # 2. CROSS-TABULATION / HIERARCHICAL BREAKDOWN PIVOT (misal 2.2.1 Partai Politik x Gender, 2.2.5 x Umur)
+    if len(cat_cols) >= 2 and metric_cols:
+        val_col = metric_cols[0]
+        # Entitas utama (baris) adalah kategori dengan kardinalitas tertinggi (misal nama partai ~18)
+        cat_cardinality = {c: len(set(str(r.get(c, '')).strip() for r in api_records if r.get(c))) for c in cat_cols}
+        sorted_cats = sorted(cat_cols, key=lambda c: cat_cardinality[c], reverse=True)
+        primary_dim = sorted_cats[0]
+        sub_candidates = sorted_cats[1:]
+
+        # Tentukan sub-dimensi kolom dengan mencocokkan nama / nilai terhadap teks atau header PDF
+        pdf_text = ""
+        if pdf_rows:
+            pdf_text = " ".join(str(c) for r in pdf_rows[:15] if isinstance(r, list) for c in r if c).lower()
+
+        chosen_sub = sub_candidates[0]
+        for cand in sub_candidates:
+            cand_vals = set(str(r.get(cand, '')).strip().lower() for r in api_records if r.get(cand))
+            name_match = any(word in pdf_text for word in cand.lower().split('_') if len(word) >= 3)
+            val_match = any(v in pdf_text for v in cand_vals if len(v) >= 2)
+            if name_match or val_match:
+                chosen_sub = cand
+                break
+
+        # Bentuk pivot table
+        primary_entities = []
+        for r in api_records:
+            p_val = str(r.get(primary_dim, '')).strip()
+            if p_val and p_val not in primary_entities:
+                primary_entities.append(p_val)
+
+        sub_vals = []
+        for r in api_records:
+            s_val = str(r.get(chosen_sub, '')).strip()
+            if s_val and s_val not in sub_vals:
+                sub_vals.append(s_val)
+
+        def format_col_header(s):
+            sl = s.lower().strip()
+            if sl == 'l': return 'Laki-Laki'
+            if sl == 'p': return 'Perempuan'
+            return s
+
+        col_headers = [format_col_header(s) for s in sub_vals]
+        grid = [[primary_dim.replace('_', ' ').title()] + col_headers + ['Jumlah']]
+
+        for p in primary_entities:
+            row = [p]
+            row_sum = 0.0
+            for sv in sub_vals:
+                v = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(primary_dim, '')).strip() == p and str(r.get(chosen_sub, '')).strip() == sv)
+                row.append(int(v) if v.is_integer() else v)
+                row_sum += v
+            row.append(int(row_sum) if row_sum.is_integer() else row_sum)
+            grid.append(row)
+
+        # Baris Rekapitulasi Total Provinsi (Jawa Tengah)
+        total_row = ['Jawa Tengah']
+        grand_total = 0.0
+        for sv in sub_vals:
+            col_sum = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(chosen_sub, '')).strip() == sv)
+            total_row.append(int(col_sum) if col_sum.is_integer() else col_sum)
+            grand_total += col_sum
+        total_row.append(int(grand_total) if grand_total.is_integer() else grand_total)
+        grid.append(total_row)
+        return grid
+
+    # 3. TIME-SERIES / MULTI-YEAR PIVOT (misal 2.4.2 Belanja Daerah x Multi-Tahun)
+    if len(cat_cols) == 1 and temporal_cols and len(metric_cols) == 1:
+        dim_col = cat_cols[0]
+        code_col = code_cols[0] if code_cols else None
+        time_col = temporal_cols[0]
+        val_col = metric_cols[0]
+
+        years = sorted(list(set(str(r.get(time_col)) for r in api_records if r.get(time_col))))
+        col_headers = [f"Tahun {y}" for y in years]
+
+        if code_col:
+            grid = [['Kode Rekening', dim_col.replace('_', ' ').title()] + col_headers]
             categories = []
             for r in api_records:
-                c = str(r.get(pivot_dim, '')).strip()
-                if c and not re.search(r'\btotal\b', c, re.IGNORECASE) and c not in categories:
-                    categories.append(c)
-            if categories:
-                grid = [['Tahun Anggaran'] + categories]
+                item_id = (str(r.get(code_col, '')).strip(), str(r.get(dim_col, '')).strip())
+                if item_id not in categories and (item_id[0] or item_id[1]):
+                    categories.append(item_id)
+            for c_code, c_name in categories:
+                row = [c_code, c_name]
                 for y in years:
-                    row = [y]
-                    for c in categories:
-                        val = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get('tahun_data')) == y and str(r.get(pivot_dim, '')).strip() == c)
-                        row.append(int(val) if val.is_integer() else val)
-                    grid.append(row)
-                return grid
+                    v = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(time_col)) == y and str(r.get(code_col, '')).strip() == c_code)
+                    row.append(int(v) if v.is_integer() else v)
+                grid.append(row)
+        else:
+            grid = [[dim_col.replace('_', ' ').title()] + col_headers]
+            categories = []
+            for r in api_records:
+                c_name = str(r.get(dim_col, '')).strip()
+                if c_name and c_name not in categories:
+                    categories.append(c_name)
+            for c_name in categories:
+                row = [c_name]
+                for y in years:
+                    v = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(time_col)) == y and str(r.get(dim_col, '')).strip() == c_name)
+                    row.append(int(v) if v.is_integer() else v)
+                grid.append(row)
+        return grid
 
-    # 4. CEK APAKAH INI TABEL TAHUNAN / TIME-SERIES (Baris adalah tahun_data, misal 9.1.20, 10.1.7, 8.7)
-    tahun_key = next((k for k in ['tahun_data', 'tahun', 'year'] if k in sample), None)
-    if tahun_key and not reg_key:
-        ignore_keys = {'id', 'created_at', 'updated_at', tahun_key}
-        metric_keys = [k for k in keys if k not in ignore_keys]
-        hdr = ['Tahun Anggaran'] + [k.replace('_', ' ').title() for k in metric_keys]
+    # 4. FLAT MULTI-METRIC CATEGORICAL (misal 10.1.5 PMA Menurut Negara, 2.3.22 ASN per Dinas)
+    if len(cat_cols) == 1 and len(metric_cols) >= 1:
+        dim_col = cat_cols[0]
+        code_col = code_cols[0] if code_cols else None
+        grid_headers = ([code_col] if code_col else []) + [dim_col] + metric_cols
+        grid = [grid_headers]
+        for r in api_records:
+            row = ([r.get(code_col)] if code_col else []) + [r.get(dim_col)]
+            for mk in metric_cols:
+                v = parse_num(r.get(mk), is_pdf=False)
+                row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
+            grid.append(row)
+        return grid
+
+    # 5. TEMPORAL ROWS (misal 8.7 Wisatawan Mancanegara & Domestik per Tahun)
+    if temporal_cols and not cat_cols and not region_cols:
+        time_col = temporal_cols[0]
+        hdr = ['Tahun Anggaran'] + [m.replace('_', ' ').title() for m in metric_cols]
         grid = [hdr]
         try:
-            sorted_records = sorted(api_records, key=lambda x: int(x.get(tahun_key, 0)))
+            sorted_records = sorted(api_records, key=lambda x: int(x.get(time_col, 0)))
         except Exception:
             sorted_records = api_records
         for r in sorted_records:
-            row = [str(r.get(tahun_key, ''))]
-            for mk in metric_keys:
-                row.append(r.get(mk))
+            row = [str(r.get(time_col, ''))]
+            for mk in metric_cols:
+                v = parse_num(r.get(mk), is_pdf=False)
+                row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
             grid.append(row)
         return grid
 
     return None
+

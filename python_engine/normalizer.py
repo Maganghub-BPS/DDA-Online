@@ -116,7 +116,7 @@ PROVINSI_REGISTRY = [
     ("76", "Sulawesi Barat", ["sulawesi barat", "sulbar"]),
     ("81", "Maluku", [r"(?<!maluku\s)\bmaluku\b(?!.*utara)"]),
     ("82", "Maluku Utara", ["maluku utara"]),
-    ("00", "Indonesia", ["indonesia", "total indonesia"])
+    ("00", "Indonesia", [r"^(?:total\s+|seluruh\s+)?indonesia$", r"^republik\s+indonesia$"])
 ]
 
 PROVINSI_MAP = [(name, patterns) for _, name, patterns in PROVINSI_REGISTRY]

@@ -235,83 +235,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     if isinstance(source_data, list) and source_data and isinstance(source_data[0], dict):
         sample_keys = [str(k).lower() for k in source_data[0].keys()]
         is_school = any('sekolah' in k or 'guru' in k or 'murid' in k for k in sample_keys)
-        has_party = any('partai' in k for k in sample_keys)
 
-        if has_party:
-            grid = normalize_api_data(source_data, rows, target_table)
-            if grid and len(grid) > 1:
-                header_cols = grid[0][1:]
-                api_by_party = {}
-                for r in grid[1:]:
-                    p_key = match_party_name(r[0])
-                    if p_key:
-                        api_by_party[p_key] = (r[0], r[1:])
-
-                for pr in rows:
-                    if not isinstance(pr, list):
-                        continue
-                    txt = ' '.join(str(c) for c in pr[:2] if c)
-                    p_key = match_party_name(txt)
-                    if not p_key or p_key == 'TOTAL':
-                        continue
-
-                    nums = []
-                    for c in pr[2:]:
-                        v = parse_num(c, is_pdf=True)
-                        if v is not None:
-                            nums.append(v)
-                        elif str(c).strip() in ['-', '–', '—', '', ' ']:
-                            nums.append(0)
-
-                    if p_key in api_by_party:
-                        party_name, api_vals = api_by_party[p_key]
-                        for idx in range(min(len(nums), len(api_vals))):
-                            pv = nums[idx]
-                            av = api_vals[idx]
-                            metric = header_cols[idx] if idx < len(header_cols) else f"Kolom {idx+1}"
-                            if metric == 'L':
-                                metric = 'Laki-Laki'
-                            elif metric == 'P':
-                                metric = 'Perempuan'
-                            elif metric == 'Jumlah':
-                                metric = 'Total'
-
-                            av = _to_num(av)
-                            if av is None:
-                                results["diffs"].append({
-                                    "wilayah": party_name, "section": "DPRD", "metric": metric,
-                                    "pdf_val": int(pv) if pv.is_integer() else pv, "src_val": None,
-                                    "diff": None, "note": "Nilai di API kosong / tidak terbaca", "type": "replace"
-                                })
-                                continue
-                            is_m, _, d_val = evaluate_cell_match(pv, av, tolerance=tolerance)
-                            if is_m:
-                                results["matches"].append({"wilayah": party_name, "section": "DPRD", "metric": metric, "val": int(av) if av.is_integer() else av})
-                            else:
-                                abs_diff = int(abs(d_val)) if abs(d_val).is_integer() else abs(d_val)
-                                results["diffs"].append({
-                                    "wilayah": party_name, "section": "DPRD", "metric": metric,
-                                    "pdf_val": int(pv) if pv.is_integer() else pv,
-                                    "src_val": int(av) if av.is_integer() else av,
-                                    "diff": d_val,
-                                    "note": f"Selisih {abs_diff} (PDF {'lebih sedikit' if d_val > 0 else 'lebih banyak'})" + _hint(pv, av),
-                                    "type": "replace"
-                                })
-
-                results["summary"] = {
-                    "total_matches": len(results["matches"]),
-                    "total_diffs": len(results["diffs"]),
-                    "total_pdf_only": len(results.get("pdf_only", []))
-                }
-                results["mismatches"] = results["diffs"] + results.get("pdf_only", [])
-                results["replace_count"] = len(results["diffs"])
-                results["delete_count"] = len(results.get("pdf_only", []))
-                results["pdf_count"] = len(results["diffs"]) + len(results["matches"]) + len(results.get("pdf_only", []))
-                results["source_count"] = len(results["diffs"]) + len(results["matches"])
-                if len(results["matches"]) > 0 or len(results["diffs"]) > 0:
-                    return results
-
-        elif is_school:
+        if is_school:
             pdf_map = {}
             cur_sec = ""
             is_kota_mode = False
@@ -702,8 +627,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if (is_interval_label(c_str) or re.match(r'^(?:19|20)\d{2}(?:[/\-–]\d{2,4})?$', c_str)) and not nums:
                                 raw_label = c_str
                                 continue
-                            if idx_c == first_idx and re.match(r'^\d+(?:\.\d+)*\.?$', c_str) and not is_interval_label(c_str) and not re.match(r'^(?:19|20)\d{2}', c_str):
-                                code = c_str.rstrip('.')
+                            c_code_cand = re.sub(r'\s+', '', c_str)
+                            if idx_c == first_idx and re.match(r'^\d+(?:\.\d+)*\.?$', c_code_cand) and not is_interval_label(c_str) and not re.match(r'^(?:19|20)\d{2}', c_code_cand):
+                                code = c_code_cand.rstrip('.')
                                 continue
                             if not nums and re.match(r'^(19|20)\d{2}$', c_str) and any(k in raw_label.lower() for k in ['jumlah', 'total']):
                                 continue
@@ -726,8 +652,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if is_pdf:
                         col0_txt = str(r[0]).strip() if len(r) > 0 and r[0] is not None else ''
                         col1_txt = str(r[1]).strip() if len(r) > 1 and r[1] is not None else ''
-                        if not code and re.match(r'^\d+(?:\.\d+)*\.?$', col0_txt) and not re.match(r'^(?:19|20)\d{2}', col0_txt):
-                            code = col0_txt.rstrip('.')
+                        col0_clean = re.sub(r'\s+', '', col0_txt)
+                        if not code and re.match(r'^\d+(?:\.\d+)*\.?$', col0_clean) and not re.match(r'^(?:19|20)\d{2}', col0_clean):
+                            code = col0_clean.rstrip('.')
                         if col0_txt and parse_num(col0_txt, is_pdf=True) is None and not is_bps_col_num(col0_txt):
                             last_parent_label = col0_txt
                         if not col0_txt and col1_txt and last_parent_label and parse_num(col1_txt, is_pdf=True) is None:
