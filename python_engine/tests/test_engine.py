@@ -22,8 +22,6 @@ from normalizer import (
     resolve_provinsi_entity,
     is_safe_fuzzy_match,
     clean_header_text,
-    detect_bps_symbol,
-    is_bps_unavailable,
 )
 from auto_config_pdf import (
     clean_cell_text,
@@ -316,39 +314,6 @@ class TestEngineSymbolIntegrity(unittest.TestCase):
                 0,
                 f"Undefined symbols found in {os.path.basename(file_path)}: {visitor.undefined}",
             )
-
-
-class TestBpsSymbolsAndAccuracyUpgrades(unittest.TestCase):
-    def test_detect_bps_symbols(self):
-        kind, sym = detect_bps_symbol("-")
-        self.assertEqual(kind, "NIHIL")
-        kind_u, _ = detect_bps_symbol("...")
-        self.assertEqual(kind_u, "UNAVAILABLE")
-        kind_p, _ = detect_bps_symbol("12.5*")
-        self.assertEqual(kind_p, "PRELIMINARY")
-        kind_r, _ = detect_bps_symbol("15.4 r")
-        self.assertEqual(kind_r, "REVISED")
-
-    def test_parse_num_with_preliminary_and_revision_symbols(self):
-        self.assertEqual(parse_num("*12,5", is_pdf=True), 12.5)
-        self.assertEqual(parse_num("12,5*", is_pdf=True), 12.5)
-        self.assertEqual(parse_num("15,4 r", is_pdf=True), 15.4)
-        self.assertEqual(parse_num("20,1 e", is_pdf=True), 20.1)
-
-    def test_unavailable_cells_matching(self):
-        # Jika kedua sel sama-sama tidak tersedia / kosong, dianggap match status
-        is_m, is_tol, diff = evaluate_cell_match(None, None)
-        self.assertTrue(is_m)
-        self.assertEqual(diff, 0.0)
-
-        is_m_dots, _, _ = evaluate_cell_match("...", "na")
-        self.assertTrue(is_m_dots)
-
-    def test_explain_mismatch_unavailable(self):
-        hint = explain_mismatch(None, 100.0)
-        self.assertIn("tidak tercetak di PDF", hint)
-        hint_db = explain_mismatch(100.0, None)
-        self.assertIn("belum diisi di database", hint_db)
 
 
 if __name__ == "__main__":

@@ -471,14 +471,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 txt = ' '.join(str(c) for c in r if str(c).strip()).lower()
                 if any(k in txt for k in ['bab / chapter', 'chapter \nbab', 'bab\nchapter']) or re.search(r'^\s*bab\s+\d+\b', txt):
                     break
-                # Hard boundary stop: jika mencapai Sumber / Catatan tabel
-                if any(txt.strip().startswith(k) for k in ['sumber:', 'source:', 'catatan:', 'note:', 'sumber / source:', 'catatan / note:']):
-                    break
-                # Lewati banner halaman lanjutan ("Lanjutan Tabel ... / Continued Table ...")
-                if re.search(r'\b(?:lanjutan\s+tabel|continued\s+table)\b', txt):
-                    continue
-                if any(txt.startswith(k) for k in ['tabel / table', 'tabel\n', 'table\n', 'tabel ', 'table ']) and target_table not in txt:
-                    m_next = re.search(r'(?:tabel|table)\s+(\d+\.\d+(?:\.\d+)?)', txt)
+                if any(txt.startswith(k) for k in ['tabel / table', 'tabel\n', 'table\n']) and target_table not in txt:
+                    m_next = re.search(r'tabel\s+(\d+\.\d+\.\d+)', txt)
                     if m_next and m_next.group(1).strip('.') != target_table.strip('.'):
                         break
                 clean_pdf_rows.append(r)
@@ -652,7 +646,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 records = []
                 cur_sec = ""
                 use_cols = target_cols if target_cols is not None else active_cat_cols
-                parent_stack = {}
+                last_parent_label = ""
                 for r in data_list:
                     if not isinstance(r, list):
                         continue
@@ -723,19 +717,11 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if is_pdf:
                         col0_txt = str(r[0]).strip() if len(r) > 0 and r[0] is not None else ''
                         col1_txt = str(r[1]).strip() if len(r) > 1 and r[1] is not None else ''
-                        if not nums:
-                            if col0_txt and parse_num(col0_txt, is_pdf=True) is None and not is_bps_col_num(col0_txt):
-                                parent_stack[0] = clean_cat_display(col0_txt)
-                                parent_stack.pop(1, None)
-                                parent_stack.pop(2, None)
-                            elif col1_txt and parse_num(col1_txt, is_pdf=True) is None and not is_bps_col_num(col1_txt):
-                                parent_stack[1] = clean_cat_display(col1_txt)
-                                parent_stack.pop(2, None)
-                        else:
-                            active_parents = [parent_stack[k] for k in sorted(parent_stack.keys()) if parent_stack[k] and parent_stack[k] not in raw_label]
-                            if active_parents:
-                                p_prefix = " - ".join(active_parents)
-                                raw_label = f"{p_prefix} - {raw_label}".strip(" -")
+                        if col0_txt and parse_num(col0_txt, is_pdf=True) is None and not is_bps_col_num(col0_txt):
+                            last_parent_label = col0_txt
+                        if not col0_txt and col1_txt and last_parent_label and parse_num(col1_txt, is_pdf=True) is None:
+                            if last_parent_label not in raw_label:
+                                raw_label = f"{last_parent_label} {raw_label}".strip()
 
                     if not raw_label:
                         label_candidates = [str(c).strip() for c in r[:2] if str(c).strip()]
@@ -857,20 +843,6 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     ), None)
                     if match_s:
                         p_grouped[match_s['id']].extend(p['nums'])
-                        used_p_indices.add(idx_p)
-
-                # Pass 1.8: Hierarchy leaf containment matching (unambiguous parent-leaf match)
-                for idx_p, p in enumerate(p_recs):
-                    if idx_p in used_p_indices:
-                        continue
-                    p_disp_low = p['display'].lower()
-                    cand_matches = [
-                        s for s in s_recs
-                        if (s['display'].lower() in p_disp_low or p_disp_low in s['display'].lower())
-                        and is_safe_fuzzy_match(p['display'], s['display'])
-                    ]
-                    if len(cand_matches) == 1:
-                        p_grouped[cand_matches[0]['id']].extend(p['nums'])
                         used_p_indices.add(idx_p)
 
                 # Pass 2: Safe fuzzy matching for unmatched PDF rows
@@ -1049,11 +1021,6 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         if not isinstance(r, list) or len(r) < 3:
                             continue
                         txt = ' '.join(str(c) for c in r).lower()
-                        if is_pdf:
-                            if re.search(r'\b(?:lanjutan\s+tabel|continued\s+table)\b', txt):
-                                continue
-                            if any(txt.strip().startswith(k) for k in ['sumber:', 'source:', 'catatan:', 'note:', 'sumber / source:', 'catatan / note:']):
-                                break
                         if 'kota/municipality' in txt:
                             is_k = True
                             brebes_seen = True
@@ -1136,15 +1103,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if not isinstance(r, list):
                         continue
                     txt = ' '.join(str(c) for c in r).lower()
-                    if is_pdf:
-                        if re.search(r'\b(?:lanjutan\s+tabel|continued\s+table)\b', txt):
-                            continue
-                        if any(txt.strip().startswith(k) for k in ['sumber:', 'source:', 'catatan:', 'note:', 'sumber / source:', 'catatan / note:']):
+                    if is_pdf and any(k in txt for k in ['tabel', 'table']):
+                        m_next = re.search(r'tabel\s+(\d+\.\d+\.\d+)', txt)
+                        if m_next and m_next.group(1).strip('.') != target_table.strip('.'):
                             break
-                        if any(k in txt for k in ['tabel', 'table']):
-                            m_next = re.search(r'tabel\s+(\d+\.\d+\.\d+)', txt)
-                            if m_next and m_next.group(1).strip('.') != target_table.strip('.'):
-                                break
                     if 'kota/municipality' in txt:
                         is_k = True
                         brebes_seen = True
@@ -1434,74 +1396,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         except Exception:
             pass
 
-    # Deteksi pola skala satuan konsisten per metrik (mis. Ribu vs Satuan Utuh)
-    scale_warnings = []
-    if results.get("diffs"):
-        diffs_by_metric = {}
-        for d in results["diffs"]:
-            m = str(d.get("metric", "")).strip()
-            if m:
-                diffs_by_metric.setdefault(m, []).append(d)
-
-        for m, m_diffs in diffs_by_metric.items():
-            if len(m_diffs) >= 3:
-                cnt_1k = 0
-                cnt_1m = 0
-                valid_cnt = 0
-                for d in m_diffs:
-                    pv = d.get("pdf_val")
-                    sv = d.get("src_val")
-                    if isinstance(pv, (int, float)) and isinstance(sv, (int, float)) and pv != 0 and sv != 0:
-                        valid_cnt += 1
-                        if abs(sv - pv * 1000) <= 5.0 or abs(pv - sv * 1000) <= 5.0:
-                            cnt_1k += 1
-                        elif abs(sv - pv * 1000000) <= 2000.0 or abs(pv - sv * 1000000) <= 2000.0:
-                            cnt_1m += 1
-                if valid_cnt >= 3:
-                    scale_factor = 0
-                    if cnt_1k / valid_cnt >= 0.8:
-                        scale_factor = 1000
-                    elif cnt_1m / valid_cnt >= 0.8:
-                        scale_factor = 1000000
-
-                    if scale_factor > 0:
-                        warn_msg = f"Seluruh baris pada '{m}' berbeda skala satuan x{scale_factor:,} (kemungkinan beda satuan ribuan/jutaan antara database dan cetakan PDF)."
-                        scale_warnings.append({
-                            "metric": m,
-                            "scale_factor": scale_factor,
-                            "message": warn_msg
-                        })
-                        for d in m_diffs:
-                            d["is_scale_mismatch"] = True
-                            d["scale_factor"] = scale_factor
-                            d["note"] = f"Perbedaan skala satuan (x{scale_factor:,}) antara database dan PDF"
-
-    tot_diffs = len(results["diffs"])
-    tot_matches = len(results["matches"])
-    tot_pdf_only = len(results["pdf_only"])
-    tot_eval = tot_matches + tot_diffs
-
-    if tot_eval > 0:
-        conf_score = round((tot_matches / tot_eval) * 100.0, 1)
-    else:
-        conf_score = 100.0 if tot_pdf_only == 0 else 0.0
-
-    if conf_score >= 100.0 and tot_diffs == 0:
-        match_quality = "EXACT_MATCH"
-    elif conf_score >= 85.0:
-        match_quality = "HIGH_ACCURACY"
-    elif conf_score >= 60.0:
-        match_quality = "MODERATE_REVIEW"
-    else:
-        match_quality = "LOW_ACCURACY"
-
     results["summary"] = {
-        "total_diffs": tot_diffs,
-        "total_matches": tot_matches,
-        "total_pdf_only": tot_pdf_only,
-        "confidence_score": conf_score,
-        "match_quality": match_quality,
-        "scale_warnings": scale_warnings,
+        "total_diffs": len(results["diffs"]),
+        "total_matches": len(results["matches"]),
+        "total_pdf_only": len(results["pdf_only"]),
     }
 
     results["mismatches"] = results["diffs"] + results["pdf_only"]
