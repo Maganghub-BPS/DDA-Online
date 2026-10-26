@@ -208,9 +208,15 @@ def detect_col_headers(source_data):
     if first_data_idx == -1:
         for i, r in enumerate(source_data[:25]):
             if not isinstance(r, list) or str(r[0]).strip().lower().startswith(('tabel', 'table', 'sumber', 'source', 'catatan', 'note')): continue
-            if len([parse_num(c) for c in r if parse_num(c) is not None]) >= 2:
+            nums = [parse_num(c) for c in r if parse_num(c) is not None]
+            if len(nums) >= 2:
                 first_data_idx = i
                 break
+            elif len(nums) == 1 and i >= 1:
+                prev_r = source_data[i-1]
+                if isinstance(prev_r, list) and len(prev_r) == len(r) and not any(parse_num(c) is not None for c in prev_r):
+                    first_data_idx = i
+                    break
             
     if first_data_idx > 0:
         limit_hdr = num_row_idx if num_row_idx != -1 else first_data_idx
@@ -250,7 +256,8 @@ def detect_col_headers(source_data):
             data_headers.append(f"Tahun {lbl}" if re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', lbl) else lbl)
 
         start_idx = 0
-        while start_idx < len(data_headers) and any(n == k or n.startswith(k + ' ') or n.endswith(' ' + k) or n.startswith(k + '/') for k in ['no', 'nomor', 'kode', 'kode wilayah', 'nama kabupaten', 'nama kota', 'kabupaten/kota', 'regency/municipality', 'nama kabupaten / kota', 'nama daerah', 'wilayah'] for n in [str(data_headers[start_idx]).lower().strip()]):
+        skip_words = ['no', 'nomor', 'kode', 'kode wilayah', 'nama kabupaten', 'nama kota', 'kabupaten/kota', 'regency/municipality', 'nama kabupaten / kota', 'nama daerah', 'wilayah', 'jenis', 'uraian', 'kategori', 'rincian', 'nama']
+        while start_idx < len(data_headers) and any(n == k or n.startswith(k + ' ') or n.endswith(' ' + k) or n.startswith(k + '/') for k in skip_words for n in [str(data_headers[start_idx]).lower().strip()]):
             start_idx += 1
         if data_headers[start_idx:]: return data_headers[start_idx:]
 
@@ -765,7 +772,7 @@ def normalize_api_data(api_records, pdf_rows=None, table_num=""):
 
     # 2. CEK APAKAH INI TABEL TALL / CATEGORICAL (Seperti 2.2.1, 2.2.5, 2.3.22, 4.5.14, 4.5.15, 10.1.5)
     dim_key = None
-    for k in ['asal_partai_politik', 'dinasinstansi_pemerintahan', 'nama_sektor', 'sektor', 'uraian', 'jenis_pendapatan', 'bulan', 'nama_negara', 'negara', 'jenis_ppks', 'jenis_pmks']:
+    for k in ['asal_partai_politik', 'dinasinstansi_pemerintahan', 'nama_sektor', 'sektor', 'uraian', 'jenis_pendapatan', 'jenis_belanja', 'belanja', 'pos_belanja', 'jenis_pembiayaan', 'pembiayaan', 'mata_anggaran', 'rincian', 'kategori', 'pos', 'bulan', 'nama_negara', 'negara', 'jenis_ppks', 'jenis_pmks']:
         if k in sample:
             dim_key = k
             break
@@ -821,12 +828,58 @@ def normalize_api_data(api_records, pdf_rows=None, table_num=""):
                 grid.append(row)
             return grid
 
-        # Tabel Flat Categorical (misal 2.3.22, 4.5.14, 4.5.15, 10.1.5 atau 2.4.11)
-        ignore_keys = {'tahun_data', 'id', 'created_at', 'updated_at', dim_key}
+        # Tabel Flat / Multi-Tahun Categorical (misal 2.3.22, 4.5.14, 4.5.15, 10.1.5, 2.4.2, 2.4.11)
+        code_key = next((k for k in ['kode_rekening', 'kode', 'kode_rekening_belanja', 'kode_rekening_pendapatan', 'no_rekening'] if k in sample), None)
+        ignore_keys = {'tahun_data', 'tahun', 'id', 'created_at', 'updated_at', dim_key}
+        if code_key:
+            ignore_keys.add(code_key)
         metric_keys = [k for k in keys if k not in ignore_keys]
-        grid = [[dim_key] + metric_keys]
+        years = sorted(list(set(str(r.get('tahun_data')) for r in api_records if r.get('tahun_data'))))
+
+        if len(metric_keys) == 1 and years:
+            val_col = metric_keys[0]
+            col_headers = [f"Tahun {y}" for y in years]
+            if code_key:
+                grid = [['Kode Rekening', dim_key.replace('_', ' ').title()] + col_headers]
+            else:
+                grid = [[dim_key.replace('_', ' ').title()] + col_headers]
+
+            if len(years) == 1:
+                y = years[0]
+                for r in api_records:
+                    v = parse_num(r.get(val_col), is_pdf=False)
+                    v_clean = int(v) if isinstance(v, float) and v.is_integer() else v
+                    if code_key:
+                        grid.append([str(r.get(code_key, '')).strip(), r.get(dim_key), v_clean])
+                    else:
+                        grid.append([r.get(dim_key), v_clean])
+            else:
+                categories = []
+                for r in api_records:
+                    item_id = (str(r.get(code_key, '')).strip(), r.get(dim_key)) if code_key else r.get(dim_key)
+                    if item_id and item_id not in categories:
+                        categories.append(item_id)
+                for item_id in categories:
+                    if code_key:
+                        c_code, c_name = item_id
+                        row = [c_code, c_name]
+                        for y in years:
+                            val = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get('tahun_data')) == y and str(r.get(code_key, '')).strip() == c_code)
+                            row.append(int(val) if val.is_integer() else val)
+                    else:
+                        c_name = item_id
+                        row = [c_name]
+                        for y in years:
+                            val = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get('tahun_data')) == y and str(r.get(dim_key, '')).strip() == c_name.strip())
+                            row.append(int(val) if val.is_integer() else val)
+                    grid.append(row)
+            return grid
+
+        # Fallback flat categorical (multi metrics, seperti 10.1.5, 2.4.11)
+        grid_headers = ([code_key] if code_key else []) + [dim_key] + metric_keys
+        grid = [grid_headers]
         for r in api_records:
-            row = [r.get(dim_key)]
+            row = ([r.get(code_key)] if code_key else []) + [r.get(dim_key)]
             for mk in metric_keys:
                 row.append(r.get(mk))
             grid.append(row)
