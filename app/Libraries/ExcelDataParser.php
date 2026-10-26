@@ -590,12 +590,13 @@ class ExcelDataParser
         }
 
         // 8. Ekstraksi Sel Data dari Lembar 'Data'
-        $cellsToUpsert   = [];
-        $totalCells      = 0;
-        $filledCells     = 0;
-        $emptyCells      = 0;
-        $symbolCells     = 0;
-        $skippedCatRows  = 0;
+        $cellsToUpsert    = [];
+        $totalCells       = 0;
+        $filledCells      = 0;
+        $emptyCells       = 0;
+        $symbolCells      = 0;
+        $skippedCatRows   = 0;
+        $expectedDecimals = (int)($indikator->desimal ?? 0);
 
         foreach ($rowItems as $rItem) {
             $excelRow = (int)$rItem['excel_row'];
@@ -623,7 +624,7 @@ class ExcelDataParser
                     $rawVal = $cell ? $cell->getValue() : null;
                 }
 
-                $sanitized = $this->sanitizeValue($rawVal);
+                $sanitized = $this->sanitizeValue($rawVal, $expectedDecimals);
                 $totalCells++;
 
                 if ($sanitized['nilai'] !== null || $sanitized['simbol'] !== null) {
@@ -662,9 +663,10 @@ class ExcelDataParser
      * Sanitasi dan pemisahan nilai sel antara angka desimal dan simbol statistik BPS
      * 
      * @param mixed $rawValue
+     * @param int $expectedDecimals Konfigurasi desimal indikator tabel (jika ada)
      * @return array ['nilai' => float|null, 'simbol' => string|null]
      */
-    protected function sanitizeValue($rawValue): array
+    protected function sanitizeValue($rawValue, int $expectedDecimals = 0): array
     {
         if ($rawValue === null || $rawValue === '') {
             return ['nilai' => null, 'simbol' => null];
@@ -679,12 +681,14 @@ class ExcelDataParser
         }
 
         $str = trim((string)$rawValue);
+        $str = str_replace("\xc2\xa0", ' ', $str); // Non-breaking space
+        $str = trim($str);
         if ($str === '') {
             return ['nilai' => null, 'simbol' => null];
         }
 
         // Deteksi Simbol Statistik Resmi BPS
-        // '-' atau '–' (En Dash) atau '—' (Em Dash): Tidak ada data / strip
+        // '-' atau '–' (En Dash) atau '—' (Em Dash) atau '−': Tidak ada data / strip
         if ($str === '-' || $str === '–' || $str === '—' || $str === '−') {
             return ['nilai' => null, 'simbol' => '-'];
         }
@@ -694,28 +698,81 @@ class ExcelDataParser
             return ['nilai' => null, 'simbol' => 'NA'];
         }
 
+        // '...' / '…': Data belum/tidak dapat ditampilkan
+        if ($str === '...' || $str === '…') {
+            return ['nilai' => null, 'simbol' => '...'];
+        }
+
         // Teks dengan angka estimasi e.g. "125e" atau "e125"
-        if (preg_match('/^(\d+(?:[.,]\d+)?)\s*e$/i', $str, $m)) {
-            $numClean = str_replace(',', '.', str_replace('.', '', $m[1]));
-            return ['nilai' => (float)$numClean, 'simbol' => 'e'];
+        if (preg_match('/^(\d+(?:[.,]\d+)?)\s*e$/i', $str, $m) || preg_match('/^e\s*(\d+(?:[.,]\d+)?)$/i', $str, $m)) {
+            $numRes = $this->sanitizeValue($m[1], $expectedDecimals);
+            return ['nilai' => $numRes['nilai'], 'simbol' => 'e'];
         }
 
-        // Normalisasi format desimal Indonesia: '1.234,56' -> '1234.56' atau '12,5' -> '12.5'
-        $cleaned = $str;
-        if (strpos($cleaned, ',') !== false && strpos($cleaned, '.') !== false) {
-            // Ada titik dan koma: titik adalah ribuan, koma adalah desimal
-            $cleaned = str_replace('.', '', $cleaned);
-            $cleaned = str_replace(',', '.', $cleaned);
-        } elseif (strpos($cleaned, ',') !== false) {
-            // Hanya ada koma: koma berfungsi sebagai desimal
-            $cleaned = str_replace(',', '.', $cleaned);
-        } elseif (preg_match('/^-?\d{1,3}(\.\d{3})+$/', $cleaned)) {
-            // Titik sebagai pemisah ribuan Indonesia tanpa desimal: e.g. "1.500" -> "1500"
-            $cleaned = str_replace('.', '', $cleaned);
+        // Teks dengan angka sementara e.g. "125*" atau "*125"
+        if (preg_match('/^(\d+(?:[.,]\d+)?)\s*\*$/', $str, $m) || preg_match('/^\*\s*(\d+(?:[.,]\d+)?)$/', $str, $m)) {
+            $numRes = $this->sanitizeValue($m[1], $expectedDecimals);
+            return ['nilai' => $numRes['nilai'], 'simbol' => '*'];
         }
 
-        // Bersihkan karakter spasi atau non-breaking space
-        $cleaned = preg_replace('/\s+/', '', $cleaned);
+        // Simbol persentase misalnya "6.77%" atau "12.5%"
+        // Pertahankan sebagai simbol persentase agar tampil persis dengan simbolnya
+        if (preg_match('/^[0-9.,]+\s*%$/', $str)) {
+            return [
+                'nilai'  => null,
+                'simbol' => substr($str, 0, 10)
+            ];
+        }
+
+        // Bersihkan spasi di dalam angka
+        $cleaned = preg_replace('/\s+/', '', $str);
+
+        // Normalisasi format desimal & ribuan (US vs Indonesia/Eropa)
+        $hasComma = (strpos($cleaned, ',') !== false);
+        $hasDot   = (strpos($cleaned, '.') !== false);
+
+        if ($hasComma && $hasDot) {
+            $lastComma = strrpos($cleaned, ',');
+            $lastDot   = strrpos($cleaned, '.');
+
+            if ($lastDot > $lastComma) {
+                // Format US: koma adalah ribuan, titik adalah desimal (misal: "2,325.173" atau "1,234,567.89")
+                $cleaned = str_replace(',', '', $cleaned);
+            } else {
+                // Format Indonesia: titik adalah ribuan, koma adalah desimal (misal: "2.325,173" atau "1.234.567,89")
+                $cleaned = str_replace('.', '', $cleaned);
+                $cleaned = str_replace(',', '.', $cleaned);
+            }
+        } elseif ($hasComma) {
+            // Hanya ada koma
+            $commaCount = substr_count($cleaned, ',');
+            if ($commaCount > 1) {
+                // Lebih dari 1 koma: ribuan US tanpa desimal (misal: "1,234,567")
+                $cleaned = str_replace(',', '', $cleaned);
+            } else {
+                // 1 koma: jika tabel integer murni ($expectedDecimals === 0) dan cocok pola 3 digit ribuan: "1,500" -> 1500
+                if ($expectedDecimals === 0 && preg_match('/^-?\d{1,3},\d{3}$/', $cleaned)) {
+                    $cleaned = str_replace(',', '', $cleaned);
+                } else {
+                    // Desimal Indonesia: "12,5" -> 12.5 atau "1500,685" -> 1500.685
+                    $cleaned = str_replace(',', '.', $cleaned);
+                }
+            }
+        } elseif ($hasDot) {
+            // Hanya ada titik
+            $dotCount = substr_count($cleaned, '.');
+            if ($dotCount > 1) {
+                // Lebih dari 1 titik: ribuan Indonesia (misal: "1.234.567")
+                $cleaned = str_replace('.', '', $cleaned);
+            } else {
+                // 1 titik: jika tabel integer murni ($expectedDecimals === 0) dan cocok pola 3 digit ribuan: "1.500" -> 1500
+                if ($expectedDecimals === 0 && preg_match('/^-?\d{1,3}\.\d{3}$/', $cleaned)) {
+                    $cleaned = str_replace('.', '', $cleaned);
+                } else {
+                    // Desimal standar (misal: "805.757", "6.77", "3.50") -> jangan buang titik!
+                }
+            }
+        }
 
         if (is_numeric($cleaned)) {
             return [
