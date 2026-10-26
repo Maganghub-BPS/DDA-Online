@@ -194,10 +194,14 @@ def parse_num(val_str, is_pdf=False):
     if s[0] in _MINUS_CHARS and len(s) > 1 and (s[1].isdigit() or s[1] in '.,'):
         s = '-' + s[1:]
 
+    # Strip leading/trailing asterisk & footnote symbols (e.g. '*12,5', '12,5*', '12,5**')
+    s = re.sub(r'^\s*[\*\^#\†\‡]+', '', s)
     # Strip footnote markers: 1), *), **), a)
     s = re.sub(r'\s*\b\d+\)$', '', s)
-    s = re.sub(r'\s*[\*\)]+$', '', s)
+    s = re.sub(r'\s*[\*\)\^#\†\‡]+$', '', s)
     s = re.sub(r'\s*[a-zA-Z]\)$', '', s)
+    # Strip statistical status markers trailing numbers (e.g. '12,5 r' / '12,5 e')
+    s = re.sub(r'(?<=\d)\s+[reRE]$', '', s)
     # Strip vertical watermark artifacts (e.g., newline followed by single letter)
     s = re.sub(r'[\r\n]+[a-z][\r\n]*', '', s)
 
@@ -411,9 +415,40 @@ def _candidates(v):
     return (v,) + tuple(getattr(v, 'alts', ()))
 
 
+def detect_bps_symbol(val_str):
+    """Mendeteksi apakah nilai sel memuat simbol statistik BPS resmi."""
+    if val_str is None:
+        return "EMPTY", ""
+    s = str(val_str).strip()
+    if not s:
+        return "EMPTY", ""
+    s_low = s.lower()
+    if s_low in ('-', '–', '—', '−', '\u2212', '\u2011', '\u2015'):
+        return "NIHIL", s
+    if s_low in ('...', '…', '\u2026', 'na', 'n.a', 'n.a.', 'n/a'):
+        return "UNAVAILABLE", s
+    if re.search(r'[\*\^#\†\‡]', s):
+        return "PRELIMINARY", "*"
+    if re.search(r'(?<=\d)\s+[reRE]$', s) or s_low.endswith(' r') or s_low.endswith(' e'):
+        return "REVISED", "r" if 'r' in s_low else "e"
+    return "NORMAL", ""
+
+
+def is_bps_unavailable(val):
+    """True jika sel berstatus data belum tersedia atau kosong di salah satu sisi."""
+    if val is None:
+        return True
+    s = str(val).strip().lower()
+    return s in ('', '...', '…', '\u2026', 'na', 'n.a', 'n.a.', 'n/a', 'none', 'null')
+
+
 def explain_mismatch(pv, sv):
     """Petunjuk (bukan pembenaran) penyebab selisih. String kosong bila tidak ada pola dikenal.
     Selisih TETAP dianggap beda; ini hanya membantu penelusuran."""
+    if pv is None and sv is not None:
+        return "data tidak tercetak di PDF tetapi terisi di database"
+    if sv is None and pv is not None:
+        return "data tercetak di PDF tetapi belum diisi di database"
     if pv is None or sv is None:
         return ""
     if pv != 0 and sv != 0:
@@ -449,6 +484,10 @@ def evaluate_cell_match(pv, sv, tolerance=0.0):
       penulisan (mis. '1.234' sebagai 1234 atau 1,234).
     - is_tolerance_match hanya True bila pengguna EKSPLISIT memberi tolerance > 0.
     """
+    if pv is None and sv is None:
+        return True, False, 0.0
+    if is_bps_unavailable(pv) and is_bps_unavailable(sv):
+        return True, False, 0.0
     if pv is None or sv is None:
         return False, False, 0.0
 

@@ -48,6 +48,47 @@ def get_cached_page_tables(pdf_path, page_num):
             page = pdf.pages[page_num - 1]
             clean_page = page.filter(is_valid_table_char)
             page_tables = clean_page.extract_tables()
+
+            # Deteksi apakah ekstraksi berbasis garis gagal / menghasilkan tabel borderless 1 kolom
+            needs_fallback = False
+            if not page_tables:
+                needs_fallback = True
+            else:
+                # Periksa apakah semua tabel yang terekstrak hanya memiliki <= 1 kolom valid
+                has_multi_col = False
+                for t in page_tables:
+                    clean_t = strip_empty_table_columns(t)
+                    if clean_t and len(clean_t) > 0 and isinstance(clean_t[0], list) and len(clean_t[0]) > 1:
+                        has_multi_col = True
+                        break
+                if not has_multi_col:
+                    raw_txt = clean_page.extract_text() or ""
+                    # Bila teks halaman memiliki deretan angka tabular (>= 2 kolom per baris)
+                    multi_num_lines = sum(1 for line in raw_txt.splitlines() if len(re.findall(r'\b\d+[\d.,]*\b', line)) >= 2)
+                    if multi_num_lines >= 3:
+                        needs_fallback = True
+
+            if needs_fallback:
+                # Fallback Strategi 1: Kolom vertikal berbasis spasi teks (stream) + garis horizontal
+                stream_tables = clean_page.extract_tables(table_settings={
+                    "vertical_strategy": "text",
+                    "horizontal_strategy": "lines",
+                    "snap_tolerance": 3,
+                    "join_tolerance": 3,
+                })
+                if stream_tables and any(len(strip_empty_table_columns(t)[0]) > 1 for t in stream_tables if t and len(t) > 0 and isinstance(t[0], list)):
+                    page_tables = stream_tables
+                else:
+                    # Fallback Strategi 2: Full stream (kolom & baris berbasis koordinat teks)
+                    text_tables = clean_page.extract_tables(table_settings={
+                        "vertical_strategy": "text",
+                        "horizontal_strategy": "text",
+                        "snap_tolerance": 4,
+                        "join_tolerance": 3,
+                    })
+                    if text_tables and any(len(strip_empty_table_columns(t)[0]) > 1 for t in text_tables if t and len(t) > 0 and isinstance(t[0], list)):
+                        page_tables = text_tables
+
             res = []
             for t in page_tables:
                 res.extend(strip_empty_table_columns(t))
@@ -82,41 +123,9 @@ def extract_tables_from_pdf(pdf_path, target_tables):
 
 
 def extract_table_content(pdf_path, target_pdf_info):
-    all_cached = True
     for tb in target_pdf_info:
-        for p in tb.get("pages", []):
-            if (pdf_path, p) not in _PDF_PAGE_CACHE:
-                all_cached = False
-                break
-        if not all_cached:
-            break
-
-    if all_cached:
-        for tb in target_pdf_info:
-            rows = []
-            for p in tb.get("pages", []):
-                rows.extend(get_cached_page_tables(pdf_path, p))
-            tb["extracted_data"] = rows
-        return
-
-    with pdfplumber.open(pdf_path) as pdf:
-        for tb in target_pdf_info:
-            pages = tb.get("pages", [])
-            rows = []
-            for p in pages:
-                cache_key = (pdf_path, p)
-                with _PDF_PAGE_CACHE_LOCK:
-                    cached = _PDF_PAGE_CACHE.get(cache_key)
-                if cached is not None:
-                    rows.extend(cached)
-                elif 0 <= p - 1 < len(pdf.pages):
-                    page = pdf.pages[p - 1]
-                    clean_page = page.filter(is_valid_table_char)
-                    tables = clean_page.extract_tables()
-                    p_rows = []
-                    for t in tables:
-                        p_rows.extend(strip_empty_table_columns(t))
-                    with _PDF_PAGE_CACHE_LOCK:
-                        _PDF_PAGE_CACHE[cache_key] = p_rows
-                    rows.extend(p_rows)
-            tb["extracted_data"] = rows
+        pages = tb.get("pages", [])
+        rows = []
+        for p in pages:
+            rows.extend(get_cached_page_tables(pdf_path, p))
+        tb["extracted_data"] = rows
