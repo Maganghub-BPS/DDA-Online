@@ -444,7 +444,7 @@ def extract_table_structure_from_pdf(pdf_path, pages):
         elif last_r in ("jumlah", "total", "jumlah/total"):
             konfigurasi_total = "jumlah"
 
-    has_decimals = False
+    max_detected_decimals = 0
     try:
         try:
             from normalizer import parse_num
@@ -464,11 +464,17 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                         c_raw = clean_cell_text(r[ci])
                         v = parse_num(c_raw, is_pdf=True)
                         if v is not None and isinstance(v, float) and not v.is_integer():
-                            has_decimals = True
-                            break
-                    if has_decimals:
+                            if not re.match(r'^-?[1-9]\d{0,2}(\.\d{3})+$', c_raw):
+                                m_dec = re.search(r'[,.](\d+)\s*$', c_raw)
+                                if m_dec:
+                                    d_len = len(m_dec.group(1))
+                                    if 0 < d_len <= 4 and d_len > max_detected_decimals:
+                                        max_detected_decimals = d_len
+                                        if max_detected_decimals >= 4:
+                                            break
+                    if max_detected_decimals >= 4:
                         break
-                if has_decimals:
+                if max_detected_decimals >= 4:
                     break
     except Exception as e:
         sys.stderr.write(f"[WARN] auto_config_pdf decimal check: {e}\n")
@@ -484,7 +490,7 @@ def extract_table_structure_from_pdf(pdf_path, pages):
         "periods": periods,
         "posisi_hirarki": posisi_hirarki,
         "konfigurasi_total": konfigurasi_total,
-        "desimal": 2 if has_decimals else 0,
+        "desimal": max_detected_decimals,
     }
 
 if __name__ == "__main__":

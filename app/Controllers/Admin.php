@@ -5690,6 +5690,44 @@ class Admin extends BaseController
 				throw new \Exception("Gagal menyimpan data ke database. Seluruh transaksi dibatalkan (rollback).");
 			}
 
+			// Sinkronisasi Cache Snapshot DDA (Matching PDF & Live Validation)
+			try {
+				$tabelInfo = $this->db->table('t_tahun_tabel')->where('id', $id_tahun_tabel)->get()->getRow();
+				$tahunTabel = $tabelInfo->tahun ?? date('Y');
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $tabelInfo->no_tabel ?? ''));
+				$cleanNo = rtrim($cleanNo, '.');
+
+				$dbJsonPath = WRITEPATH . "uploads/dda_db_{$tahunTabel}.json";
+				if (file_exists($dbJsonPath)) {
+					$dynInfoAfter = $mTabelDinamis->exportSingleDynamicTable($id_tahun_tabel);
+					$dbList = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
+					foreach ($dbList as &$dbItem) {
+						if ((int)($dbItem['id_db'] ?? 0) === $id_tahun_tabel || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
+							$dbItem['dynamic_empty'] = false;
+							if (!empty($dynInfoAfter['dynamic_grid'])) {
+								$dbItem['dynamic_grid'] = $dynInfoAfter['dynamic_grid'];
+							}
+							$dbItem['cell_count'] = $dynInfoAfter['cell_count'] ?? (int)$parseResult['filled_cells'];
+							break;
+						}
+					}
+					unset($dbItem);
+					@file_put_contents($dbJsonPath, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+				}
+
+				// Perbarui status 'api_empty' di dda_state_{ta}.json agar tidak tertinggal sebagai Data Kosong
+				$statePath = WRITEPATH . "uploads/dda_state_{$tahunTabel}.json";
+				if (file_exists($statePath) && !empty($cleanNo)) {
+					$stateData = json_decode(@file_get_contents($statePath), true) ?? [];
+					if (isset($stateData[$cleanNo]) && ($stateData[$cleanNo]['status'] ?? '') === 'api_empty') {
+						unset($stateData[$cleanNo]);
+						@file_put_contents($statePath, json_encode($stateData, JSON_PRETTY_PRINT));
+					}
+				}
+			} catch (\Throwable $eSync) {
+				log_message('error', 'Gagal sinkronisasi cache dda_db setelah upload excel: ' . $eSync->getMessage());
+			}
+
 			$successMsg = "Data tabel dinamis berhasil diimpor! Total <b>{$parseResult['filled_cells']}</b> sel data berhasil disimpan.";
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-check-circle-fill fs-5\"></i><div>{$successMsg}</div></div>");
 

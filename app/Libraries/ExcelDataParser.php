@@ -709,6 +709,9 @@ class ExcelDataParser
         } elseif (strpos($cleaned, ',') !== false) {
             // Hanya ada koma: koma berfungsi sebagai desimal
             $cleaned = str_replace(',', '.', $cleaned);
+        } elseif (preg_match('/^-?\d{1,3}(\.\d{3})+$/', $cleaned)) {
+            // Titik sebagai pemisah ribuan Indonesia tanpa desimal: e.g. "1.500" -> "1500"
+            $cleaned = str_replace('.', '', $cleaned);
         }
 
         // Bersihkan karakter spasi atau non-breaking space

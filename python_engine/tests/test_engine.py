@@ -49,6 +49,9 @@ class TestParseNum(unittest.TestCase):
         self.assertEqual(parse_num("12,5"), 12.5)
         self.assertEqual(parse_num("0,5"), 0.5)
         self.assertEqual(parse_num("0,001"), 0.001)
+        self.assertEqual(parse_num("1,685"), 1.685)
+        self.assertEqual(parse_num("1500,685"), 1500.685)
+        self.assertEqual(parse_num("1.500,685"), 1500.685)
 
     def test_us_number_formats(self):
         # Format ribuan koma, desimal titik

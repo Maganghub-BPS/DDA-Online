@@ -268,11 +268,13 @@ def parse_num(val_str, is_pdf=False):
         if comma_idx > dot_idx: s = s.replace('.', '').replace(',', '.')
         else: s = s.replace(',', '')
     elif ',' in s:
-        if s.count(',') >= 2 or re.match(r'^-?[1-9]\d{0,2}(,\d{3})+$', s):
-            if s.count(',') == 1:
-                ambiguous_alt = s.replace(',', '.')   # '1,234' bisa juga desimal 1.234
+        if s.count(',') >= 2:
             s = s.replace(',', '')
         else:
+            # Format Indonesia / BPS: koma tunggal SELALU pemisah desimal (mis. '1,685' -> 1.685, '1500,685' -> 1500.685).
+            # Jika tepat 3 digit di belakang koma (mis. '1,234'), sediakan alternatif ribuan untuk kecocokan perbandingan.
+            if re.match(r'^-?[1-9]\d{0,2},\d{3}$', s):
+                ambiguous_alt = s.replace(',', '')
             s = s.replace(',', '.')
     elif '.' in s:
         if s.count('.') >= 2 or re.match(r'^-?[1-9]\d{0,2}(\.\d{3})+$', s):
