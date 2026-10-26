@@ -629,12 +629,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             active_cat_cols = detect_active_data_cols(clean_db_rows)
 
             def get_gender_sec(txt, r):
-                if is_header_or_metadata_row(r):
-                    return None
                 all_txt = txt.lower()
-                if ('laki-laki' in all_txt or re.search(r'\bmale\b', all_txt)) and ('perempuan' in all_txt or re.search(r'\bfemale\b', all_txt)):
-                    return None
                 if any(parse_num(c, is_pdf=True) is not None for c in r if str(c).strip()):
+                    return None
+                if re.search(r'\b(kabupaten|regency)\b', all_txt) and not re.search(r'\b(kota|municipality)\b', all_txt):
+                    return "Kabupaten"
+                elif re.search(r'\b(kota|municipality)\b', all_txt) and not re.search(r'\b(kabupaten|regency)\b', all_txt):
+                    return "Kota"
+                if ('laki-laki' in all_txt or re.search(r'\bmale\b', all_txt)) and ('perempuan' in all_txt or re.search(r'\bfemale\b', all_txt)):
                     return None
                 if 'laki-laki' in all_txt or re.search(r'\bmale\b', all_txt):
                     return "Laki-Laki"
@@ -655,12 +657,13 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         break
                     if any(k in all_txt for k in ['sumber:', 'source:', 'catatan:', 'note:', 'sumber/source', 'catatan/note']):
                         break
-                    if is_header_or_metadata_row(r):
-                        continue
 
                     sec = get_gender_sec(all_txt, r)
                     if sec:
                         cur_sec = sec
+                        continue
+
+                    if is_header_or_metadata_row(r):
                         continue
 
                     if not is_pdf and use_cols:
@@ -821,13 +824,15 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     s['id'] = idx_s
                 p_recs = extract_cat_rows_std(target_pdf_rows, is_pdf=True)
 
-                p_grouped = {s['id']: [] for s in s_recs}
+                p_grouped_items = {s['id']: [] for s in s_recs}
                 used_p_indices = set()
-                # Pass 1: Strict key matching
+                # Pass 1: Strict key matching (with section priority)
                 for idx_p, p in enumerate(p_recs):
-                    match_s = next((s for s in s_recs if s['key'] == p['key']), None)
+                    match_s = next((s for s in s_recs if s['key'] == p['key'] and s.get('sec') == p.get('sec')), None)
+                    if not match_s:
+                        match_s = next((s for s in s_recs if s['key'] == p['key']), None)
                     if match_s:
-                        p_grouped[match_s['id']].extend(p['nums'])
+                        p_grouped_items[match_s['id']].append((idx_p, p['nums']))
                         used_p_indices.add(idx_p)
 
                 # Pass 1.5: Prefix / suffix containment key matching (e.g. Roman numeral prefix or bilingual suffix diff)
@@ -836,51 +841,82 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         continue
                     match_s = next((
                         s for s in s_recs
-                        if len(p['key']) >= 6 and len(s['key']) >= 6 and (
+                        if s.get('sec') == p.get('sec') and len(p['key']) >= 4 and len(s['key']) >= 4 and (
                             p['key'].startswith(s['key']) or s['key'].startswith(p['key']) or
-                            p['key'].endswith(s['key']) or s['key'].endswith(p['key'])
+                            p['key'].endswith(s['key']) or s['key'].endswith(p['key']) or
+                            p['key'].split('_')[0] == s['key'] or s['key'].split('_')[0] == p['key']
                         )
                     ), None)
+                    if not match_s:
+                        match_s = next((
+                            s for s in s_recs
+                            if len(p['key']) >= 4 and len(s['key']) >= 4 and (
+                                p['key'].startswith(s['key']) or s['key'].startswith(p['key']) or
+                                p['key'].endswith(s['key']) or s['key'].endswith(p['key']) or
+                                p['key'].split('_')[0] == s['key'] or s['key'].split('_')[0] == p['key']
+                            )
+                        ), None)
                     if match_s:
-                        p_grouped[match_s['id']].extend(p['nums'])
+                        p_grouped_items[match_s['id']].append((idx_p, p['nums']))
                         used_p_indices.add(idx_p)
 
                 # Pass 2: Safe fuzzy matching for unmatched PDF rows
                 for idx_p, p in enumerate(p_recs):
                     if idx_p in used_p_indices:
                         continue
-                    match_s = next((s for s in s_recs if SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s['display'])), None)
+                    match_s = next((s for s in s_recs if s.get('sec') == p.get('sec') and SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s['display'])), None)
+                    if not match_s:
+                        match_s = next((s for s in s_recs if SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s['display'])), None)
                     if match_s:
-                        p_grouped[match_s['id']].extend(p['nums'])
+                        p_grouped_items[match_s['id']].append((idx_p, p['nums']))
                         used_p_indices.add(idx_p)
+
+                # Sort multi-page chunks by original vertical/page order (idx_p) before flattening
+                p_grouped = {}
+                for s_id, items in p_grouped_items.items():
+                    items.sort(key=lambda x: x[0])
+                    nums_flat = []
+                    for _, n_list in items:
+                        nums_flat.extend(n_list)
+                    p_grouped[s_id] = nums_flat
 
                 col_map = {}
                 pdf_cols = []
                 if target_pages and len(target_pages) > 1:
+                    def _norm_hdr(raw_h):
+                        h = str(raw_h).lower().replace('-', ' ')
+                        h = re.sub(r'\(.*?\)', '', h)
+                        h = re.sub(r'\bpresentase\b', 'persentase', h)
+                        h = re.sub(r'\bprosentase\b', 'persentase', h)
+                        tokens = set(re.findall(r'\b\w+\b', h))
+                        return tokens, h.strip()
+
                     for p_num in target_pages:
                         target_page_info = [{'nomor_tabel': target_table, 'pages': [p_num]}]
                         extract_table_content(pdf_path, target_page_info)
                         p_page_rows = target_page_info[0].get('extracted_data', [])
                         p_hdrs = detect_col_headers(p_page_rows)
                         for h in p_hdrs:
-                            tokens = set(h.lower().replace('-', ' ').split())
-                            pdf_cols.append((h, tokens))
+                            t_set, h_clean = _norm_hdr(h)
+                            pdf_cols.append((h, t_set, h_clean))
 
                     used_p = set()
                     for s_idx, sh in enumerate(headers):
-                        s_tokens = set(sh.lower().replace('-', ' ').split())
+                        s_tokens, sh_clean = _norm_hdr(sh)
                         best_p = None
                         best_score = 0
-                        for p_idx, (ph, p_tokens) in enumerate(pdf_cols):
+                        for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
                             if p_idx in used_p:
                                 continue
                             overlap = len(s_tokens & p_tokens)
-                            if s_tokens == p_tokens:
+                            sim = SequenceMatcher(None, sh_clean, ph_clean).ratio()
+                            if s_tokens == p_tokens or sh_clean == ph_clean:
                                 best_p = p_idx
                                 break
-                            elif overlap > best_score and (s_tokens.issubset(p_tokens) or p_tokens.issubset(s_tokens)):
-                                best_score = overlap
-                                best_p = p_idx
+                            elif (overlap > best_score and (s_tokens.issubset(p_tokens) or p_tokens.issubset(s_tokens))) or sim >= 0.8:
+                                if sim > best_score or overlap > best_score:
+                                    best_score = max(sim, overlap)
+                                    best_p = p_idx
                         if best_p is not None:
                             col_map[s_idx] = best_p
                             used_p.add(best_p)
