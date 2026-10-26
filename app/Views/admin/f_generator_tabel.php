@@ -16,7 +16,6 @@ $sel_posisi_hirarki = $indikator->posisi_hirarki ?? 'kolom_atas';
 $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
 $sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
 $sel_label_total_kustom = $indikator->label_total_kustom ?? '';
-$sel_format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
 $sel_tampilan_baris = $indikator->tampilan_baris ?? '1_kolom';
 $sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
@@ -1032,8 +1031,6 @@ $catatan_val = $indikator->catatan ?? '';
                             </div>
                             <input type="hidden" name="tampilan_baris" id="input_tampilan_baris" value="<?= esc($sel_tampilan_baris ?? '1_kolom'); ?>">
                         </div>
-
-                        <input type="hidden" name="format_nomor_baris" id="input_format_nomor_baris" value="none">
                     </div>
                 </div>
 

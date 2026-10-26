@@ -24,9 +24,7 @@ class M_tabeldinamis extends Model
         'tingkat_kolom',
         'konfigurasi_total',
         'label_total_kustom',
-        'format_nomor_baris',
         'tampilan_baris',
-        'satuan',
         'desimal',
         'catatan',
         'created_at',
@@ -113,6 +111,107 @@ class M_tabeldinamis extends Model
         return $map;
     }
 
+    /**
+     * Sinkronisasi item karakteristik (kolom) dari array tree builder
+     * Mempertahankan db_id dari node leaf agar relasi t_nilai_dinamis tetap utuh saat edit teks/typo
+     */
+    public function syncKarakteristikFromTreeItems(int $id_kelompok, array $treeItems): bool
+    {
+        if (empty($treeItems)) {
+            return $this->syncKarakteristikItems($id_kelompok, []);
+        }
+
+        // 1. Petakan parentId untuk mencari node anak vs node induk
+        $hasChildren = [];
+        $nodeMap = [];
+        foreach ($treeItems as $it) {
+            $nodeId = $it['id'] ?? '';
+            if ($nodeId !== '') {
+                $nodeMap[$nodeId] = $it;
+            }
+            $pId = $it['parentId'] ?? null;
+            if (!empty($pId)) {
+                $hasChildren[$pId] = true;
+            }
+        }
+
+        $items = [];
+        $no = 1;
+
+        foreach ($treeItems as $it) {
+            $nodeId = $it['id'] ?? '';
+            // Hanya node daun (leaf) yang disimpan sebagai item kolom di m_karakteristik_item
+            if (isset($hasChildren[$nodeId])) {
+                continue;
+            }
+
+            $chain = [$it];
+            $curr = $it;
+            while (!empty($curr['parentId']) && isset($nodeMap[$curr['parentId']])) {
+                $curr = $nodeMap[$curr['parentId']];
+                array_unshift($chain, $curr);
+            }
+
+            $grup_induk_ind = null;
+            $grup_induk_en  = null;
+            $grup_sub_ind   = null;
+            $grup_sub_en    = null;
+            $item_ind = '';
+            $item_en  = null;
+
+            $totalSegs = count($chain);
+            if ($totalSegs >= 3) {
+                $grup_induk_ind = trim($chain[0]['ind'] ?? '');
+                $grup_induk_en  = !empty($chain[0]['en']) ? trim($chain[0]['en']) : null;
+                $grup_sub_ind   = trim($chain[1]['ind'] ?? '');
+                $grup_sub_en    = !empty($chain[1]['en']) ? trim($chain[1]['en']) : null;
+                $leafPartsInd   = [];
+                $leafPartsEn    = [];
+                for ($k = 2; $k < $totalSegs; $k++) {
+                    $leafPartsInd[] = trim($chain[$k]['ind'] ?? '');
+                    if (!empty($chain[$k]['en'])) {
+                        $leafPartsEn[] = trim($chain[$k]['en']);
+                    }
+                }
+                $item_ind = implode(' || ', $leafPartsInd);
+                $item_en  = !empty($leafPartsEn) ? implode(' || ', $leafPartsEn) : null;
+            } elseif ($totalSegs === 2) {
+                $grup_induk_ind = trim($chain[0]['ind'] ?? '');
+                $grup_induk_en  = !empty($chain[0]['en']) ? trim($chain[0]['en']) : null;
+                $item_ind       = trim($chain[1]['ind'] ?? '');
+                $item_en        = !empty($chain[1]['en']) ? trim($chain[1]['en']) : null;
+            } else {
+                $item_ind = trim($chain[0]['ind'] ?? '');
+                $item_en  = !empty($chain[0]['en']) ? trim($chain[0]['en']) : null;
+            }
+
+            if ($item_ind === '') {
+                continue;
+            }
+
+            $is_standalone = 0;
+            $lower_ind = strtolower($item_ind);
+            $lower_en  = strtolower($item_en ?? '');
+            if ($lower_ind === 'total' || $lower_ind === 'jumlah' || $lower_en === 'total') {
+                $is_standalone = 1;
+            }
+
+            $items[] = [
+                'db_id'          => !empty($it['db_id']) ? (int)$it['db_id'] : null,
+                'grup_induk_ind' => $grup_induk_ind ?: null,
+                'grup_induk_en'  => $grup_induk_en ?: null,
+                'grup_sub_ind'   => $grup_sub_ind ?: null,
+                'grup_sub_en'    => $grup_sub_en ?: null,
+                'item_ind'       => $item_ind,
+                'item_en'        => $item_en ?: null,
+                'is_standalone'  => $is_standalone,
+                'no_urut'        => $no++,
+            ];
+        }
+
+        return $this->syncKarakteristikItems($id_kelompok, $items);
+    }
+
     public function syncKarakteristikItems(int $id_kelompok, array $items): bool
     {
         $this->db->transStart();
@@ -137,6 +236,16 @@ class M_tabeldinamis extends Model
         if (empty($items)) {
             if (!empty($existingById)) {
                 $deleteIds = array_keys($existingById);
+                $hasDataCount = $this->db->table('t_nilai_dinamis')
+                    ->whereIn('id_karakteristik_item', $deleteIds)
+                    ->where('(nilai IS NOT NULL OR simbol IS NOT NULL)', null, false)
+                    ->countAllResults();
+
+                if ($hasDataCount > 0) {
+                    $this->db->transRollback();
+                    throw new \RuntimeException("Gagal mengosongkan item kolom: Terdapat {$hasDataCount} data nilai pada tabel dinamis yang menggunakan kolom ini. Kosongkan nilai tabel terlebih dahulu.");
+                }
+
                 $this->db->table('m_karakteristik_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
             }
@@ -169,15 +278,15 @@ class M_tabeldinamis extends Model
             }
 
             // Ekstraksi notasi Induk || Anak hingga 3 tingkatan (Tingkat 1 || Tingkat 2 || Tingkat 3)
-            $grup_induk_ind = null;
-            $grup_induk_en  = null;
-            $grup_sub_ind   = null;
-            $grup_sub_en    = null;
-            $item_ind = $raw_ind;
-            $item_en  = ($raw_en !== '') ? $raw_en : null;
-            $is_standalone = 0;
+            $grup_induk_ind = $item['grup_induk_ind'] ?? null;
+            $grup_induk_en  = $item['grup_induk_en'] ?? null;
+            $grup_sub_ind   = $item['grup_sub_ind'] ?? null;
+            $grup_sub_en    = $item['grup_sub_en'] ?? null;
+            $item_ind       = $item['item_ind'] ?? $raw_ind;
+            $item_en        = ($raw_en !== '') ? $raw_en : ($item['item_en'] ?? null);
+            $is_standalone  = (int)($item['is_standalone'] ?? 0);
 
-            if (strpos($raw_ind, '||') !== false) {
+            if (empty($grup_induk_ind) && strpos($raw_ind, '||') !== false) {
                 $parts_ind = array_map('trim', explode('||', $raw_ind));
                 $parts_en  = (!empty($raw_en) && strpos($raw_en, '||') !== false) 
                     ? array_map('trim', explode('||', $raw_en)) 
@@ -205,9 +314,11 @@ class M_tabeldinamis extends Model
                     $item_ind       = $parts_ind[0];
                     $item_en        = (isset($parts_en[0]) && $parts_en[0] !== '') ? $parts_en[0] : null;
                 }
-            } else {
-                $lower_ind = strtolower($raw_ind);
-                $lower_en  = strtolower($raw_en ?? '');
+            }
+
+            if (empty($is_standalone)) {
+                $lower_ind = strtolower($item_ind);
+                $lower_en  = strtolower($item_en ?? '');
                 if ($lower_ind === 'total' || $lower_ind === 'jumlah' || $lower_en === 'total') {
                     $is_standalone = 1;
                 }
@@ -253,6 +364,16 @@ class M_tabeldinamis extends Model
 
         $deleteIds = array_diff(array_keys($existingById), $keptIds);
         if (!empty($deleteIds)) {
+            $hasDataCount = $this->db->table('t_nilai_dinamis')
+                ->whereIn('id_karakteristik_item', $deleteIds)
+                ->where('(nilai IS NOT NULL OR simbol IS NOT NULL)', null, false)
+                ->countAllResults();
+
+            if ($hasDataCount > 0) {
+                $this->db->transRollback();
+                throw new \RuntimeException("Gagal menyimpan perubahan: Terdapat {$hasDataCount} data nilai pada tabel dinamis yang menggunakan item kolom yang dihapus. Kosongkan nilai tabel terlebih dahulu sebelum menghapus item kolom ini.");
+            }
+
             $this->db->table('m_karakteristik_item')->whereIn('id', $deleteIds)->delete();
             $this->db->table('t_nilai_dinamis')->whereIn('id_karakteristik_item', $deleteIds)->delete();
         }
@@ -591,24 +712,7 @@ class M_tabeldinamis extends Model
 
     public function getBarisTree(int $id_kelompok): array
     {
-        $items = $this->getBarisItems($id_kelompok);
-        $lookup = [];
-        $tree = [];
-
-        foreach ($items as $item) {
-            $item->children = [];
-            $lookup[$item->id] = $item;
-        }
-
-        foreach ($items as $item) {
-            if (!empty($item->parent_id) && isset($lookup[$item->parent_id])) {
-                $lookup[$item->parent_id]->children[] = $item;
-            } else {
-                $tree[] = $item;
-            }
-        }
-
-        return $tree;
+        return $this->getBarisItems($id_kelompok);
     }
 
     public function syncBarisItems(int $id_kelompok, array $items): bool
@@ -637,6 +741,16 @@ class M_tabeldinamis extends Model
         if (empty($items)) {
             if (!empty($existingById)) {
                 $deleteIds = array_keys($existingById);
+                $hasDataCount = $this->db->table('t_nilai_dinamis')
+                    ->whereIn('id_baris_item', $deleteIds)
+                    ->where('(nilai IS NOT NULL OR simbol IS NOT NULL)', null, false)
+                    ->countAllResults();
+
+                if ($hasDataCount > 0) {
+                    $this->db->transRollback();
+                    throw new \RuntimeException("Gagal mengosongkan kelompok baris: Terdapat {$hasDataCount} data nilai pada tabel dinamis yang menggunakan baris ini. Kosongkan nilai tabel terlebih dahulu.");
+                }
+
                 $this->db->table('m_baris_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
             }
@@ -695,7 +809,6 @@ class M_tabeldinamis extends Model
 
             $rowPayload = [
                 'id_kelompok'     => $id_kelompok,
-                'parent_id'       => !empty($item['parent_id']) ? (int)$item['parent_id'] : null,
                 'no_urut'         => $noUrut,
                 'nama_baris_ind'  => $nama_ind,
                 'nama_baris_en'   => $nama_en !== '' ? $nama_en : null,
@@ -723,6 +836,16 @@ class M_tabeldinamis extends Model
         // Hapus HANYA baris-baris yang memang dibuang oleh pengguna
         $deleteIds = array_diff(array_keys($existingById), $keptIds);
         if (!empty($deleteIds)) {
+            $hasDataCount = $this->db->table('t_nilai_dinamis')
+                ->whereIn('id_baris_item', $deleteIds)
+                ->where('(nilai IS NOT NULL OR simbol IS NOT NULL)', null, false)
+                ->countAllResults();
+
+            if ($hasDataCount > 0) {
+                $this->db->transRollback();
+                throw new \RuntimeException("Gagal menyimpan perubahan: Terdapat {$hasDataCount} data nilai pada tabel dinamis yang menggunakan item baris yang dihapus. Kosongkan nilai tabel terlebih dahulu sebelum menghapus item baris ini.");
+            }
+
             $this->db->table('m_baris_item')->whereIn('id', $deleteIds)->delete();
             $this->db->table('t_nilai_dinamis')->whereIn('id_baris_item', $deleteIds)->delete();
         }
@@ -949,6 +1072,32 @@ class M_tabeldinamis extends Model
         return $map;
     }
 
+    /**
+     * Sinkronisasi item periode dari array tree builder
+     * Mempertahankan db_id agar relasi t_nilai_dinamis tetap utuh saat edit teks/typo periode
+     */
+    public function syncPeriodeFromTreeItems(int $id_kelompok, array $treeItems): bool
+    {
+        $items = [];
+        $no = 1;
+        foreach ($treeItems as $it) {
+            $nama_ind = trim($it['ind'] ?? ($it['nama_periode_ind'] ?? ''));
+            $nama_en  = trim($it['en'] ?? ($it['nama_periode_en'] ?? ''));
+            if ($nama_ind === '') {
+                continue;
+            }
+
+            $items[] = [
+                'db_id'            => !empty($it['db_id']) ? (int)$it['db_id'] : null,
+                'nama_periode_ind' => $nama_ind,
+                'nama_periode_en'  => $nama_en !== '' ? $nama_en : null,
+                'no_urut'          => $no++,
+            ];
+        }
+
+        return $this->syncPeriodeItems($id_kelompok, $items);
+    }
+
     public function syncPeriodeItems(int $id_kelompok, array $items): bool
     {
         $this->db->transStart();
@@ -973,6 +1122,16 @@ class M_tabeldinamis extends Model
         if (empty($items)) {
             if (!empty($existingById)) {
                 $deleteIds = array_keys($existingById);
+                $hasDataCount = $this->db->table('t_nilai_dinamis')
+                    ->whereIn('id_periode_item', $deleteIds)
+                    ->where('(nilai IS NOT NULL OR simbol IS NOT NULL)', null, false)
+                    ->countAllResults();
+
+                if ($hasDataCount > 0) {
+                    $this->db->transRollback();
+                    throw new \RuntimeException("Gagal mengosongkan kelompok periode: Terdapat {$hasDataCount} data nilai pada tabel dinamis yang menggunakan kelompok periode ini. Kosongkan nilai tabel terlebih dahulu.");
+                }
+
                 $this->db->table('m_periode_item')->whereIn('id', $deleteIds)->delete();
                 $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
             }
@@ -1026,6 +1185,16 @@ class M_tabeldinamis extends Model
 
         $deleteIds = array_diff(array_keys($existingById), $keptIds);
         if (!empty($deleteIds)) {
+            $hasDataCount = $this->db->table('t_nilai_dinamis')
+                ->whereIn('id_periode_item', $deleteIds)
+                ->where('(nilai IS NOT NULL OR simbol IS NOT NULL)', null, false)
+                ->countAllResults();
+
+            if ($hasDataCount > 0) {
+                $this->db->transRollback();
+                throw new \RuntimeException("Gagal menyimpan perubahan: Terdapat {$hasDataCount} data nilai pada tabel dinamis yang menggunakan item periode yang dihapus. Kosongkan nilai tabel terlebih dahulu sebelum menghapus item periode ini.");
+            }
+
             $this->db->table('m_periode_item')->whereIn('id', $deleteIds)->delete();
             $this->db->table('t_nilai_dinamis')->whereIn('id_periode_item', $deleteIds)->delete();
         }

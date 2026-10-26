@@ -64,7 +64,6 @@ class ExcelTemplateGenerator
         $id_baris         = (int)($indikator->id_baris_kelompok ?? 0);
         $id_periode       = (int)($indikator->id_periode_kelompok ?? 0);
         $posisi_hirarki   = $indikator->posisi_hirarki ?? 'kolom_atas';
-        $satuan           = trim((string)($indikator->satuan ?? ''));
         $desimal          = (int)($indikator->desimal ?? 2);
         $cfgTotalInit     = $indikator->konfigurasi_total ?? 'default';
         $isRuntunWaktu    = ($cfgTotalInit === 'runtun_waktu');
