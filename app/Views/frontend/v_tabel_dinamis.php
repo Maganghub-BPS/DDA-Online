@@ -1354,7 +1354,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                         <tbody>
                             <?php 
-                            // Deteksi otomatis format angka desimal cerdas (Opsi A)
+                            // Deteksi otomatis format angka desimal cerdas
                             $cfgDesimal = (int)($indikator->desimal ?? 0);
                             $hasDecimalData = false;
                             $maxDecFound = 0;
@@ -1362,7 +1362,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 foreach ($nilaiMap as $nmVal) {
                                     if (is_numeric($nmVal) && abs((float)$nmVal - round((float)$nmVal)) > 0.00001) {
                                         $hasDecimalData = true;
-                                        $str = rtrim(rtrim(sprintf('%.4f', (float)$nmVal), '0'), '.');
+                                        $str = rtrim(rtrim(sprintf('%.6f', (float)$nmVal), '0'), '.');
                                         $p = explode('.', $str);
                                         if (isset($p[1])) {
                                             $maxDecFound = max($maxDecFound, strlen($p[1]));
@@ -1370,9 +1370,11 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     }
                                 }
                             }
-                            $desimal = (int)$cfgDesimal;
+                            // Jika ada konfigurasi eksplisit di indikator ($cfgDesimal > 0), gunakan itu.
+                            // Jika belum diset ($cfgDesimal == 0), gunakan digit desimal tertinggi yang ditemukan pada data tabel ($maxDecFound).
+                            $desimal = ($cfgDesimal > 0) ? $cfgDesimal : $maxDecFound;
 
-                            $formatCellVal = function($cellVal, int $desimal): string {
+                            $formatCellVal = function($cellVal, int $desimal = 0): string {
                                 if ($cellVal === null || $cellVal === '') {
                                     return '–';
                                 }
@@ -1380,16 +1382,20 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     return esc($cellVal);
                                 }
                                 $fVal = (float)$cellVal;
-                                if ($desimal > 0) {
-                                    return number_format($fVal, $desimal, ',', '.');
+
+                                // 1. Jika angka bulat murni (misal 100, 1500), SELALU tampil bulat murni tanpa koma nol
+                                if (abs($fVal - round($fVal)) < 0.000001) {
+                                    return number_format($fVal, 0, ',', '.');
                                 }
-                                if (abs($fVal - round($fVal)) > 0.00001) {
-                                    $str = rtrim(rtrim(sprintf('%.4f', $fVal), '0'), '.');
-                                    $p = explode('.', $str);
-                                    $cellDec = isset($p[1]) ? strlen($p[1]) : 0;
-                                    return number_format($fVal, $cellDec, ',', '.');
-                                }
-                                return number_format($fVal, 0, ',', '.');
+
+                                // 2. Jika angka desimal (pecahan):
+                                // Gunakan presisi standar tabel ($desimal), atau jika sel memiliki desimal lebih panjang, jangan dipotong.
+                                $str = rtrim(rtrim(sprintf('%.6f', $fVal), '0'), '.');
+                                $p = explode('.', $str);
+                                $cellDec = isset($p[1]) ? strlen($p[1]) : 0;
+                                $decPlaces = max($desimal, $cellDec);
+
+                                return number_format($fVal, $decPlaces, ',', '.');
                             };
 
                             $dataRowCounter = 0;

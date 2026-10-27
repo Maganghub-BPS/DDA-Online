@@ -1162,11 +1162,8 @@ class ExcelTemplateGenerator
         $dataStartRow = $numRow + 1;
         $curRow = $dataStartRow;
 
-        // Tentukan format desimal Excel
-        $numFormat = '#,##0';
-        if ($desimal > 0) {
-            $numFormat .= '.' . str_repeat('0', $desimal);
-        }
+        // Tentukan format angka Excel fleksibel (tidak memaksakan trailing nol pada angka bulat)
+        $numFormat = '#,##0.####';
 
         $rowItemsMeta = [];
 
