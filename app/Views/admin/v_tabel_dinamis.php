@@ -673,26 +673,10 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         $posisi_hirarki     = $indikator->posisi_hirarki ?? 'kolom_atas';
                         $cfgTotal           = $indikator->konfigurasi_total ?? 'default';
                         $isRuntunWaktu      = ($cfgTotal === 'runtun_waktu');
-                        $format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
 
-                        // Deteksi cerdas: apakah item-item master baris memiliki penomoran (misal: "1. Kayu", "1. Cilacap")
-                        $hasNumberInMaster = false;
-                        if (!empty($itemsBaris)) {
-                            foreach ($itemsBaris as $bItem) {
-                                $bTipe = strtolower(trim($bItem->tipe_baris ?? ''));
-                                if ($bTipe === 'kategori' || $bTipe === 'total' || $bTipe === 'subtotal') {
-                                    continue;
-                                }
-                                $bNama = trim($bItem->nama_baris_ind ?? '');
-                                if (preg_match('/^\s*\d+[\.\)]\s*/', $bNama)) {
-                                    $hasNumberInMaster = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Kolom No. dibuatkan otomatis HANYA jika di master baris ada nomornya
-                        $hasNoCol = $hasNumberInMaster;
+                        // Konfigurasi Kolom No: ditentukan eksplisit dari Generator Tabel (tampilkan vs sembunyikan)
+                        $cfgKolomNomor = $indikator->kolom_nomor ?? 'tampilkan';
+                        $hasNoCol      = ($cfgKolomNomor === 'tampilkan');
 
                         // Identifikasi id_periode aktif untuk baris rincian pada mode runtun_waktu
                         $idPeriodeAktif = 0;
@@ -1769,9 +1753,13 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 $cleanNama   = $rawNamaInd;
                                 $cleanNamaEn = $rawNamaEn;
                                 $noText      = $dataRowCounter . '.';
+                                $customIndent = null;
+                                $fontWeightStyle = 'font-weight: bold;';
 
-                                // Ekstraksi & pembersihan nomor HANYA jika ada kolom No. tersendiri (hindari nomor hilang jika tidak ada kolom No.)
                                 if ($hasNoCol) {
+                                    // Mode Tampilkan Kolom No:
+                                    // Kolom No. mandiri terpisah (1, 2, 3...)
+                                    // Jika di master baris ada nomor/kode di awal (angka, romawi, huruf), bersihkan agar tidak dobel nomor
                                     if (preg_match('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', $rawNamaInd, $matches)) {
                                         $noText = trim($matches[0]);
                                         $cleanNama = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaInd));
@@ -1779,11 +1767,29 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             $cleanNamaEn = trim(preg_replace('/^\s*(\d+|[a-zA-Z]|[ivxLCDM]+)[\.\)]\s*/i', '', $rawNamaEn));
                                         }
                                     }
+                                } else {
+                                    // Mode Tanpa Kolom No (PDF Resmi BPS untuk PDRB / KBLI):
+                                    // Teks TIDAK DIPOTONG sama sekali, nomor/kode klasifikasi menyatu di teks
+                                    $cleanNama   = $rawNamaInd;
+                                    $cleanNamaEn = $rawNamaEn;
+
+                                    // Indentasi Visual Hierarkis BPS berdasarkan kode:
+                                    if (preg_match('/^\s*([A-Z])[\.\)]\s*/', $rawNamaInd)) {
+                                        // Level Kategori (A., B., C.) -> Huruf Tebal, Rata Kiri
+                                        $customIndent = 12;
+                                        $fontWeightStyle = 'font-weight: bold;';
+                                    } elseif (preg_match('/^\s*(\d+)[\.\)]\s*/', $rawNamaInd)) {
+                                        // Level Golongan Pokok (1., 2., 3.) -> Indentasi Sedang
+                                        $customIndent = 26;
+                                        $fontWeightStyle = 'font-weight: 600;';
+                                    } elseif (preg_match('/^\s*([a-z])[\.\)]\s*/', $rawNamaInd)) {
+                                        // Level Subgolongan (a., b., c.) -> Indentasi Dalam, Reguler
+                                        $customIndent = 40;
+                                        $fontWeightStyle = 'font-weight: normal;';
+                                    }
                                 }
 
-                                // Aturan Huruf Tebal (Bold):
-                                // Judul baris kiri SELALU TEBAL (font-weight: bold;) persis seperti di View Portal Tabel API
-                                $fontWeightStyle = 'font-weight: bold;';
+                                $calcIndent = ($customIndent !== null) ? $customIndent : (10 + ((int)($baris->level_indentasi ?? 0) * 16));
 
                                 $hasDoubleCell = ($isMultiBaris && strpos($cleanNama, '||') !== false);
                                 if ($hasDoubleCell) {
@@ -1805,7 +1811,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                         ?>
                                     <tr class="<?= $rowClass; ?>">
                                         <!-- Kolom Nama Wilayah / Baris (Colspan 2) -->
-                                        <td colspan="2" style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
+                                        <td colspan="2" style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
                                             <?= esc($cleanNama); ?>
                                             <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
                                                 / <i style="font-weight: normal;"><?= esc($cleanNamaEn); ?></i>
@@ -1836,11 +1842,9 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                 <td rowspan="<?= count($itemsPeriode); ?>" style="text-align: center; width: 45px; border: 1px solid #ffffff !important; font-size: 12px; vertical-align: middle; <?= $blockBg; ?>">
                                                     <?= esc($noText); ?>
                                                 </td>
-                                            <?php endif; ?>
-
-                                            <?php if ($hasDoubleCell): ?>
+                                            <?php endif; ?>                                            <?php if ($hasDoubleCell): ?>
                                                 <!-- Kolom 1 (Jenis Usaha / Komoditi) -->
-                                                <td rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; vertical-align: middle; <?= $blockBg; ?>">
+                                                <td rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; vertical-align: middle; <?= $blockBg; ?>">
                                                     <?= esc($bCol1); ?>
                                                     <?php if (!empty($bCol1En) && strtolower($bCol1En) !== strtolower($bCol1)): ?>
                                                         / <i style="font-weight: normal;"><?= esc($bCol1En); ?></i>
@@ -1864,7 +1868,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                 </td>
                                             <?php else: ?>
                                                 <!-- Kolom Nama Wilayah / Baris -->
-                                                <td rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff !important; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle; <?= $blockBg; ?>">
+                                                <td rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff !important; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle; <?= $blockBg; ?>">
                                                     <?= esc($cleanNama); ?>
                                                     <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
                                                         / <i style="font-weight: normal;"><?= esc($cleanNamaEn); ?></i>
@@ -1881,9 +1885,9 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         <!-- Sel Data Matriks -->
                                         <?php foreach ($leafColumns as $colLeaf): ?>
                                             <?php
-                                            $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
-                                            $cellVal = $nilaiMap[$cellKey] ?? null;
-                                            ?>
+                                             $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
+                                             $cellVal = $nilaiMap[$cellKey] ?? null;
+                                             ?>
                                             <td class="col-val" style="text-align: right; border: 1px solid #ffffff !important; font-size: 12px; padding: 6px 12px;">
                                                 <?= $formatCellVal($cellVal, $desimal); ?>
                                             </td>
@@ -1971,7 +1975,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             <?php endif; ?>
 
                                             <!-- Kolom Nama Wilayah / Baris -->
-                                            <td style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
+                                            <td style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
                                                 <?= esc($cleanNama); ?>
                                                 <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
                                                     / <i style="font-weight: normal;"><?= esc($cleanNamaEn); ?></i>

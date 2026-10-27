@@ -16,8 +16,8 @@ $sel_posisi_hirarki = $indikator->posisi_hirarki ?? 'kolom_atas';
 $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
 $sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
 $sel_label_total_kustom = $indikator->label_total_kustom ?? '';
-$sel_format_nomor_baris = $indikator->format_nomor_baris ?? 'auto';
 $sel_tampilan_baris = $indikator->tampilan_baris ?? '1_kolom';
+$sel_kolom_nomor = $indikator->kolom_nomor ?? 'tampilkan';
 $sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
 ?>
@@ -1033,7 +1033,27 @@ $catatan_val = $indikator->catatan ?? '';
                             <input type="hidden" name="tampilan_baris" id="input_tampilan_baris" value="<?= esc($sel_tampilan_baris ?? '1_kolom'); ?>">
                         </div>
 
-                        <input type="hidden" name="format_nomor_baris" id="input_format_nomor_baris" value="none">
+                        <!-- Divider halus vertikal -->
+                        <div class="toolbar-divider d-none d-md-block"></div>
+
+                        <!-- 5. Kolom Nomor (Segmented Toggle: Tampilkan vs Tanpa No) -->
+                        <div id="box_kolom_nomor" class="toolbar-setting-item <?= $is_locked ? 'is-locked' : ''; ?>" title="<?= $is_locked ? 'Pengaturan terkunci: tabel memiliki ' . $total_nilai . ' data nilai terisi' : 'Atur kolom nomor: Tampilkan kolom No. terpisah (1, 2, 3...) atau Tanpa Kolom No (nomor kode menyatu di teks seperti PDRB/KBLI)'; ?>">
+                            <span class="toolbar-setting-label">
+                                <i class="bi bi-hash text-primary me-1"></i> Kolom No:
+                                <?php if ($is_locked): ?>
+                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Pengaturan matriks terkunci"></i>
+                                <?php endif; ?>
+                            </span>
+                            <div class="posisi-segmented-group <?= $is_locked ? 'disabled' : ''; ?>" id="group_kolom_nomor">
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'sembunyikan') ? '' : 'active'; ?>" data-val="tampilkan" id="btn_nomor_tampilkan" title="Tampilkan kolom nomor urut terpisah (1, 2, 3...)" <?= $is_locked ? 'disabled' : ''; ?>>
+                                    <i class="bi bi-list-ol me-1"></i> Tampilkan
+                                </button>
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'sembunyikan') ? 'active' : ''; ?>" data-val="sembunyikan" id="btn_nomor_sembunyikan" title="Tanpa kolom nomor terpisah, nomor kode menyatu di teks" <?= $is_locked ? 'disabled' : ''; ?>>
+                                    <i class="bi bi-card-text me-1"></i> Tanpa No
+                                </button>
+                            </div>
+                            <input type="hidden" name="kolom_nomor" id="input_kolom_nomor" value="<?= esc($sel_kolom_nomor ?? 'tampilkan'); ?>">
+                        </div>
                     </div>
                 </div>
 
@@ -1315,6 +1335,22 @@ $(document).ready(function() {
         }
     });
 
+    // Handler switch kolom nomor (Tampilkan vs Tanpa No)
+    $('#group_kolom_nomor .btn-segmented').on('click', function(e) {
+        e.preventDefault();
+        if (isTableLocked || $(this).prop('disabled') || $('#group_kolom_nomor').hasClass('disabled')) {
+            return false;
+        }
+        const val = $(this).data('val');
+        $('#group_kolom_nomor .btn-segmented').removeClass('active');
+        $(this).addClass('active');
+        $('#input_kolom_nomor').val(val);
+
+        if (currentData) {
+            renderMatrix(currentData);
+        }
+    });
+
     // Handler switch hirarki segmented buttons: Kolom, Periode, Baris
     $('#group_posisi_hirarki .btn-segmented').on('click', function(e) {
         e.preventDefault();
@@ -1488,6 +1524,19 @@ $(document).ready(function() {
                 $('#btn_baris_1kolom').addClass('active');
             }
 
+            $('#group_kolom_nomor').addClass('disabled').css({'opacity': '0.55', 'pointer-events': 'none'});
+            $('#group_kolom_nomor .btn-segmented').prop('disabled', true);
+            $('#box_kolom_nomor').addClass('is-locked').css({'opacity': '0.55', 'pointer-events': 'none'});
+
+            // Sinkronisasi status active kolom nomor
+            const curNomor = $('#input_kolom_nomor').val() || 'tampilkan';
+            $('#group_kolom_nomor .btn-segmented').removeClass('active');
+            if (curNomor === 'sembunyikan') {
+                $('#btn_nomor_sembunyikan').addClass('active');
+            } else {
+                $('#btn_nomor_tampilkan').addClass('active');
+            }
+
             // Sinkronisasi status active posisi hirarki agar highlight pilihan yang tersimpan tetap terlihat
             const curPos = $('#input_posisi_hirarki').val() || 'kolom_atas';
             $('#group_posisi_hirarki .btn-segmented').removeClass('active');
@@ -1597,6 +1646,23 @@ $(document).ready(function() {
             $('#btn_baris_2kolom').addClass('active');
         } else {
             $('#btn_baris_1kolom').addClass('active');
+        }
+
+        // Status box_kolom_nomor: hanya aktif bila ada dimensi baris
+        if (hasBaris) {
+            $('#box_kolom_nomor').css({'opacity': '1', 'pointer-events': 'auto'});
+            $('#group_kolom_nomor .btn-segmented').prop('disabled', false);
+        } else {
+            $('#box_kolom_nomor').css({'opacity': '0.45', 'pointer-events': 'none'});
+            $('#group_kolom_nomor .btn-segmented').prop('disabled', true);
+        }
+
+        const curNomor = $('#input_kolom_nomor').val() || 'tampilkan';
+        $('#group_kolom_nomor .btn-segmented').removeClass('active');
+        if (curNomor === 'sembunyikan') {
+            $('#btn_nomor_sembunyikan').addClass('active');
+        } else {
+            $('#btn_nomor_tampilkan').addClass('active');
         }
     }
 

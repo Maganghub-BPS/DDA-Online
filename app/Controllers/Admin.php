@@ -1117,11 +1117,20 @@ class Admin extends BaseController
 
 		if ($mau_ke == "del") {
 			$id_delete   = $this->input->get('delete_id');
-			$a['datpil'] = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id=?", [$id_delete])->getRow();
+			$datpil = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id=?", [$id_delete])->getRow();
+			$a['datpil'] = $datpil;
 			$a['act_url'] = base_url('index.php/admin/master_tabel/act_del/');
+
+			$all_years = [];
+			if ($datpil && !empty($datpil->id_tabel)) {
+				$all_years = $this->db->query("SELECT id, tahun, no_tabel FROM t_tahun_tabel WHERE id_tabel = ? ORDER BY tahun DESC", [$datpil->id_tabel])->getResult();
+			}
+			$a['all_years'] = $all_years;
+
 			return view('admin/f_del_master', $a);
 		} else if ($mau_ke == "act_del") {
 			$id_oi = (int)$this->input->post('id');
+			$scope = $this->input->post('scope') ?? 'current';
 			
 			// Ambil info t_tahun_tabel terlebih dahulu
 			$row_tt = $this->db->query("SELECT id_tabel, tahun FROM t_tahun_tabel WHERE id = ?", [$id_oi])->getRow();
@@ -1132,23 +1141,56 @@ class Admin extends BaseController
 
 				$this->db->transStart();
 
-				// 1. Hapus entri dari t_tahun_tabel (otomatis meng-cascade m_indikator_tabel & t_nilai_dinamis via FK)
-				$this->db->query("DELETE FROM t_tahun_tabel WHERE id = ?", [$id_oi]);
+				if ($scope === 'all' && !empty($id_master)) {
+					// HAPUS SECARA GLOBAL (SEMUA TAHUN)
+					// 1. Hapus t_nilai_dinamis untuk SEMUA tahun tabel ini
+					$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
+						SELECT mi.id FROM m_indikator_tabel mi 
+						JOIN t_tahun_tabel tt ON mi.id_tahun_tabel = tt.id 
+						WHERE tt.id_tabel = ?
+					)", [$id_master]);
 
-				// 2. Cek apakah master tabel (m_list_tabel) masih ditautkan di tahun lainnya
-				if (!empty($id_master)) {
-					$cek = $this->db->query("SELECT COUNT(*) as jml FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master])->getRow();
-					if ($cek && (int)$cek->jml === 0) {
-						// Sudah tidak tertaut di tahun manapun -> Hapus master tabel agar database bersih dari orphan
-						$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
-						$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
-						$msg = "Tabel tahun " . htmlspecialchars($tahun) . " beserta master tabel berhasil dihapus permanen (tidak ada tautan di tahun lain).";
-					} else {
-						// Masih ada tautan di tahun lain -> Master tabel tetap dipertahankan
-						$msg = "Tabel tahun " . htmlspecialchars($tahun) . " berhasil dihapus. Master tabel tetap dipertahankan karena masih digunakan pada tahun lain.";
-					}
+					// 2. Hapus m_indikator_tabel untuk SEMUA tahun tabel ini
+					$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (
+						SELECT id FROM t_tahun_tabel WHERE id_tabel = ?
+					)", [$id_master]);
+
+					// 3. Hapus entri t_tahun_tabel untuk SEMUA tahun
+					$this->db->query("DELETE FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master]);
+
+					// 4. Hapus master tabel dan konsep definisi
+					$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
+					$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
+
+					$msg = "Tabel berhasil dihapus secara permanen dari seluruh tahun beserta master tabel.";
 				} else {
-					$msg = "Data tabel berhasil dihapus.";
+					// HAPUS UNTUK TAHUN INI SAJA ($id_oi)
+					// 1. Hapus t_nilai_dinamis untuk tabel tahun ini
+					$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
+						SELECT id FROM m_indikator_tabel WHERE id_tahun_tabel = ?
+					)", [$id_oi]);
+
+					// 2. Hapus m_indikator_tabel untuk tabel tahun ini
+					$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel = ?", [$id_oi]);
+
+					// 3. Hapus entri dari t_tahun_tabel
+					$this->db->query("DELETE FROM t_tahun_tabel WHERE id = ?", [$id_oi]);
+
+					// 4. Cek apakah master tabel (m_list_tabel) masih ditautkan di tahun lainnya
+					if (!empty($id_master)) {
+						$cek = $this->db->query("SELECT COUNT(*) as jml FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master])->getRow();
+						if ($cek && (int)$cek->jml === 0) {
+							// Sudah tidak tertaut di tahun manapun -> Hapus master tabel agar database bersih dari orphan
+							$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
+							$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
+							$msg = "Tabel tahun " . htmlspecialchars($tahun) . " beserta master tabel berhasil dihapus permanen (tidak ada tautan di tahun lain).";
+						} else {
+							// Masih ada tautan di tahun lain -> Master tabel tetap dipertahankan
+							$msg = "Tabel tahun " . htmlspecialchars($tahun) . " berhasil dihapus. Master tabel tetap dipertahankan karena masih digunakan pada tahun lain.";
+						}
+					} else {
+						$msg = "Data tabel berhasil dihapus.";
+					}
 				}
 
 				$this->db->transComplete();
@@ -1829,10 +1871,14 @@ class Admin extends BaseController
 				])->setStatusCode(422);
 			}
 
-			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data atau tabel dinamis)
+			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data)
 			$is_portal = (stripos($tabel->link_tabel ?? '', 'portal') !== false || 
 			              stripos($tabel->link_tabel ?? '', 'satudata') !== false);
-			$is_filled = ($tabel->is_periksa == '1' || $is_portal || $is_dynamic);
+			if ($is_dynamic) {
+				$is_filled = ($tabel->is_periksa == '1' && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh/iu', $tabel->catatan_periksa ?? ''));
+			} else {
+				$is_filled = ($tabel->is_periksa == '1' || $is_portal);
+			}
 			if (!$is_filled) {
 				return $this->response->setJSON([
 					'status' => 'error',
@@ -2935,7 +2981,22 @@ class Admin extends BaseController
 		// Eksekusi penghapusan massal data tahunan di dalam database transaction
 		// Master tabel pada m_list_tabel tetap aman dan tidak terhapus
 		$this->db->transStart();
+
+		// 1. Hapus nilai dinamis yang terkait dengan indikator tabel pada tahun target
+		$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
+			SELECT mi.id FROM m_indikator_tabel mi 
+			JOIN t_tahun_tabel tt ON mi.id_tahun_tabel = tt.id 
+			WHERE tt.tahun = ?
+		)", [$target_tahun]);
+
+		// 2. Hapus konfigurasi dimensi/indikator tabel dinamis pada tahun target
+		$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (
+			SELECT id FROM t_tahun_tabel WHERE tahun = ?
+		)", [$target_tahun]);
+
+		// 3. Hapus entri data tabel tahunan
 		$this->db->query("DELETE FROM t_tahun_tabel WHERE tahun = ?", [$target_tahun]);
+
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
@@ -4729,35 +4790,48 @@ class Admin extends BaseController
 			$idKelompok = (int)$this->request->getPost('id_kelompok');
 			$items_ind  = (string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text'));
 			$items_en   = (string)$this->request->getPost('items_text_en');
+			$items_json = $this->request->getPost('items_json');
 
 			if (empty($idKelompok)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
 				return redirect()->to('admin/master_dimensi?tab=karakteristik');
 			}
 
-			// Jangan gunakan trim() pada keseluruhan teks sebelum split baris,
-			// agar baris awal yang kosong tidak terpotong dan indeks baris tetap selaras
-			$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
-			$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
-			$items = [];
-			$no = 1;
-
-			foreach ($lines_ind as $idx => $l_ind) {
-				$l_ind = trim($l_ind);
-				if ($l_ind === '') continue;
-				$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
-				if (preg_replace('/[\s\|]/', '', $l_en) === '') {
-					$l_en = '';
+			try {
+				if (!empty($items_json)) {
+					$decoded = json_decode($items_json, true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$mTabelDinamis->syncKarakteristikFromTreeItems($idKelompok, $decoded);
+						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item kolom karakteristik berhasil disimpan!</div>");
+						return redirect()->to('admin/master_dimensi?tab=karakteristik');
+					}
 				}
-				$items[] = [
-					'item_ind' => $l_ind,
-					'item_en'  => $l_en,
-					'no_urut'  => $no++,
-				];
-			}
 
-			$mTabelDinamis->syncKarakteristikItems($idKelompok, $items);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item kolom karakteristik berhasil disimpan! (" . count($items) . " kolom)</div>");
+				// Fallback jika hanya input teks biasa
+				$lines_ind = preg_split('/\r\n|\r|\n/', $items_ind);
+				$lines_en  = ($items_en !== '') ? preg_split('/\r\n|\r|\n/', $items_en) : [];
+				$items = [];
+				$no = 1;
+
+				foreach ($lines_ind as $idx => $l_ind) {
+					$l_ind = trim($l_ind);
+					if ($l_ind === '') continue;
+					$l_en = isset($lines_en[$idx]) ? trim($lines_en[$idx]) : '';
+					if (preg_replace('/[\s\|]/', '', $l_en) === '') {
+						$l_en = '';
+					}
+					$items[] = [
+						'item_ind' => $l_ind,
+						'item_en'  => $l_en,
+						'no_urut'  => $no++,
+					];
+				}
+
+				$mTabelDinamis->syncKarakteristikItems($idKelompok, $items);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item kolom karakteristik berhasil disimpan! (" . count($items) . " kolom)</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=karakteristik');
 		}
 
@@ -4904,17 +4978,21 @@ class Admin extends BaseController
 				return redirect()->to('admin/master_dimensi?tab=baris');
 			}
 
-			if (!empty($items_json)) {
-				$decoded = json_decode($items_json, true);
-				if (is_array($decoded) && !empty($decoded)) {
-					$mTabelDinamis->syncBarisFromTreeItems($idKelompok, $decoded);
-					$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
-					return redirect()->to('admin/master_dimensi?tab=baris');
+			try {
+				if (!empty($items_json)) {
+					$decoded = json_decode($items_json, true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$mTabelDinamis->syncBarisFromTreeItems($idKelompok, $decoded);
+						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+						return redirect()->to('admin/master_dimensi?tab=baris');
+					}
 				}
-			}
 
-			$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+				$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item baris bertingkat berhasil disimpan!</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=baris');
 		}
 
@@ -5048,8 +5126,12 @@ class Admin extends BaseController
 				return redirect()->to('admin/master_dimensi?tab=periode');
 			}
 
-			$mTabelDinamis->generatePeriodeYearRange($idKelompok, $year_start, $year_end, $year_order);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Rentang tahun {$year_start}-{$year_end} berhasil di-generate!</div>");
+			try {
+				$mTabelDinamis->generatePeriodeYearRange($idKelompok, $year_start, $year_end, $year_order);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Rentang tahun {$year_start}-{$year_end} berhasil di-generate!</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=periode');
 		}
 
@@ -5057,14 +5139,28 @@ class Admin extends BaseController
 			$idKelompok = (int)$this->request->getPost('id_kelompok');
 			$items_ind  = trim((string)($this->request->getPost('items_text_ind') ?: $this->request->getPost('items_text')));
 			$items_en   = trim((string)$this->request->getPost('items_text_en'));
+			$items_json = $this->request->getPost('items_json');
 
 			if (empty($idKelompok)) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Kelompok tidak valid!</div>");
 				return redirect()->to('admin/master_dimensi?tab=periode');
 			}
 
-			$mTabelDinamis->parsePeriodeFromText($idKelompok, $items_ind, $items_en);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item periode waktu berhasil disimpan!</div>");
+			try {
+				if (!empty($items_json)) {
+					$decoded = json_decode($items_json, true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$mTabelDinamis->syncPeriodeFromTreeItems($idKelompok, $decoded);
+						$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item periode waktu berhasil disimpan!</div>");
+						return redirect()->to('admin/master_dimensi?tab=periode');
+					}
+				}
+
+				$mTabelDinamis->parsePeriodeFromText($idKelompok, $items_ind, $items_en);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Item periode waktu berhasil disimpan!</div>");
+			} catch (\Throwable $e) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($e->getMessage()) . "</div>");
+			}
 			return redirect()->to('admin/master_dimensi?tab=periode');
 		}
 
@@ -5331,13 +5427,13 @@ class Admin extends BaseController
 		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
 			$label_total_kustom = null;
 		}
-		$format_nomor_baris   = trim((string)$this->request->getPost('format_nomor_baris'));
-		if (!in_array($format_nomor_baris, ['auto', 'none', 'reset_kategori'], true)) {
-			$format_nomor_baris = 'none';
-		}
 		$tampilan_baris       = trim((string)$this->request->getPost('tampilan_baris'));
 		if (!in_array($tampilan_baris, ['1_kolom', '2_kolom'], true)) {
 			$tampilan_baris = '1_kolom';
+		}
+		$kolom_nomor          = trim((string)$this->request->getPost('kolom_nomor'));
+		if (!in_array($kolom_nomor, ['tampilkan', 'sembunyikan'], true)) {
+			$kolom_nomor = 'tampilkan';
 		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
@@ -5397,9 +5493,8 @@ class Admin extends BaseController
 			'tingkat_kolom'             => $tingkat_kolom,
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
-			'format_nomor_baris'        => $format_nomor_baris,
 			'tampilan_baris'            => $tampilan_baris,
-			'satuan'                    => null,
+			'kolom_nomor'               => $kolom_nomor,
 			'desimal'                   => !empty($existing->desimal) ? (int)$existing->desimal : 0,
 			'catatan'                   => $finalCatatan,
 			'updated_at'                => $now,

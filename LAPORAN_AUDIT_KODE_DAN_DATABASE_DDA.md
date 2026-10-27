@@ -137,16 +137,14 @@ pie title Distribusi Temuan Berdasarkan Tingkat Keparahan
 
 ### KATEGORI 2: STRUKTUR DATABASE & EFISIENSI QUERY
 
-#### 2.1. [CRITICAL] Pemotongan Data Teks (*Data Truncation Bug*) pada `t_nilai_dinamis.simbol`
-* **Lokasi Berkas:** Skema Database & [`app/Database/Migrations/2026-10-12-073931_CreateDynamicTableSchema.php:436`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Database/Migrations/2026-10-12-073931_CreateDynamicTableSchema.php#L436)
-* **Bukti Nyata Data Terpotong di Database:**
-  Pada tabel ID 562 (`Produksi Hasil Hutan`), kolom satuan berisi:
-  - Teks asli: `batang/truk` (11 karakter) $\rightarrow$ **Terpotong menjadi:** `'batang/tru'` (10 karakter)!
-  - Teks asli: `stapel meter` $\rightarrow$ **Terpotong menjadi:** `'stapel met'` (10 karakter)!
-* **Penyebab:**
-  Kolom `simbol` diatur hanya bertipe `VARCHAR(10)`. Karena pada beberapa tabel DDA kolom satuan dimodelkan pada sel data (atau hasil impor OCR teks), teks satuan yang melebihi 10 karakter terpotong otomatis oleh MySQL atau memicu *Fatal Error* `Data too long for column 'simbol'` jika mode `STRICT_ALL_TABLES` aktif.
-* **Rekomendasi *Best Practice*:**
-  - Ubah panjang kolom `simbol` dari `VARCHAR(10)` menjadi minimal `VARCHAR(50)` atau `VARCHAR(100)`.
+#### 2.1. [RESOLVED] Pemotongan Data Teks (*Data Truncation Bug*) pada `t_nilai_dinamis.simbol`
+* **Status:** ✅ **SELESAI (RESOLVED - 23 Oktober 2026)**
+* **Lokasi Berkas:**
+  - Database: Migrasi [`app/Database/Migrations/2026-10-22-100000_IncreaseSimbolLengthInNilaiDinamis.php`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Database/Migrations/2026-10-22-100000_IncreaseSimbolLengthInNilaiDinamis.php)
+  - Parser Excel: [`app/Libraries/ExcelDataParser.php:727`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Libraries/ExcelDataParser.php#L727)
+* **Tindakan Penyelesaian:**
+  - Kolom `t_nilai_dinamis.simbol` telah diperluas dari `VARCHAR(10)` menjadi `VARCHAR(100)` melalui migrasi Batch 11.
+  - Batasan fungsi sanitasi teks sel pada `ExcelDataParser.php` diperbarui dari `substr($str, 0, 10)` menjadi `mb_substr($str, 0, 100)` agar teks satuan/simbol panjang dari Excel tidak terpotong saat diimpor.
 
 ---
 
@@ -169,14 +167,22 @@ pie title Distribusi Temuan Berdasarkan Tingkat Keparahan
 
 ---
 
-#### 2.3. [MEDIUM] Kolom Usang / *Dead Column* yang Masih Tertinggal di Database
-* **Lokasi:** Kolom `format_nomor_baris` pada tabel `m_indikator_tabel`.
-* **Kondisi:**
-  - Nilai di form generator selalu di-hardcode `<input type="hidden" value="none">`.
-  - Logika tampilan tabel dinamis saat ini sudah cerdas dan 100% mendeteksi dari ada/tidaknya nomor di master baris (`$hasNumberInMaster`).
-  - Kolom ini tidak memiliki efek fungsional lagi (*dead column*).
-* **Rekomendasi:**
-  - Biarkan sementara untuk kompatibilitas riwayat, namun buat rencana migrasi (*cleanup migration*) di masa mendatang untuk menghapus kolom tersebut agar struktur tabel tetap ramping (*clean schema*).
+#### 2.3. [RESOLVED] Kolom Usang / *Dead Column* yang Masih Tertinggal di Database
+* **Status:** ✅ **SELESAI (RESOLVED - 23 Oktober 2026 - Fase 1 Cleanup)**
+* **Lokasi Berkas:**
+  - Migrasi Cleanup: [`app/Database/Migrations/2026-10-23-143000_DropUnusedPhase1DynamicColumns.php`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Database/Migrations/2026-10-23-143000_DropUnusedPhase1DynamicColumns.php)
+  - Model: [`app/Models/M_tabeldinamis.php`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Models/M_tabeldinamis.php)
+  - Controller: [`app/Controllers/Admin.php`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php)
+  - Views: [`f_generator_tabel.php`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Views/admin/f_generator_tabel.php), [`v_tabel_dinamis.php`](file:///e:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Views/admin/v_tabel_dinamis.php)
+* **Tindakan Penyelesaian:**
+  - Telah dihapus 6 kolom usang dari database dan kodingan:
+    1. `m_indikator_tabel.format_nomor_baris`
+    2. `m_indikator_tabel.satuan`
+    3. `m_baris_kelompok.keterangan`
+    4. `m_karakteristik_kelompok.keterangan`
+    5. `m_periode_kelompok.keterangan`
+    6. `m_baris_item.parent_id`
+  - Seluruh referensi pada model `$allowedFields`, payload controller, dan input view tersembunyi telah dibersihkan secara tuntas.
 
 ---
 

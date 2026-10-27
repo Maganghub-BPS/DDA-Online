@@ -64,10 +64,10 @@ class ExcelTemplateGenerator
         $id_baris         = (int)($indikator->id_baris_kelompok ?? 0);
         $id_periode       = (int)($indikator->id_periode_kelompok ?? 0);
         $posisi_hirarki   = $indikator->posisi_hirarki ?? 'kolom_atas';
-        $satuan           = trim((string)($indikator->satuan ?? ''));
         $desimal          = (int)($indikator->desimal ?? 2);
         $cfgTotalInit     = $indikator->konfigurasi_total ?? 'default';
         $isRuntunWaktu    = ($cfgTotalInit === 'runtun_waktu');
+        $cfgKolomNomor    = $indikator->kolom_nomor ?? 'tampilkan';
         
         // Footnote: ambil dari instansi/unit kerja, tanpa catatan
         $sumber = !empty($tabel->unitkerja_ind) ? $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
@@ -512,13 +512,13 @@ class ExcelTemplateGenerator
             }
         }
 
-        $extraPeriodeRow = ($hasMultiPeriode && !in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) && !$isRuntunWaktu) ? 1 : 0;
+        $extraPeriodeRow = ($hasMultiPeriode && !in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) && !$isRuntunWaktu && $hasBaris) ? 1 : 0;
 
         // Hitung baris tingkatan header
         $isRuntunWaktu = ($cfgTotalInit === 'runtun_waktu');
         $headerDataRows = 1; // Default: 1 baris
         if ($hasKolom && $hasPeriode) {
-            $headerDataRows = (in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1 + $extraPeriodeRow);
+            $headerDataRows = (!$hasBaris || in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true) || $isRuntunWaktu) ? count($activeLevels) : (count($activeLevels) + 1 + $extraPeriodeRow);
         } elseif ($hasKolom) {
             $headerDataRows = count($activeLevels);
         } elseif ($hasPeriode) {
@@ -997,7 +997,7 @@ class ExcelTemplateGenerator
             }
         } elseif ($hasKolom && $hasPeriode) {
             // KASUS 3: KEDUANYA ADA
-            if ($isRuntunWaktu || in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) {
+            if (!$hasBaris || $isRuntunWaktu || in_array($posisi_hirarki, ['periode_baris', 'periode_baris_pisah'], true)) {
                 // Baris 1..N: Tingkat-tingkat Kolom mulai startDataColIndex, multiplier = 1
                 foreach ($activeLevels as $idx => $lvl) {
                     $r = $startHeaderRow + $idx;
@@ -1338,6 +1338,20 @@ class ExcelTemplateGenerator
             $level     = (int)($baris->level_indentasi ?? 0);
             $isBold    = ((int)($baris->is_bold ?? 0) === 1 || $tipeBaris === 'total' || $tipeBaris === 'subtotal' || $tipeBaris === 'kategori' || ($totalTingkatBaris >= 2 && $level === 0));
 
+            $excelIndent = max(0, $level * 2);
+            if ($cfgKolomNomor === 'sembunyikan') {
+                if (preg_match('/^\s*([A-Z])[\.\)]\s*/', $namaBaris)) {
+                    $excelIndent = 0;
+                    $isBold = true;
+                } elseif (preg_match('/^\s*(\d+)[\.\)]\s*/', $namaBaris)) {
+                    $excelIndent = 2;
+                    $isBold = true;
+                } elseif (preg_match('/^\s*([a-z])[\.\)]\s*/', $namaBaris)) {
+                    $excelIndent = 4;
+                    $isBold = false;
+                }
+            }
+
             if ($isRuntunWaktu) {
                 if ($tipeBaris === 'kategori') {
                     $rowItemsMeta[] = [
@@ -1349,7 +1363,7 @@ class ExcelTemplateGenerator
                     ];
                     $sheet->mergeCells("A{$curRow}:{$lastColLetter}{$curRow}");
                     $sheet->setCellValue("A{$curRow}", $namaBaris);
-                    $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
+                    $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent($excelIndent)->setVertical(Alignment::VERTICAL_CENTER);
                     $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
                     $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
@@ -1431,7 +1445,7 @@ class ExcelTemplateGenerator
 
                     $sheet->mergeCells("A{$curRow}:B{$curRow}");
                     $sheet->setCellValue("A{$curRow}", $namaBaris);
-                    $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
+                    $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent($excelIndent)->setVertical(Alignment::VERTICAL_CENTER);
                     if ($isBold) {
                         $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
                     }
@@ -1480,7 +1494,7 @@ class ExcelTemplateGenerator
                     ];
                     $sheet->mergeCells("A{$curRow}:{$lastColLetter}{$curRow}");
                     $sheet->setCellValue("A{$curRow}", $namaBaris);
-                    $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
+                    $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent($excelIndent)->setVertical(Alignment::VERTICAL_CENTER);
                     $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
                     $sheet->getStyle("A{$curRow}:{$lastColLetter}{$curRow}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 9.5, 'name' => 'Arial'],
@@ -1533,7 +1547,7 @@ class ExcelTemplateGenerator
                                         $sheet->mergeCells("A{$curRow}:B{$curRow}");
                                     }
                                 }
-                                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
+                                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent($excelIndent)->setVertical(Alignment::VERTICAL_CENTER);
                                 if ($isBold) {
                                     $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
                                     if ($col2Ind !== '') {
@@ -1553,7 +1567,7 @@ class ExcelTemplateGenerator
                                 if ($pCount > 1) {
                                     $sheet->mergeCells("A{$curRow}:A" . ($curRow + $pCount - 1));
                                 }
-                                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2))->setVertical(Alignment::VERTICAL_CENTER);
+                                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent($excelIndent)->setVertical(Alignment::VERTICAL_CENTER);
                                 if ($isBold) {
                                     $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
                                 }
@@ -1810,7 +1824,7 @@ class ExcelTemplateGenerator
                 } else {
                     $sheet->setCellValue("A{$curRow}", $namaBaris);
                 }
-                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent(max(0, $level * 2));
+                $sheet->getStyle("A{$curRow}")->getAlignment()->setIndent($excelIndent);
                 $sheet->getStyle("A{$curRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
                 if ($isBold) {
                     $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);
@@ -2097,6 +2111,7 @@ class ExcelTemplateGenerator
             'judul_ind'      => $tabel->judul_ind,
             'posisi_hirarki' => $posisi_hirarki,
             'tingkat_kolom'  => $tingkat_kolom,
+            'kolom_nomor'    => $cfgKolomNomor,
             'data_start_row' => $dataStartRow,
             'data_end_row'   => $dataEndRow,
             'total_rows'     => count($rowItemsMeta),
