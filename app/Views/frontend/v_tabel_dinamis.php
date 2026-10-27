@@ -780,8 +780,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
                             $cfgTotal           = $indikator->konfigurasi_total ?? 'default';
                             $isRuntunWaktu      = ($cfgTotal === 'runtun_waktu');
 
-                            // Konfigurasi Kolom No: ditentukan eksplisit dari Generator Tabel (tampilkan vs sembunyikan)
-                            $cfgKolomNomor = $indikator->kolom_nomor ?? 'tampilkan';
+                            // Konfigurasi Kolom No: ditentukan eksplisit dari Generator Tabel (default: sembunyikan / Tanpa No)
+                            $cfgKolomNomor = $indikator->kolom_nomor ?? 'sembunyikan';
                             $hasNoCol      = ($cfgKolomNomor === 'tampilkan');
 
                             // Identifikasi id_periode aktif untuk baris rincian pada mode runtun_waktu
@@ -1782,31 +1782,17 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                         $customIndent = null;
                                         $fontWeightStyle = 'font-weight: bold;';
 
-                                        if ($hasNoCol) {
-                                            // Mode Tampilkan Kolom No (Gambar 1):
-                                            if (preg_match('/^\s*(\d+)[\.\)]\s*/', $rawNamaInd, $matches)) {
-                                                $noText = trim($matches[0]);
-                                                $cleanNama = trim(preg_replace('/^\s*(\d+)[\.\)]\s*/', '', $rawNamaInd));
-                                                if (!empty($rawNamaEn)) {
-                                                    $cleanNamaEn = trim(preg_replace('/^\s*(\d+)[\.\)]\s*/', '', $rawNamaEn));
-                                                }
-                                            }
-                                        } else {
-                                            // Mode Tanpa Kolom No (Gambar 3 - PDF Resmi BPS untuk PDRB / KBLI):
-                                            $cleanNama   = $rawNamaInd;
-                                            $cleanNamaEn = $rawNamaEn;
-
-                                            // Indentasi Visual Hierarkis BPS:
-                                            if (preg_match('/^\s*([A-Z])[\.\)]\s*/', $rawNamaInd)) {
-                                                $customIndent = 12;
-                                                $fontWeightStyle = 'font-weight: bold;';
-                                            } elseif (preg_match('/^\s*(\d+)[\.\)]\s*/', $rawNamaInd)) {
-                                                $customIndent = 26;
-                                                $fontWeightStyle = 'font-weight: 600;';
-                                            } elseif (preg_match('/^\s*([a-z])[\.\)]\s*/', $rawNamaInd)) {
-                                                $customIndent = 40;
-                                                $fontWeightStyle = 'font-weight: normal;';
-                                            }
+                                        // Indentasi Visual Hierarkis BPS berdasarkan kode klasifikasi (A., 1., a.)
+                                        // Teks nama baris TIDAK PERNAH dipotong/dimanipulasi (100% as-is sesuai Master Dimensi)
+                                        if (preg_match('/^\s*([A-Z])[\.\)]\s*/', $rawNamaInd)) {
+                                            $customIndent = 12;
+                                            $fontWeightStyle = 'font-weight: bold;';
+                                        } elseif (preg_match('/^\s*(\d+)[\.\)]\s*/', $rawNamaInd)) {
+                                            $customIndent = 26;
+                                            $fontWeightStyle = 'font-weight: 600;';
+                                        } elseif (preg_match('/^\s*([a-z])[\.\)]\s*/', $rawNamaInd)) {
+                                            $customIndent = 40;
+                                            $fontWeightStyle = 'font-weight: normal;';
                                         }
 
                                         $calcIndent = ($customIndent !== null) ? $customIndent : (10 + ((int)($baris->level_indentasi ?? 0) * 16));
