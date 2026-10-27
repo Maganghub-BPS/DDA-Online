@@ -62,12 +62,22 @@ def fetch_data_from_link(link: str):
     ssl_ctx = _ssl_context()
     last = None
 
+    cache_dir = "writable/cache/api"
+    cache_file = f"{cache_dir}/{id_p}.json"
+
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
             data = _request_once(api_url, ssl_ctx)
             records = data.get("data", data) if isinstance(data, dict) else data
             if not records:
                 return _error("Tidak ada data dalam API", "empty", is_api_empty=True)
+            try:
+                import os
+                os.makedirs(cache_dir, exist_ok=True)
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump(records, f)
+            except Exception:
+                pass
             return records
         except urllib.error.HTTPError as e:
             detail = f"HTTP Error {e.code}: {e.reason}"
@@ -77,7 +87,7 @@ def fetch_data_from_link(link: str):
                 return _error("Token Satu Data ditolak (periksa SATUDATA_TOKEN)", "auth", detail)
             last = _error(f"API Satu Data error: {detail}", "http", detail)
             if e.code not in RETRYABLE_HTTP:
-                return last
+                break
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
             reason = getattr(e, "reason", e)
             kind = "ssl" if isinstance(reason, ssl.SSLError) else "network"
@@ -87,5 +97,16 @@ def fetch_data_from_link(link: str):
 
         if attempt < MAX_ATTEMPTS:
             time.sleep(BACKOFF_SECONDS * attempt)
+
+    # Fallback ke cache lokal jika server Satu Data sedang 502/down
+    try:
+        import os
+        if os.path.exists(cache_file):
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached_data = json.load(f)
+                if cached_data:
+                    return cached_data
+    except Exception:
+        pass
 
     return last

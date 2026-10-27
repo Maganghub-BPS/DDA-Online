@@ -111,7 +111,18 @@ def detect_active_data_cols(source_data):
             if sum(1 for c in r[1:] if parse_num(str(c).strip()) is not None) >= 1:
                 data_rows.append(r)
                 
-    if len(data_rows) < 3: return []
+    if len(data_rows) < 3:
+        # Fallback generik untuk tabel kategorikal/non-wilayah (misal partai, komoditas, golongan)
+        gen_rows = []
+        for r in source_data:
+            if not isinstance(r, list): continue
+            if is_header_or_metadata_row(r) or is_title_row(r): continue
+            if any(parse_num(c, is_pdf=False) is not None for c in r):
+                gen_rows.append(r)
+        if len(gen_rows) >= 2:
+            data_rows = gen_rows
+        else:
+            return []
         
     max_c = max(len(r) for r in data_rows)
     data_cols = []
@@ -144,6 +155,14 @@ def detect_col_headers(source_data):
                     break
                 c0 = str(r[0]).strip().rstrip('.')
                 if c0.isdigit() and int(c0) <= 40 and any(parse_num(str(c).strip()) is not None for c in r[1:]):
+                    first_data_idx = idx
+                    break
+        if first_data_idx == 0:
+            for idx, r in enumerate(source_data):
+                if not isinstance(r, list) or is_header_or_metadata_row(r):
+                    continue
+                nums_in_active = [parse_num(str(r[c]).strip()) for c in active_cols if c < len(r) and parse_num(str(r[c]).strip()) is not None]
+                if nums_in_active:
                     first_data_idx = idx
                     break
         
@@ -706,9 +725,12 @@ def profile_api_schema(api_records):
             col_roles[col] = 'system'
             continue
 
-        # 2. Temporal dimensions (tahun, bulan, triwulan, dsb.)
-        if re.search(r'^(tahun|year|bulan|month|triwulan|semester)(_|$)', cl):
+        # 2. Temporal dimensions (filter tahun/waktu) vs Periodic row dimension (bulan, triwulan, semester)
+        if re.search(r'^(tahun|year|waktu)(_|$)', cl):
             col_roles[col] = 'temporal'
+            continue
+        if re.search(r'^(bulan|month|triwulan|semester)(_|$)', cl):
+            col_roles[col] = 'categorical'
             continue
 
         # 3. Identifiers / Classification codes (kode rekening, no urut, dsb.)
@@ -867,7 +889,7 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
         grid.append(total_row)
         return grid
 
-    # 3. TIME-SERIES / MULTI-YEAR PIVOT (misal 2.4.2 Belanja Daerah x Multi-Tahun)
+    # 3. TIME-SERIES / MULTI-YEAR PIVOT (misal 2.4.2 Belanja Daerah x Multi-Tahun, 9.1.19 Penumpang Trans Jateng)
     if len(cat_cols) == 1 and temporal_cols and len(metric_cols) == 1:
         dim_col = cat_cols[0]
         code_col = code_cols[0] if code_cols else None
@@ -876,6 +898,30 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
 
         years = sorted(list(set(str(r.get(time_col)) for r in api_records if r.get(time_col))))
         col_headers = [f"Tahun {y}" for y in years]
+
+        # Cek apakah di PDF baris datanya berupa deret tahun (Transpose Mode: Baris = Tahun, Kolom = Kategori)
+        pdf_row_is_year = False
+        if pdf_rows:
+            sample_data_rows = [r for r in pdf_rows[:20] if isinstance(r, list) and not is_title_row(r) and not is_header_or_metadata_row(r)]
+            year_matches = sum(1 for r in sample_data_rows if any(re.match(r'^(?:19|20)\d{2}$', str(c).strip().rstrip('.')) for c in r[:3]))
+            if year_matches >= 2:
+                pdf_row_is_year = True
+
+        if pdf_row_is_year:
+            # Layout Transpose: Baris = Tahun, Kolom = Kategori (misal Penumpang Trans Jateng 9.1.19)
+            categories = []
+            for r in api_records:
+                c_name = str(r.get(dim_col, '')).strip()
+                if c_name and c_name not in categories:
+                    categories.append(c_name)
+            grid = [['Tahun Anggaran'] + [c.replace('_', ' ').title() for c in categories]]
+            for y in years:
+                row = [y]
+                for c_name in categories:
+                    v = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(time_col)) == y and str(r.get(dim_col, '')).strip() == c_name)
+                    row.append(int(v) if v.is_integer() else v)
+                grid.append(row)
+            return grid
 
         if code_col:
             grid = [['Kode Rekening', dim_col.replace('_', ' ').title()] + col_headers]

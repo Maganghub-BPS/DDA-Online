@@ -26,6 +26,7 @@ if sys.platform == "win32":
 from pdf_extractor import (
     extract_tables_from_pdf,
     extract_table_content,
+    get_cached_page_tables,
 )
 from fetcher import fetch_data_from_link
 from normalizer import (
@@ -63,6 +64,19 @@ def _hint(pv, sv):
 def _to_num(v):
     """Angka dari sisi sumber (API) -> float atau None; tidak pernah melempar."""
     return v if isinstance(v, float) else parse_num(v, is_pdf=False)
+
+
+def format_display_val(val):
+    """Format angka display ramah pengguna tanpa trailing float noise panjang (maks 3 desimal)."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        if isinstance(val, float) and val.is_integer():
+            return int(val)
+        if isinstance(val, float):
+            return round(val, 3)
+        return val
+    return val
 
 
 def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None):
@@ -358,6 +372,28 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 results["source_count"] = len(results["diffs"]) + len(results["matches"])
                 return results
 
+        # Deteksi dataset API kosong / dummy (misal hanya 1 baris Grobogan berisi angka 0 pada tabel regional)
+        if isinstance(source_data, list) and source_data and isinstance(source_data[0], dict):
+            if len(source_data) <= 1:
+                all_zero_or_empty = True
+                for r in source_data:
+                    for k, val in r.items():
+                        if k in ['tahun_data', 'tahun', 'kode_wilayah', 'nama_wilayah', 'id', 'created_at']:
+                            continue
+                        nv = parse_num(val, is_pdf=False)
+                        if nv is not None and nv != 0.0:
+                            all_zero_or_empty = False
+                            break
+                if all_zero_or_empty:
+                    return {
+                        "status": "error",
+                        "source_type": "API Satudata",
+                        "message": "Data API belum diisi di Portal Satu Data (hanya memuat 1 baris kosong)",
+                        "is_api_empty": True,
+                        "id_db": target_info.get("id_db"),
+                        "pages": target_pages or []
+                    }
+
         # Fallback / General API Normalizer: convert dict list into 2D grid and let CASE 2 process it!
         api_year = None
         if isinstance(source_data, list) and source_data and isinstance(source_data[0], dict):
@@ -443,7 +479,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 p = find_provinsi(text)
                 if p:
                     return f"PROV_{re.sub(r'[^\w]', '', p.upper())}"
-                s = str(text).upper()
+                s = re.sub(r'(\b(?:19|20)\d{2})\d+\b', r'\1', str(text)).upper()
                 if 'CURAH HUJAN' in s or 'PRECIP' in s:
                     return 'CURAH_HUJAN'
                 if 'HARI HUJAN' in s or 'RAINY' in s:
@@ -486,14 +522,16 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     return 'MAKSIMUM'
                 if 'RATA' in s or 'AVERAGE' in s:
                     return 'RATA_RATA'
+                m_yr = re.search(r'\b(19|20\d{2})\b', s)
+                yr_pfx = f"Y{m_yr.group(0)}_" if m_yr else ""
                 months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
                 for idx, m in enumerate(months):
                     if re.search(rf'\b{m}\b', s):
-                        return f"BLN_{idx+1:02d}"
+                        return f"{yr_pfx}BLN_{idx+1:02d}"
                 return re.sub(r'[^\w]', '', s)[:25]
 
             def clean_cat_display(text):
-                t = str(text).strip()
+                t = re.sub(r'(\b(?:19|20)\d{2})\d+\b', r'\1', str(text).strip())
                 if is_interval_label(t):
                     c = re.sub(r'[\s\*]', '', str(t))
                     if c in ['0', '01']:
@@ -526,11 +564,15 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if 'penyinaran matahari' in t_low:
                     return 'Penyinaran Matahari'
                 t = re.sub(r'^[a-z\.\s/:\n]+(?=[A-Z0-9])', '', t).strip()
-                t = re.sub(r'^(?:[IVXLCDM]+|\d+)[\.\s]+', '', t).strip()
+                if not re.match(r'^(?:19|20)\d{2}\b', t):
+                    t = re.sub(r'^(?:[IVXLCDM]+|\d+)[\.\s]+', '', t).strip()
                 lines = [l.strip() for l in t.split('\n') if l.strip()]
                 valid_lines = [l for l in lines if len(l) > 2 or any(c.isdigit() for c in l)]
                 first_line = valid_lines[0] if valid_lines else (lines[0] if lines else t)
-                if '/' in first_line and not re.search(r'\d/\d', first_line):
+                m_bi_yr = re.match(r'^([A-Za-z]+)\s*/\s*[A-Za-z]+\s+(\d{4})$', first_line)
+                if m_bi_yr:
+                    first_line = f"{m_bi_yr.group(1)} {m_bi_yr.group(2)}"
+                elif '/' in first_line and not re.search(r'\d/\d', first_line):
                     first_line = first_line.split('/')[0].strip()
                 first_line = re.sub(r'\s+[a-z]$', '', first_line)
                 clean = re.sub(r'[^\w\s\(\)/]', '', first_line).strip()
@@ -622,7 +664,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if re.match(r'^\d+(?:\.\d+)*\.?$', c0) and not re.match(r'^(?:19|20)\d{2}', c0):
                                 code = c0.rstrip('.')
                         label_cells = [re.sub(r'^\d+\.\s+', '', str(c).strip()) for c in r[:first_col] if str(c).strip()]
-                        if any(is_interval_label(c) for c in label_cells):
+                        has_alpha_label = any(re.search(r'[a-zA-Z]{3,}', c) for c in label_cells)
+                        if has_alpha_label:
+                            raw_label = ' '.join(c for c in label_cells if parse_num(c) is None)
+                        elif any(is_interval_label(c) for c in label_cells):
                             raw_label = next(c for c in label_cells if is_interval_label(c))
                         elif any(re.match(r'^(?:19|20)\d{2}(?:[/\-–]\d{2,4})?$', c) for c in label_cells):
                             raw_label = next(c for c in label_cells if re.match(r'^(?:19|20)\d{2}(?:[/\-–]\d{2,4})?$', c))
@@ -641,7 +686,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             c_str = str(c).strip() if c is not None else ''
                             if not c_str or c_str.lower() == 'none':
                                 continue
-                            if (is_interval_label(c_str) or re.match(r'^(?:19|20)\d{2}(?:[/\-–]\d{2,4})?$', c_str)) and not nums:
+                            if not raw_label and (is_interval_label(c_str) or re.match(r'^(?:19|20)\d{2}(?:[/\-–]\d{2,4})?$', c_str)) and not nums:
                                 raw_label = c_str
                                 continue
                             c_code_cand = re.sub(r'\s+', '', c_str)
@@ -751,11 +796,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if not base_h or re.match(r'^(?:data\s+)?kolom\s+\d+$', str(base_h).lower().strip()):
                                 base_h = f"Metrik #{i+1}"
 
-                            is_match, is_tol, diff_val = evaluate_cell_match(pv, sv, tolerance=tolerance)
-                            abs_diff = int(abs(diff_val)) if abs(diff_val).is_integer() else abs(diff_val)
+                            if y and y not in str(base_h):
+                                base_h = f"{base_h} ({y})"
 
-                            p_disp = int(pv) if pv.is_integer() else pv
-                            src_disp = int(sv) if sv.is_integer() else sv
+                            is_match, is_tol, diff_val = evaluate_cell_match(pv, sv, tolerance=tolerance)
+                            abs_diff = format_display_val(abs(diff_val))
+
+                            p_disp = format_display_val(pv)
+                            src_disp = format_display_val(sv)
 
                             if is_match:
                                 m_item = {"wilayah": s_disp, "section": sec_b, "metric": base_h, "val": p_disp, "pdf_val": p_disp, "src_val": src_disp}
@@ -775,6 +823,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 for idx_s, s in enumerate(s_recs):
                     s['id'] = idx_s
                 p_recs = extract_cat_rows_std(target_pdf_rows, is_pdf=True)
+
 
                 p_grouped_items = {s['id']: [] for s in s_recs}
                 used_p_indices = set()
@@ -802,12 +851,19 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         used_p_indices.add(idx_p)
 
                 # Pass 1.5: Prefix / suffix containment key matching (e.g. Roman numeral prefix or bilingual suffix diff)
+                def is_key_compatible(k1, k2):
+                    y1 = re.search(r'Y(19|20\d{2})_', k1)
+                    y2 = re.search(r'Y(19|20\d{2})_', k2)
+                    if y1 or y2:
+                        return bool(y1 and y2 and y1.group(1) == y2.group(1))
+                    return True
+
                 for idx_p, p in enumerate(p_recs):
                     if idx_p in used_p_indices:
                         continue
                     match_s = next((
                         s for s in s_recs
-                        if s.get('sec') == p.get('sec') and len(p['key']) >= 4 and len(s['key']) >= 4 and (
+                        if s.get('sec') == p.get('sec') and len(p['key']) >= 4 and len(s['key']) >= 4 and is_key_compatible(p['key'], s['key']) and (
                             p['key'].startswith(s['key']) or s['key'].startswith(p['key']) or
                             p['key'].endswith(s['key']) or s['key'].endswith(p['key']) or
                             p['key'].split('_')[0] == s['key'] or s['key'].split('_')[0] == p['key']
@@ -816,7 +872,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if not match_s:
                         match_s = next((
                             s for s in s_recs
-                            if len(p['key']) >= 4 and len(s['key']) >= 4 and (
+                            if len(p['key']) >= 4 and len(s['key']) >= 4 and is_key_compatible(p['key'], s['key']) and (
                                 p['key'].startswith(s['key']) or s['key'].startswith(p['key']) or
                                 p['key'].endswith(s['key']) or s['key'].endswith(p['key']) or
                                 p['key'].split('_')[0] == s['key'] or s['key'].split('_')[0] == p['key']
@@ -846,18 +902,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         nums_flat.extend(n_list)
                     p_grouped[s_id] = nums_flat
 
+                def _norm_hdr(raw_h):
+                    h = str(raw_h).lower().replace('-', ' ')
+                    h = re.sub(r'\(.*?\)', '', h)
+                    h = re.sub(r'\bpresentase\b', 'persentase', h)
+                    h = re.sub(r'\bprosentase\b', 'persentase', h)
+                    tokens = set(re.findall(r'\b\w+\b', h))
+                    return tokens, h.strip()
+
                 col_map = {}
                 pdf_cols = []
                 is_row_continuation = False
                 if target_pages and len(target_pages) > 1:
-                    def _norm_hdr(raw_h):
-                        h = str(raw_h).lower().replace('-', ' ')
-                        h = re.sub(r'\(.*?\)', '', h)
-                        h = re.sub(r'\bpresentase\b', 'persentase', h)
-                        h = re.sub(r'\bprosentase\b', 'persentase', h)
-                        tokens = set(re.findall(r'\b\w+\b', h))
-                        return tokens, h.strip()
-
                     p1_info = [{'nomor_tabel': target_table, 'pages': [target_pages[0]]}]
                     p2_info = [{'nomor_tabel': target_table, 'pages': [target_pages[1]]}]
                     extract_table_content(pdf_path, p1_info)
@@ -880,27 +936,45 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             for h in p_hdrs:
                                 t_set, h_clean = _norm_hdr(h)
                                 pdf_cols.append((h, t_set, h_clean))
+                else:
+                    p_hdrs = detect_col_headers(target_pdf_rows)
+                    for h in p_hdrs:
+                        t_set, h_clean = _norm_hdr(h)
+                        pdf_cols.append((h, t_set, h_clean))
 
-                    used_p = set()
-                    for s_idx, sh in enumerate(headers):
-                        s_tokens, sh_clean = _norm_hdr(sh)
-                        best_p = None
-                        best_score = 0
-                        for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
-                            if p_idx in used_p:
-                                continue
-                            overlap = len(s_tokens & p_tokens)
-                            sim = SequenceMatcher(None, sh_clean, ph_clean).ratio()
-                            if s_tokens == p_tokens or sh_clean == ph_clean:
+                used_p = set()
+                for s_idx, sh in enumerate(headers):
+                    s_tokens, sh_clean = _norm_hdr(sh)
+                    best_p = None
+                    best_score = 0
+                    for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
+                        if p_idx in used_p:
+                            continue
+                        overlap = len(s_tokens & p_tokens)
+                        sim = SequenceMatcher(None, sh_clean, ph_clean).ratio()
+                        if s_tokens == p_tokens or sh_clean == ph_clean:
+                            best_p = p_idx
+                            break
+                        elif (overlap > best_score and (s_tokens.issubset(p_tokens) or p_tokens.issubset(s_tokens))) or sim >= 0.8:
+                            if sim > best_score or overlap > best_score:
+                                best_score = max(sim, overlap)
                                 best_p = p_idx
-                                break
-                            elif (overlap > best_score and (s_tokens.issubset(p_tokens) or p_tokens.issubset(s_tokens))) or sim >= 0.8:
-                                if sim > best_score or overlap > best_score:
-                                    best_score = max(sim, overlap)
+
+                    # Prioritas Kesamaan Tahun Eksplisit (jika header sumber memuat tahun tertentu, misal '2025')
+                    if best_p is None:
+                        s_yrs = set(re.findall(r'\b(19|20\d{2})\b', sh))
+                        if s_yrs:
+                            for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
+                                if p_idx in used_p:
+                                    continue
+                                p_yrs = set(re.findall(r'\b(19|20\d{2})\b', ph))
+                                if s_yrs == p_yrs:
                                     best_p = p_idx
-                        if best_p is not None:
-                            col_map[s_idx] = best_p
-                            used_p.add(best_p)
+                                    break
+
+                    if best_p is not None:
+                        col_map[s_idx] = best_p
+                        used_p.add(best_p)
 
                 p_headers = detect_col_headers(target_pdf_rows)
 
@@ -930,10 +1004,13 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             p_sec = f"Halaman {target_pages[page_idx]}"
 
                         is_match, is_tol, diff_val = evaluate_cell_match(pv, sv, tolerance=tolerance)
-                        abs_diff = int(abs(diff_val)) if abs(diff_val).is_integer() else abs(diff_val)
+                        abs_diff = format_display_val(abs(diff_val))
 
-                        p_disp = int(pv) if pv.is_integer() else pv
-                        src_disp = int(sv) if sv.is_integer() else sv
+                        p_disp = format_display_val(pv)
+                        src_disp = format_display_val(sv)
+
+                        if target_year and hist_pdf_years and target_year not in str(base_h):
+                            base_h = f"{base_h} ({target_year})"
 
                         if is_match:
                             m_item = {"wilayah": s_disp, "section": p_sec, "metric": base_h, "val": p_disp, "pdf_val": p_disp, "src_val": src_disp}
@@ -957,7 +1034,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if pv is None:
                                 continue
                             base_h = p_headers[p_idx] if (p_headers and p_idx < len(p_headers)) else f"Kolom Ekstra #{p_idx+1}"
-                            pv_disp = int(pv) if isinstance(pv, float) and pv.is_integer() else pv
+                            pv_disp = format_display_val(pv)
                             m_yr = re.search(r'\b(20\d{2})\b', str(base_h))
                             if m_yr:
                                 note = f"Tercetak di buku PDF untuk Tahun {m_yr.group(1)}, tidak tersedia di database resmi"
@@ -976,7 +1053,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             base_h = p_headers[i] if (p_headers and i < len(p_headers)) else (headers[i] if i < len(headers) else f"Metrik #{i+1}")
                             if not base_h or re.match(r'^(?:data\s+)?kolom\s+\d+$', str(base_h).lower().strip()):
                                 base_h = f"Metrik #{i+1}"
-                            pv_disp = int(pv) if isinstance(pv, float) and pv.is_integer() else pv
+                            pv_disp = format_display_val(pv)
                             results["pdf_only"].append({
                                 "wilayah": p_disp, "section": p_sec, "metric": base_h,
                                 "values": [pv_disp],
@@ -993,7 +1070,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         base_h = headers[i] if i < len(headers) else f"Metrik #{i+1}"
                         if not base_h or re.match(r'^(?:data\s+)?kolom\s+\d+$', str(base_h).lower().strip()):
                             base_h = f"Metrik #{i+1}"
-                        p_disp = int(pv) if pv.is_integer() else pv
+                        p_disp = format_display_val(pv)
                         results["pdf_only"].append({
                             "wilayah": disp, "section": sec_b, "metric": f"{base_h} ({hy})",
                             "values": [p_disp],
@@ -1006,7 +1083,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             src_title = ' '.join(str(c) for c in (clean_source_rows[0] if clean_source_rows else []))
             title_years = re.findall(r'\b(20\d{2})\b', src_title)
             header_years = re.findall(r'\b(20\d{2})\b', ' '.join(headers))
-            target_year = header_years[0] if header_years else (title_years[-1] if title_years else None)
+            target_year = header_years[0] if header_years else (title_years[-1] if title_years else (api_year if 'api_year' in locals() and api_year else None))
 
             hist_pdf_years_reg = {}
 
@@ -1278,7 +1355,59 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         out[w].extend(nums)
                 return out
 
-            pdf_dict = get_clean_rows_dict(rows, is_pdf=True, target_year=target_year)
+            # Deteksi Page-Per-Year pada tabel Regional multi-halaman
+            page_years = {}
+            if target_pages and len(target_pages) > 1:
+                for p in target_pages:
+                    p_tables = get_cached_page_tables(pdf_path, p)
+                    p_y = None
+                    for r_chk in p_tables[:5]:
+                        if not isinstance(r_chk, list):
+                            continue
+                        for c in r_chk:
+                            c_str = str(c).strip() if c else ''
+                            if re.match(r'^(?:19|20)\d{2}$', c_str):
+                                p_y = c_str
+                                break
+                        if p_y:
+                            break
+                        m_txt = re.findall(r'\b(20\d{2})\b', ' '.join(str(c) for c in r_chk))
+                        if m_txt and len(set(m_txt)) == 1:
+                            p_y = m_txt[0]
+                            break
+                    if p_y:
+                        page_years[p] = p_y
+
+            is_page_per_year = (
+                len(set(page_years.values())) >= 2
+                and target_year in page_years.values()
+                and len(set(header_years)) <= 1
+            )
+
+            if is_page_per_year:
+                active_pages = [p for p, y in page_years.items() if y == target_year]
+                active_rows = []
+                for p in active_pages:
+                    active_rows.extend(get_cached_page_tables(pdf_path, p))
+
+                pdf_dict = get_clean_rows_dict(active_rows, is_pdf=True, target_year=target_year)
+
+                # Ekstrak data historis untuk halaman tahun selain target_year
+                for hy in sorted(set(page_years.values())):
+                    if hy != target_year:
+                        hy_pages = [p for p, y in page_years.items() if y == hy]
+                        hy_rows = []
+                        for p in hy_pages:
+                            hy_rows.extend(get_cached_page_tables(pdf_path, p))
+                        hist_pdf_years_reg[hy] = get_clean_rows_dict(hy_rows, is_pdf=True, target_year=hy)
+
+                rows_for_headers = active_rows
+                reg_page_label = f"Halaman {active_pages[0]} ({target_year})" if len(active_pages) == 1 else f"Halaman {active_pages[0]}-{active_pages[-1]} ({target_year})"
+            else:
+                pdf_dict = get_clean_rows_dict(rows, is_pdf=True, target_year=target_year)
+                rows_for_headers = rows
+                reg_page_label = f"Halaman {target_pages[0]}" if len(target_pages) == 1 else (f"Halaman {target_pages[0]}-{target_pages[-1]}" if len(target_pages) > 1 else "")
+
             sample_p_nums = next((nums for nums in pdf_dict.values() if nums), [])
             p_len = len(sample_p_nums)
             src_dict = get_clean_rows_dict(clean_source_rows, is_pdf=False, expected_len=p_len, target_year=target_year)
@@ -1286,7 +1415,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             sample_s_nums = next((nums for nums in src_dict.values() if nums), [])
             s_len = len(sample_s_nums)
 
-            pdf_headers = extract_pdf_headers(rows, expected_p_len=p_len, pdf_path=pdf_path, target_pages=target_pages, target_table=target_table)
+            pdf_headers = extract_pdf_headers(rows_for_headers, expected_p_len=p_len, pdf_path=pdf_path, target_pages=active_pages if is_page_per_year else target_pages, target_table=target_table)
 
             if len(headers) > s_len and any('tahun' in h.lower() for h in headers[:len(headers)-s_len]):
                 headers = headers[-s_len:]
@@ -1300,14 +1429,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if all(s_vals[c_idx] == 0.0 for s_vals in src_dict.values() if c_idx < len(s_vals)):
                     empty_src_cols.add(c_idx)
 
-            reg_page_label = f"Halaman {target_pages[0]}" if len(target_pages) == 1 else (f"Halaman {target_pages[0]}-{target_pages[-1]}" if len(target_pages) > 1 else "")
-
             for w, p_nums in pdf_dict.items():
                 s_nums = src_dict.get(w, [])
                 if not s_nums:
                     if w == "Total Jawa Tengah":
                         for p_idx, pv in enumerate(p_nums):
-                            p_disp = int(pv) if pv.is_integer() else pv
+                            p_disp = format_display_val(pv)
                             base_m = pdf_headers[p_idx] if p_idx < len(pdf_headers) else f"Metrik #{p_idx + 1}"
                             results["pdf_only"].append({
                                 "wilayah": w, "section": reg_page_label, "metric": base_m,
@@ -1322,34 +1449,36 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     pv = p_nums[p_idx]
                     sv = s_nums[s_idx]
                     metric_name = final_metric_names.get(s_idx, (headers[s_idx] if s_idx < len(headers) else f"Metrik #{s_idx + 1}"))
+                    if is_page_per_year and target_year and target_year not in str(metric_name):
+                        metric_name = f"{metric_name} ({target_year})"
 
                     is_match, is_tol, diff_val = evaluate_cell_match(pv, sv, tolerance=tolerance)
-                    abs_diff = int(abs(diff_val)) if abs(diff_val).is_integer() else abs(diff_val)
+                    abs_diff = format_display_val(abs(diff_val))
+
+                    p_disp = format_display_val(pv)
+                    s_disp = format_display_val(sv)
 
                     if is_match:
-                        p_disp = int(pv) if pv.is_integer() else pv
-                        s_disp = int(sv) if sv.is_integer() else sv
                         m_item = {"wilayah": w, "section": reg_page_label, "metric": metric_name, "val": p_disp, "pdf_val": p_disp, "src_val": s_disp}
                         if is_tol:
                             m_item["is_tolerance_match"] = True
                             m_item["tolerance_diff"] = round(diff_val, 4)
                         results["matches"].append(m_item)
                     else:
-                        p_disp = int(pv) if pv.is_integer() else pv
                         if s_idx in empty_src_cols and sv == 0.0:
                             note = f"Di cetakan PDF tertulis {p_disp}, tetapi di database kolom ini kosong"
                         else:
                             note = f"Selisih {abs_diff} (PDF {'lebih sedikit' if diff_val > 0 else 'lebih banyak'})" + _hint(pv, sv)
                         results["diffs"].append({
                             "wilayah": w, "section": reg_page_label, "metric": metric_name, "pdf_val": p_disp,
-                            "src_val": int(sv) if sv.is_integer() else sv, "diff": diff_val, "note": note, "type": "replace"
+                            "src_val": s_disp, "diff": diff_val, "note": note, "type": "replace"
                         })
 
                 if pdf_extra_indices:
                     for p_idx in pdf_extra_indices:
                         if p_idx < len(p_nums):
                             pv = p_nums[p_idx]
-                            pv_disp = int(pv) if pv.is_integer() else pv
+                            pv_disp = format_display_val(pv)
                             y_tag = col_year_tags.get(p_idx, "")
                             base_m = pdf_headers[p_idx] if p_idx < len(pdf_headers) else f"Kolom Ekstra #{p_idx + 1}"
 
@@ -1360,17 +1489,23 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 "wilayah": w, "section": reg_page_label, "metric": m_name, "values": [pv_disp], "note": note, "type": "delete"
                             })
 
-                if hist_pdf_years_reg:
-                    for hy, w_dict in hist_pdf_years_reg.items():
-                        if w in w_dict:
-                            for p_idx, pv in enumerate(w_dict[w]):
-                                pv_disp = int(pv) if pv.is_integer() else pv
-                                base_m = pdf_headers[p_idx] if p_idx < len(pdf_headers) else f"Metrik #{p_idx + 1}"
-                                results["pdf_only"].append({
-                                    "wilayah": w, "section": reg_page_label, "metric": f"{base_m} ({hy})",
-                                    "values": [pv_disp], "note": f"Data historis ({hy}) tercetak di buku PDF, tidak dimuat di database sumber {target_year or ''}".strip(),
-                                    "type": "delete"
-                                })
+            if hist_pdf_years_reg:
+                for hy, w_dict in hist_pdf_years_reg.items():
+                    hy_pages = [p for p, y in page_years.items() if y == hy] if 'page_years' in locals() else []
+                    hy_sec = f"Halaman {hy_pages[0]} ({hy})" if len(hy_pages) == 1 else (f"Halaman {hy_pages[0]}-{hy_pages[-1]} ({hy})" if hy_pages else f"Tahun {hy}")
+                    for w_ent, nums in w_dict.items():
+                        for p_idx, pv in enumerate(nums):
+                            pv_disp = format_display_val(pv)
+                            base_m = pdf_headers[p_idx] if p_idx < len(pdf_headers) else f"Metrik #{p_idx + 1}"
+                            base_m = re.sub(r'^(?:19|20)\d{2}\s*[\-–—]\s*', '', str(base_m)).strip()
+                            if not base_m or re.match(r'^(?:data\s+)?kolom\s+\d+$', str(base_m).lower().strip()):
+                                base_m = f"Metrik #{p_idx + 1}"
+                            metric_lbl = f"{base_m} ({hy})" if hy not in base_m else base_m
+                            results["pdf_only"].append({
+                                "wilayah": w_ent, "section": hy_sec, "metric": metric_lbl,
+                                "values": [pv_disp], "note": f"Data historis ({hy}) tercetak di buku PDF, tidak dimuat di database sumber {target_year or ''}".strip(),
+                                "type": "delete"
+                            })
 
     results["pages"] = target_pages or []
     results["id_db"] = target_info.get("id_db")

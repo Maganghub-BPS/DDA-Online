@@ -320,7 +320,7 @@ def find_wilayah_with_type(ctx, is_kota=False):
 def is_interval_label(s):
     if not s: return False
     s_clean = re.sub(r'[\s\*]', '', str(s))
-    return bool(re.match(r'^(?:0|01|\d+[\-–—\ufffd]\d+|\d+\+|\<\s*\d+|\>\s*\d+)$', s_clean))
+    return bool(re.match(r'^(?:\d+[\-–—\ufffd]\d+|\d+\+|\<\s*\d+|\>\s*\d+)$', s_clean))
 
 def is_bps_col_num(val):
     if not val: return False
@@ -339,7 +339,7 @@ def is_title_row(row):
     return False
 
 def is_header_or_metadata_row(row):
-    non_empty = [str(c).strip() for c in row if str(c).strip()]
+    non_empty = [str(c).strip() for c in row if c is not None and str(c).strip() and str(c).strip().lower() != 'none']
     if not non_empty: return True
     ctx = ' | '.join(non_empty).lower()
     ctx_norm = re.sub(r'\s*/\s*', '/', ctx)
@@ -354,6 +354,10 @@ def is_header_or_metadata_row(row):
     if year_matches >= len(non_empty) * 0.6: return True
     if len(non_empty) >= 3 and year_matches >= (len(non_empty) - 1) * 0.7: return True
         
+    clean_intervals = sum(1 for c in non_empty if is_interval_label(c))
+    if clean_intervals >= 2 and not any(re.search(r'[a-zA-Z]{3,}', c) for c in non_empty[:2]):
+        return True
+
     if any(k in ctx for k in ['tabel', 'table', 'sumber', 'source', 'catatan', 'note', 'perubahan data', 'diakses']): return True
 
     num_non_years = sum(1 for c in non_empty if parse_num(c) is not None and not is_bps_col_num(str(c).strip()) and not re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', re.sub(r'[\*\^#\s\†\‡]', '', str(c))))
@@ -422,11 +426,16 @@ def explain_mismatch(pv, sv):
         if abs(sv - pv * 1000000) <= 2000.0 or abs(pv - sv * 1000000) <= 2000.0:
             return "pola: beda satuan jutaan (x1.000.000)"
         r = max(abs(sv), abs(pv)) / min(abs(sv), abs(pv))
+        if 80.0 <= r <= 180.0 or 8000.0 <= r <= 18000.0:
+            return "pola: konversi valuta asing (kemungkinan data sumber dalam Ribu USD vs cetakan PDF dalam Juta Rupiah kurs berjalan)"
         if r >= 9.9:
             import math
             l = math.log10(r)
             if abs(l - round(l)) < 1e-4 and round(l) in (1, 2, 3, 4, 6, 8, 10, 12):
-                return f"pola: kelipatan 10^{int(round(l))} (kemungkinan salah format satuan/desimal)"
+                exp_val = int(round(l))
+                if exp_val == 2:
+                    return "pola: format persentase (nilai rasio 1.0 vs persen 100%)"
+                return f"pola: kelipatan 10^{exp_val} (kemungkinan salah format satuan/desimal)"
     if pv > 10 and sv > 10:
         try:
             s_pv, s_sv = str(int(round(pv))), str(int(round(sv)))
