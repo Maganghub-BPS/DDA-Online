@@ -6,7 +6,8 @@ use CodeIgniter\Model;
 
 class M_frontend extends Model
 {
-    protected $table = 't_tahun_tabel';
+    protected $DBGroup    = 'default';
+    protected $table      = 't_tahun_tabel';
     protected $primaryKey = 'id';
 
     /**

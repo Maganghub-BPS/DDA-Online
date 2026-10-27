@@ -32,7 +32,7 @@ abstract class BaseController extends Controller
     {
         parent::initController($request, $response, $logger);
 
-        $this->db = \Config\Database::connect();
+        $this->db = \Config\Database::connect('default');
         $this->session = \Config\Services::session();
         $this->security = \Config\Services::security();
 

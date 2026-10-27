@@ -564,6 +564,13 @@
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm ${isDyn ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary fw-semibold'} px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="${isDyn ? 'Klik untuk tarik nilai otomatis dari PDF atau scan ulang tabel ini' : 'Klik untuk cek ulang tabel ini'}">
                     <i class="bi ${isDyn ? 'bi-magic' : 'bi-search'} me-1"></i> ${isDyn ? 'Isi / Detail' : 'Detail'}
                 </button>`;
+        } else if (status === 'pdf_only') {
+            badgeHtml = `<span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-journal-bookmark me-1"></i>Hanya di PDF</span>`;
+            btnHtml = `
+                ${dynLinkBtn}
+                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-secondary fw-semibold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Lihat rincian data cetakan PDF">
+                    <i class="bi bi-search me-1"></i> Detail
+                </button>`;
         } else if (status === 'checking') {
             badgeHtml = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill fw-semibold shadow-xs" style="font-size:0.75rem;"><span class="spinner-border spinner-border-sm me-1" style="width:0.65rem; height:0.65rem;"></span> Memeriksa...</span>`;
             btnHtml = `
@@ -705,6 +712,18 @@
         });
     }
 
+    // Setelah klik "Manual" (tab baru), muat ulang halaman begitu tab ini difokuskan lagi
+    // agar tabel yang baru dikonfigurasi langsung pindah dari daftar "Belum Dikonfigurasi".
+    let pendingManualConfig = false;
+    $(document).on('click', '#listUnreg a[target="_blank"]', function() {
+        pendingManualConfig = true;
+    });
+    window.addEventListener('focus', function() {
+        if (pendingManualConfig) {
+            pendingManualConfig = false;
+            window.location.reload();
+        }
+    });
     function autoConfigFromPdf(nomorTabel, autoFill, btnEl) {
         let item = (window.currentUnregTables || []).find(u => u.nomor_tabel === nomorTabel);
         if (!item) return;
@@ -1163,6 +1182,19 @@
         });
     };
 
+    function formatAngkaDisplay(val) {
+        if (val === null || val === undefined || val === '') return '-';
+        if (typeof val === 'number') {
+            return val.toLocaleString('id-ID', { maximumFractionDigits: 4 });
+        }
+        let strVal = String(val).trim();
+        let num = Number(strVal);
+        if (!isNaN(num) && strVal !== '' && (!strVal.startsWith('0') || strVal === '0' || strVal.startsWith('0.'))) {
+            return num.toLocaleString('id-ID', { maximumFractionDigits: 4 });
+        }
+        return val;
+    }
+
     function verify_tabel(nomor_tabel, tolerance = 0) {
         window.currentTableNumber = nomor_tabel;
         window.currentTolerance = tolerance;
@@ -1202,8 +1234,8 @@
                     window.currentDiffFilter = totalDiffs > 0 ? 'diff' : (totalMatches > 0 ? 'match' : (totalPdfOnly > 0 ? 'pdf_only' : 'all'));
 
                     // Update main list badge & counters
-                    let status = (totalDiffs > 0 || totalMatches === 0) ? 'diff' : 'match';
-                    let diffCount = totalDiffs > 0 ? totalDiffs : (totalPdfOnly > 0 ? totalPdfOnly : '!');
+                    let status = (totalDiffs > 0) ? 'diff' : (totalMatches > 0 ? 'match' : (res.is_api_empty ? 'api_empty' : (totalPdfOnly > 0 ? 'pdf_only' : 'match')));
+                    let diffCount = totalDiffs > 0 ? totalDiffs : (totalPdfOnly > 0 ? totalPdfOnly : 0);
                     window.batchStatusMap[nomor_tabel] = {
                         status: status,
                         diff_count: diffCount,
@@ -1461,7 +1493,7 @@
                                                         <!-- PDF Side -->
                                                         <div class="text-center px-3 py-2 rounded-3 bg-white border border-danger shadow-xs flex-fill">
                                                             <div class="small text-danger fw-bold mb-1"><i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF</div>
-                                                            <div class="fs-4 fw-black text-danger font-monospace">${d.pdf_val}</div>
+                                                            <div class="fs-4 fw-black text-danger font-monospace">${formatAngkaDisplay(d.pdf_val)}</div>
                                                         </div>
 
                                                         <!-- VS Arrow -->
@@ -1472,7 +1504,7 @@
                                                         <!-- DB Side -->
                                                         <div class="text-center px-3 py-2 rounded-3 bg-white border border-success shadow-xs flex-fill">
                                                             <div class="small text-success fw-bold mb-1"><i class="bi bi-database-fill me-1"></i>Di Database Sumber</div>
-                                                            <div class="fs-4 fw-black text-success font-monospace">${d.src_val}</div>
+                                                            <div class="fs-4 fw-black text-success font-monospace">${formatAngkaDisplay(d.src_val)}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1481,11 +1513,11 @@
                                                     <div class="p-2 rounded-3 bg-danger-subtle border border-danger-subtle text-danger h-100 d-flex flex-column justify-content-center">
                                                         <div class="fw-bold small"><i class="bi bi-info-circle-fill me-1"></i> Penjelasan:</div>
                                                         <div class="small mt-1" style="line-height:1.3;">
-                                                            Di cetakan PDF tertulis <strong>${d.pdf_val}</strong>, tetapi di database tertulis <strong>${d.src_val}</strong>.
+                                                            Di cetakan PDF tertulis <strong>${formatAngkaDisplay(d.pdf_val)}</strong>, tetapi di database tertulis <strong>${formatAngkaDisplay(d.src_val)}</strong>.
                                                         </div>
                                                         ${(res.id_indikator && d.coord) ? `
                                                             <button type="button" onclick='syncSingleDiffCell(${res.id_indikator}, ${JSON.stringify(d.coord)}, ${JSON.stringify(d.pdf_val)}, this)' class="btn btn-xs btn-danger text-white fw-bold rounded-pill mt-2 py-1 px-2 shadow-xs">
-                                                                <i class="bi bi-magic me-1"></i> Gunakan Angka PDF (${d.pdf_val})
+                                                                <i class="bi bi-magic me-1"></i> Gunakan Angka PDF (${formatAngkaDisplay(d.pdf_val)})
                                                             </button>
                                                         ` : ''}
                                                     </div>
@@ -1516,12 +1548,12 @@
                                                     <div class="d-flex align-items-center justify-content-center p-2 rounded-2 ${m.is_tolerance_match ? 'bg-info-subtle border border-info-subtle' : 'bg-success-subtle border border-success-subtle'}">
                                                         <div class="text-center flex-fill">
                                                             <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold"><i class="bi bi-file-earmark-pdf me-1"></i>PDF:</span>
-                                                            <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace ms-1">${m.pdf_val !== undefined ? m.pdf_val : m.val}</span>
+                                                            <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace ms-1">${formatAngkaDisplay(m.pdf_val !== undefined ? m.pdf_val : m.val)}</span>
                                                         </div>
                                                         <div class="${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-bold px-2">${m.is_tolerance_match ? '≈' : '='}</div>
                                                         <div class="text-center flex-fill">
                                                             <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold"><i class="bi bi-database me-1"></i>Database:</span>
-                                                            <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace ms-1">${m.src_val !== undefined ? m.src_val : m.val}</span>
+                                                            <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace ms-1">${formatAngkaDisplay(m.src_val !== undefined ? m.src_val : m.val)}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1554,7 +1586,7 @@
                                                 <div class="col-md-5">
                                                     <div class="p-2 rounded-2 bg-warning-subtle border border-warning-subtle text-center">
                                                         <span class="small text-warning-emphasis fw-bold me-2"><i class="bi bi-journal-bookmark me-1"></i>Di Buku PDF:</span>
-                                                        <span class="font-monospace fw-bold text-dark fs-6">${p.values.join(' | ')}</span>
+                                                        <span class="font-monospace fw-bold text-dark fs-6">${p.values.map(v => formatAngkaDisplay(v)).join(' | ')}</span>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-3">

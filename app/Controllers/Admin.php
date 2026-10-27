@@ -1117,11 +1117,20 @@ class Admin extends BaseController
 
 		if ($mau_ke == "del") {
 			$id_delete   = $this->input->get('delete_id');
-			$a['datpil'] = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id=?", [$id_delete])->getRow();
+			$datpil = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id=?", [$id_delete])->getRow();
+			$a['datpil'] = $datpil;
 			$a['act_url'] = base_url('index.php/admin/master_tabel/act_del/');
+
+			$all_years = [];
+			if ($datpil && !empty($datpil->id_tabel)) {
+				$all_years = $this->db->query("SELECT id, tahun, no_tabel FROM t_tahun_tabel WHERE id_tabel = ? ORDER BY tahun DESC", [$datpil->id_tabel])->getResult();
+			}
+			$a['all_years'] = $all_years;
+
 			return view('admin/f_del_master', $a);
 		} else if ($mau_ke == "act_del") {
 			$id_oi = (int)$this->input->post('id');
+			$scope = $this->input->post('scope') ?? 'current';
 			
 			// Ambil info t_tahun_tabel terlebih dahulu
 			$row_tt = $this->db->query("SELECT id_tabel, tahun FROM t_tahun_tabel WHERE id = ?", [$id_oi])->getRow();
@@ -1132,23 +1141,56 @@ class Admin extends BaseController
 
 				$this->db->transStart();
 
-				// 1. Hapus entri dari t_tahun_tabel (otomatis meng-cascade m_indikator_tabel & t_nilai_dinamis via FK)
-				$this->db->query("DELETE FROM t_tahun_tabel WHERE id = ?", [$id_oi]);
+				if ($scope === 'all' && !empty($id_master)) {
+					// HAPUS SECARA GLOBAL (SEMUA TAHUN)
+					// 1. Hapus t_nilai_dinamis untuk SEMUA tahun tabel ini
+					$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
+						SELECT mi.id FROM m_indikator_tabel mi 
+						JOIN t_tahun_tabel tt ON mi.id_tahun_tabel = tt.id 
+						WHERE tt.id_tabel = ?
+					)", [$id_master]);
 
-				// 2. Cek apakah master tabel (m_list_tabel) masih ditautkan di tahun lainnya
-				if (!empty($id_master)) {
-					$cek = $this->db->query("SELECT COUNT(*) as jml FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master])->getRow();
-					if ($cek && (int)$cek->jml === 0) {
-						// Sudah tidak tertaut di tahun manapun -> Hapus master tabel agar database bersih dari orphan
-						$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
-						$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
-						$msg = "Tabel tahun " . htmlspecialchars($tahun) . " beserta master tabel berhasil dihapus permanen (tidak ada tautan di tahun lain).";
-					} else {
-						// Masih ada tautan di tahun lain -> Master tabel tetap dipertahankan
-						$msg = "Tabel tahun " . htmlspecialchars($tahun) . " berhasil dihapus. Master tabel tetap dipertahankan karena masih digunakan pada tahun lain.";
-					}
+					// 2. Hapus m_indikator_tabel untuk SEMUA tahun tabel ini
+					$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (
+						SELECT id FROM t_tahun_tabel WHERE id_tabel = ?
+					)", [$id_master]);
+
+					// 3. Hapus entri t_tahun_tabel untuk SEMUA tahun
+					$this->db->query("DELETE FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master]);
+
+					// 4. Hapus master tabel dan konsep definisi
+					$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
+					$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
+
+					$msg = "Tabel berhasil dihapus secara permanen dari seluruh tahun beserta master tabel.";
 				} else {
-					$msg = "Data tabel berhasil dihapus.";
+					// HAPUS UNTUK TAHUN INI SAJA ($id_oi)
+					// 1. Hapus t_nilai_dinamis untuk tabel tahun ini
+					$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
+						SELECT id FROM m_indikator_tabel WHERE id_tahun_tabel = ?
+					)", [$id_oi]);
+
+					// 2. Hapus m_indikator_tabel untuk tabel tahun ini
+					$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel = ?", [$id_oi]);
+
+					// 3. Hapus entri dari t_tahun_tabel
+					$this->db->query("DELETE FROM t_tahun_tabel WHERE id = ?", [$id_oi]);
+
+					// 4. Cek apakah master tabel (m_list_tabel) masih ditautkan di tahun lainnya
+					if (!empty($id_master)) {
+						$cek = $this->db->query("SELECT COUNT(*) as jml FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master])->getRow();
+						if ($cek && (int)$cek->jml === 0) {
+							// Sudah tidak tertaut di tahun manapun -> Hapus master tabel agar database bersih dari orphan
+							$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
+							$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
+							$msg = "Tabel tahun " . htmlspecialchars($tahun) . " beserta master tabel berhasil dihapus permanen (tidak ada tautan di tahun lain).";
+						} else {
+							// Masih ada tautan di tahun lain -> Master tabel tetap dipertahankan
+							$msg = "Tabel tahun " . htmlspecialchars($tahun) . " berhasil dihapus. Master tabel tetap dipertahankan karena masih digunakan pada tahun lain.";
+						}
+					} else {
+						$msg = "Data tabel berhasil dihapus.";
+					}
 				}
 
 				$this->db->transComplete();
@@ -1829,10 +1871,14 @@ class Admin extends BaseController
 				])->setStatusCode(422);
 			}
 
-			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data atau tabel dinamis)
+			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data)
 			$is_portal = (stripos($tabel->link_tabel ?? '', 'portal') !== false || 
 			              stripos($tabel->link_tabel ?? '', 'satudata') !== false);
-			$is_filled = ($tabel->is_periksa == '1' || $is_portal || $is_dynamic);
+			if ($is_dynamic) {
+				$is_filled = ($tabel->is_periksa == '1' && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh/iu', $tabel->catatan_periksa ?? ''));
+			} else {
+				$is_filled = ($tabel->is_periksa == '1' || $is_portal);
+			}
 			if (!$is_filled) {
 				return $this->response->setJSON([
 					'status' => 'error',
@@ -2935,7 +2981,22 @@ class Admin extends BaseController
 		// Eksekusi penghapusan massal data tahunan di dalam database transaction
 		// Master tabel pada m_list_tabel tetap aman dan tidak terhapus
 		$this->db->transStart();
+
+		// 1. Hapus nilai dinamis yang terkait dengan indikator tabel pada tahun target
+		$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
+			SELECT mi.id FROM m_indikator_tabel mi 
+			JOIN t_tahun_tabel tt ON mi.id_tahun_tabel = tt.id 
+			WHERE tt.tahun = ?
+		)", [$target_tahun]);
+
+		// 2. Hapus konfigurasi dimensi/indikator tabel dinamis pada tahun target
+		$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (
+			SELECT id FROM t_tahun_tabel WHERE tahun = ?
+		)", [$target_tahun]);
+
+		// 3. Hapus entri data tabel tahunan
 		$this->db->query("DELETE FROM t_tahun_tabel WHERE tahun = ?", [$target_tahun]);
+
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
@@ -4015,7 +4076,8 @@ class Admin extends BaseController
 			'posisi_hirarki'            => $ext['posisi_hirarki'] ?? 'kolom_atas',
 			'tingkat_kolom'             => 'semua',
 			'konfigurasi_total'         => $konfigurasiTotal,
-			'desimal'                   => 0,
+			'format_nomor_baris'        => 'none',
+			'desimal'                   => isset($ext['desimal']) ? (int)$ext['desimal'] : 0,
 			'updated_at'                => $now,
 		];
 
@@ -5369,6 +5431,10 @@ class Admin extends BaseController
 		if (!in_array($tampilan_baris, ['1_kolom', '2_kolom'], true)) {
 			$tampilan_baris = '1_kolom';
 		}
+		$kolom_nomor          = trim((string)$this->request->getPost('kolom_nomor'));
+		if (!in_array($kolom_nomor, ['tampilkan', 'sembunyikan'], true)) {
+			$kolom_nomor = 'tampilkan';
+		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 
 		$selectedDimCount = (!empty($id_baris) ? 1 : 0) + (!empty($id_karakteristik) ? 1 : 0) + (!empty($id_periode) ? 1 : 0);
@@ -5428,6 +5494,7 @@ class Admin extends BaseController
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
 			'tampilan_baris'            => $tampilan_baris,
+			'kolom_nomor'               => $kolom_nomor,
 			'desimal'                   => !empty($existing->desimal) ? (int)$existing->desimal : 0,
 			'catatan'                   => $finalCatatan,
 			'updated_at'                => $now,
@@ -5716,6 +5783,44 @@ class Admin extends BaseController
 
 			if ($this->db->transStatus() === false) {
 				throw new \Exception("Gagal menyimpan data ke database. Seluruh transaksi dibatalkan (rollback).");
+			}
+
+			// Sinkronisasi Cache Snapshot DDA (Matching PDF & Live Validation)
+			try {
+				$tabelInfo = $this->db->table('t_tahun_tabel')->where('id', $id_tahun_tabel)->get()->getRow();
+				$tahunTabel = $tabelInfo->tahun ?? date('Y');
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $tabelInfo->no_tabel ?? ''));
+				$cleanNo = rtrim($cleanNo, '.');
+
+				$dbJsonPath = WRITEPATH . "uploads/dda_db_{$tahunTabel}.json";
+				if (file_exists($dbJsonPath)) {
+					$dynInfoAfter = $mTabelDinamis->exportSingleDynamicTable($id_tahun_tabel);
+					$dbList = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
+					foreach ($dbList as &$dbItem) {
+						if ((int)($dbItem['id_db'] ?? 0) === $id_tahun_tabel || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
+							$dbItem['dynamic_empty'] = false;
+							if (!empty($dynInfoAfter['dynamic_grid'])) {
+								$dbItem['dynamic_grid'] = $dynInfoAfter['dynamic_grid'];
+							}
+							$dbItem['cell_count'] = $dynInfoAfter['cell_count'] ?? (int)$parseResult['filled_cells'];
+							break;
+						}
+					}
+					unset($dbItem);
+					@file_put_contents($dbJsonPath, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+				}
+
+				// Perbarui status 'api_empty' di dda_state_{ta}.json agar tidak tertinggal sebagai Data Kosong
+				$statePath = WRITEPATH . "uploads/dda_state_{$tahunTabel}.json";
+				if (file_exists($statePath) && !empty($cleanNo)) {
+					$stateData = json_decode(@file_get_contents($statePath), true) ?? [];
+					if (isset($stateData[$cleanNo]) && ($stateData[$cleanNo]['status'] ?? '') === 'api_empty') {
+						unset($stateData[$cleanNo]);
+						@file_put_contents($statePath, json_encode($stateData, JSON_PRETTY_PRINT));
+					}
+				}
+			} catch (\Throwable $eSync) {
+				log_message('error', 'Gagal sinkronisasi cache dda_db setelah upload excel: ' . $eSync->getMessage());
 			}
 
 			$successMsg = "Data tabel dinamis berhasil diimpor! Total <b>{$parseResult['filled_cells']}</b> sel data berhasil disimpan.";

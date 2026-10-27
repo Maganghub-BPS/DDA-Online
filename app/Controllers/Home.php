@@ -348,7 +348,7 @@ class Home extends BaseController
             }
 
             // Ambil matriks nilai sel
-            $db = \Config\Database::connect();
+            $db = \Config\Database::connect('default');
             $nilaiRows = $db->table('t_nilai_dinamis')
                 ->where('id_indikator', (int)$indikator->id)
                 ->get()
