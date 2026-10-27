@@ -67,7 +67,7 @@ class ExcelTemplateGenerator
         $desimal          = (int)($indikator->desimal ?? 2);
         $cfgTotalInit     = $indikator->konfigurasi_total ?? 'default';
         $isRuntunWaktu    = ($cfgTotalInit === 'runtun_waktu');
-        $cfgKolomNomor    = $indikator->kolom_nomor ?? 'tampilkan';
+        $cfgKolomNomor    = $indikator->kolom_nomor ?? 'sembunyikan';
         
         // Footnote: ambil dari instansi/unit kerja, tanpa catatan
         $sumber = !empty($tabel->unitkerja_ind) ? $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
@@ -409,7 +409,7 @@ class ExcelTemplateGenerator
             }
         }
 
-        $rowHeaderCols = ($isMultiBaris || $isBarisDuaKolom ? 2 : 1) + ($posisi_hirarki === 'periode_baris' ? 1 : 0);
+        $rowHeaderCols = ($isMultiBaris || $isBarisDuaKolom || $isRuntunWaktu ? 2 : 1) + ($posisi_hirarki === 'periode_baris' ? 1 : 0);
         if ($posisi_hirarki === 'periode_baris_pisah') {
             $rowHeaderCols = 2;
         }

@@ -1846,7 +1846,7 @@ class Admin extends BaseController
 
 		// Ambil info tabel
 		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, t.is_dynamic, m.judul_ind')
+			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, t.is_dynamic, t.catatan_periksa, m.judul_ind')
 			->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
 			->where('t.id', $id)
 			->get()
@@ -1876,6 +1876,16 @@ class Admin extends BaseController
 			              stripos($tabel->link_tabel ?? '', 'satudata') !== false);
 			if ($is_dynamic) {
 				$is_filled = ($tabel->is_periksa == '1' && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh/iu', $tabel->catatan_periksa ?? ''));
+				if (!$is_filled && $tabel->is_periksa == '1') {
+					// Fallback: periksa keberadaan data sel di t_nilai_dinamis
+					$indikator = $this->db->table('m_indikator_tabel')->where('id_tahun_tabel', $id)->get()->getRow();
+					if ($indikator) {
+						$has_nilai = ($this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults() > 0);
+						if ($has_nilai) {
+							$is_filled = true;
+						}
+					}
+				}
 			} else {
 				$is_filled = ($tabel->is_periksa == '1' || $is_portal);
 			}
@@ -5433,7 +5443,7 @@ class Admin extends BaseController
 		}
 		$kolom_nomor          = trim((string)$this->request->getPost('kolom_nomor'));
 		if (!in_array($kolom_nomor, ['tampilkan', 'sembunyikan'], true)) {
-			$kolom_nomor = 'tampilkan';
+			$kolom_nomor = 'sembunyikan';
 		}
 		$catatan              = trim((string)$this->request->getPost('catatan'));
 

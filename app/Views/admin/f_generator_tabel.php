@@ -17,7 +17,7 @@ $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
 $sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
 $sel_label_total_kustom = $indikator->label_total_kustom ?? '';
 $sel_tampilan_baris = $indikator->tampilan_baris ?? '1_kolom';
-$sel_kolom_nomor = $indikator->kolom_nomor ?? 'tampilkan';
+$sel_kolom_nomor = $indikator->kolom_nomor ?? 'sembunyikan';
 $sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
 ?>
@@ -1036,23 +1036,20 @@ $catatan_val = $indikator->catatan ?? '';
                         <!-- Divider halus vertikal -->
                         <div class="toolbar-divider d-none d-md-block"></div>
 
-                        <!-- 5. Kolom Nomor (Segmented Toggle: Tampilkan vs Tanpa No) -->
-                        <div id="box_kolom_nomor" class="toolbar-setting-item <?= $is_locked ? 'is-locked' : ''; ?>" title="<?= $is_locked ? 'Pengaturan terkunci: tabel memiliki ' . $total_nilai . ' data nilai terisi' : 'Atur kolom nomor: Tampilkan kolom No. terpisah (1, 2, 3...) atau Tanpa Kolom No (nomor kode menyatu di teks seperti PDRB/KBLI)'; ?>">
+                        <!-- 5. Kolom Nomor (Segmented Toggle: Tampilkan vs Tanpa No) - Bebas diubah kapan saja -->
+                        <div id="box_kolom_nomor" class="toolbar-setting-item" title="Atur kolom nomor: Tampilkan kolom No. terpisah (1, 2, 3...) atau Tanpa Kolom No (nomor kode menyatu di teks seperti PDRB/KBLI). Bebas diubah kapan saja tanpa merusak data nilai.">
                             <span class="toolbar-setting-label">
                                 <i class="bi bi-hash text-primary me-1"></i> Kolom No:
-                                <?php if ($is_locked): ?>
-                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Pengaturan matriks terkunci"></i>
-                                <?php endif; ?>
                             </span>
-                            <div class="posisi-segmented-group <?= $is_locked ? 'disabled' : ''; ?>" id="group_kolom_nomor">
-                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'sembunyikan') ? '' : 'active'; ?>" data-val="tampilkan" id="btn_nomor_tampilkan" title="Tampilkan kolom nomor urut terpisah (1, 2, 3...)" <?= $is_locked ? 'disabled' : ''; ?>>
+                            <div class="posisi-segmented-group" id="group_kolom_nomor">
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? 'active' : ''; ?>" data-val="tampilkan" id="btn_nomor_tampilkan" title="Tampilkan kolom nomor urut terpisah (1, 2, 3...)">
                                     <i class="bi bi-list-ol me-1"></i> Tampilkan
                                 </button>
-                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'sembunyikan') ? 'active' : ''; ?>" data-val="sembunyikan" id="btn_nomor_sembunyikan" title="Tanpa kolom nomor terpisah, nomor kode menyatu di teks" <?= $is_locked ? 'disabled' : ''; ?>>
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? '' : 'active'; ?>" data-val="sembunyikan" id="btn_nomor_sembunyikan" title="Tanpa kolom nomor terpisah, nomor kode menyatu di teks">
                                     <i class="bi bi-card-text me-1"></i> Tanpa No
                                 </button>
                             </div>
-                            <input type="hidden" name="kolom_nomor" id="input_kolom_nomor" value="<?= esc($sel_kolom_nomor ?? 'tampilkan'); ?>">
+                            <input type="hidden" name="kolom_nomor" id="input_kolom_nomor" value="<?= esc($sel_kolom_nomor ?? 'sembunyikan'); ?>">
                         </div>
                     </div>
                 </div>
@@ -1338,7 +1335,7 @@ $(document).ready(function() {
     // Handler switch kolom nomor (Tampilkan vs Tanpa No)
     $('#group_kolom_nomor .btn-segmented').on('click', function(e) {
         e.preventDefault();
-        if (isTableLocked || $(this).prop('disabled') || $('#group_kolom_nomor').hasClass('disabled')) {
+        if ($(this).prop('disabled') || $('#group_kolom_nomor').hasClass('disabled')) {
             return false;
         }
         const val = $(this).data('val');
@@ -1524,17 +1521,18 @@ $(document).ready(function() {
                 $('#btn_baris_1kolom').addClass('active');
             }
 
-            $('#group_kolom_nomor').addClass('disabled').css({'opacity': '0.55', 'pointer-events': 'none'});
-            $('#group_kolom_nomor .btn-segmented').prop('disabled', true);
-            $('#box_kolom_nomor').addClass('is-locked').css({'opacity': '0.55', 'pointer-events': 'none'});
+            // Kolom No tetap aktif dan bebas diubah kapan saja meski tabel memiliki data nilai
+            $('#group_kolom_nomor').removeClass('disabled').css({'opacity': '1', 'pointer-events': 'auto'});
+            $('#group_kolom_nomor .btn-segmented').prop('disabled', false);
+            $('#box_kolom_nomor').removeClass('is-locked').css({'opacity': '1', 'pointer-events': 'auto'});
 
             // Sinkronisasi status active kolom nomor
-            const curNomor = $('#input_kolom_nomor').val() || 'tampilkan';
+            const curNomor = $('#input_kolom_nomor').val() || 'sembunyikan';
             $('#group_kolom_nomor .btn-segmented').removeClass('active');
-            if (curNomor === 'sembunyikan') {
-                $('#btn_nomor_sembunyikan').addClass('active');
-            } else {
+            if (curNomor === 'tampilkan') {
                 $('#btn_nomor_tampilkan').addClass('active');
+            } else {
+                $('#btn_nomor_sembunyikan').addClass('active');
             }
 
             // Sinkronisasi status active posisi hirarki agar highlight pilihan yang tersimpan tetap terlihat
@@ -1657,12 +1655,12 @@ $(document).ready(function() {
             $('#group_kolom_nomor .btn-segmented').prop('disabled', true);
         }
 
-        const curNomor = $('#input_kolom_nomor').val() || 'tampilkan';
+        const curNomor = $('#input_kolom_nomor').val() || 'sembunyikan';
         $('#group_kolom_nomor .btn-segmented').removeClass('active');
-        if (curNomor === 'sembunyikan') {
-            $('#btn_nomor_sembunyikan').addClass('active');
-        } else {
+        if (curNomor === 'tampilkan') {
             $('#btn_nomor_tampilkan').addClass('active');
+        } else {
+            $('#btn_nomor_sembunyikan').addClass('active');
         }
     }
 

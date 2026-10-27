@@ -327,7 +327,7 @@
                         <?php
                             $user_lvl_sess = strtolower(trim(session()->get('admin_level') ?? ''));
                             $is_admin_or_super = in_array($user_lvl_sess, ['admin', 'super admin', 'superadmin']);
-                            $is_filled = ($b->is_periksa == '1' || $is_portal);
+                            $is_filled = $is_sudah_diisi;
                             $is_verified = ($b->is_confirm == '1');
                             $is_eligible = ($has_link && $is_filled && $is_verified);
 
