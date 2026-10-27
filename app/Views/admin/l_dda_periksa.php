@@ -206,29 +206,28 @@
                         <!-- STATUS PENGISIAN -->
                         <td>
                             <div class="status-container">
-                                <?php if($b->is_periksa == '1' || $is_portal): ?>
+                                <?php 
+                                $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
+                                $is_sudah_diisi = ($is_portal) || ($is_dynamic ? ($b->is_periksa == '1' && $is_dynamic_uploaded) : ($b->is_periksa == '1'));
+                                ?>
+                                <?php if($is_sudah_diisi): ?>
                                     <span class="badge bg-success-subtle text-success border-0 align-self-start status-badge">
                                         <i class="bi bi-check-circle-fill me-1"></i> SUDAH DIISI
                                     </span>
                                     <div class="note-text">
                                         <?php if($is_portal): ?>
                                             Tersinkronisasi otomatis dengan Portal Data
-                                        <?php elseif($is_dynamic): ?>
+                                        <?php elseif($is_dynamic && $is_dynamic_uploaded): ?>
                                             <?php
-                                            $cleanCatatan = preg_replace('/\s*\(\d+\s*sel\s*terisi\)/iu', '', $b->catatan_periksa ?? '');
-                                            if (preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $cleanCatatan, $m)):
-                                                $uploader = trim($m[1]);
-                                                $waktu    = trim($m[2]);
+                                            $uploader = trim($m[1]);
+                                            $waktu    = trim($m[2]);
                                             ?>
-                                                <div class="text-dark fw-semibold" style="font-size: 0.77rem; line-height: 1.35;">
-                                                    <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
-                                                </div>
-                                                <div class="text-muted mt-1" style="font-size: 0.72rem;">
-                                                    <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
-                                                </div>
-                                            <?php else: ?>
-                                                <i class="bi bi-file-earmark-excel-fill text-success me-1"></i><?= htmlspecialchars($cleanCatatan ?: 'Terhubung ke Tabel Dinamis DDA'); ?>
-                                            <?php endif; ?>
+                                            <div class="text-dark fw-semibold" style="font-size: 0.77rem; line-height: 1.35;">
+                                                <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
+                                            </div>
+                                            <div class="text-muted mt-1" style="font-size: 0.72rem;">
+                                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                                            </div>
                                         <?php else: ?>
                                             <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? htmlspecialchars($b->catatan_periksa) : 'Diinput melalui sheet manual'; ?>
                                         <?php endif; ?>
@@ -269,13 +268,21 @@
                                         <i class="bi bi-dash-circle-fill me-1"></i> BELUM DIISI
                                     </span>
                                     <div class="action-group">
-                                        <a href="javascript:;"
-                                           class="btn btn-action-sm btn-warning text-white btn-isi-data shadow-sm"
-                                           data-id="<?php echo $b->id; ?>"
-                                           data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
-                                           data-unit="<?php echo htmlspecialchars($b->id_unitkerja, ENT_QUOTES); ?>">
-                                            <i class="bi bi-plus-circle me-1"></i> Update Status
-                                        </a>
+                                        <?php if($is_dynamic): ?>
+                                            <a href="<?php echo $tabel_url; ?>"
+                                               class="btn btn-action-sm btn-primary text-white shadow-sm"
+                                               title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
+                                                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Isi Data
+                                            </a>
+                                        <?php else: ?>
+                                            <a href="javascript:;"
+                                               class="btn btn-action-sm btn-warning text-white btn-isi-data shadow-sm"
+                                               data-id="<?php echo $b->id; ?>"
+                                               data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                               data-unit="<?php echo htmlspecialchars($b->id_unitkerja, ENT_QUOTES); ?>">
+                                                <i class="bi bi-plus-circle me-1"></i> Update Status
+                                            </a>
+                                        <?php endif; ?>
                                     </div>
                                 <?php endif; ?>
                             </div>
