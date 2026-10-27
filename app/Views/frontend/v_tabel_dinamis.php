@@ -1952,7 +1952,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         $customIndent = null;
                                         $fontWeightStyle = 'font-weight: bold;';
 
-// Indentasi Visual Hierarkis BPS berdasarkan kode klasifikasi (A., 1., a.)
+                                        // Indentasi Visual Hierarkis BPS berdasarkan kode klasifikasi (A., 1., a.)
                                         // Teks nama baris TIDAK PERNAH dipotong/dimanipulasi (100% as-is sesuai Master Dimensi)
                                         if (preg_match('/^\s*([A-Z])[\.\)]\s*/', $rawNamaInd)) {
                                             $customIndent = 12;
