@@ -907,6 +907,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     h = re.sub(r'\(.*?\)', '', h)
                     h = re.sub(r'\bpresentase\b', 'persentase', h)
                     h = re.sub(r'\bprosentase\b', 'persentase', h)
+                    h = re.sub(r'\bblla\b', 'biia', h)
+                    h = re.sub(r'\bbiia\b', 'biia', h)
                     tokens = set(re.findall(r'\b\w+\b', h))
                     return tokens, h.strip()
 
@@ -926,7 +928,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if is_row_continuation:
                         for h in p1_h:
                             t_set, h_clean = _norm_hdr(h)
-                            pdf_cols.append((h, t_set, h_clean))
+                            pdf_cols.append((h, t_set, h_clean, target_pages[0]))
                     else:
                         for p_num in target_pages:
                             target_page_info = [{'nomor_tabel': target_table, 'pages': [p_num]}]
@@ -935,19 +937,20 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             p_hdrs = detect_col_headers(p_page_rows)
                             for h in p_hdrs:
                                 t_set, h_clean = _norm_hdr(h)
-                                pdf_cols.append((h, t_set, h_clean))
+                                pdf_cols.append((h, t_set, h_clean, p_num))
                 else:
                     p_hdrs = detect_col_headers(target_pdf_rows)
                     for h in p_hdrs:
                         t_set, h_clean = _norm_hdr(h)
-                        pdf_cols.append((h, t_set, h_clean))
+                        pdf_cols.append((h, t_set, h_clean, target_pages[0] if target_pages else None))
 
                 used_p = set()
                 for s_idx, sh in enumerate(headers):
                     s_tokens, sh_clean = _norm_hdr(sh)
                     best_p = None
                     best_score = 0
-                    for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
+                    for p_idx, p_tuple in enumerate(pdf_cols):
+                        ph, p_tokens, ph_clean = p_tuple[0], p_tuple[1], p_tuple[2]
                         if p_idx in used_p:
                             continue
                         overlap = len(s_tokens & p_tokens)
@@ -964,7 +967,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if best_p is None:
                         s_yrs = set(re.findall(r'\b(19|20\d{2})\b', sh))
                         if s_yrs:
-                            for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
+                            for p_idx, p_tuple in enumerate(pdf_cols):
+                                ph, p_tokens, ph_clean = p_tuple[0], p_tuple[1], p_tuple[2]
                                 if p_idx in used_p:
                                     continue
                                 p_yrs = set(re.findall(r'\b(19|20\d{2})\b', ph))
@@ -996,12 +1000,16 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         base_h = headers[i] if i < len(headers) else f"Metrik #{i+1}"
                         if not base_h or re.match(r'^(?:data\s+)?kolom\s+\d+$', str(base_h).lower().strip()):
                             base_h = f"Metrik #{i+1}"
+                        base_h = str(base_h).replace('||', ' - ')
 
                         p_sec = sec_b
                         if col_map and target_pages and len(target_pages) > 1 and pdf_cols and not is_row_continuation:
-                            cols_per_page = max(1, len(pdf_cols) // len(target_pages))
-                            page_idx = min(len(target_pages) - 1, p_col_idx // cols_per_page)
-                            p_sec = f"Halaman {target_pages[page_idx]}"
+                            if p_col_idx < len(pdf_cols) and len(pdf_cols[p_col_idx]) >= 4 and pdf_cols[p_col_idx][3]:
+                                p_sec = f"Halaman {pdf_cols[p_col_idx][3]}"
+                            else:
+                                cols_per_page = max(1, len(pdf_cols) // len(target_pages))
+                                page_idx = min(len(target_pages) - 1, p_col_idx // cols_per_page)
+                                p_sec = f"Halaman {target_pages[page_idx]}"
 
                         is_match, is_tol, diff_val = evaluate_cell_match(pv, sv, tolerance=tolerance)
                         abs_diff = format_display_val(abs(diff_val))
@@ -1034,14 +1042,21 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if pv is None:
                                 continue
                             base_h = p_headers[p_idx] if (p_headers and p_idx < len(p_headers)) else f"Kolom Ekstra #{p_idx+1}"
+                            base_h = str(base_h).replace('||', ' - ')
                             pv_disp = format_display_val(pv)
                             m_yr = re.search(r'\b(20\d{2})\b', str(base_h))
                             if m_yr:
                                 note = f"Tercetak di buku PDF untuk Tahun {m_yr.group(1)}, tidak tersedia di database resmi"
                             else:
                                 note = f"Tercetak di buku PDF untuk {base_h}, tidak tersedia di database resmi"
+
+                            p_sec_extra = sec_b
+                            if target_pages and len(target_pages) > 1 and pdf_cols and not is_row_continuation:
+                                if p_idx < len(pdf_cols) and len(pdf_cols[p_idx]) >= 4 and pdf_cols[p_idx][3]:
+                                    p_sec_extra = f"Halaman {pdf_cols[p_idx][3]}"
+
                             results["pdf_only"].append({
-                                "wilayah": s_disp, "section": sec_b, "metric": base_h,
+                                "wilayah": s_disp, "section": p_sec_extra, "metric": base_h,
                                 "values": [pv_disp], "note": note, "type": "delete"
                             })
 

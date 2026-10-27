@@ -1643,11 +1643,30 @@ class M_tabeldinamis extends Model
         $hasPeriode = !empty($itemsPeriode);
         $hasBaris   = !empty($itemsBaris);
 
+        $makeFullColLabel = function($child): string {
+            $parts = [];
+            $grpInduk = trim((string)($child->grup_induk_ind ?? ($child->group_title_ind ?? '')));
+            if ($grpInduk !== '') {
+                $parts[] = $grpInduk;
+            }
+            $grpSub = trim((string)($child->grup_sub_ind ?? ''));
+            if ($grpSub !== '') {
+                $parts[] = $grpSub;
+            }
+            $rawItem = (string)($child->item_ind ?? '');
+            $itemParts = array_filter(array_map('trim', explode('||', $rawItem)));
+            foreach ($itemParts as $ip) {
+                if ($ip !== '') {
+                    $parts[] = $ip;
+                }
+            }
+            return !empty($parts) ? implode(' - ', $parts) : $rawItem;
+        };
+
         $leafColumns = [];
         if (!$hasBaris && $hasKolom && $hasPeriode) {
             foreach ($flatKolom as $child) {
-                $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
-                $label = $grpTitle ? ($grpTitle . ' - ' . $child->item_ind) : $child->item_ind;
+                $label = $makeFullColLabel($child);
                 $leafColumns[] = [
                     'item_id'    => (int)$child->id,
                     'periode_id' => 0,
@@ -1664,8 +1683,7 @@ class M_tabeldinamis extends Model
             }
         } elseif ($hasKolom && !$hasPeriode) {
             foreach ($flatKolom as $child) {
-                $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
-                $label = $grpTitle ? ($grpTitle . ' - ' . $child->item_ind) : $child->item_ind;
+                $label = $makeFullColLabel($child);
                 $leafColumns[] = [
                     'item_id'    => (int)$child->id,
                     'periode_id' => 0,
@@ -1675,8 +1693,7 @@ class M_tabeldinamis extends Model
         } elseif ($hasKolom && $hasPeriode) {
             if ($isRuntunWaktu || $posisiHirarki === 'periode_baris') {
                 foreach ($flatKolom as $child) {
-                    $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
-                    $label = $grpTitle ? ($grpTitle . ' - ' . $child->item_ind) : $child->item_ind;
+                    $label = $makeFullColLabel($child);
                     $leafColumns[] = [
                         'item_id'    => (int)$child->id,
                         'periode_id' => 0,
@@ -1686,8 +1703,7 @@ class M_tabeldinamis extends Model
             } elseif ($posisiHirarki === 'periode_atas') {
                 foreach ($itemsPeriode as $p) {
                     foreach ($flatKolom as $child) {
-                        $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
-                        $colName = $grpTitle ? ($grpTitle . ' ' . $child->item_ind) : $child->item_ind;
+                        $colName = $makeFullColLabel($child);
                         $leafColumns[] = [
                             'item_id'    => (int)$child->id,
                             'periode_id' => (int)$p->id,
@@ -1697,8 +1713,7 @@ class M_tabeldinamis extends Model
                 }
             } else {
                 foreach ($flatKolom as $child) {
-                    $grpTitle = $child->grup_induk_ind ?? ($child->group_title_ind ?? null);
-                    $colName = $grpTitle ? ($grpTitle . ' ' . $child->item_ind) : $child->item_ind;
+                    $colName = $makeFullColLabel($child);
                     foreach ($itemsPeriode as $p) {
                         $leafColumns[] = [
                             'item_id'    => (int)$child->id,
