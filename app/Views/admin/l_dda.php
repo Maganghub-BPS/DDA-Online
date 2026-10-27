@@ -185,32 +185,27 @@ if (empty($data)) {
         $is_portal = (stripos($b->link_tabel, 'portal') !== false || 
                       stripos($b->link_tabel, 'satudata') !== false || 
                       (isset($b->id_api) && !empty($b->id_api)));
+        $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
+        $is_sudah_diisi = ($is_portal) || ($is_dynamic ? ($b->is_periksa == '1' && $is_dynamic_uploaded) : ($b->is_periksa == '1'));
 
-        if ($b->is_periksa == '1' || $is_portal) { ?>
+        if ($is_sudah_diisi) { ?>
             <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Sudah Diisi</span>
             
             <div class="mt-2 text-start">
                 <small class="text-muted d-block fst-italic">
                     <?php if($is_portal): ?>
                         <i class="bi bi-cloud-check-fill me-1 text-primary"></i>Sudah sinkron dengan portal data Jateng
-                    <?php elseif($is_dynamic): ?>
+                    <?php elseif($is_dynamic && $is_dynamic_uploaded): ?>
                         <?php
-                        $cleanCatatan = preg_replace('/\s*\(\d+\s*sel\s*terisi\)/iu', '', $b->catatan_periksa ?? '');
-                        if (preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $cleanCatatan, $m)):
-                            $uploader = trim($m[1]);
-                            $waktu    = trim($m[2]);
+                        $uploader = trim($m[1]);
+                        $waktu    = trim($m[2]);
                         ?>
-                            <span class="d-block text-dark fw-semibold" style="font-style: normal; font-size: 0.77rem; line-height: 1.35;">
-                                <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
-                            </span>
-                            <span class="d-block text-muted mt-1" style="font-style: normal; font-size: 0.72rem;">
-                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
-                            </span>
-                        <?php else: ?>
-                            <span class="d-block" style="font-style: normal;">
-                                <i class="bi bi-file-earmark-excel-fill me-1 text-success"></i><?= htmlspecialchars($cleanCatatan ?: 'Tabel Dinamis DDA'); ?>
-                            </span>
-                        <?php endif; ?>
+                        <span class="d-block text-dark fw-semibold" style="font-style: normal; font-size: 0.77rem; line-height: 1.35;">
+                            <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
+                        </span>
+                        <span class="d-block text-muted mt-1" style="font-style: normal; font-size: 0.72rem;">
+                            <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                        </span>
                     <?php else: ?>
                         <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? 'Catatan: '.htmlspecialchars($b->catatan_periksa) : 'Input Manual/Sheet'; ?>
                     <?php endif; ?>
@@ -253,13 +248,21 @@ if (empty($data)) {
         <?php } else { ?>
             <div class="d-flex flex-column gap-2">
                 <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2 align-self-start"><i class="bi bi-clock me-1"></i>Belum Diisi</span>
-                <a href="javascript:;"
-                   class="btn btn-sm btn-primary btn-isi-data shadow-sm align-self-start border-0" style="background: #FF6D1F;"
-                   data-id="<?php echo $b->id; ?>"
-                   data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
-                   data-unit="<?php echo htmlspecialchars($b->id_unitkerja, ENT_QUOTES); ?>">
-                    <i class="bi bi-pencil-square me-1"></i>Update Status
-                </a>
+                <?php if($is_dynamic): ?>
+                    <a href="<?php echo $tabel_url; ?>"
+                       class="btn btn-sm btn-primary shadow-sm align-self-start border-0 text-white"
+                       title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
+                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Isi Data
+                    </a>
+                <?php else: ?>
+                    <a href="javascript:;"
+                       class="btn btn-sm btn-primary btn-isi-data shadow-sm align-self-start border-0" style="background: #FF6D1F;"
+                       data-id="<?php echo $b->id; ?>"
+                       data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                       data-unit="<?php echo htmlspecialchars($b->id_unitkerja, ENT_QUOTES); ?>">
+                        <i class="bi bi-pencil-square me-1"></i>Update Status
+                    </a>
+                <?php endif; ?>
             </div>
         <?php } ?>
     </td>

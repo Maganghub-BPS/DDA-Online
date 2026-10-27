@@ -25,6 +25,7 @@ class M_tabeldinamis extends Model
         'konfigurasi_total',
         'label_total_kustom',
         'tampilan_baris',
+        'kolom_nomor',
         'desimal',
         'catatan',
         'created_at',

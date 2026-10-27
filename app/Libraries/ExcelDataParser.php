@@ -406,7 +406,7 @@ class ExcelDataParser
                     $colIdx++;
                 }
             } elseif ($hasKolom && $hasPeriode) {
-                if ($isRuntunWaktu) {
+                if (!$hasBaris || $isRuntunWaktu) {
                     foreach ($flatKolom as $ch) {
                         $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                         $leafColumns[] = [

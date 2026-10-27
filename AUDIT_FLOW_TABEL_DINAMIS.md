@@ -18,8 +18,8 @@ Berdasarkan hasil pemeriksaan menyeluruh pada *controller*, *model*, *library*, 
 
 | Tingkat Keparahan | Jumlah Temuan | Fokus Area |
 | :--- | :---: | :--- |
-| 🔴 **P0 - Kritis (Critical)** | 7 | Kehilangan data tabel dinamis saat edit/sync item dimensi, Celah Keamanan (Auth/RBAC/SQLi/Token), Korupsi Angka Desimal US, Desinkronisasi Multi-Baris Frontend |
-| 🟠 **P1 - Tinggi (High)** | 10 | *Orphaned data* pada Hapus Semua (`reset_tahun`) & Hapus Global (`act_del`), Duplikat Tahunan (`clone_tahunan`) tanpa transaksi & salah tahun periode, Shifting nomor tabel tidak sinkron ke `m_indikator_tabel`, Bypass verifikasi publish |
+| 🔴 **P0 - Kritis (Critical)** | 7 (1 Fixed) | Kehilangan data tabel dinamis saat edit/sync item dimensi (Fixed 2.1), Celah Keamanan (Auth/RBAC/SQLi/Token), Korupsi Angka Desimal US, Desinkronisasi Multi-Baris Frontend |
+| 🟠 **P1 - Tinggi (High)** | 10 (2 Fixed) | *Orphaned data* pada Hapus Semua (`reset_tahun`) & Hapus Global (`act_del`) (Fixed 2.2 & 2.3), Duplikat Tahunan (`clone_tahunan`) tanpa transaksi & salah tahun periode, Shifting nomor tabel tidak sinkron ke `m_indikator_tabel`, Bypass verifikasi publish |
 | 🟡 **P2 - Sedang (Medium)** | 5 | Bug formatting Excel Subtotal, variabel `$satuan` tidak terdefinisi, filter tahun di `admin/dda` mati, nested transaction leak |
 | 🔵 **P3 - Rendah / Best Practice** | 5 | Penghapusan dimensi via GET, Double query count, full-table scan duplicate check, *Fat Controller*, AutoRoute CI4 |
 
@@ -91,48 +91,24 @@ File terkait:
   - [`M_tabeldinamis::syncPeriodeFromTreeItems()`](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Models/M_tabeldinamis.php#L1079) & [`M_tabeldinamis::syncPeriodeItems()`](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Models/M_tabeldinamis.php#L1105)
   - [`Admin::master_dimensi()`](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L4727-L5105)
 
-### 2.2. [🟠 High] Fungsi "Hapus Semua / Kosongkan Tabel Tahunan" (`Admin::reset_tahun`) Meninggalkan Data Yatim (*Orphaned Records*) di `m_indikator_tabel` dan `t_nilai_dinamis`
-- **Lokasi**: [`Admin::reset_tahun()`](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L2895-L2948) dan [l_master_tabel.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Views/admin/l_master_tabel.php#L736-L810)
-- **Masalah**:
-  1. Saat admin menggunakan fitur **"Kosongkan Tabel Tahunan"** (`reset_tahun`), kode hanya mengeksekusi satu query:
-     ```php
-     $this->db->query("DELETE FROM t_tahun_tabel WHERE tahun = ?", [$tahun]);
-     ```
-  2. Bandingkan dengan hapus satuan di [`Admin::master_tabel()` (`act_del`)](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L1072-L1089) yang secara eksplisit menghapus `t_nilai_dinamis` dan `m_indikator_tabel` terlebih dahulu. Karena `reset_tahun()` tidak menghapus `t_nilai_dinamis` dan `m_indikator_tabel` (serta tidak membersihkan `m_list_tabel` yang tidak lagi memiliki `t_tahun_tabel`), maka ribuan baris di `t_nilai_dinamis` dan ratusan kerangka di `m_indikator_tabel` akan tertinggal sebagai **data sampah (*orphaned rows*)** di database!
-  3. Lebih buruk lagi, karena `m_indikator_tabel` masih menyimpan baris yatim tersebut (dengan `id_karakteristik_kelompok`, `id_baris_kelompok`, `id_periode_kelompok`), ketika admin ingin menghapus kelompok dimensi di Master Dimensi (`del_karakteristik` / `del_baris` / `del_periode`), sistem akan **menolak menghapus dimensi** dengan pesan *"Gagal menghapus! Kelompok ini sedang digunakan oleh N tabel dinamis"*, padahal tabel tahunannya sudah dihapus lewat `reset_tahun()`!
-- **Rekomendasi**:
-  Di dalam `reset_tahun()`, bungkus dengan transaksi database dan hapus secara berurutan sebelum menghapus `t_tahun_tabel`:
-  ```php
-  $this->db->transStart();
-  $this->db->query("DELETE FROM t_nilai_dinamis WHERE id_tahun_tabel IN (SELECT id FROM t_tahun_tabel WHERE tahun = ?)", [$tahun]);
-  $this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (SELECT id FROM t_tahun_tabel WHERE tahun = ?)", [$tahun]);
-  $this->db->query("DELETE FROM t_tahun_tabel WHERE tahun = ?", [$tahun]);
-  $this->db->query("DELETE FROM m_list_tabel WHERE id_tabel NOT IN (SELECT DISTINCT id_tabel FROM t_tahun_tabel)");
-  $this->db->transComplete();
-  ```
+### 2.2. [✅ Fixed] Fungsi "Hapus Semua / Kosongkan Tabel Tahunan" (`Admin::reset_tahun`) Telah Dibungkus Transaksi & Menghapus Bertingkat `t_nilai_dinamis` -> `m_indikator_tabel` -> `t_tahun_tabel`
+- **Status**: **SUDAH DIPERBAIKI (26 Oktober 2026)**
+- **Solusi yang Diterapkan**:
+  1. Pada [`Admin::reset_tahun()`](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L2939-L2965), operasi penghapusan dibungkus secara menyeluruh dalam transaksi database (`$this->db->transStart()` dan `$this->db->transComplete()`).
+  2. Ditambahkan penghapusan data nilai dinamis secara eksplisit: `DELETE FROM t_nilai_dinamis WHERE id_indikator IN (SELECT mi.id FROM m_indikator_tabel mi JOIN t_tahun_tabel tt ON mi.id_tahun_tabel = tt.id WHERE tt.tahun = ?)`.
+  3. Ditambahkan penghapusan konfigurasi dimensi tabel dinamis secara eksplisit: `DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (SELECT id FROM t_tahun_tabel WHERE tahun = ?)`.
+  4. Baru kemudian mengeksekusi `DELETE FROM t_tahun_tabel WHERE tahun = ?`. Dengan demikian, tidak ada data yatim (*orphaned rows*) yang tersisa, bahkan jika konfigurasi server database menonaktifkan foreign key checks. Kamus master `m_list_tabel` tetap aman dipertahankan.
 
-### 2.3. [🟠 High] Fungsi "Hapus Master Tabel Global" (`act_del` dengan `scope = 'all'`) Tidak Menghapus `m_indikator_tabel` & `t_nilai_dinamis` di Tahun Lain
-- **Lokasi**: [`Admin::master_tabel()` (`act_del`)](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L1068-L1096)
-- **Masalah**:
-  Ketika admin menghapus sebuah tabel dengan opsi **"Hapus Seluruhnya (Global)"** (`scope = 'all'`), kode pada baris 1084–1089 mengeksekusi:
-  ```php
-  } else {
-      // Hapus seluruhnya (Global)
-      if ($ind) {
-          $this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator = ?", [$ind->id]);
-          $this->db->query("DELETE FROM m_indikator_tabel WHERE id = ?", [$ind->id]);
-      }
-      $this->db->query("DELETE FROM t_tahun_tabel WHERE id_tabel = ?", [$check->id_tabel]);
-      $this->db->query("DELETE FROM m_list_tabel WHERE id_tabel = ?", [$check->id_tabel]);
-  }
-  ```
-  Perhatikan bahwa variabel `$ind` hanya berisi `m_indikator_tabel` untuk **`$id_tahun_tabel` tahun yang sedang diklik saja** (`WHERE id_tahun_tabel = $id_tahun_tabel`), sedangkan baris berikutnya menghapus `t_tahun_tabel` untuk **semua tahun** (`WHERE id_tabel = $check->id_tabel`). Akibatnya, `m_indikator_tabel` dan `t_nilai_dinamis` milik tabel tersebut di tahun-tahun lainnya tertinggal menjadi *orphaned records*!
-- **Rekomendasi**:
-  Saat `scope === 'all'`, hapus seluruh `t_nilai_dinamis` dan `m_indikator_tabel` untuk semua `id_tahun_tabel` yang berinduk pada `$check->id_tabel`:
-  ```php
-  $this->db->query("DELETE FROM t_nilai_dinamis WHERE id_tahun_tabel IN (SELECT id FROM t_tahun_tabel WHERE id_tabel = ?)", [$check->id_tabel]);
-  $this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (SELECT id FROM t_tahun_tabel WHERE id_tabel = ?)", [$check->id_tabel]);
-  ```
+### 2.3. [✅ Fixed] Fungsi "Hapus Master Tabel" (`Admin::master_tabel` -> `act_del`) Telah Mendukung Penghapusan Eksplisit Serta Pilihan Lingkup Hapus (Tahun Ini vs Global Semua Tahun)
+- **Status**: **SUDAH DIPERBAIKI (26 Oktober 2026)**
+- **Solusi yang Diterapkan**:
+  1. Pada [Admin.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L1120-L1190) (`mau_ke == "del"`), sistem memeriksa seluruh riwayat tahun terbit tabel (`all_years`) untuk dikirimkan ke view.
+  2. Pada modal konfirmasi [f_del_master.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Views/admin/f_del_master.php), jika tabel terdaftar di lebih dari 1 tahun, disediakan opsi radio button:
+     - `scope = 'current'`: Hanya menghapus tabel pada tahun yang dipilih.
+     - `scope = 'all'`: Menghapus tabel secara global dari seluruh tahun sekaligus beserta kamus master tabel.
+  3. Pada `Admin::master_tabel` (`mau_ke == "act_del"`):
+     - Jika `scope === 'all'`: mengeksekusi penghapusan berurutan `t_nilai_dinamis`, `m_indikator_tabel`, `t_tahun_tabel`, `m_list_tabel`, dan `m_kondef` untuk seluruh tahun yang berinduk pada tabel tersebut di dalam transaksi database.
+     - Jika `scope === 'current'`: mengeksekusi penghapusan berurutan untuk `$id_oi` tahun aktif, dan membersihkan `m_list_tabel` jika tabel sudah tidak memiliki tautan di tahun lain.
 
 ### 2.4. [🟠 High] Fungsi "Duplikat / Clone Tahunan" (`Admin::clone_tahunan`) Tanpa Transaksi Database, Mengalami N+1 Query, dan Menyalin Tahun Periode Lama Mentah-mentah
 - **Lokasi**: [`Admin::clone_tahunan()`](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L2785-L2889)
@@ -423,7 +399,7 @@ Berikut adalah urutan prioritas eksekusi yang direkomendasikan dari yang **palin
 | **3** | 🔴 **P0 (Kritis)** | **5.1** | Upload Excel (`ExcelDataParser::sanitizeValue`) | [ExcelDataParser.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Libraries/ExcelDataParser.php#L696-L716) | Angka string berformat US (`1,234.56`) selalu dianggap format ID (`1.234,56`). | **Korupsi Angka**: Nilai `1,234.56` berubah menjadi `1.23456` (mengecil 1.000x lipat) saat diimpor ke database. |
 | **4** | 🔴 **P0 (Kritis)** | **7.1 & 7.2** | Frontend Viewer (`v_tabel_dinamis.php`) | [frontend/v_tabel_dinamis.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Views/frontend/v_tabel_dinamis.php#L87-L120), [baris 1872-1952](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Views/frontend/v_tabel_dinamis.php#L1872-L1952) | Logika Multi-Baris (`\|\|`), baris Total `runtun_waktu`, dan `Catatan` belum ada di Frontend. | **Tampilan Publik Rusak**: Tabel berformat `\|\|` tampil mentah di frontend publik dan baris total runtun waktu hilang. |
 | **5** | 🔴 **P0 (Kritis)** | **1.3 & 7.4** | Keamanan Query `$ta` & Token API | [Admin.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L516-L527), [Home.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Home.php#L77-L88) | `$ta` dari GET dimasukkan ke SQL tanpa binding/cast `(int)`; Bearer Token Satu Data ditulis *hardcoded*. | Risiko **SQL Injection** melalui parameter `?ta=` dan kebocoran token produksi. |
-| **6** | 🟠 **P1 (Tinggi)** | **2.2 & 2.3** | Master Data: Hapus Semua (`reset_tahun`) & Hapus Global (`act_del`) | [Admin.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L1084-L1089), [baris 2895-2948](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L2895-L2948) | Menghapus `t_tahun_tabel` tanpa menghapus `m_indikator_tabel` dan `t_nilai_dinamis` terkait. | **Data Yatim (*Orphaned Data*)**: Menyisakan ribuan baris sampah dan menyebabkan Master Dimensi terkunci tidak bisa dihapus. |
+| **6** | ✅ **Selesai (Fixed)** | **2.2 & 2.3** | Master Data: Hapus Semua (`reset_tahun`) & Hapus Global (`act_del`) | [Admin.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L1120-L1190), [baris 2939-2965](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L2939-L2965), [f_del_master.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Views/admin/f_del_master.php#L65-L108) | Penghapusan bertingkat eksplisit `t_nilai_dinamis` -> `m_indikator_tabel` -> `t_tahun_tabel` dalam transaksi DB & penambahan opsi lingkup hapus (`current` vs `all`). | **Sudah Beres**: Database bersih dari data yatim (*orphaned data*), Master Dimensi tidak terkunci semu, dan admin leluasa memilih lingkup hapus tahun ini atau global. |
 | **7** | 🟠 **P1 (Tinggi)** | **2.4** | Master Data: Duplikat Tahunan (`clone_tahunan`) | [Admin.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L2785-L2889) | Duplikasi ratusan tabel tidak dibungkus transaksi DB, menyalin `periode_id` tahun lama mentah-mentah, dan N+1 query. | Jika gagal di tengah jalan, data tahun baru masuk sebagian; periode tahun tabel baru tetap tertulis tahun lama. |
 | **8** | 🟠 **P1 (Tinggi)** | **1.1 & 1.2** | Master Tabel: Shifting & Resequence (`shift_table_numbers`, `resequence_tabel`, `act_edt`) | [Admin.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L999-L1038), [baris 1332](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L1332), [baris 3032](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Controllers/Admin.php#L3032) | Shifting tanpa transaksi DB, tidak meng-update `m_indikator_tabel.no_tabel`, dan absen saat mode Edit (`act_edt`). | Nomor tabel di `m_indikator_tabel` tidak sinkron dengan `t_tahun_tabel`, dan edit nomor tabel bisa menghasilkan nomor ganda. |
 | **9** | 🟠 **P1 (Tinggi)** | **4.3 & 5.2** | Proteksi Sheet Excel & Validasi Checksum Metadata | [ExcelTemplateGenerator.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Libraries/ExcelTemplateGenerator.php#L2028), [ExcelDataParser.php](file:///E:/BPS%20JATENG/DDA/dda-online-ci4-tabel-dinamis/app/Libraries/ExcelDataParser.php#L55-L115) | `setSheet(false)` membiarkan baris Excel disisipkan/dihapus; checksum SHA-256 tidak divalidasi saat upload. | Jika pengguna menyisipkan 1 baris di Excel atau mengupload template lama, angka masuk ke baris/item yang salah. |
