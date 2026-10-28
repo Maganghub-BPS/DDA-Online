@@ -80,23 +80,24 @@ Seluruh dimensi bertemu di tabel penyimpanan sel `t_nilai_dinamis`:
 
 ---
 
-## 🗑️ Daftar Kolom yang Tidak Digunakan (Rekomendasi Pembersihan / Drop Columns)
+## 🏛️ Rangkuman Struktur 10 Tabel Dinamis Aktif (Sesuai Database Terkini)
 
-Berdasarkan audit empiris langsung terhadap seluruh baris data di database MySQL, berikut adalah daftar kolom yang **tidak digunakan (0% terisi)** atau **redundant** sehingga sudah dihilangkan dari diagram ERD di atas dan aman untuk Anda hapus (*DROP COLUMN*) di kemudian hari:
+| Nama Tabel | Deskripsi & Peran | Kolom-Kolom Utama |
+| :--- | :--- | :--- |
+| **`m_list_tabel`** | Master judul buku DDA permanen lintas tahun | `id` [PK], `judul_ind`, `judul_en`, `id_unitkerja` |
+| **`t_tahun_tabel`** | Edisi publikasi per tahun (status publish & flag dinamis) | `id` [PK], `id_tabel` [FK], `tahun`, `no_tabel`, `is_publish`, `published_at`, `is_dynamic` |
+| **`m_indikator_tabel`** | Konfigurasi perakitan matriks & tata letak tabel dinamis | `id` [PK], `id_tahun_tabel` [FK], `id_karakteristik_kelompok` [FK], `id_baris_kelompok` [FK], `id_periode_kelompok` [FK], `posisi_hirarki`, `tingkat_kolom`, `konfigurasi_total`, `label_total_kustom`, `tampilan_baris`, `kolom_nomor`, `satuan`, `desimal`, `catatan` |
+| **`m_baris_kelompok`** | Kelompok dimensi baris (Sumbu Y) | `id` [PK], `nama_kelompok_ind`, `nama_kelompok_en`, `judul_baris_ind`, `judul_baris_en`, `judul_sub_baris_ind`, `judul_sub_baris_en` |
+| **`m_baris_item`** | Rincian baris data, kategori, indentasi, & format tebal | `id` [PK], `id_kelompok` [FK], `nama_baris_ind`, `nama_baris_en`, `tipe_baris`, `level_indentasi`, `is_bold`, `no_urut` |
+| **`m_karakteristik_kelompok`** | Kelompok dimensi kolom/variabel (Sumbu X) | `id` [PK], `nama_kelompok_ind`, `nama_kelompok_en` |
+| **`m_karakteristik_item`** | Rincian sub-kolom bertingkat (Induk & Anak) / standalone | `id` [PK], `id_kelompok` [FK], `grup_induk_ind`, `grup_induk_en`, `grup_sub_ind`, `grup_sub_en`, `item_ind`, `item_en`, `is_standalone`, `no_urut` |
+| **`m_periode_kelompok`** | Kelompok dimensi waktu/periode (Sumbu Z) | `id` [PK], `nama_kelompok_ind`, `nama_kelompok_en`, `judul_periode_ind`, `judul_periode_en` |
+| **`m_periode_item`** | Rincian titik waktu publikasi (Tahun/Semester/Bulan) | `id` [PK], `id_kelompok` [FK], `nama_periode_ind`, `nama_periode_en`, `no_urut` |
+| **`t_nilai_dinamis`** | Koordinat sel data numerik & simbol resmi BPS | `id` [PK], `id_indikator` [FK], `id_baris_item` [FK], `id_karakteristik_item` [FK], `id_periode_item` [FK], `nilai`, `simbol` |
 
-| No | Nama Tabel | Nama Kolom | Status Keterisian di DB | Alasan & Rekomendasi Pembersihan |
-|:--:| :--- | :--- | :---: | :--- |
-| **1** | `m_baris_item` | **`parent_id`** | **0 / 2.984 (0%)** | **Kosong total.** Hierarki dan indentasi baris diatur menggunakan `level_indentasi` dan `tipe_baris`. Kolom ini aman dihapus. |
-| **2** | `m_indikator_tabel` | **`label_total_kustom`** | **0 / 213 (0%)** | **Kosong total.** Label baris total dikelola dinamis di view / master baris. |
-| **3** | `m_indikator_tabel` | **`satuan`** | **0 / 213 (0%)** | **Kosong total.** Satuan tabel melekat pada judul atau kolom rincian. |
-| **4** | `m_indikator_tabel` | **`desimal`** | **0 / 213 (0%)** | **Kosong total.** Format angka menggunakan pembulatan standar numerik. |
-| **5** | `m_indikator_tabel` | **`catatan`** | **0 / 213 (0%)** | **Kosong total.** Catatan tabel sudah tersimpan pada tabel induk `t_tahun_tabel.catatan`. |
-| **6** | `m_baris_kelompok` | **`judul_sub_baris_en`** | **0 / 106 (0%)** | **Kosong total.** Tidak pernah diisi. |
-| **7** | `m_baris_kelompok` | **`keterangan`** | **3 / 106 (2.8%)** | Catatan internal kelompok yang tidak pernah ditampilkan ke publik/antarmuka. |
-| **8** | `m_karakteristik_kelompok`| **`keterangan`** | **1 / 251 (0.4%)** | Nyaris kosong total. |
-| **9** | `m_periode_kelompok` | **`keterangan`** | **1 / 29 (3.4%)** | Nyaris kosong total. |
-
-> 💡 **Catatan Khusus Kolom Baris:** Kolom **`judul_sub_baris_ind`** tetap dipertahankan pada `m_baris_kelompok` karena aktif digunakan untuk memberi label pada kolom kedua saat tabel menggunakan format tata letak 2 kolom (*Induk & Rincian / 2 Kolom Baris*).
-
-> 💡 **Hasil Pembersihan:** Diagram ERD yang ditampilkan di atas kini **100% bersih hanya memuat kolom-kolom inti yang aktif bekerja**. Ketika Anda siap menghapus kolom-kolom di atas dari database, struktur tabel di database akan persis sama dengan diagram ERD di dokumen ini.
+> 💡 **Pembaruan Schema Terkini:**
+> 1. Penambahan kolom **`kolom_nomor`** pada `m_indikator_tabel` untuk konfigurasi manual opsi nomor urut tabel (Tampilkan vs Sembunyikan).
+> 2. Penambahan kolom **`published_at`** pada `t_tahun_tabel` untuk pelacakan waktu publikasi.
+> 3. Peningkatan panjang kolom **`t_nilai_dinamis.simbol`** menjadi `VARCHAR(100)` agar mampu menampung notasi statistik dan satuan kustom.
+> 4. Pembersihan kolom usang (*Phase 1 Cleanup*): `parent_id` pada `m_baris_item` serta kolom `keterangan` kelompok telah dihapus demi kesederhanaan dan performa kueri.
 
