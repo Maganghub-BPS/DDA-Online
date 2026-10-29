@@ -2139,8 +2139,8 @@ $isConfigured = ($indikator && $dimCount >= 2);
                 </div>
 
                 <div class="modal-footer px-4 py-3 bg-light border-top">
-                    <button type="button" class="btn btn-sm btn-light border px-3 fw-semibold text-secondary" data-bs-dismiss="modal" id="btnCancelUpload" style="border-radius: 6px;">Batal</button>
-                    <button type="submit" class="btn btn-sm btn-success px-4 fw-semibold shadow-xs d-inline-flex align-items-center gap-2" id="btnSubmitUpload" disabled style="background: #059669 !important; border-color: #059669 !important; border-radius: 6px;">
+                    <button type="button" class="btn btn-light border rounded-pill px-4 py-2 text-xs fw-semibold text-secondary shadow-xs" data-bs-dismiss="modal" id="btnCancelUpload">Batal</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs d-inline-flex align-items-center gap-2" id="btnSubmitUpload" disabled style="background: #059669 !important; border-color: #059669 !important;">
                         <i class="bi bi-cloud-arrow-up-fill"></i> Mulai Impor Data
                     </button>
                 </div>
@@ -2263,12 +2263,40 @@ $(document).ready(function() {
                     $('#uploadSuccessAlert').show().addClass('d-flex');
 
                     if (typeof Swal !== 'undefined') {
+                        // Sembunyikan modal bootstrap agar tidak menumpuk di latar belakang
+                        var uploadModalEl = document.getElementById('ModalUploadExcelDinamis');
+                        if (uploadModalEl) {
+                            var modalInst = bootstrap.Modal.getInstance(uploadModalEl);
+                            if (modalInst) {
+                                modalInst.hide();
+                            }
+                        }
+
                         Swal.fire({
-                            icon: 'success',
-                            title: 'Impor Berhasil!',
-                            html: res.message + '<br><small class="text-muted">Total ' + (res.filled_cells || 0) + ' sel data diperbarui</small>',
-                            confirmButtonColor: '#059669',
-                            confirmButtonText: 'Selesai'
+                            html: `
+                                <div class="text-center pt-2 pb-1">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-xs" style="width: 56px; height: 56px; background: #ecfdf5; border: 2px solid #a7f3d0; color: #059669;">
+                                        <i class="bi bi-check-lg" style="font-size: 1.85rem;"></i>
+                                    </div>
+                                    <h5 class="fw-bold text-dark mb-2">Impor Berhasil!</h5>
+                                    <p class="text-secondary small mb-3 px-2" style="line-height: 1.55;">
+                                        Data pengisian tabel dinamis berhasil diproses dan disimpan ke database.
+                                    </p>
+                                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-success-subtle text-success border border-success-subtle text-xs fw-semibold">
+                                        <i class="bi bi-database-check"></i>
+                                        <span><b>${res.filled_cells || 0} sel data</b> berhasil diperbarui</span>
+                                    </div>
+                                </div>
+                            `,
+                            confirmButtonText: 'Selesai',
+                            width: '390px',
+                            customClass: {
+                                popup: 'rounded-4 shadow-lg border-0 p-4',
+                                htmlContainer: 'm-0 p-0',
+                                actions: 'mt-3 w-100 justify-content-center border-0 p-0',
+                                confirmButton: 'btn btn-success rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs'
+                            },
+                            buttonsStyling: false
                         }).then(function() {
                             window.location.reload();
                         });

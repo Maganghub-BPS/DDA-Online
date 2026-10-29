@@ -1,11 +1,51 @@
 #Untuk menentukan nomor baris untuk kolom 
 import re
+import threading
 from normalizer import (
     parse_num, clean_header_text, find_wilayah_with_type,
     is_bps_col_num, is_title_row, resolve_jateng_entity,
-    resolve_provinsi_entity, is_header_or_metadata_row
+    resolve_provinsi_entity, is_header_or_metadata_row,
+    strip_pdf_page_watermark, clean_pdf_watermark_text
 )
 from pdf_extractor import extract_table_content
+
+_CLEAN_PAGE_CACHE = {}
+_CLEAN_PAGE_CACHE_LOCK = threading.Lock()
+
+def extract_clean_page_tables(pdf_path, page_num):
+    cache_key = (pdf_path, page_num)
+    with _CLEAN_PAGE_CACHE_LOCK:
+        if cache_key in _CLEAN_PAGE_CACHE:
+            return _CLEAN_PAGE_CACHE[cache_key]
+
+    tables_data = []
+    try:
+        import pymupdf as fitz
+        doc = fitz.open(pdf_path)
+        if 0 <= page_num - 1 < len(doc):
+            page = doc[page_num - 1]
+            strip_pdf_page_watermark(doc, page)
+            import io, contextlib
+            with contextlib.redirect_stdout(io.StringIO()):
+                tabs = page.find_tables()
+            if tabs.tables:
+                for t in tabs.tables:
+                    g = t.extract()
+                    if g and len(g) >= 2:
+                        tables_data.extend(g)
+    except Exception:
+        pass
+
+    if not tables_data:
+        try:
+            from pdf_extractor import get_cached_page_tables
+            tables_data = get_cached_page_tables(pdf_path, page_num)
+        except Exception:
+            pass
+
+    with _CLEAN_PAGE_CACHE_LOCK:
+        _CLEAN_PAGE_CACHE[cache_key] = tables_data
+    return tables_data
 
 def find_bps_numbering_row(source_data):
     if not source_data or not isinstance(source_data, list): return -1, [], 'none'
@@ -26,10 +66,15 @@ def find_bps_numbering_row(source_data):
             starts_early = (non_empty[0][0] <= 1)
             nums = [int(re.match(r'^[\(\-]?(\d+)\)?$', v).group(1)) for _, v in non_empty]
             is_seq = (nums == list(range(nums[0], nums[0] + len(nums))))
-            score = (100 if all_parens else (50 if has_parens else 0)) + \
-                    (50 if (starts_one and is_seq) else 0) + \
+            
+            # Jika tidak ada tanda kurung dan nomor tidak berurutan, ini pasti baris data angka kecil, bukan nomor kolom BPS!
+            if not has_parens and not is_seq:
+                continue
+
+            score = (150 if all_parens else (60 if has_parens else 0)) + \
+                    (60 if (starts_one and is_seq) else 0) + \
                     (30 if starts_early else 0) + \
-                    (20 if is_seq else 0) + \
+                    (30 if is_seq else 0) + \
                     len(non_empty)
             if score > best_score:
                 best_score = score
@@ -299,9 +344,7 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
     if pdf_path and target_pages and len(target_pages) > 1 and target_table:
         all_headers = []
         for p_num in target_pages:
-            p_info = [{'nomor_tabel': target_table, 'pages': [p_num]}]
-            extract_table_content(pdf_path, p_info)
-            p_rows = p_info[0].get('extracted_data', [])
+            p_rows = extract_clean_page_tables(pdf_path, p_num)
             if not p_rows: continue
             
             d_start = -1
@@ -526,6 +569,12 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                     if s_idx < len(s_vals) and p_idx < len(p_vals):
                         sv = s_vals[s_idx]
                         pv = p_vals[p_idx]
+                        if sv is None or pv is None:
+                            continue
+                        if isinstance(sv, (int, float)) and sv <= -900000:
+                            continue
+                        if isinstance(pv, (int, float)) and pv <= -900000:
+                            continue
                         total_cnt += 1
                         if abs(sv - pv) < 0.0001:
                             match_cnt += 1
@@ -678,12 +727,8 @@ def detect_table_archetype(pdf_path, target_table, target_pages, source_data):
             return "SINGLE_PAGE_PROVINCIAL"
         return "SINGLE_PAGE_CATEGORICAL"
 
-    p1_info = [{'nomor_tabel': target_table, 'pages': [target_pages[0]]}]
-    p2_info = [{'nomor_tabel': target_table, 'pages': [target_pages[1]]}]
-    extract_table_content(pdf_path, p1_info)
-    extract_table_content(pdf_path, p2_info)
-    p1_rows = p1_info[0].get('extracted_data', [])
-    p2_rows = p2_info[0].get('extracted_data', [])
+    p1_rows = extract_clean_page_tables(pdf_path, target_pages[0])
+    p2_rows = extract_clean_page_tables(pdf_path, target_pages[1]) if len(target_pages) > 1 else []
 
     p2_first_ints = []
     for r in p2_rows[:15]:
@@ -761,6 +806,25 @@ def profile_api_schema(api_records):
     return col_roles
 
 
+def _filter_api_records_by_target_year(records, temporal_cols, pdf_rows):
+    if not temporal_cols: return records
+    t_col = temporal_cols[0]
+    rec_years = sorted(list(set(str(r.get(t_col)).strip() for r in records if r.get(t_col))))
+    if len(rec_years) <= 1:
+        return records
+    pdf_years = set()
+    if pdf_rows:
+        pdf_text = " ".join(str(c) for r in pdf_rows[:20] if isinstance(r, list) for c in r if c)
+        for y in re.findall(r'\b(20\d{2})\b', pdf_text):
+            pdf_years.add(y)
+    common = sorted(list(set(rec_years).intersection(pdf_years)))
+    if common:
+        target_y = common[-1]
+        return [r for r in records if str(r.get(t_col)).strip() == target_y]
+    latest_y = rec_years[-1]
+    return [r for r in records if str(r.get(t_col)).strip() == latest_y]
+
+
 def normalize_api_data(api_records, pdf_rows=None, target_table=None):
     """
     Mengonversi list of dict dari API Satudata menjadi representasi 2D tabular generik
@@ -787,6 +851,7 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
 
     # 1. LAYOUT REGIONAL (35 Kab/Kota)
     if region_cols:
+        api_records = _filter_api_records_by_target_year(api_records, temporal_cols, pdf_rows)
         reg_col = region_cols[0]
         # Jika ada kolom kategori breakdown juga di tabel wilayah (misal jenis_ppks per kab/kota)
         if cat_cols:
@@ -825,6 +890,7 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
 
     # 2. CROSS-TABULATION / HIERARCHICAL BREAKDOWN PIVOT (misal 2.2.1 Partai Politik x Gender, 2.2.5 x Umur)
     if len(cat_cols) >= 2 and metric_cols:
+        api_records = _filter_api_records_by_target_year(api_records, temporal_cols, pdf_rows)
         val_col = metric_cols[0]
         # Entitas utama (baris) adalah kategori dengan kardinalitas tertinggi (misal nama partai ~18)
         cat_cardinality = {c: len(set(str(r.get(c, '')).strip() for r in api_records if r.get(c))) for c in cat_cols}
@@ -853,11 +919,33 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
             if p_val and p_val not in primary_entities:
                 primary_entities.append(p_val)
 
-        sub_vals = []
+        sub_vals_raw = []
         for r in api_records:
             s_val = str(r.get(chosen_sub, '')).strip()
-            if s_val and s_val not in sub_vals:
-                sub_vals.append(s_val)
+            if s_val and s_val not in sub_vals_raw:
+                sub_vals_raw.append(s_val)
+
+        # Pisahkan sub-kategori yang sudah bernilai 'Jumlah' / 'Total'
+        sub_vals_clean = []
+        for s in sub_vals_raw:
+            sl = s.lower().strip()
+            if sl in ['jumlah', 'total', 'jumlah / total', 'all', 'semua']:
+                continue
+            sub_vals_clean.append(s)
+
+        # Urutkan sub_vals secara kanonik (Gender: L lalu P, Umur: numerik naik)
+        def sort_sub_val(val_str):
+            vl = val_str.lower().strip()
+            if vl in ['l', 'laki-laki', 'laki - laki', 'pria', 'male']:
+                return (0, 0)
+            if vl in ['p', 'perempuan', 'wanita', 'female']:
+                return (0, 1)
+            m_num = re.search(r'\d+', val_str)
+            if m_num:
+                return (1, int(m_num.group(0)))
+            return (2, val_str)
+
+        sub_vals = sorted(sub_vals_clean, key=sort_sub_val)
 
         def format_col_header(s):
             sl = s.lower().strip()
@@ -878,15 +966,17 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
             row.append(int(row_sum) if row_sum.is_integer() else row_sum)
             grid.append(row)
 
-        # Baris Rekapitulasi Total Provinsi (Jawa Tengah)
-        total_row = ['Jawa Tengah']
-        grand_total = 0.0
-        for sv in sub_vals:
-            col_sum = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(chosen_sub, '')).strip() == sv)
-            total_row.append(int(col_sum) if col_sum.is_integer() else col_sum)
-            grand_total += col_sum
-        total_row.append(int(grand_total) if grand_total.is_integer() else grand_total)
-        grid.append(total_row)
+        # Baris Rekapitulasi Total Provinsi (Jawa Tengah) jika belum ada di primary_entities
+        has_total = any(resolve_jateng_entity(p)[0] == '33.00' or p.lower().strip() in ['jawa tengah', 'total', 'jumlah'] for p in primary_entities)
+        if not has_total:
+            total_row = ['Jawa Tengah']
+            grand_total = 0.0
+            for sv in sub_vals:
+                col_sum = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(chosen_sub, '')).strip() == sv)
+                total_row.append(int(col_sum) if col_sum.is_integer() else col_sum)
+                grand_total += col_sum
+            total_row.append(int(grand_total) if grand_total.is_integer() else grand_total)
+            grid.append(total_row)
         return grid
 
     # 3. TIME-SERIES / MULTI-YEAR PIVOT (misal 2.4.2 Belanja Daerah x Multi-Tahun, 9.1.19 Penumpang Trans Jateng)
