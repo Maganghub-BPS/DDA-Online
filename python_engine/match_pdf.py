@@ -106,14 +106,32 @@ def build_index(pdf_path, db_tables=None):
     
     # Pre-extract page headers for fast direct PDF scanning
     page_heads = [p.get_text()[:400] for p in doc]
+    spatial_heads = None
+
+    def get_spatial_heads():
+        nonlocal spatial_heads
+        if spatial_heads is None:
+            spatial_heads = []
+            for p in doc:
+                max_y = (p.rect.height or 842) * 0.35
+                blocks = [b for b in p.get_text("blocks") if b[1] < max_y and len(b) > 4 and isinstance(b[4], str)]
+                blocks.sort(key=lambda b: (round(b[1] / 15.0), b[0]))
+                spatial_heads.append("\n".join(b[4].strip() for b in blocks))
+        return spatial_heads
     
     def find_pages_direct(t_num):
-        pat = re.compile(rf'(?:(?:Tabel|Table|Lanjutan\s+Tabel|Continued\s+Table)\s*{re.escape(t_num)}\b|^\s*{re.escape(t_num)}\s*[\t])', re.IGNORECASE | re.MULTILINE)
+        pat = re.compile(rf'(?:(?:Tabel|Table|Lanjutan\s+Tabel|Continued\s+Table)\s*{re.escape(t_num)}\b|^\s*{re.escape(t_num)}\s*[\t ])', re.IGNORECASE | re.MULTILINE)
         p_list = []
         for idx, ph in enumerate(page_heads):
             if idx < 65: continue  # skip prelims/TOC
             if pat.search(ph):
                 p_list.append(idx + 1)
+        # Additive Fallback: Spatial Header Sorter (Top 35% sorted by Y, X)
+        if not p_list:
+            for idx, sh in enumerate(get_spatial_heads()):
+                if idx < 65: continue
+                if pat.search(sh):
+                    p_list.append(idx + 1)
         if not p_list: return []
         groups = []
         curr = [p_list[0]]
@@ -151,12 +169,27 @@ def build_index(pdf_path, db_tables=None):
 
     table_starts.sort(key=lambda x: x[1])
 
-    # Assign strictly non-overlapping page blocks
+    # Assign strictly non-overlapping page blocks with non-table boundary stopping
     for i, (k, st, v) in enumerate(table_starts):
-        nxt_st = table_starts[i+1][1] if i + 1 < len(table_starts) else st + 3
-        p_range = list(range(st, min(nxt_st, st + 35)))
-        if not p_range: p_range = [st]
-        toc[k]["pages"] = p_range
+        nxt_st = table_starts[i+1][1] if i + 1 < len(table_starts) else min(st + 3, len(doc) + 1)
+        max_limit = min(nxt_st, st + 35)
+        clean_pages = []
+        for p in range(st, max_limit):
+            if p == st:
+                clean_pages.append(p)
+                continue
+            p_0based = p - 1
+            if 0 <= p_0based < len(doc):
+                txt_head = doc[p_0based].get_text()[:500].lower()
+                is_gambar = bool(re.search(r'\b(?:gambar|figure)\s+\d', txt_head)) and not any(tbl in txt_head for tbl in ['tabel', 'table'])
+                is_bab = bool(re.search(r'^\s*bab\s+[ivxlc\d]+', txt_head, re.MULTILINE) or re.search(r'\bchapter\s+[ivxlc\d]+', txt_head))
+                is_teknis = ('penjelasan teknis' in txt_head or 'technical notes' in txt_head)
+                if is_gambar or is_bab or is_teknis:
+                    break
+            clean_pages.append(p)
+        if not clean_pages:
+            clean_pages = [st]
+        toc[k]["pages"] = clean_pages
 
     for k in toc:
         if "pages" not in toc[k]:

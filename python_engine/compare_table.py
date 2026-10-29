@@ -76,7 +76,107 @@ def format_display_val(val):
         if isinstance(val, float):
             return round(val, 3)
         return val
-    return val
+_OPD_ALIAS_MAP = {
+    'SETDA': 'SEKRETARIAT_DAERAH',
+    'SEKRETARIAT DAERAH': 'SEKRETARIAT_DAERAH',
+    'SETWAN': 'SEKRETARIAT_DPRD',
+    'SEKRETARIAT DPRD': 'SEKRETARIAT_DPRD',
+    'BAPPEDA': 'BAPPEDA',
+    'BADAN PERENCANAAN PEMBANGUNAN': 'BAPPEDA',
+    'BKD': 'BKD',
+    'BADAN KEPEGAWAIAN DAERAH': 'BKD',
+    'BPSDMD': 'BPSDMD',
+    'PENGEMBANGAN SUMBER DAYA MANUSIA': 'BPSDMD',
+    'BAPENDA': 'BAPENDA',
+    'BADAN PENGELOLA PENDAPATAN DAERAH': 'BAPENDA',
+    'BPKAD': 'BPKAD',
+    'BADAN PENGELOLAAN KEUANGAN DAN ASET': 'BPKAD',
+    'BAKESBANGPOL': 'BAKESBANGPOL',
+    'KESATUAN BANGSA DAN POLITIK': 'BAKESBANGPOL',
+    'BRIDA': 'BRIDA',
+    'RISET DAN INOVASI DAERAH': 'BRIDA',
+    'SATPOL PP': 'SATPOL_PP',
+    'SATUAN POLISI PAMONG PRAJA': 'SATPOL_PP',
+    'DISDIKBUD': 'DISDIKBUD',
+    'PENDIDIKAN DAN KEBUDAYAAN': 'DISDIKBUD',
+    'DINKES': 'DINKES',
+    'KESEHATAN': 'DINKES',
+    'DPUBMCK': 'DPUBMCK',
+    'PEKERJAAN UMUM BINA MARGA': 'DPUBMCK',
+    'DPUSDATARU': 'DPUSDATARU',
+    'SUMBER DAYA AIR DAN PENATAAN RUANG': 'DPUSDATARU',
+    'DISPERAKIM': 'DISPERAKIM',
+    'PERUMAHAN RAKYAT DAN KAWASAN PERMUKIMAN': 'DISPERAKIM',
+    'DINSOS': 'DINSOS',
+    'SOSIAL': 'DINSOS',
+    'DISNAKERTRANS': 'DISNAKERTRANS',
+    'TENAGA KERJA DAN TRANSMIGRASI': 'DISNAKERTRANS',
+    'DESDM': 'DESDM',
+    'ENERGI DAN SUMBER DAYA MINERAL': 'DESDM',
+    'DISPORAPAR': 'DISPORAPAR',
+    'KEPEMUDAAN, OLAHRAGA DAN PARIWISATA': 'DISPORAPAR',
+    'KEPEMUDAAN OLAHRAGA DAN PARIWISATA': 'DISPORAPAR',
+    'DISHUB': 'DISHUB',
+    'PERHUBUNGAN': 'DISHUB',
+    'DISKOMINFO': 'DISKOMINFO',
+    'KOMUNIKASI DAN INFORMATIKA': 'DISKOMINFO',
+    'DISPERINDAG': 'DISPERINDAG',
+    'PERINDUSTRIAN DAN PERDAGANGAN': 'DISPERINDAG',
+    'DINKOP UKM': 'DINKOP_UKM',
+    'KOPERASI, USAHA KECIL DAN MENENGAH': 'DINKOP_UKM',
+    'KOPERASI DAN UKM': 'DINKOP_UKM',
+    'DISTANBUN': 'DISTANBUN',
+    'PERTANIAN DAN PERKEBUNAN': 'DISTANBUN',
+    'DISHANPAN': 'DISHANPAN',
+    'KETAHANAN PANGAN': 'DISHANPAN',
+    'DISNAKKESWAN': 'DISNAKKESWAN',
+    'PETERNAKAN DAN KESEHATAN HEWAN': 'DISNAKKESWAN',
+    'DKP': 'DKP',
+    'KELAUTAN DAN PERIKANAN': 'DKP',
+    'DLHK': 'DLHK',
+    'LINGKUNGAN HIDUP DAN KEHUTANAN': 'DLHK',
+    'DISPERMADESDUKCAPIL': 'DISPERMADESDUKCAPIL',
+    'PEMBERDAYAAN MASYARAKAT, DESA': 'DISPERMADESDUKCAPIL',
+    'PEMBERDAYAAN MASYARAKAT DESA': 'DISPERMADESDUKCAPIL',
+    'DP3AP2KB': 'DP3AP2KB',
+    'PEMBERDAYAAN PEREMPUAN, PERLINDUNGAN ANAK': 'DP3AP2KB',
+    'PEMBERDAYAAN PEREMPUAN PERLINDUNGAN ANAK': 'DP3AP2KB',
+    'DPMPTSP': 'DPMPTSP',
+    'PENANAMAN MODAL DAN PELAYANAN TERPADU': 'DPMPTSP',
+    'DISARPUS': 'DISARPUS',
+    'KEARSIPAN DAN PERPUSTAKAAN': 'DISARPUS',
+    'INSPEKTORAT': 'INSPEKTORAT',
+    'RSUD MOEWARDI': 'RSUD_MOEWARDI',
+    'RSUD MARGONO': 'RSUD_MARGONO',
+    'RSUD PROF DR MARGONO': 'RSUD_MARGONO',
+    'RSUD ADHYATMA': 'RSUD_ADHYATMA',
+    'RSUD TUGUREJO': 'RSUD_ADHYATMA',
+    'RSUD KELET': 'RSUD_REHATTA',
+    'RSUD REHATTA': 'RSUD_REHATTA',
+    'RSJD AMINO': 'RSJD_AMINO',
+    'RSJD ARIF ZAINUDIN': 'RSJD_ARIF_ZAINUDIN',
+    'RSJD SURAKARTA': 'RSJD_ARIF_ZAINUDIN',
+    'RSJD SOEJARWADI': 'RSJD_SOEJARWADI',
+    'RSJD KLATEN': 'RSJD_SOEJARWADI'
+}
+
+def match_opd_name(text):
+    if not text: return None
+    t = str(text).upper()
+    t = re.sub(r'[\r\n]+', ' ', t)
+    t = re.sub(r'^[a-z\W\d_]+\s+', '', t)
+    t = re.sub(r'[^\w\s]', ' ', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    
+    words = t.split()
+    for w in words:
+        if w in _OPD_ALIAS_MAP:
+            return f"OPD_{_OPD_ALIAS_MAP[w]}"
+            
+    for pattern, canonical in _OPD_ALIAS_MAP.items():
+        if pattern in t:
+            return f"OPD_{canonical}"
+    return None
 
 
 def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None):
@@ -181,6 +281,47 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     json.dump(cur_cache, f)
             except Exception:
                 pass
+
+    # Additive Fallback: Self-Healing Spatial Page Finder if pages still empty
+    if not target_pages and os.path.exists(pdf_path):
+        try:
+            import pymupdf
+            doc = pymupdf.open(pdf_path)
+            t_clean = clean_num(target_table)
+            pat_sp = re.compile(rf'(?:(?:Tabel|Table|Lanjutan\s+Tabel|Continued\s+Table)\s*{re.escape(t_clean)}\b|^\s*{re.escape(t_clean)}\s*[\t ])', re.IGNORECASE | re.MULTILINE)
+            found_p = []
+            for idx in range(65, len(doc)):
+                p_obj = doc[idx]
+                max_y = (p_obj.rect.height or 842) * 0.35
+                blocks = [b for b in p_obj.get_text("blocks") if b[1] < max_y and len(b) > 4 and isinstance(b[4], str)]
+                blocks.sort(key=lambda b: (round(b[1] / 15.0), b[0]))
+                sh = "\n".join(b[4].strip() for b in blocks)
+                if pat_sp.search(sh):
+                    found_p.append(idx + 1)
+            doc.close()
+            if found_p:
+                groups = []
+                curr_g = [found_p[0]]
+                for p_no in found_p[1:]:
+                    if p_no == curr_g[-1] + 1:
+                        curr_g.append(p_no)
+                    else:
+                        groups.append(curr_g)
+                        curr_g = [p_no]
+                groups.append(curr_g)
+                target_pages = max(groups, key=len)
+                try:
+                    cur_cache = {}
+                    if os.path.exists(index_cache_path):
+                        with open(index_cache_path, "r", encoding="utf-8") as f:
+                            cur_cache = json.load(f)
+                    cur_cache[target_table] = {"pages": target_pages, "display_title": target_info.get("judul_tabel", "")}
+                    with open(index_cache_path, "w", encoding="utf-8") as f:
+                        json.dump(cur_cache, f, ensure_ascii=False)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     is_template_extraction = False
     cell_coords = target_info.get("cell_coords") or {}
@@ -435,6 +576,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
         has_duplicate_regions = has_dup_prov or has_dup_jateng
 
+        is_provincial_table = (prov_matches >= 3)
         is_univ_table = any(k in str(headers).lower() for k in ['perguruan tinggi', 'universitas', 'dosen']) or target_table in ['4.1.20', '4.1.21']
         is_regional = (prov_matches >= 3 or jateng_matches >= 3) and not is_univ_table and not has_duplicate_regions
         is_categorical = (not is_regional and (archetype in ["MULTI_PAGE_ROW_CONTINUATION", "MULTI_PAGE_SECTION_PER_PAGE", "SINGLE_PAGE_CATEGORICAL"])) or has_duplicate_regions
@@ -465,21 +607,34 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             def get_cat_key(text):
                 if not text:
                     return ''
-                if is_interval_label(text):
-                    digits = re.findall(r'\d+', str(text))
+                t_raw = str(text).strip()
+                if is_interval_label(t_raw):
+                    digits = re.findall(r'\d+', t_raw)
                     if digits:
                         return f"INT_{'_'.join(digits)}"
-                    c = re.sub(r'[\s\*]', '', str(text))
+                    c = re.sub(r'[\s\*]', '', t_raw)
                     if c in ['0', '01']:
                         return 'JAM_0'
                     if '+' in c:
                         return f"JAM_{c.replace('+', '_PLUS')}"
                     c_dash = re.sub(r'[\-–—\ufffd]', '_', c)
                     return f"JAM_{c_dash}"
-                p = find_provinsi(text)
+
+                party = match_party_name(t_raw)
+                if party:
+                    return f"PARTY_{party}"
+
+                opd = match_opd_name(t_raw)
+                if opd:
+                    return opd
+
+                p = find_provinsi(t_raw)
                 if p:
+                    if p == 'Jawa Tengah' and not is_provincial_table:
+                        return 'TOTAL'
                     return f"PROV_{re.sub(r'[^\w]', '', p.upper())}"
-                s = re.sub(r'(\b(?:19|20)\d{2})\d+\b', r'\1', str(text)).upper()
+
+                s = re.sub(r'(\b(?:19|20)\d{2})\d+\b', r'\1', t_raw).upper()
                 if 'CURAH HUJAN' in s or 'PRECIP' in s:
                     return 'CURAH_HUJAN'
                 if 'HARI HUJAN' in s or 'RAINY' in s:
@@ -514,7 +669,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     return 'STRUKTURAL'
                 if 'TERTENTU' in s:
                     return 'FUNGSIONAL_TERTENTU'
-                if 'UMUM' in s or 'STAF' in s:
+                if ('FUNGSIONAL' in s and 'UMUM' in s) or ('STAF' in s and 'FUNGSIONAL' in s):
                     return 'FUNGSIONAL_UMUM'
                 if 'MINIMUM' in s:
                     return 'MINIMUM'
@@ -528,7 +683,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 for idx, m in enumerate(months):
                     if re.search(rf'\b{m}\b', s):
                         return f"{yr_pfx}BLN_{idx+1:02d}"
-                return re.sub(r'[^\w]', '', s)[:25]
+                return re.sub(r'[^\w]', '', s)
 
             def clean_cat_display(text):
                 t = re.sub(r'(\b(?:19|20)\d{2})\d+\b', r'\1', str(text).strip())
@@ -825,30 +980,44 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 p_recs = extract_cat_rows_std(target_pdf_rows, is_pdf=True)
 
 
+                is_horiz_col_split = (archetype in ["MULTI_PAGE_COLUMN_SPLIT", "MULTI_PAGE_SECTION_PER_PAGE"])
                 p_grouped_items = {s['id']: [] for s in s_recs}
                 used_p_indices = set()
+                used_s_ids = set()
 
                 # Pass 0: Exact code matching (e.g. kode_rekening / nomor baris hierarki)
                 for idx_p, p in enumerate(p_recs):
                     p_code = p.get('code')
                     if p_code:
-                        match_s = next((s for s in s_recs if s.get('code') == p_code and s.get('sec') == p.get('sec')), None)
-                        if not match_s:
-                            match_s = next((s for s in s_recs if s.get('code') == p_code), None)
+                        is_simple_digit = p_code.isdigit() and len(p_code) <= 2
+                        candidates = [s for s in s_recs if s.get('code') == p_code and (is_horiz_col_split or s['id'] not in used_s_ids)]
+                        match_s = next((s for s in candidates if s.get('sec') == p.get('sec')), None)
+                        if not match_s and candidates:
+                            match_s = candidates[0]
                         if match_s:
-                            p_grouped_items[match_s['id']].append((idx_p, p['nums']))
-                            used_p_indices.add(idx_p)
+                            if is_simple_digit:
+                                lbl_sim = SequenceMatcher(None, p['display'].lower(), match_s['display'].lower()).ratio()
+                                if lbl_sim < 0.65 and p['key'] != match_s['key']:
+                                    match_s = None
+                            if match_s:
+                                p_grouped_items[match_s['id']].append((idx_p, p['nums']))
+                                used_p_indices.add(idx_p)
+                                if not is_horiz_col_split:
+                                    used_s_ids.add(match_s['id'])
 
                 # Pass 1: Strict key matching (with section priority)
                 for idx_p, p in enumerate(p_recs):
                     if idx_p in used_p_indices:
                         continue
-                    match_s = next((s for s in s_recs if s['key'] == p['key'] and s.get('sec') == p.get('sec')), None)
-                    if not match_s:
-                        match_s = next((s for s in s_recs if s['key'] == p['key']), None)
+                    candidates = [s for s in s_recs if s['key'] == p['key'] and (is_horiz_col_split or s['id'] not in used_s_ids)]
+                    match_s = next((s for s in candidates if s.get('sec') == p.get('sec')), None)
+                    if not match_s and candidates:
+                        match_s = candidates[0]
                     if match_s:
                         p_grouped_items[match_s['id']].append((idx_p, p['nums']))
                         used_p_indices.add(idx_p)
+                        if not is_horiz_col_split:
+                            used_s_ids.add(match_s['id'])
 
                 # Pass 1.5: Prefix / suffix containment key matching (e.g. Roman numeral prefix or bilingual suffix diff)
                 def is_key_compatible(k1, k2):
@@ -861,37 +1030,42 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 for idx_p, p in enumerate(p_recs):
                     if idx_p in used_p_indices:
                         continue
-                    match_s = next((
+                    candidates = [
                         s for s in s_recs
-                        if s.get('sec') == p.get('sec') and len(p['key']) >= 4 and len(s['key']) >= 4 and is_key_compatible(p['key'], s['key']) and (
+                        if (is_horiz_col_split or s['id'] not in used_s_ids) and
+                        len(p['key']) >= 4 and len(s['key']) >= 4 and is_key_compatible(p['key'], s['key']) and (
                             p['key'].startswith(s['key']) or s['key'].startswith(p['key']) or
                             p['key'].endswith(s['key']) or s['key'].endswith(p['key']) or
                             p['key'].split('_')[0] == s['key'] or s['key'].split('_')[0] == p['key']
                         )
-                    ), None)
-                    if not match_s:
-                        match_s = next((
-                            s for s in s_recs
-                            if len(p['key']) >= 4 and len(s['key']) >= 4 and is_key_compatible(p['key'], s['key']) and (
-                                p['key'].startswith(s['key']) or s['key'].startswith(p['key']) or
-                                p['key'].endswith(s['key']) or s['key'].endswith(p['key']) or
-                                p['key'].split('_')[0] == s['key'] or s['key'].split('_')[0] == p['key']
-                            )
-                        ), None)
+                    ]
+                    match_s = next((s for s in candidates if s.get('sec') == p.get('sec')), None)
+                    if not match_s and candidates:
+                        match_s = candidates[0]
                     if match_s:
                         p_grouped_items[match_s['id']].append((idx_p, p['nums']))
                         used_p_indices.add(idx_p)
+                        if not is_horiz_col_split:
+                            used_s_ids.add(match_s['id'])
 
                 # Pass 2: Safe fuzzy matching for unmatched PDF rows
                 for idx_p, p in enumerate(p_recs):
                     if idx_p in used_p_indices:
                         continue
-                    match_s = next((s for s in s_recs if s.get('sec') == p.get('sec') and SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s['display'])), None)
-                    if not match_s:
-                        match_s = next((s for s in s_recs if SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and is_safe_fuzzy_match(p['display'], s['display'])), None)
+                    candidates = [
+                        s for s in s_recs
+                        if (is_horiz_col_split or s['id'] not in used_s_ids) and
+                        SequenceMatcher(None, p['display'], s['display']).ratio() >= 0.85 and
+                        is_safe_fuzzy_match(p['display'], s['display'])
+                    ]
+                    match_s = next((s for s in candidates if s.get('sec') == p.get('sec')), None)
+                    if not match_s and candidates:
+                        match_s = candidates[0]
                     if match_s:
                         p_grouped_items[match_s['id']].append((idx_p, p['nums']))
                         used_p_indices.add(idx_p)
+                        if not is_horiz_col_split:
+                            used_s_ids.add(match_s['id'])
 
                 # Sort multi-page chunks by original vertical/page order (idx_p) before flattening
                 p_grouped = {}
@@ -907,13 +1081,21 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     h = re.sub(r'\(.*?\)', '', h)
                     h = re.sub(r'\bpresentase\b', 'persentase', h)
                     h = re.sub(r'\bprosentase\b', 'persentase', h)
+                    h = re.sub(r'\bblla\b', 'biia', h)
+                    h = re.sub(r'\bbiia\b', 'biia', h)
                     tokens = set(re.findall(r'\b\w+\b', h))
                     return tokens, h.strip()
 
                 col_map = {}
                 pdf_cols = []
+                is_single_year_filtered = bool(target_year and target_year in pdf_by_year and len(pdf_by_year) > 1 and len(db_header_years) <= 1)
                 is_row_continuation = False
-                if target_pages and len(target_pages) > 1:
+                if is_single_year_filtered:
+                    p_hdrs = detect_col_headers(target_pdf_rows)
+                    for h in p_hdrs:
+                        t_set, h_clean = _norm_hdr(h)
+                        pdf_cols.append((h, t_set, h_clean, target_pages[0] if target_pages else None))
+                elif target_pages and len(target_pages) > 1:
                     p1_info = [{'nomor_tabel': target_table, 'pages': [target_pages[0]]}]
                     p2_info = [{'nomor_tabel': target_table, 'pages': [target_pages[1]]}]
                     extract_table_content(pdf_path, p1_info)
@@ -926,7 +1108,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if is_row_continuation:
                         for h in p1_h:
                             t_set, h_clean = _norm_hdr(h)
-                            pdf_cols.append((h, t_set, h_clean))
+                            pdf_cols.append((h, t_set, h_clean, target_pages[0]))
                     else:
                         for p_num in target_pages:
                             target_page_info = [{'nomor_tabel': target_table, 'pages': [p_num]}]
@@ -935,19 +1117,20 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             p_hdrs = detect_col_headers(p_page_rows)
                             for h in p_hdrs:
                                 t_set, h_clean = _norm_hdr(h)
-                                pdf_cols.append((h, t_set, h_clean))
+                                pdf_cols.append((h, t_set, h_clean, p_num))
                 else:
                     p_hdrs = detect_col_headers(target_pdf_rows)
                     for h in p_hdrs:
                         t_set, h_clean = _norm_hdr(h)
-                        pdf_cols.append((h, t_set, h_clean))
+                        pdf_cols.append((h, t_set, h_clean, target_pages[0] if target_pages else None))
 
                 used_p = set()
                 for s_idx, sh in enumerate(headers):
                     s_tokens, sh_clean = _norm_hdr(sh)
                     best_p = None
                     best_score = 0
-                    for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
+                    for p_idx, p_tuple in enumerate(pdf_cols):
+                        ph, p_tokens, ph_clean = p_tuple[0], p_tuple[1], p_tuple[2]
                         if p_idx in used_p:
                             continue
                         overlap = len(s_tokens & p_tokens)
@@ -964,7 +1147,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if best_p is None:
                         s_yrs = set(re.findall(r'\b(19|20\d{2})\b', sh))
                         if s_yrs:
-                            for p_idx, (ph, p_tokens, ph_clean) in enumerate(pdf_cols):
+                            for p_idx, p_tuple in enumerate(pdf_cols):
+                                ph, p_tokens, ph_clean = p_tuple[0], p_tuple[1], p_tuple[2]
                                 if p_idx in used_p:
                                     continue
                                 p_yrs = set(re.findall(r'\b(19|20\d{2})\b', ph))
@@ -996,12 +1180,16 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         base_h = headers[i] if i < len(headers) else f"Metrik #{i+1}"
                         if not base_h or re.match(r'^(?:data\s+)?kolom\s+\d+$', str(base_h).lower().strip()):
                             base_h = f"Metrik #{i+1}"
+                        base_h = str(base_h).replace('||', ' - ')
 
                         p_sec = sec_b
                         if col_map and target_pages and len(target_pages) > 1 and pdf_cols and not is_row_continuation:
-                            cols_per_page = max(1, len(pdf_cols) // len(target_pages))
-                            page_idx = min(len(target_pages) - 1, p_col_idx // cols_per_page)
-                            p_sec = f"Halaman {target_pages[page_idx]}"
+                            if p_col_idx < len(pdf_cols) and len(pdf_cols[p_col_idx]) >= 4 and pdf_cols[p_col_idx][3]:
+                                p_sec = f"Halaman {pdf_cols[p_col_idx][3]}"
+                            else:
+                                cols_per_page = max(1, len(pdf_cols) // len(target_pages))
+                                page_idx = min(len(target_pages) - 1, p_col_idx // cols_per_page)
+                                p_sec = f"Halaman {target_pages[page_idx]}"
 
                         is_match, is_tol, diff_val = evaluate_cell_match(pv, sv, tolerance=tolerance)
                         abs_diff = format_display_val(abs(diff_val))
@@ -1034,14 +1222,21 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if pv is None:
                                 continue
                             base_h = p_headers[p_idx] if (p_headers and p_idx < len(p_headers)) else f"Kolom Ekstra #{p_idx+1}"
+                            base_h = str(base_h).replace('||', ' - ')
                             pv_disp = format_display_val(pv)
                             m_yr = re.search(r'\b(20\d{2})\b', str(base_h))
                             if m_yr:
                                 note = f"Tercetak di buku PDF untuk Tahun {m_yr.group(1)}, tidak tersedia di database resmi"
                             else:
                                 note = f"Tercetak di buku PDF untuk {base_h}, tidak tersedia di database resmi"
+
+                            p_sec_extra = sec_b
+                            if target_pages and len(target_pages) > 1 and pdf_cols and not is_row_continuation:
+                                if p_idx < len(pdf_cols) and len(pdf_cols[p_idx]) >= 4 and pdf_cols[p_idx][3]:
+                                    p_sec_extra = f"Halaman {pdf_cols[p_idx][3]}"
+
                             results["pdf_only"].append({
-                                "wilayah": s_disp, "section": sec_b, "metric": base_h,
+                                "wilayah": s_disp, "section": p_sec_extra, "metric": base_h,
                                 "values": [pv_disp], "note": note, "type": "delete"
                             })
 
@@ -1204,16 +1399,27 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             by_w_year[cur_w][row_year] = nums
 
                     all_years = sorted({y for y_dict in by_w_year.values() for y in y_dict})
-                    active_y = target_year if (target_year and any(target_year in y_dict for y_dict in by_w_year.values())) else (all_years[-1] if all_years else None)
-                    for w_entity, y_dict in by_w_year.items():
-                        out[w_entity] = y_dict.get(active_y, [])
-                        if is_pdf:
-                            for y_hist, nums in y_dict.items():
-                                if y_hist != active_y:
-                                    if y_hist not in hist_pdf_years_reg:
-                                        hist_pdf_years_reg[y_hist] = {}
-                                    hist_pdf_years_reg[y_hist][w_entity] = nums
-                    return out
+                    active_y = target_year if (target_year and any(target_year in y_dict for y_dict in by_w_year.values())) else None
+                    if not active_y and len(all_years) >= 2:
+                        for w_entity, y_dict in by_w_year.items():
+                            for y_val, nums in y_dict.items():
+                                out[f"{w_entity} ({y_val})"] = nums
+                        return out
+                    elif active_y:
+                        for w_entity, y_dict in by_w_year.items():
+                            out[w_entity] = y_dict.get(active_y, [])
+                            if is_pdf:
+                                for y_hist, nums in y_dict.items():
+                                    if y_hist != active_y:
+                                        if y_hist not in hist_pdf_years_reg:
+                                            hist_pdf_years_reg[y_hist] = {}
+                                        hist_pdf_years_reg[y_hist][w_entity] = nums
+                        return out
+                    else:
+                        active_y = all_years[-1] if all_years else None
+                        for w_entity, y_dict in by_w_year.items():
+                            out[w_entity] = y_dict.get(active_y, [])
+                        return out
 
                 for r in data_list:
                     if not isinstance(r, list):
@@ -1569,6 +1775,51 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     os.remove(tmp_path)
         except Exception:
             pass
+
+        # Additive Fallback: Direct Matrix Lookup for any diff still missing 'coord'
+        if any("coord" not in d for d in results["diffs"]):
+            try:
+                direct_map = {}
+                hdr_row = [str(c or "").strip().lower() for c in tpl_grid[0]]
+                is_kota_ctx = False
+                seen_regencies = set()
+                for r in tpl_grid[1:]:
+                    if not r:
+                        continue
+                    r0 = str(r[0] or "").strip()
+                    r0_low = r0.lower()
+                    if ("kabupaten" in r0_low or "regency" in r0_low) and (len(r) < 2 or r[1] is None):
+                        is_kota_ctx = False
+                        continue
+                    if ("kota" in r0_low or "municipality" in r0_low) and (len(r) < 2 or r[1] is None):
+                        is_kota_ctx = True
+                        continue
+                    if r0_low in seen_regencies and r0_low in ("magelang", "semarang", "pekalongan", "tegal"):
+                        is_kota_ctx = True
+                    seen_regencies.add(r0_low)
+                    ent_res = resolve_jateng_entity(r0, is_kota_mode=is_kota_ctx)
+                    ent_name = ent_res[1] if isinstance(ent_res, tuple) and ent_res[1] else (ent_res if isinstance(ent_res, str) else r0)
+                    for c_idx in range(1, min(len(r), len(hdr_row))):
+                        val = r[c_idx]
+                        if isinstance(val, (int, float)) and int(round(val)) <= -900001:
+                            seq_key = str(abs(int(round(val))) - 900000)
+                            c_obj = cell_coords.get(seq_key)
+                            if c_obj:
+                                coord_val = {
+                                    "id_baris_item": c_obj["b"],
+                                    "id_karakteristik_item": c_obj["k"],
+                                    "id_periode_item": c_obj["p"],
+                                }
+                                direct_map[(ent_name.lower().strip(), hdr_row[c_idx])] = coord_val
+                                if (r0_low, hdr_row[c_idx]) not in direct_map:
+                                    direct_map[(r0_low, hdr_row[c_idx])] = coord_val
+                for d in results["diffs"]:
+                    if "coord" not in d:
+                        k_d = (str(d.get("wilayah", "")).lower().strip(), str(d.get("metric", "")).lower().strip())
+                        if k_d in direct_map:
+                            d["coord"] = direct_map[k_d]
+            except Exception:
+                pass
 
     results["summary"] = {
         "total_diffs": len(results["diffs"]),

@@ -146,3 +146,4 @@ data/
 debug_output.txt
 mock_db.json
 simdasi.html
+python_engine/backup_pre_upgrade/

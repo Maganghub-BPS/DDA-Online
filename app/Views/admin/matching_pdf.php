@@ -42,6 +42,56 @@
     #listMatched li.matched.d-filtered-out {
         display: none !important;
     }
+
+    /* Adaptive Layout for Difference Cards */
+    .diff-full-layout { display: block; }
+    .diff-split-layout { display: none; }
+
+    /* When Split-View is active (#modalSplitWrapper.is-split-active) */
+    .is-split-active .diff-full-layout { display: none !important; }
+    .is-split-active .diff-split-layout { display: block !important; }
+
+    /* Opsi 2 Matrix Coordinates Styling (Approved by Bos Anas) */
+    .diff-card {
+        border-radius: 14px !important;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+    .diff-card:hover {
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.08) !important;
+        border-color: #fca5a5 !important;
+    }
+    .split-matrix-left {
+        background: #f8fafc;
+        border-right: 1px solid #f1f5f9;
+        padding: 18px 20px;
+    }
+    .split-matrix-right {
+        background: #ffffff;
+        padding: 18px 20px;
+    }
+    .s2-grid {
+        display: grid;
+        grid-template-columns: 78px 1fr;
+        row-gap: 8px;
+        margin-top: 8px;
+        margin-bottom: 10px;
+    }
+    .s2-label {
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding-top: 3px;
+    }
+    .s2-val {
+        color: #0f172a;
+        font-size: 1.02rem;
+        font-weight: 600;
+        line-height: 1.4;
+        word-break: break-word;
+    }
 </style>
 
 <div class="row mb-3 mt-2">
@@ -253,6 +303,9 @@
                                         </button>
                                         <button type="button" id="btnFilterEmpty" class="btn btn-xs btn-outline-warning fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('api_empty', this)">
                                             <i class="bi bi-database-slash me-1"></i>Data Kosong (<span id="cntEmpty">0</span>)
+                                        </button>
+                                        <button type="button" id="btnFilterPdfOnly" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('pdf_only', this)">
+                                            <i class="bi bi-journal-bookmark me-1"></i>Hanya di PDF (<span id="cntPdfOnly">0</span>)
                                         </button>
                                         <button type="button" id="btnFilterUnverified" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('unverified', this)">
                                             <i class="bi bi-clock me-1"></i>Belum Cek (<span id="cntUnverified">0</span>)
@@ -607,9 +660,9 @@
         let srcFilter = window.currentSourceFilter || 'all';
 
         let stats = {
-            all: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 },
-            dinamis: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 },
-            api: { all: 0, diff: 0, match: 0, api_empty: 0, unverified: 0 }
+            all: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0 },
+            dinamis: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0 },
+            api: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0 }
         };
 
         window.currentMatchedTables.forEach(item => {
@@ -620,7 +673,7 @@
                 window.batchStatusMap[item.nomor_tabel] = info;
             }
             let status = info ? info.status : 'unverified';
-            if (status !== 'diff' && status !== 'match' && status !== 'api_empty') {
+            if (status !== 'diff' && status !== 'match' && status !== 'api_empty' && status !== 'pdf_only') {
                 status = 'unverified';
             }
 
@@ -644,6 +697,7 @@
         $('#cntDiff').text(activeStats.diff);
         $('#cntMatch').text(activeStats.match);
         $('#cntEmpty').text(activeStats.api_empty);
+        $('#cntPdfOnly').text(activeStats.pdf_only || 0);
         $('#cntUnverified').text(activeStats.unverified);
 
         // 3. Update Top Interactive KPI Cards
@@ -663,6 +717,7 @@
             'match': '#btnFilterMatch',
             'diff': '#btnFilterDiff',
             'api_empty': '#btnFilterEmpty',
+            'pdf_only': '#btnFilterPdfOnly',
             'unverified': '#btnFilterUnverified'
         };
         let targetBtn = document.querySelector(btnMap[statusType] || '#btnFilterAll');
@@ -807,11 +862,12 @@
 
     function filterMatchedStatus(type, btn) {
         window.currentBatchFilter = type;
-        $('#batchFilters button').removeClass('active btn-secondary btn-danger btn-success btn-warning text-white text-dark').addClass('btn-outline-secondary');
+        $('#batchFilters button').removeClass('active btn-secondary btn-danger btn-success btn-warning btn-dark text-white text-dark').addClass('btn-outline-secondary');
         if (type === 'all') $(btn).removeClass('btn-outline-secondary').addClass('active btn-secondary text-white');
         else if (type === 'diff') $(btn).removeClass('btn-outline-secondary').addClass('active btn-danger text-white');
         else if (type === 'match') $(btn).removeClass('btn-outline-secondary').addClass('active btn-success text-white');
         else if (type === 'api_empty') $(btn).removeClass('btn-outline-secondary').addClass('active btn-warning text-dark');
+        else if (type === 'pdf_only') $(btn).removeClass('btn-outline-secondary').addClass('active btn-dark text-white');
         else if (type === 'unverified') $(btn).removeClass('btn-outline-secondary').addClass('active btn-secondary text-white');
 
         applyMatchedFilters();
@@ -851,7 +907,7 @@
             let matchesStatus = (statusFilter === 'all');
             if (!matchesStatus) {
                 if (statusFilter === 'unverified') {
-                    matchesStatus = (rowStatus !== 'match' && rowStatus !== 'diff' && rowStatus !== 'api_empty');
+                    matchesStatus = (rowStatus !== 'match' && rowStatus !== 'diff' && rowStatus !== 'api_empty' && rowStatus !== 'pdf_only');
                 } else {
                     matchesStatus = (rowStatus === statusFilter);
                 }
@@ -1072,21 +1128,176 @@
     };
 
 
-    window.togglePdfSplitView = function(page = 1) {
+    window.pdfViewerCurrentZoom = 1.0;
+    window.pdfViewerPages = [1];
+
+    function getPdfSplitPaneHtml(pagesLabel) {
+        return `
+            <div class="col-lg-6 d-none" id="pdfSplitPane" style="position: sticky; top: 0; align-self: flex-start; z-index: 1050; height: calc(100vh - 230px); min-height: 480px; max-height: calc(100vh - 230px);">
+                <div class="card border shadow-sm h-100 d-flex flex-column overflow-hidden">
+                    <div class="card-header bg-dark text-white py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2 flex-shrink-0" style="border-bottom: 2px solid #334155;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Cetakan PDF Asli</span>
+                            <span class="badge bg-secondary small">${pagesLabel || ''}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                            <div class="btn-group btn-group-sm me-1" id="pdfPageNav" role="group"></div>
+                            <div class="btn-group btn-group-sm me-1" role="group">
+                                <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="pdfViewerZoom(-0.2)" title="Perkecil"><i class="bi bi-zoom-out"></i></button>
+                                <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="pdfViewerResetZoom()" title="Reset Ukuran (Fit)"><span id="pdfZoomText" style="font-size:0.75rem;">Fit</span></button>
+                                <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="pdfViewerZoom(0.2)" title="Perbesar"><i class="bi bi-zoom-in"></i></button>
+                            </div>
+                            <a id="btnPdfOpenNewTab" href="#" target="_blank" class="btn btn-xs btn-outline-light py-0 px-2 me-1" title="Buka PDF Master (.pdf) di tab baru">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                            <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="togglePdfSplitView()" title="Tutup Preview"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0 position-relative flex-grow-1" style="background:#374151; overflow-y:auto; overflow-x:auto; overscroll-behavior:contain;" id="pdfViewerScrollArea">
+                        <div id="pdfViewerSpinner" class="text-white text-center py-5 d-none">
+                            <div class="spinner-border spinner-border-sm text-light me-2" role="status"></div>
+                            <span class="small">Merender halaman PDF cetakan buku...</span>
+                        </div>
+                        <div id="pdfViewerCanvasWrapper" class="text-center p-3"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    window.togglePdfSplitView = function(pageArg) {
         let $pane = $('#pdfSplitPane');
         let $main = $('#auditMainPane');
-        let $iframe = $('#pdfSplitIframe');
+        if ($pane.length === 0) return;
+
         if ($pane.hasClass('d-none')) {
-            let pdfUrl = `<?= base_url('admin/serve_master_pdf') ?>?ta=${encodeURIComponent(activeYear)}#page=${page}&view=FitH`;
-            if ($iframe.attr('src') !== pdfUrl) {
-                $iframe.attr('src', pdfUrl);
+            let pages = [];
+            if (Array.isArray(pageArg) && pageArg.length > 0) {
+                pages = pageArg;
+            } else if (typeof pageArg === 'number') {
+                pages = [pageArg];
+            } else if (window.lastVerifyResult && Array.isArray(window.lastVerifyResult.pages) && window.lastVerifyResult.pages.length > 0) {
+                pages = window.lastVerifyResult.pages;
+            } else {
+                pages = [1];
             }
+
+            window.pdfViewerPages = pages;
+            window.pdfViewerCurrentZoom = 1.0;
+            initPdfViewer(pages);
+
             $pane.removeClass('d-none');
             $main.removeClass('col-lg-12').addClass('col-lg-6');
+            $('#modalSplitWrapper').addClass('is-split-active');
+            $('.btn-toggle-split-pdf').addClass('btn-primary text-white').removeClass('btn-outline-primary');
+
+            // Scroll modal-body ke atas agar viewer langsung terlihat sempurna dari baris pertama
+            $('#modalDiff .modal-body').animate({ scrollTop: 0 }, 200);
         } else {
             $pane.addClass('d-none');
             $main.removeClass('col-lg-6').addClass('col-lg-12');
+            $('#modalSplitWrapper').removeClass('is-split-active');
+            $('.btn-toggle-split-pdf').removeClass('btn-primary text-white').addClass('btn-outline-primary');
         }
+    };
+
+    window.initPdfViewer = function(pages) {
+        let $nav = $('#pdfPageNav');
+        $nav.empty();
+
+        if (pages.length > 1) {
+            pages.forEach((p, idx) => {
+                let activeCls = (idx === 0) ? 'btn-primary text-white' : 'btn-outline-light';
+                $nav.append(`<button type="button" class="btn btn-xs ${activeCls} py-0 px-2 fw-semibold btn-page-sel" data-page="${p}" onclick="switchPdfViewerPage(${p})">Hal. ${p}</button>`);
+            });
+            $nav.append(`<button type="button" class="btn btn-xs btn-outline-light py-0 px-2 fw-semibold btn-page-sel" data-page="all" onclick="switchPdfViewerPage('all')" title="Tampilkan seluruh halaman secara bersusun (stacked)"><i class="bi bi-stack me-1"></i>Semua</button>`);
+        }
+
+        let firstPage = pages[0] || 1;
+        let newTabUrl = `<?= base_url('admin/serve_master_pdf') ?>?ta=${encodeURIComponent(activeYear)}#page=${firstPage}`;
+        $('#btnPdfOpenNewTab').attr('href', newTabUrl);
+
+        switchPdfViewerPage(firstPage);
+    };
+
+    window.switchPdfViewerPage = function(targetPage) {
+        let $nav = $('#pdfPageNav');
+        $nav.find('.btn-page-sel').removeClass('btn-primary text-white').addClass('btn-outline-light');
+        $nav.find(`.btn-page-sel[data-page="${targetPage}"]`).removeClass('btn-outline-light').addClass('btn-primary text-white');
+
+        let $wrapper = $('#pdfViewerCanvasWrapper');
+        let $spinner = $('#pdfViewerSpinner');
+        $wrapper.empty();
+        $spinner.removeClass('d-none');
+
+        let pagesToRender = (targetPage === 'all') ? window.pdfViewerPages : [targetPage];
+        let loadedCount = 0;
+        let totalToLoad = pagesToRender.length;
+
+        pagesToRender.forEach((p, idx) => {
+            let container = $('<div>').addClass('mb-3 text-center position-relative');
+            if (pagesToRender.length > 1) {
+                container.append(`<div class="badge bg-dark bg-opacity-75 text-white border border-secondary mb-2 px-3 py-1 shadow-xs"><i class="bi bi-book me-1"></i> Halaman ${p}</div>`);
+            }
+            let imgUrl = `<?= base_url('admin/serve_pdf_page') ?>?ta=${encodeURIComponent(activeYear)}&page=${p}&dpi=150`;
+            let $img = $('<img>')
+                .addClass('pdf-page-img img-fluid rounded shadow bg-white d-none')
+                .css({
+                    'max-width': '100%',
+                    'width': (window.pdfViewerCurrentZoom * 100) + '%',
+                    'height': 'auto',
+                    'margin': '0 auto',
+                    'display': 'block',
+                    'border': '1px solid #475569'
+                })
+                .attr('src', imgUrl)
+                .on('load', function() {
+                    loadedCount++;
+                    $(this).removeClass('d-none');
+                    if (loadedCount >= totalToLoad) {
+                        $spinner.addClass('d-none');
+                    }
+                })
+                .on('error', function() {
+                    loadedCount++;
+                    if (loadedCount >= totalToLoad) {
+                        $spinner.addClass('d-none');
+                    }
+                    $(this).replaceWith(`
+                        <div class="alert alert-warning p-3 m-2 text-start small text-dark">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Gagal merender Halaman ${p}. 
+                            <a href="<?= base_url('admin/serve_master_pdf') ?>?ta=${encodeURIComponent(activeYear)}#page=${p}" target="_blank" class="alert-link">Buka PDF Master secara manual</a>.
+                        </div>
+                    `);
+                });
+
+            container.append($img);
+            $wrapper.append(container);
+        });
+
+        if (targetPage !== 'all') {
+            let newTabUrl = `<?= base_url('admin/serve_master_pdf') ?>?ta=${encodeURIComponent(activeYear)}#page=${targetPage}`;
+            $('#btnPdfOpenNewTab').attr('href', newTabUrl);
+        }
+    };
+
+    window.pdfViewerZoom = function(delta) {
+        window.pdfViewerCurrentZoom = Math.min(2.5, Math.max(0.6, (window.pdfViewerCurrentZoom || 1.0) + delta));
+        let pct = Math.round(window.pdfViewerCurrentZoom * 100);
+        $('#pdfZoomText').text(pct + '%');
+        $('.pdf-page-img').css({
+            'width': pct + '%',
+            'max-width': (pct <= 100 ? '100%' : 'none')
+        });
+    };
+
+    window.pdfViewerResetZoom = function() {
+        window.pdfViewerCurrentZoom = 1.0;
+        $('#pdfZoomText').text('Fit');
+        $('.pdf-page-img').css({
+            'width': '100%',
+            'max-width': '100%'
+        });
     };
 
     window.syncAutofillFromPdf = function() {
@@ -1286,7 +1497,7 @@
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fs-6 fw-bold">
                                     <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sumber: ${res.source_type}
                                 </span>
-                                <button type="button" onclick="togglePdfSplitView(${firstPage})" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 py-2 shadow-xs">
+                                <button type="button" onclick="togglePdfSplitView()" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 py-2 shadow-xs btn-toggle-split-pdf">
                                     <i class="bi bi-layout-split me-1"></i> Sandingkan PDF Asli (${pagesLabel || 'PDF'})
                                 </button>
                                 ${syncAllDiffsBtn}
@@ -1296,17 +1507,7 @@
                             </div>
                         </div>
                         <div class="row g-3" id="modalSplitWrapper">
-                            <div class="col-lg-6 d-none" id="pdfSplitPane">
-                                <div class="card border shadow-xs h-100">
-                                    <div class="card-header bg-dark text-white py-2 px-3 d-flex justify-content-between align-items-center">
-                                        <span class="small fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Cetakan Buku PDF Asli (${pagesLabel})</span>
-                                        <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="togglePdfSplitView(${firstPage})"><i class="bi bi-x-lg"></i> Tutup Preview</button>
-                                    </div>
-                                    <div class="card-body p-0">
-                                        <iframe id="pdfSplitIframe" src="" style="width:100%; height:68vh; border:0;"></iframe>
-                                    </div>
-                                </div>
-                            </div>
+${getPdfSplitPaneHtml(pagesLabel)}
                             <div class="col-lg-12" id="auditMainPane">
                     `;
                     
@@ -1361,7 +1562,7 @@
                     html += `
                         <div class="row g-3 mb-4">
                             <!-- KPI: Beda Nilai -->
-                            <div class="col-md-4">
+                            <div class="col-xl-4 col-sm-6 col-12">
                                 <div class="p-3 rounded-3 border ${totalDiffs > 0 ? 'bg-danger-subtle border-danger' : 'bg-light'} d-flex align-items-center shadow-xs" 
                                      ${totalDiffs > 0 ? `onclick="switchDiffFilter('diff')" style="cursor:pointer;" title="Klik untuk menyaring data yang beda"` : 'style="opacity: 0.75;"'}>
                                     <div class="rounded-circle p-2 ${totalDiffs > 0 ? 'bg-danger text-white' : 'bg-secondary text-white'} me-3 d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
@@ -1375,7 +1576,7 @@
                             </div>
 
                             <!-- KPI: Cocok Sempurna (Highlight Spesial Saat 100% Cocok) -->
-                            <div class="col-md-4">
+                            <div class="col-xl-4 col-sm-6 col-12">
                                 <div class="p-3 rounded-3 border d-flex align-items-center shadow-xs ${isPerfectMatch ? 'border-success' : (totalMatches > 0 ? 'border-success bg-success-subtle' : 'bg-light border-secondary-subtle')}" 
                                      ${totalMatches > 0 ? `onclick="switchDiffFilter('match')" style="cursor:pointer;"` : 'style="opacity: 0.75;"'}
                                      ${isPerfectMatch ? 'style="cursor:pointer; border: 2px solid #10b981 !important; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important; box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.25) !important;"' : ''} 
@@ -1394,7 +1595,7 @@
                             </div>
 
                             <!-- KPI: Khusus PDF -->
-                            <div class="col-md-4">
+                            <div class="col-xl-4 col-sm-6 col-12">
                                 <div class="p-3 rounded-3 border ${totalPdfOnly > 0 ? 'bg-warning-subtle border-warning' : 'bg-light'} d-flex align-items-center shadow-xs" 
                                      ${totalPdfOnly > 0 ? `onclick="switchDiffFilter('pdf_only')" style="cursor:pointer;" title="Klik untuk menyaring data khusus cetakan PDF"` : 'style="opacity: 0.75;"'}>
                                     <div class="rounded-circle p-2 ${totalPdfOnly > 0 ? 'bg-warning-emphasis text-white' : 'bg-secondary text-white'} me-3 d-flex align-items-center justify-content-center" style="width:48px; height:48px;">
@@ -1467,60 +1668,181 @@
                         // Render Diffs (Default Active)
                         if (res.diffs && res.diffs.length > 0) {
                             res.diffs.forEach(d => {
+                                let absDiff = formatAngkaDisplay(Math.abs((d.pdf_val || 0) - (d.src_val || 0)));
+
+                                // 1. Ekstraksi Tahun
+                                let yearMatch = (d.metric || '').match(/\b(20\d{2})\b/);
+                                let yearText = yearMatch ? yearMatch[1] : (res.target_year || '-');
+
+                                // 2. Ekstraksi Nama Metrik Bersih (tanpa tahun)
+                                let cleanMetric = (d.metric || '').replace(/\s*\(\s*20\d{2}\s*\)\s*/g, '').trim();
+                                if (!cleanMetric) cleanMetric = d.metric || '-';
+
+                                // 3. Bangun Jalur Kolom Bertingkat (Support 1, 2, 3, 4 Tingkat)
+                                let colHierarchyHtml = '';
+                                if (d.section) {
+                                    let parts = d.section.split(/\s*(?:>|\/)\s*/).filter(p => p.trim());
+                                    if (parts.length > 1) {
+                                        colHierarchyHtml = `<span class="text-secondary">${parts.join(' <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i> ')} <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">${cleanMetric}</strong>`;
+                                    } else {
+                                        colHierarchyHtml = `<span class="text-secondary">${d.section} <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">${cleanMetric}</strong>`;
+                                    }
+                                } else {
+                                    colHierarchyHtml = `<strong class="text-dark">${cleanMetric}</strong>`;
+                                }
+
+                                // 4. Halaman PDF Info
+                                let pageInfo = d.pages ? (Array.isArray(d.pages) ? d.pages.join(', ') : d.pages) : (d.page || (res.target_pages ? (Array.isArray(res.target_pages) ? res.target_pages.join(', ') : res.target_pages) : ''));
+                                let pageBadge = pageInfo ? `<span class="text-muted small" style="font-size:0.75rem;"><i class="bi bi-book me-1"></i>Hal. ${pageInfo}</span>` : '';
+
                                 html += `
-                                    <div class="card mb-2 border border-danger-subtle shadow-xs item-row" data-type="diff" data-wilayah="${d.wilayah.toLowerCase()}" data-metric="${d.metric.toLowerCase()}" data-section="${(d.section || '').toLowerCase()}">
-                                        <div class="card-body p-3">
-                                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom border-light">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="badge bg-primary text-white px-2 py-1 fs-6 fw-bold me-2 shadow-xs">
-                                                        <i class="bi bi-geo-alt-fill me-1"></i>${d.wilayah}
-                                                    </span>
-                                                    ${d.section ? `<span class="badge rounded-pill px-2 py-1 fw-bold" style="background:#f3e8ff; color:#7e22ce; border:1px solid #d8b4fe; font-size:0.75rem;"><i class="bi bi-tag-fill me-1"></i>${d.section}</span>` : ''}
+                                    <div class="card mb-3 border border-danger-subtle shadow-xs item-row diff-card" data-type="diff" style="border-left: 4px solid #ef4444 !important;" data-wilayah="${d.wilayah.toLowerCase()}" data-metric="${d.metric.toLowerCase()}" data-section="${(d.section || '').toLowerCase()}">
+                                        <div class="card-body p-0">
+                                            <!-- 1. FULL WIDTH MODE (Opsi 2: Matrix Coordinates - Lega, Elegan & On-Point) -->
+                                            <div class="diff-full-layout">
+                                                <div class="row g-0 align-items-stretch">
+                                                    <!-- Panel Kiri: Matrix Coordinates -->
+                                                    <div class="col-md-5 split-matrix-left d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                                                                <span class="fw-bold text-dark small"><i class="bi bi-grid-3x3 me-1 text-primary"></i>Koordinat Sel Tabel:</span>
+                                                                ${pageBadge}
+                                                            </div>
+
+                                                            <div class="s2-grid">
+                                                                <div class="s2-label">Baris:</div>
+                                                                <div class="s2-val">
+                                                                    <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-primary me-1" style="font-size:0.9rem;"></i>${d.wilayah}</span>
+                                                                </div>
+
+                                                                <div class="s2-label">Kolom:</div>
+                                                                <div class="s2-val">
+                                                                    ${colHierarchyHtml}
+                                                                </div>
+
+                                                                <div class="s2-label">Tahun:</div>
+                                                                <div class="s2-val">
+                                                                    ${yearText !== '-' ? `<span class="fw-bold text-primary"><i class="bi bi-calendar3 me-1" style="font-size:0.85rem;"></i>${yearText}</span>` : `<span class="text-muted">-</span>`}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="pt-2 border-top border-light-subtle d-flex align-items-center justify-content-between">
+                                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill small fw-bold">
+                                                                <i class="bi bi-exclamation-circle-fill me-1"></i>Selisih: ${absDiff}
+                                                            </span>
+                                                            ${d.unit ? `<span class="text-muted small" style="font-size:0.72rem;">${d.unit}</span>` : ''}
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Panel Kanan: Perbandingan Angka Lega & Tombol Aksi Nyaman -->
+                                                    <div class="col-md-7 split-matrix-right d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                                <span class="small text-muted fw-semibold">Nilai Perbandingan:</span>
+                                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                                                                    Berbeda
+                                                                </span>
+                                                            </div>
+
+                                                            <div class="row g-2 align-items-center">
+                                                                <!-- PDF Box -->
+                                                                <div class="col-5">
+                                                                    <div class="p-2-5 rounded-3 bg-white border border-danger shadow-xs text-center h-100">
+                                                                        <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.7rem; letter-spacing:0.02em;">
+                                                                            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                                                                        </div>
+                                                                        <div class="fs-4 fw-black text-danger font-monospace text-truncate">${formatAngkaDisplay(d.pdf_val)}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- Separator -->
+                                                                <div class="col-2 text-center">
+                                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">≠</span>
+                                                                </div>
+
+                                                                <!-- DB Box -->
+                                                                <div class="col-5">
+                                                                    <div class="p-2-5 rounded-3 bg-white border border-success shadow-xs text-center h-100">
+                                                                        <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.7rem; letter-spacing:0.02em;">
+                                                                            <i class="bi bi-database-fill me-1"></i>Di Database
+                                                                        </div>
+                                                                        <div class="fs-4 fw-black text-success font-monospace text-truncate">${formatAngkaDisplay(d.src_val)}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="pt-3 mt-3 border-top border-light-subtle">
+                                                            ${(res.id_indikator && d.coord) ? `
+                                                                <button type="button" onclick='syncSingleDiffCell(${res.id_indikator}, ${JSON.stringify(d.coord)}, ${JSON.stringify(d.pdf_val)}, this)' class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                                                                    <i class="bi bi-magic"></i>
+                                                                    <span>Gunakan Angka PDF (${formatAngkaDisplay(d.pdf_val)}) ke Database</span>
+                                                                </button>
+                                                            ` : `
+                                                                <div class="text-muted small text-center py-1">
+                                                                    <i class="bi bi-info-circle me-1"></i>Di PDF <strong>${formatAngkaDisplay(d.pdf_val)}</strong> &bull; Di Database <strong>${formatAngkaDisplay(d.src_val)}</strong>
+                                                                </div>
+                                                            `}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <span class="badge bg-danger text-white px-3 py-1 rounded-pill fw-bold shadow-xs">
-                                                    <i class="bi bi-exclamation-octagon-fill me-1"></i> ${d.note.split('(')[0].trim() || 'Beda Nilai'}
-                                                </span>
                                             </div>
-                                            
-                                            <div class="row align-items-center g-3">
-                                                <div class="col-md-4">
-                                                    <div class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.04em;">Nama Data / Metrik:</div>
-                                                    <div class="fs-5 fw-bold text-dark mt-1">${d.metric}</div>
+
+                                            <!-- 2. SPLIT VIEW MODE (Auto-activates when Sandingkan PDF is ON: Stacked, Collision-Free) -->
+                                            <div class="diff-split-layout p-3">
+                                                <!-- Header: Wilayah + Metric + Selisih -->
+                                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom border-light">
+                                                    <div class="d-flex align-items-center flex-wrap gap-2">
+                                                        <span class="badge bg-primary text-white px-2 py-1 fs-6 fw-bold shadow-xs">
+                                                            <i class="bi bi-geo-alt-fill me-1"></i>${d.wilayah}
+                                                        </span>
+                                                        <span class="text-secondary fw-semibold small">${colHierarchyHtml}</span>
+                                                        ${yearText !== '-' ? `<span class="badge bg-light text-primary border fw-bold">${yearText}</span>` : ''}
+                                                    </div>
+                                                    <span class="badge bg-danger text-white px-3 py-1 rounded-pill fw-bold shadow-xs">
+                                                        <i class="bi bi-exclamation-octagon-fill me-1"></i> Selisih: ${absDiff}
+                                                    </span>
                                                 </div>
 
-                                                <div class="col-md-5">
-                                                    <div class="d-flex align-items-center justify-content-center p-2 rounded-3 bg-light border">
-                                                        <!-- PDF Side -->
-                                                        <div class="text-center px-3 py-2 rounded-3 bg-white border border-danger shadow-xs flex-fill">
-                                                            <div class="small text-danger fw-bold mb-1"><i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF</div>
-                                                            <div class="fs-4 fw-black text-danger font-monospace">${formatAngkaDisplay(d.pdf_val)}</div>
+                                                <!-- Numbers Comparison: Full Width Grid -->
+                                                <div class="row g-2 align-items-stretch mb-2">
+                                                    <div class="col-sm-5 col-12">
+                                                        <div class="p-2 rounded-3 bg-white border border-danger shadow-xs text-center h-100 d-flex flex-column justify-content-center">
+                                                            <div class="small text-danger fw-bold mb-1 text-uppercase" style="font-size:0.72rem; letter-spacing:0.02em;">
+                                                                <i class="bi bi-file-earmark-pdf-fill me-1"></i> Di Buku PDF
+                                                            </div>
+                                                            <div class="fs-4 fw-black text-danger font-monospace text-break">
+                                                                ${formatAngkaDisplay(d.pdf_val)}
+                                                            </div>
                                                         </div>
-
-                                                        <!-- VS Arrow -->
-                                                        <div class="px-3 text-center">
-                                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold fs-6">≠</span>
-                                                        </div>
-
-                                                        <!-- DB Side -->
-                                                        <div class="text-center px-3 py-2 rounded-3 bg-white border border-success shadow-xs flex-fill">
-                                                            <div class="small text-success fw-bold mb-1"><i class="bi bi-database-fill me-1"></i>Di Database Sumber</div>
-                                                            <div class="fs-4 fw-black text-success font-monospace">${formatAngkaDisplay(d.src_val)}</div>
+                                                    </div>
+                                                    <div class="col-sm-2 col-12 d-flex align-items-center justify-content-center py-1">
+                                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold fs-6 rounded-circle p-2 shadow-xs" style="width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;">≠</span>
+                                                    </div>
+                                                    <div class="col-sm-5 col-12">
+                                                        <div class="p-2 rounded-3 bg-white border border-success shadow-xs text-center h-100 d-flex flex-column justify-content-center">
+                                                            <div class="small text-success fw-bold mb-1 text-uppercase" style="font-size:0.72rem; letter-spacing:0.02em;">
+                                                                <i class="bi bi-database-fill me-1"></i> Di Database Sumber
+                                                            </div>
+                                                            <div class="fs-4 fw-black text-success font-monospace text-break">
+                                                                ${formatAngkaDisplay(d.src_val)}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div class="col-md-3">
-                                                    <div class="p-2 rounded-3 bg-danger-subtle border border-danger-subtle text-danger h-100 d-flex flex-column justify-content-center">
-                                                        <div class="fw-bold small"><i class="bi bi-info-circle-fill me-1"></i> Penjelasan:</div>
-                                                        <div class="small mt-1" style="line-height:1.3;">
-                                                            Di cetakan PDF tertulis <strong>${formatAngkaDisplay(d.pdf_val)}</strong>, tetapi di database tertulis <strong>${formatAngkaDisplay(d.src_val)}</strong>.
-                                                        </div>
-                                                        ${(res.id_indikator && d.coord) ? `
-                                                            <button type="button" onclick='syncSingleDiffCell(${res.id_indikator}, ${JSON.stringify(d.coord)}, ${JSON.stringify(d.pdf_val)}, this)' class="btn btn-xs btn-danger text-white fw-bold rounded-pill mt-2 py-1 px-2 shadow-xs">
-                                                                <i class="bi bi-magic me-1"></i> Gunakan Angka PDF (${formatAngkaDisplay(d.pdf_val)})
-                                                            </button>
-                                                        ` : ''}
+                                                <!-- Action & Explanation Footer -->
+                                                <div class="p-2-5 rounded-3 bg-danger-subtle bg-opacity-50 border border-danger-subtle text-danger d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                    <div class="small" style="line-height:1.35;">
+                                                        <i class="bi bi-info-circle-fill me-1"></i>
+                                                        Di cetakan PDF tertulis <strong class="font-monospace">${formatAngkaDisplay(d.pdf_val)}</strong>, tetapi di database tertulis <strong class="font-monospace">${formatAngkaDisplay(d.src_val)}</strong>.
                                                     </div>
+                                                    ${(res.id_indikator && d.coord) ? `
+                                                        <button type="button" onclick='syncSingleDiffCell(${res.id_indikator}, ${JSON.stringify(d.coord)}, ${JSON.stringify(d.pdf_val)}, this)' class="btn btn-sm btn-danger text-white fw-bold rounded-pill px-3 py-1 shadow-xs flex-shrink-0">
+                                                            <i class="bi bi-magic me-1"></i> Gunakan Angka PDF (${formatAngkaDisplay(d.pdf_val)})
+                                                        </button>
+                                                    ` : ''}
                                                 </div>
                                             </div>
                                         </div>
@@ -1535,32 +1857,28 @@
                             res.matches.forEach(m => {
                                 html += `
                                     <div class="card mb-2 border border-success-subtle shadow-xs item-row" data-type="match" style="${defaultDisplay} border-left: 4px solid #10b981 !important;" data-wilayah="${m.wilayah.toLowerCase()}" data-metric="${m.metric.toLowerCase()}" data-section="${(m.section || '').toLowerCase()}">
-                                        <div class="card-body py-2 px-3">
-                                            <div class="row align-items-center g-2">
-                                                <div class="col-md-4">
+                                        <div class="card-body p-2-5 px-3">
+                                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                                <div class="d-flex align-items-center flex-wrap gap-1">
                                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold">
                                                         <i class="bi bi-geo-alt me-1"></i>${m.wilayah}
                                                     </span>
-                                                    ${m.section ? `<span class="badge rounded-pill ms-1 small fw-semibold" style="background:#f3e8ff; color:#7e22ce; border:1px solid #d8b4fe;"><i class="bi bi-tag me-1"></i>${m.section}</span>` : ''}
-                                                    <span class="fw-bold text-dark ms-2">${m.metric}</span>
+                                                    ${m.section ? `<span class="badge rounded-pill small fw-semibold" style="background:#f3e8ff; color:#7e22ce; border:1px solid #d8b4fe;"><i class="bi bi-tag me-1"></i>${m.section}</span>` : ''}
+                                                    <span class="fw-bold text-dark ms-1 small">${m.metric}</span>
                                                 </div>
-                                                <div class="col-md-5">
-                                                    <div class="d-flex align-items-center justify-content-center p-2 rounded-2 ${m.is_tolerance_match ? 'bg-info-subtle border border-info-subtle' : 'bg-success-subtle border border-success-subtle'}">
-                                                        <div class="text-center flex-fill">
-                                                            <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold"><i class="bi bi-file-earmark-pdf me-1"></i>PDF:</span>
-                                                            <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace ms-1">${formatAngkaDisplay(m.pdf_val !== undefined ? m.pdf_val : m.val)}</span>
-                                                        </div>
-                                                        <div class="${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-bold px-2">${m.is_tolerance_match ? '≈' : '='}</div>
-                                                        <div class="text-center flex-fill">
-                                                            <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold"><i class="bi bi-database me-1"></i>Database:</span>
-                                                            <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace ms-1">${formatAngkaDisplay(m.src_val !== undefined ? m.src_val : m.val)}</span>
-                                                        </div>
-                                                    </div>
+                                                <span class="badge ${m.is_tolerance_match ? 'bg-info text-white' : 'bg-success text-white'} px-3 py-1 rounded-pill fw-bold shadow-xs">
+                                                    <i class="bi ${m.is_tolerance_match ? 'bi-sliders' : 'bi-check-circle-fill'} me-1"></i> ${m.is_tolerance_match ? 'Cocok (Toleransi ' + (m.tolerance_diff > 0 ? '+' : '') + m.tolerance_diff + ')' : 'Sama Persis (Cocok)'}
+                                                </span>
+                                            </div>
+                                            <div class="p-2 rounded-2 ${m.is_tolerance_match ? 'bg-info-subtle border border-info-subtle' : 'bg-success-subtle border border-success-subtle'} d-flex align-items-center justify-content-around flex-wrap gap-2 text-center">
+                                                <div>
+                                                    <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold me-1"><i class="bi bi-file-earmark-pdf me-1"></i>PDF:</span>
+                                                    <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace">${formatAngkaDisplay(m.pdf_val !== undefined ? m.pdf_val : m.val)}</span>
                                                 </div>
-                                                <div class="col-md-3 text-end">
-                                                    <span class="badge ${m.is_tolerance_match ? 'bg-info text-white' : 'bg-success text-white'} px-3 py-2 rounded-pill fw-bold">
-                                                        <i class="bi ${m.is_tolerance_match ? 'bi-sliders' : 'bi-check-circle-fill'} me-1"></i> ${m.is_tolerance_match ? 'Cocok (Toleransi ' + (m.tolerance_diff > 0 ? '+' : '') + m.tolerance_diff + ')' : 'Sama Persis (Cocok)'}
-                                                    </span>
+                                                <div class="${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-bold px-1">${m.is_tolerance_match ? '≈' : '='}</div>
+                                                <div>
+                                                    <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold me-1"><i class="bi bi-database me-1"></i>Database:</span>
+                                                    <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace">${formatAngkaDisplay(m.src_val !== undefined ? m.src_val : m.val)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1573,29 +1891,25 @@
                         if (res.pdf_only && res.pdf_only.length > 0) {
                             res.pdf_only.forEach(p => {
                                 html += `
-                                    <div class="card mb-2 border border-warning-subtle shadow-xs item-row" data-type="pdf_only" style="display: none;" data-wilayah="${p.wilayah.toLowerCase()}" data-metric="${p.metric.toLowerCase()}" data-section="${(p.section || '').toLowerCase()}">
-                                        <div class="card-body py-2 px-3">
-                                            <div class="row align-items-center g-2">
-                                                <div class="col-md-4">
+                                    <div class="card mb-2 border border-warning-subtle shadow-xs item-row" data-type="pdf_only" style="display: none; border-left: 4px solid #f59e0b !important;" data-wilayah="${p.wilayah.toLowerCase()}" data-metric="${p.metric.toLowerCase()}" data-section="${(p.section || '').toLowerCase()}">
+                                        <div class="card-body p-2-5 px-3">
+                                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                                <div class="d-flex align-items-center flex-wrap gap-1">
                                                     <span class="badge bg-secondary-subtle text-dark border px-2 py-1 fw-bold">
                                                         <i class="bi bi-geo-alt me-1"></i>${p.wilayah}
                                                     </span>
-                                                    ${p.section ? `<span class="badge rounded-pill ms-1 small bg-light text-secondary border">${p.section}</span>` : ''}
-                                                    <span class="fw-bold text-dark ms-2">${p.metric}</span>
+                                                    ${p.section ? `<span class="badge rounded-pill small bg-light text-secondary border">${p.section}</span>` : ''}
+                                                    <span class="fw-bold text-dark ms-1 small">${p.metric}</span>
                                                 </div>
-                                                <div class="col-md-5">
-                                                    <div class="p-2 rounded-2 bg-warning-subtle border border-warning-subtle text-center">
-                                                        <span class="small text-warning-emphasis fw-bold me-2"><i class="bi bi-journal-bookmark me-1"></i>Di Buku PDF:</span>
-                                                        <span class="font-monospace fw-bold text-dark fs-6">${p.values.map(v => formatAngkaDisplay(v)).join(' | ')}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill small mb-1 d-inline-block">
-                                                        <i class="bi bi-journal-bookmark me-1"></i> Cuma Ada di Cetakan PDF
-                                                    </span>
-                                                    <div class="text-muted small" style="font-size:0.78rem;">${p.note}</div>
-                                                </div>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-1 rounded-pill small fw-bold">
+                                                    <i class="bi bi-journal-bookmark me-1"></i> Cuma Ada di Cetakan PDF
+                                                </span>
                                             </div>
+                                            <div class="p-2 rounded-2 bg-warning-subtle border border-warning-subtle text-center">
+                                                <span class="small text-warning-emphasis fw-bold me-2"><i class="bi bi-journal-bookmark me-1"></i>Nilai di Buku PDF:</span>
+                                                <span class="font-monospace fw-bold text-dark fs-6">${p.values.map(v => formatAngkaDisplay(v)).join(' | ')}</span>
+                                            </div>
+                                            ${p.note ? `<div class="text-muted small mt-1" style="font-size:0.78rem;">${p.note}</div>` : ''}
                                         </div>
                                     </div>
                                 `;
@@ -1659,7 +1973,7 @@
                                             </div>
                                             <div class="d-flex gap-2">
                                                 ${res.pages && res.pages.length > 0 ? `
-                                                    <button type="button" onclick="togglePdfSplitView(${firstPage})" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3">
+                                                    <button type="button" onclick="togglePdfSplitView()" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 btn-toggle-split-pdf">
                                                         <i class="bi bi-layout-split me-1"></i> Lihat PDF (${pagesLabel})
                                                     </button>
                                                 ` : ''}
@@ -1687,10 +2001,14 @@
                                 </div>
                             `;
                         } else if (res.id_db && res.source_type === 'Tabel Dinamis') {
+                            let diagMsg = (res.pages && res.pages.length > 0)
+                                ? `<div class="alert alert-warning bg-warning-subtle border-warning-subtle text-warning-emphasis small py-2 px-3 mx-auto mb-3 rounded-3" style="max-width: 560px;"><i class="bi bi-info-circle-fill me-1"></i> Tabel ditemukan di <strong>${pagesLabel}</strong>, namun format baris/kolom pada cetakan PDF belum cocok secara otomatis dengan struktur Tabel Dinamis ini. Silakan periksa konfigurasi atau isi manual.</div>`
+                                : `<div class="alert alert-secondary bg-light border text-secondary small py-2 px-3 mx-auto mb-3 rounded-3" style="max-width: 560px;"><i class="bi bi-info-circle-fill me-1"></i> Halaman untuk tabel ini tidak ditemukan pada cetakan buku PDF tahun ini, sehingga pengisian otomatis tidak tersedia. Silakan isi data secara manual.</div>`;
                             autofillBox = `
+                                ${diagMsg}
                                 <div class="mt-3 d-flex justify-content-center gap-2">
                                     ${res.pages && res.pages.length > 0 ? `
-                                        <button type="button" onclick="togglePdfSplitView(${firstPage})" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3">
+                                        <button type="button" onclick="togglePdfSplitView()" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 btn-toggle-split-pdf">
                                             <i class="bi bi-layout-split me-1"></i> Lihat PDF Asli (${pagesLabel})
                                         </button>
                                     ` : ''}
@@ -1706,17 +2024,7 @@
 
                         $('#diffContent').html(`
                             <div class="row g-3" id="modalSplitWrapper">
-                                <div class="col-lg-6 d-none" id="pdfSplitPane">
-                                    <div class="card border shadow-xs h-100">
-                                        <div class="card-header bg-dark text-white py-2 px-3 d-flex justify-content-between align-items-center">
-                                            <span class="small fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Cetakan Buku PDF Asli (${pagesLabel})</span>
-                                            <button type="button" class="btn btn-xs btn-outline-light py-0 px-2" onclick="togglePdfSplitView(${firstPage})"><i class="bi bi-x-lg"></i> Tutup Preview</button>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <iframe id="pdfSplitIframe" src="" style="width:100%; height:68vh; border:0;"></iframe>
-                                        </div>
-                                    </div>
-                                </div>
+${getPdfSplitPaneHtml(pagesLabel)}
                                 <div class="col-lg-12" id="auditMainPane">
                                     <div class="text-center py-4">
                                         <div class="d-inline-flex align-items-center justify-content-center bg-warning-subtle text-warning rounded-circle mb-3 shadow-xs" style="width: 68px; height: 68px;">

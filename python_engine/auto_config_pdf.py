@@ -10,6 +10,8 @@ try:
 except ImportError:
     import fitz
 
+from normalizer import strip_pdf_page_watermark
+
 SINGLE_CHAR_WATERMARK = {'j', 'a', 't', 'e', 'n', 'g', 'b', 'p', 's', 'o', 'i', 'd', '.', 'h', ':'}
 
 ENGLISH_SIGNAL_WORDS = {
@@ -142,7 +144,10 @@ def extract_table_structure_from_pdf(pdf_path, pages):
         if p < 1 or p > len(doc):
             continue
         page = doc[p - 1]
-        tabs = page.find_tables()
+        strip_pdf_page_watermark(doc, page)
+        import io, contextlib
+        with contextlib.redirect_stdout(io.StringIO()):
+            tabs = page.find_tables()
         if not tabs.tables:
             continue
         extracted_tables = []
@@ -172,6 +177,24 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                 col_num_idx = r_idx
                 col_nums = temp_map
                 break
+
+        if col_num_idx == -1:
+            for r_idx, row in enumerate(raw_grid[:10]):
+                temp_map = {}
+                seq_vals = []
+                for c_idx, cell in enumerate(row):
+                    c_clean = clean_cell_text(cell).strip()
+                    if c_clean.isdigit():
+                        v = int(c_clean)
+                        if 1 <= v <= 30:
+                            temp_map[c_idx] = v
+                            seq_vals.append(v)
+                if len(seq_vals) >= 3 and 1 in seq_vals:
+                    is_seq = all(seq_vals[i] < seq_vals[i+1] for i in range(len(seq_vals)-1))
+                    if is_seq:
+                        col_num_idx = r_idx
+                        col_nums = temp_map
+                        break
 
         if col_num_idx == -1:
             continue
@@ -268,14 +291,17 @@ def extract_table_structure_from_pdf(pdf_path, pages):
 
         for ci in data_c_indices:
             cn = c_idx_map[ci]
-            if cn in data_col_headers:
-                continue
             col_path = []
             for hr_ff in ffilled_headers:
                 val = hr_ff[ci] if ci < len(hr_ff) else ""
                 if val and (not col_path or col_path[-1] != val):
                     col_path.append(val)
-            data_col_headers[cn] = col_path
+            if cn in data_col_headers:
+                if data_col_headers[cn] != col_path and col_path:
+                    new_cn = max(data_col_headers.keys()) + 1
+                    data_col_headers[new_cn] = col_path
+            else:
+                data_col_headers[cn] = col_path
 
     sorted_col_nums = sorted(data_col_headers.keys())
     if not sorted_col_nums:
