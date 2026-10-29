@@ -89,22 +89,99 @@ $titleBarisInd = !empty($kelompokBaris->judul_baris_ind) ? $kelompokBaris->judul
 $cleanTitleInd = preg_replace('/^\d+\s+/', '', $titleBarisInd);
 $titleBarisEn  = !empty($kelompokBaris->judul_baris_en) ? $kelompokBaris->judul_baris_en : ($kelompokBaris->nama_kelompok_en ?? '');
 
-if (empty($titleBarisEn) || strtolower($titleBarisEn) === strtolower($cleanTitleInd)) {
-    $lower = strtolower($cleanTitleInd);
-    if (strpos($lower, 'kabupaten') !== false && strpos($lower, 'kota') !== false) {
-        $titleBarisEn = 'Regency/Municipality';
-    } elseif (strpos($lower, 'kabupaten') !== false) {
-        $titleBarisEn = 'Regency';
-    } elseif (strpos($lower, 'kota') !== false) {
-        $titleBarisEn = 'Municipality';
-    } elseif (strpos($lower, 'kecamatan') !== false) {
-        $titleBarisEn = 'District';
-    } elseif (strpos($lower, 'desa') !== false || strpos($lower, 'kelurahan') !== false) {
-        $titleBarisEn = 'Village';
-    } elseif (strpos($lower, 'provinsi') !== false) {
-        $titleBarisEn = 'Province';
+// Deteksi Multi-Kolom Baris (format pemisah '||')
+$isMultiBaris = (strpos($cleanTitleInd, '||') !== false);
+if (!$isMultiBaris && !empty($itemsBaris)) {
+    foreach ($itemsBaris as $ib) {
+        if (strpos($ib->nama_baris_ind ?? '', '||') !== false) {
+            $isMultiBaris = true;
+            break;
+        }
+    }
+}
+
+if ($isMultiBaris) {
+    if (strpos($cleanTitleInd, '||') !== false) {
+        $pInd = array_map('trim', explode('||', $cleanTitleInd));
+        $titleCol1Ind = $pInd[0] ?? $cleanTitleInd;
+        $titleCol2Ind = $pInd[1] ?? '';
     } else {
-        $titleBarisEn = 'Detail / Region';
+        $titleCol1Ind = $cleanTitleInd;
+        $titleCol2Ind = '';
+    }
+
+    if (empty($titleCol2Ind)) {
+        // Cerdas deteksi isi kolom 2 dari itemsBaris jika titleCol2Ind belum terisi
+        $col2Samples = [];
+        if (!empty($itemsBaris)) {
+            foreach ($itemsBaris as $ib) {
+                $nm = $ib->nama_baris_ind ?? '';
+                if (strpos($nm, '||') !== false) {
+                    $parts = explode('||', $nm);
+                    $c2 = trim($parts[1] ?? '');
+                    if ($c2 !== '') {
+                        $col2Samples[] = strtolower($c2);
+                    }
+                }
+            }
+        }
+        $sampleJoined = implode(' ', array_slice($col2Samples, 0, 15));
+        if (strpos($sampleJoined, 'maret') !== false || strpos($sampleJoined, 'september') !== false || strpos($sampleJoined, 'januari') !== false || strpos($sampleJoined, 'desember') !== false || strpos($sampleJoined, 'juni') !== false) {
+            $titleCol2Ind = 'Bulan';
+            $titleCol2En  = 'Month';
+        } elseif (strpos($sampleJoined, 'jakarta') !== false || strpos($sampleJoined, 'jawa') !== false || strpos($sampleJoined, 'bali') !== false || strpos($sampleJoined, 'sumatera') !== false || strpos($sampleJoined, 'yogyakarta') !== false || strpos($sampleJoined, 'kalimantan') !== false || strpos($sampleJoined, 'sulawesi') !== false) {
+            $titleCol2Ind = 'Provinsi';
+            $titleCol2En  = 'Province';
+        } elseif (strpos($sampleJoined, 'unit') !== false || strpos($sampleJoined, 'juta') !== false || strpos($sampleJoined, 'rupiah') !== false || strpos($sampleJoined, 'persen') !== false || strpos($sampleJoined, '%') !== false || strpos($sampleJoined, 'ton') !== false || strpos($sampleJoined, 'kg') !== false) {
+            $titleCol2Ind = 'Satuan';
+            $titleCol2En  = 'Unit';
+        } else {
+            $titleCol2Ind = 'Satuan / Detail';
+            $titleCol2En  = 'Detail';
+        }
+    }
+
+    if (!empty($titleBarisEn) && strpos($titleBarisEn, '||') !== false) {
+        $pEn = array_map('trim', explode('||', $titleBarisEn));
+        $titleCol1En = $pEn[0] ?? $titleCol1Ind;
+        $titleCol2En = $pEn[1] ?? ($titleCol2En ?: 'Detail');
+    } elseif (empty($titleCol2En)) {
+        $titleCol1En = $titleBarisEn ?: $titleCol1Ind;
+        $lowerCol2 = strtolower($titleCol2Ind);
+        if (strpos($lowerCol2, 'satuan') !== false || strpos($lowerCol2, 'unit') !== false) {
+            $titleCol2En = 'Unit';
+        } elseif (strpos($lowerCol2, 'provinsi') !== false) {
+            $titleCol2En = 'Province';
+        } elseif (strpos($lowerCol2, 'bulan') !== false) {
+            $titleCol2En = 'Month';
+        } else {
+            $titleCol2En = 'Detail';
+        }
+    }
+} else {
+    $titleCol1Ind = $cleanTitleInd;
+    $titleCol1En  = $titleBarisEn;
+    $titleCol2Ind = '';
+    $titleCol2En  = '';
+
+    if (empty($titleBarisEn) || strtolower($titleBarisEn) === strtolower($cleanTitleInd)) {
+        $lower = strtolower($cleanTitleInd);
+        if (strpos($lower, 'kabupaten') !== false && strpos($lower, 'kota') !== false) {
+            $titleBarisEn = 'Regency/Municipality';
+        } elseif (strpos($lower, 'kabupaten') !== false) {
+            $titleBarisEn = 'Regency';
+        } elseif (strpos($lower, 'kota') !== false) {
+            $titleBarisEn = 'Municipality';
+        } elseif (strpos($lower, 'kecamatan') !== false) {
+            $titleBarisEn = 'District';
+        } elseif (strpos($lower, 'desa') !== false || strpos($lower, 'kelurahan') !== false) {
+            $titleBarisEn = 'Village';
+        } elseif (strpos($lower, 'provinsi') !== false) {
+            $titleBarisEn = 'Province';
+        } else {
+            $titleBarisEn = 'Detail / Region';
+        }
+        $titleCol1En = $titleBarisEn;
     }
 }
 
@@ -1176,33 +1253,70 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     <?php endif; ?>
                                     <?= $getLevelCellsPhp($activeLevels[0], 1); ?>
                                 <?php else: ?>
-                                    <!-- Kolom No. Hadir jika di master baris ada nomornya -->
                                     <?php if ($hasNoCol && !$isRuntunWaktu): ?>
                                         <th rowspan="<?= $totalHeaderRows + 1; ?>" style="border: 1px solid #fff; width: 45px; text-align: center; vertical-align: middle;">No.</th>
                                     <?php endif; ?>
 
-                                    <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 180px; text-align: center; vertical-align: middle;">
-                                        <?= esc($cleanTitleInd); ?>
-                                        <?php if (!empty($titleBarisEn)): ?>
-                                            <br><i><?= esc($titleBarisEn); ?></i>
-                                        <?php endif; ?>
-                                    </th>
-                                    <?php if ($hasKolom && $hasPeriode && $posisi_hirarki === 'periode_baris_pisah'): ?>
-                                        <!-- MODE PISAH HEADER: Kolom 2 Memiliki Header Tersendiri -->
+                                    <?php if ($isMultiBaris && !empty($titleCol2Ind)): ?>
+                                        <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 180px; text-align: center; vertical-align: middle;">
+                                            <?= esc($titleCol1Ind); ?>
+                                            <?php if (!empty($titleCol1En) && strtolower($titleCol1En) !== strtolower($titleCol1Ind)): ?>
+                                                <br><i><?= esc($titleCol1En); ?></i>
+                                            <?php endif; ?>
+                                        </th>
                                         <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 90px; text-align: center; vertical-align: middle;">
-                                            <?= esc($titlePeriodeInd); ?>
-                                            <?php if (!empty($titlePeriodeEn) && $titlePeriodeEn !== $titlePeriodeInd): ?>
-                                                <br><i><?= esc($titlePeriodeEn); ?></i>
+                                            <?= esc($titleCol2Ind); ?>
+                                            <?php if (!empty($titleCol2En) && strtolower($titleCol2En) !== strtolower($titleCol2Ind)): ?>
+                                                <br><i><?= esc($titleCol2En); ?></i>
                                             <?php endif; ?>
                                         </th>
-                                    <?php elseif ($isBarisDuaKolom): ?>
-                                        <!-- MODE 2 KOLOM BARIS BERTINGKAT: Kolom 2 Rincian (misal: Provinsi) -->
-                                        <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 130px; text-align: center; vertical-align: middle;">
-                                            <?= esc($cleanTitleSubInd); ?>
-                                            <?php if (!empty($titleSubBarisEn) && strtolower($titleSubBarisEn) !== strtolower($cleanTitleSubInd)): ?>
-                                                <br><i><?= esc($titleSubBarisEn); ?></i>
+                                    <?php elseif ($isMultiBaris): ?>
+                                        <!-- Header tunggal di-merge horizontal colspan 2 jika tidak ada rincian kolom 2 -->
+                                        <th rowspan="<?= $totalHeaderRows; ?>" colspan="2" style="border: 1px solid #fff; min-width: 270px; text-align: center; vertical-align: middle;">
+                                            <?= esc($titleCol1Ind); ?>
+                                            <?php if (!empty($titleCol1En) && strtolower($titleCol1En) !== strtolower($titleCol1Ind)): ?>
+                                                <br><i><?= esc($titleCol1En); ?></i>
                                             <?php endif; ?>
                                         </th>
+                                    <?php elseif ($isRuntunWaktu): ?>
+                                        <th rowspan="<?= $totalHeaderRows; ?>" colspan="2" style="border: 1px solid #fff; min-width: 220px; text-align: center; vertical-align: middle;">
+                                            <?= esc($cleanTitleInd); ?>
+                                            <?php if (!empty($titleBarisEn)): ?>
+                                                <br><i><?= esc($titleBarisEn); ?></i>
+                                            <?php endif; ?>
+                                        </th>
+                                    <?php elseif ($posisi_hirarki === 'periode_baris'): ?>
+                                        <!-- MODE GABUNG HEADER: Kolom 1 & 2 Dimerge Horizontal (1) -->
+                                        <th rowspan="<?= $totalHeaderRows; ?>" colspan="2" style="border: 1px solid #fff; min-width: 220px; text-align: center; vertical-align: middle;">
+                                            <?= esc($cleanTitleInd); ?>
+                                            <?php if (!empty($titleBarisEn)): ?>
+                                                <br><i><?= esc($titleBarisEn); ?></i>
+                                            <?php endif; ?>
+                                        </th>
+                                    <?php else: ?>
+                                        <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 220px; text-align: center; vertical-align: middle;">
+                                            <?= esc($cleanTitleInd); ?>
+                                            <?php if (!empty($titleBarisEn)): ?>
+                                                <br><i><?= esc($titleBarisEn); ?></i>
+                                            <?php endif; ?>
+                                        </th>
+                                        <?php if ($hasKolom && $hasPeriode && ($posisi_hirarki === 'periode_baris' || $posisi_hirarki === 'periode_baris_pisah')): ?>
+                                            <!-- MODE PISAH HEADER: Kolom 2 Memiliki Header Tersendiri -->
+                                            <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 90px; text-align: center; vertical-align: middle;">
+                                                <?= esc($titlePeriodeInd); ?>
+                                                <?php if (!empty($titlePeriodeEn) && $titlePeriodeEn !== $titlePeriodeInd): ?>
+                                                    <br><i><?= esc($titlePeriodeEn); ?></i>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php elseif ($isBarisDuaKolom): ?>
+                                            <!-- MODE 2 KOLOM BARIS BERTINGKAT: Kolom 2 Rincian (misal: Provinsi) -->
+                                            <th rowspan="<?= $totalHeaderRows; ?>" style="border: 1px solid #fff; min-width: 130px; text-align: center; vertical-align: middle;">
+                                                <?= esc($cleanTitleSubInd); ?>
+                                                <?php if (!empty($titleSubBarisEn) && strtolower($titleSubBarisEn) !== strtolower($cleanTitleSubInd)): ?>
+                                                    <br><i><?= esc($titleSubBarisEn); ?></i>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php endif; ?>
                                     <?php endif; ?>
 
                                     <?php if (!$hasKolom && $hasPeriode): ?>
@@ -1337,18 +1451,28 @@ $isConfigured = ($indikator && $dimCount >= 2);
 
                             <!-- BARIS PENOMORAN KOLOM RESMI BPS: (1), (2), (3) ... -->
                             <tr class="num-row row-nomor-kolom" style="background: #154679; color: #ffffff; font-size: 11px; font-weight: bold;">
-                                <?php if ($isBarisDuaKolom || ($hasKolom && $hasPeriode && $posisi_hirarki === 'periode_baris_pisah')): ?>
-                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(1)</th>
-                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(2)</th>
-                                    <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
-                                        <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $n + 2; ?>)</th>
-                                    <?php endfor; ?>
+                                <?php 
+                                $colNum = 1;
+                                if (!$hasBaris && $hasKolom && $hasPeriode): 
+                                ?>
+                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $colNum++; ?>)</th>
                                 <?php else: ?>
-                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(1)</th>
-                                    <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
-                                        <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $n + 1; ?>)</th>
-                                    <?php endfor; ?>
+                                    <?php if ($isRuntunWaktu || ($posisi_hirarki === 'periode_baris' && !$isMultiBaris)): ?>
+                                        <th colspan="2" style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $colNum++; ?>)</th>
+                                    <?php else: ?>
+                                        <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $colNum++; ?>)</th>
+                                        <?php if ($isMultiBaris || $isBarisDuaKolom): ?>
+                                            <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $colNum++; ?>)</th>
+                                        <?php endif; ?>
+                                        <?php if ($hasKolom && $hasPeriode && ($posisi_hirarki === 'periode_baris' || $posisi_hirarki === 'periode_baris_pisah')): ?>
+                                            <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $colNum++; ?>)</th>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 <?php endif; ?>
+
+                                <?php for ($n = 1; $n <= $totalLeafCols; $n++): ?>
+                                    <th style="border: 1px solid rgba(255,255,255,0.2); text-align: center; font-weight: bold; background: #154679; color: #ffffff;">(<?= $colNum++; ?>)</th>
+                                <?php endfor; ?>
                             </tr>
                         </thead>
 
@@ -1518,6 +1642,52 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                     return false;
                                 };
 
+                                // Pre-compute auto-rowspan untuk Kolom 1 jika nilainya sama berturut-turut (hanya Kolom 1, Kolom 2 dikunci mati!)
+                                $col1RowspanMap = [];
+                                $col1SkipSet = [];
+
+                                if ($isMultiBaris && $posisi_hirarki !== 'periode_baris') {
+                                    $i = 0;
+                                    $nItems = count($itemsBaris);
+                                    while ($i < $nItems) {
+                                        $curBaris = $itemsBaris[$i];
+                                        $curNama = $curBaris->nama_baris_ind ?? '';
+                                        $isParent = $isParentBaris($i, $itemsBaris);
+                                        
+                                        if ($isParent || strpos($curNama, '||') === false) {
+                                            $i++;
+                                            continue;
+                                        }
+                                        
+                                        $pCur = explode('||', $curNama);
+                                        $curCol1 = trim($pCur[0]);
+                                        $span = 1;
+                                        $j = $i + 1;
+                                        while ($j < $nItems) {
+                                            $nextBaris = $itemsBaris[$j];
+                                            $nextIsParent = $isParentBaris($j, $itemsBaris);
+                                            if ($nextIsParent) break;
+                                            
+                                            $nextNama = $nextBaris->nama_baris_ind ?? '';
+                                            if (strpos($nextNama, '||') === false) break;
+                                            
+                                            $pNext = explode('||', $nextNama);
+                                            $nextCol1 = trim($pNext[0]);
+                                            if ($nextCol1 === $curCol1) {
+                                                $span++;
+                                                $col1SkipSet[$j] = true;
+                                                $j++;
+                                            } else {
+                                                break;
+                                            }
+                                        }
+                                        if ($span > 1) {
+                                            $col1RowspanMap[$i] = $span;
+                                        }
+                                        $i = $j;
+                                    }
+                                }
+
                                 // Pre-hitung jumlah anak untuk mode 2 kolom (Induk Komoditi & Rincian Provinsi)
                                 $childCountMap = [];
                                 if ($isBarisDuaKolom) {
@@ -1614,9 +1784,9 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                         }
                                 ?>
                                     <!-- BANNER PEMBATAS KATEGORI WILAYAH (PARITY 100% GAMBAR 2) -->
-<?php $hasCategoryDivider = true; ?>
+                                    <?php $hasCategoryDivider = true; ?>
                                     <tr class="row-category" style="background: #f1f6fc; font-weight: bold; color: #0f2d59;">
-                                        <td colspan="<?= $totalLeafCols + (($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1)); ?>" style="padding: 10px 15px; border: 1px solid #e2e8f0 !important; background-color: #f1f6fc !important; color: #0f2d59; font-weight: bold;">
+                                        <td colspan="<?= $totalLeafCols + ($isRuntunWaktu ? 2 : (($hasNoCol ? 1 : 0) + (($isMultiBaris || $isBarisDuaKolom) ? 2 : 1) + ($isPeriodeBaris ? 1 : 0))); ?>" style="padding: 10px 15px; border: 1px solid #e2e8f0 !important; background-color: #f1f6fc !important; color: #0f2d59; font-weight: bold;">
                                             <?= esc($dividerText); ?>
                                         </td>
                                     </tr>
@@ -1628,7 +1798,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 ?>
                                             <tr class="row-subtotal" style="background: #dbeafe; font-weight: bold; color: #1e3a8a;">
                                                 <?php if ($pIdx === 0): ?>
-<td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1); ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 8px 14px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
+                                                    <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isMultiBaris ? 2 : 1); ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 8px 14px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                         <?= esc($rawNamaInd); ?>
                                                         <?php if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd): ?>
                                                             <br><i style="font-weight: normal; color: #0f172a;"><?= esc($rawNamaEn); ?></i>
@@ -1643,7 +1813,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                                     ?>
-<td class="col-val" style="text-align: right; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
+                                                    <td class="col-val" style="text-align: right; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                         <?= $formatCellVal($cellVal, $desimal); ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1652,9 +1822,9 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                             endforeach;
                                         else:
                                 ?>
-<!-- BARIS SUBTOTAL STANDAR (TAMPILAN RESMI BPS: SOFT BLUE #dbeafe) -->
+                                            <!-- BARIS SUBTOTAL STANDAR (TAMPILAN RESMI BPS: SOFT BLUE #dbeafe) -->
                                             <tr class="row-subtotal" style="background: #dbeafe; font-weight: bold; color: #1e3a8a;">
-                                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1); ?>" style="padding: 8px 14px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
+                                                <td colspan="<?= ($isRuntunWaktu || $isBarisDuaKolom || $isMultiBaris || $hasNoCol) ? 2 : 1; ?>" style="padding: 8px 14px; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                     <?= esc($rawNamaInd); ?>
                                                     <?php if (!empty($rawNamaEn) && strtolower($rawNamaEn) !== $lowerNamaInd): ?>
                                                         <br><i style="font-weight: normal; color: #0f172a;"><?= esc($rawNamaEn); ?></i>
@@ -1665,7 +1835,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . ($isRuntunWaktu ? $idPeriodeAktif : $colLeaf['periode_id']);
                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                                     ?>
-<td class="col-val" style="text-align: right; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
+                                                    <td class="col-val" style="text-align: right; border: 1px solid #e2e8f0 !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #1e3a8a !important; background: #dbeafe; vertical-align: middle;">
                                                         <?= $formatCellVal($cellVal, $desimal); ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1704,7 +1874,7 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                 ?>
                                             <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
                                                 <?php if ($pIdx === 0): ?>
-<td colspan="<?= ($hasNoCol ? 2 : 1); ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
+                                                    <td rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= $totalLabel; ?>
                                                     </td>
                                                 <?php endif; ?>
@@ -1713,9 +1883,9 @@ $isConfigured = ($indikator && $dimCount >= 2);
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
                                                     <?php
-                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
-$cellVal = $nilaiMap[$cellKey] ?? null;
-                                                     ?>
+                                                    $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
+                                                    $cellVal = $nilaiMap[$cellKey] ?? null;
+                                                    ?>
                                                     <td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= $formatCellVal($cellVal, $desimal); ?>
                                                     </td>
@@ -1728,7 +1898,7 @@ $cellVal = $nilaiMap[$cellKey] ?? null;
                                 ?>
                                             <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
                                                 <?php if ($pIdx === 0): ?>
-<td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1); ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679 !important; vertical-align: middle;">
+                                                    <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isMultiBaris ? 2 : 1); ?>" rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679 !important; vertical-align: middle;">
                                                         <?= $totalLabel; ?>
                                                     </td>
                                                 <?php endif; ?>
@@ -1737,9 +1907,9 @@ $cellVal = $nilaiMap[$cellKey] ?? null;
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
                                                     <?php
-$cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
-                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
-                                                     ?>
+                                                    $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
+                                                    $cellVal = $nilaiMap[$cellKey] ?? null;
+                                                    ?>
                                                     <td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= $formatCellVal($cellVal, $desimal); ?>
                                                     </td>
@@ -1750,8 +1920,8 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                         else:
                                 ?>
                                             <!-- BARIS GRAND TOTAL STANDAR PERSIS GAMBAR 2 & GAMBAR 3 -->
-<tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
-                                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
+                                            <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
+                                                <td colspan="<?= ($hasNoCol ? 1 : 0) + (($isMultiBaris || $isBarisDuaKolom || $isRuntunWaktu) ? 2 : 1); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                     <?= $totalLabel; ?>
                                                 </td>
                                                 <?php foreach ($leafColumns as $colLeaf): ?>
@@ -1759,7 +1929,7 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                                     $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . ($isRuntunWaktu ? $idPeriodeAktif : $colLeaf['periode_id']);
                                                     $cellVal = $nilaiMap[$cellKey] ?? null;
                                                     ?>
-<td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679 !important; vertical-align: middle;">
+                                                    <td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679; vertical-align: middle;">
                                                         <?= $formatCellVal($cellVal, $desimal); ?>
                                                     </td>
                                                 <?php endforeach; ?>
@@ -1797,16 +1967,27 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
 
                                         $calcIndent = ($customIndent !== null) ? $customIndent : (10 + ((int)($baris->level_indentasi ?? 0) * 16));
 
+                                        $hasDoubleCell = ($isMultiBaris && strpos($cleanNama, '||') !== false);
+                                        if ($hasDoubleCell) {
+                                            $bParts = explode('||', $cleanNama);
+                                            $bCol1 = trim($bParts[0]);
+                                            $bCol2 = trim($bParts[1] ?? '');
+
+                                            $bPartsEn = explode('||', $cleanNamaEn);
+                                            $bCol1En = trim($bPartsEn[0] ?? '');
+                                            $bCol2En = trim($bPartsEn[1] ?? '');
+                                        } else {
+                                            $bCol1 = $cleanNama;
+                                            $bCol1En = $cleanNamaEn;
+                                            $bCol2 = '';
+                                            $bCol2En = '';
+                                        }
+
                                         if ($isRuntunWaktu):
                                 ?>
                                             <tr class="<?= $rowClass; ?>">
-                                                <!-- Kolom No. -->
-                                                <?php if ($hasNoCol): ?>
-                                                    <td style="border: 1px solid #ffffff; text-align: center; vertical-align: middle; width: 45px; font-weight: normal;"><?= esc($noText); ?></td>
-                                                <?php endif; ?>
-
-                                                <!-- Kolom Nama Wilayah / Baris -->
-                                                <td style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
+                                                <!-- Kolom Nama Wilayah / Baris (Colspan 2) -->
+                                                <td colspan="2" style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle;">
                                                     <?= esc($cleanNama); ?>
                                                     <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
                                                         / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($cleanNamaEn); ?></i>
@@ -1839,13 +2020,39 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                                         </td>
                                                     <?php endif; ?>
 
-                                                    <!-- Kolom Nama Wilayah / Baris -->
-                                                    <td rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff !important; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle; <?= $blockBg; ?>">
-                                                        <?= esc($cleanNama); ?>
-                                                        <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
-                                                            / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($cleanNamaEn); ?></i>
-                                                        <?php endif; ?>
-                                                    </td>
+                                                    <?php if ($hasDoubleCell): ?>
+                                                        <!-- Kolom 1 (Jenis Usaha / Komoditi) -->
+                                                        <td rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; vertical-align: middle; <?= $blockBg; ?>">
+                                                            <?= esc($bCol1); ?>
+                                                            <?php if (!empty($bCol1En) && strtolower($bCol1En) !== strtolower($bCol1)): ?>
+                                                                / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($bCol1En); ?></i>
+                                                            <?php endif; ?>
+                                                        </td>
+
+                                                        <!-- Kolom 2 (Satuan / Provinsi) -->
+                                                        <td rowspan="<?= count($itemsPeriode); ?>" style="text-align: center; border: 1px solid #ffffff !important; font-size: 12px; font-weight: 600; color: #475569; vertical-align: middle; <?= $blockBg; ?>">
+                                                            <?= esc($bCol2); ?>
+                                                            <?php if (!empty($bCol2En) && strtolower($bCol2En) !== strtolower($bCol2)): ?>
+                                                                / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($bCol2En); ?></i>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    <?php elseif ($isMultiBaris): ?>
+                                                        <!-- Baris Kategori Induk tanpa Kolom 2: colspan 2 -->
+                                                        <td colspan="2" rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff !important; font-size: 12px; font-weight: bold; vertical-align: middle; background-color: #fafafa; <?= $blockBg; ?>">
+                                                            <?= esc($cleanNama); ?>
+                                                            <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
+                                                                / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($cleanNamaEn); ?></i>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    <?php else: ?>
+                                                        <!-- Kolom Nama Wilayah / Baris -->
+                                                        <td rowspan="<?= count($itemsPeriode); ?>" style="padding-left: <?= $calcIndent; ?>px; border: 1px solid #ffffff !important; font-size: 12px; <?= $fontWeightStyle; ?> vertical-align: middle; <?= $blockBg; ?>">
+                                                            <?= esc($cleanNama); ?>
+                                                            <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
+                                                                / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($cleanNamaEn); ?></i>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
 
                                                 <!-- Kolom Periode Waktu -->
@@ -1869,11 +2076,50 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                         else:
                                 ?>
                                             <tr class="<?= $rowClass; ?>">
-                                                <?php if ($isBarisDuaKolom): ?>
+                                                <?php if ($isMultiBaris): ?>
+                                                    <!-- Kolom No. -->
+                                                    <?php if ($hasNoCol): ?>
+                                                        <?php if (empty($col1SkipSet[$bIdx])): ?>
+                                                            <?php $noSpanAttr = isset($col1RowspanMap[$bIdx]) ? ' rowspan="' . $col1RowspanMap[$bIdx] . '" style="text-align: center; width: 45px; border: 1px solid #ffffff; font-size: 12px; vertical-align: middle;"' : ' style="text-align: center; width: 45px; border: 1px solid #ffffff; font-size: 12px;"'; ?>
+                                                            <td<?= $noSpanAttr; ?>>
+                                                                <?= esc($noText); ?>
+                                                            </td>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
+
+                                                    <?php if ($hasDoubleCell): ?>
+                                                        <?php if (empty($col1SkipSet[$bIdx])): ?>
+                                                            <?php $spanAttr = isset($col1RowspanMap[$bIdx]) ? ' rowspan="' . $col1RowspanMap[$bIdx] . '" style="padding-left: ' . (10 + ((int)($baris->level_indentasi ?? 0) * 16)) . 'px; border: 1px solid #ffffff; font-size: 12px; font-weight: bold; vertical-align: middle;"' : ' style="padding-left: ' . (10 + ((int)($baris->level_indentasi ?? 0) * 16)) . 'px; border: 1px solid #ffffff; font-size: 12px; font-weight: bold;"'; ?>
+                                                            <!-- Kolom 1 (Jenis Usaha / Komoditi / Tahun) -->
+                                                            <td<?= $spanAttr; ?>>
+                                                                <?= esc($bCol1); ?>
+                                                                <?php if (!empty($bCol1En) && strtolower($bCol1En) !== strtolower($bCol1)): ?>
+                                                                    / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($bCol1En); ?></i>
+                                                                <?php endif; ?>
+                                                            </td>
+                                                        <?php endif; ?>
+
+                                                        <!-- Kolom 2 (Satuan / Provinsi / Bulan) - DIKUNCI MATI (TIDAK PERNAH DI-MERGE) -->
+                                                        <td style="text-align: center; border: 1px solid #ffffff; font-size: 12px; font-weight: 600; color: #475569; vertical-align: middle;">
+                                                            <?= esc($bCol2); ?>
+                                                            <?php if (!empty($bCol2En) && strtolower($bCol2En) !== strtolower($bCol2)): ?>
+                                                                / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($bCol2En); ?></i>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    <?php else: ?>
+                                                        <!-- Baris Kategori Induk tanpa Kolom 2: colspan 2 -->
+                                                        <td colspan="2" style="padding-left: <?= 10 + ((int)($baris->level_indentasi ?? 0) * 16); ?>px; border: 1px solid #ffffff; font-size: 12px; font-weight: bold; background-color: #fafafa; vertical-align: middle;">
+                                                            <?= esc($cleanNama); ?>
+                                                            <?php if (!empty($cleanNamaEn) && strtolower($cleanNamaEn) !== strtolower($cleanNama)): ?>
+                                                                / <i style="font-weight: normal; font-size: 0.9em;"><?= esc($cleanNamaEn); ?></i>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                    <?php endif; ?>
+                                                <?php elseif ($isBarisDuaKolom): ?>
                                                     <?php if ((int)($baris->level_indentasi ?? 0) > 0): ?>
                                                         <?php if ($isFirstChildOfParent): ?>
                                                             <!-- Kolom 1 (No.) -->
-<?php if ($hasNoCol): ?>
+                                                            <?php if ($hasNoCol): ?>
                                                                 <td rowspan="<?= $currentParentRowspan; ?>" style="border: 1px solid #e2e8f0 !important; text-align: center; vertical-align: middle; width: 45px; font-weight: normal; background-color: #ffffff !important; color: #0f172a;"><?= esc($noText); ?></td>
                                                             <?php endif; ?>
 
@@ -1938,13 +2184,40 @@ $cellKey = $baris->id . '_' . $colLeaf['item_id'] . '_' . $p->id;
                                         endif;
                                     endif;
                                 endforeach;
+
+                                // Fallback total untuk mode Runtun Waktu jika belum dirender di dalam loop
+                                if ($isRuntunWaktu && !$hasRenderedViewTotal && !empty($itemsPeriode)):
+                                    foreach ($itemsPeriode as $pIdx => $p):
+                                ?>
+                                    <tr class="row-total" style="background: #154679; font-weight: bold; color: #ffffff;">
+                                        <?php if ($pIdx === 0): ?>
+                                            <td rowspan="<?= count($itemsPeriode); ?>" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
+                                                Jumlah / Total
+                                            </td>
+                                        <?php endif; ?>
+                                        <td style="text-align: center; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; color: #ffffff !important; background: #154679; vertical-align: middle;">
+                                            <?= esc($p->nama_periode_ind); ?>
+                                        </td>
+                                        <?php foreach ($leafColumns as $colLeaf): ?>
+                                            <?php
+                                            $cellKey = '0_' . $colLeaf['item_id'] . '_' . $p->id;
+                                            $cellVal = $nilaiMap[$cellKey] ?? null;
+                                            ?>
+                                            <td class="col-val" style="text-align: right; border: 1px solid rgba(255,255,255,0.25) !important; font-size: 12px; font-weight: bold; padding: 6px 12px; color: #ffffff !important; background: #154679; vertical-align: middle;">
+                                                <?= $formatCellVal($cellVal, $desimal); ?>
+                                            </td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php
+                                    endforeach;
+                                endif;
                             endif;
                             ?>
                         </tbody>
                     </table>
                 </div>
 
-                <!-- 4. Sumber Resmi (Cukup Sumber Saja, Tanpa Kondef atau Catatan) -->
+                <!-- 4. Sumber Resmi (Cukup Sumber Saja, Tanpa Catatan) -->
                 <div style="font-size: 11px; margin-top: 14px; opacity: 0.75; line-height: 1.6;" class="table-footer-notes">
                     <div><b>Sumber/</b><i>Source</i>: <?= esc($unitkerja_nm); ?></div>
                 </div>
@@ -2125,6 +2398,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html: '#' + tableID,
             theme: 'grid',
             startY: firstPageStartY,
+            showFoot: 'never',
             margin: { top: 20, right: 10, bottom: 15, left: 10 },
             styles: {
                 fontSize: 7.5,
@@ -2141,8 +2415,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 halign: 'center',
                 valign: 'middle'
             },
+            footStyles: {
+                fillColor: false,
+                textColor: [0, 0, 0],
+                fontSize: 0,
+                cellPadding: 0
+            },
             alternateRowStyles: {},
             didParseCell: function(data) {
+                if (data.section === 'foot') {
+                    data.cell.styles.fillColor = false;
+                    data.cell.styles.cellPadding = 0;
+                    data.cell.styles.fontSize = 0;
+                    data.cell.styles.minCellHeight = 0;
+                    return;
+                }
                 if (data.section === 'head') {
                     data.cell.styles.fillColor = [21, 70, 121]; // Navy BPS (#154679)
                     data.cell.styles.textColor = [255, 255, 255];
@@ -2206,6 +2493,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             willDrawCell: function(data) {
+                if (data.section === 'foot') {
+                    return false;
+                }
                 if (data.section === 'head') {
                     doc.setFillColor(21, 70, 121);
                     doc.setTextColor(255, 255, 255);
