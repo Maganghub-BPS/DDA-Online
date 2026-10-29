@@ -462,7 +462,7 @@
 /* Kotak Pencarian Realtime Master Dimensi */
 .search-dimensi-wrapper {
     position: relative;
-    width: 270px;
+    width: 280px;
     max-width: 100%;
 }
 .search-dimensi-box {
@@ -492,6 +492,23 @@
 .search-dimensi-input::placeholder {
     color: #94a3b8;
     font-size: 0.82rem;
+}
+.search-count-mini {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 2px 7px;
+    border-radius: 6px;
+    margin-right: 6px;
+    white-space: nowrap;
+    user-select: none;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+.search-count-mini.has-zero {
+    background: #fee2e2;
+    color: #dc2626;
 }
 .btn-clear-search-dimensi {
     background: transparent;
@@ -703,18 +720,18 @@
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Karakteristik (Dimensi Kolom)</h5>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
                         <!-- Kotak Pencarian Realtime Karakteristik -->
                         <div class="search-dimensi-wrapper">
                             <div class="search-dimensi-box shadow-xs">
                                 <i class="bi bi-search text-muted" style="font-size: 0.85rem;"></i>
-                                <input type="text" id="search_master_karakteristik" class="search-dimensi-input" placeholder="Cari kelompok karakteristik..." autocomplete="off">
+                                <input type="text" id="search_master_karakteristik" class="search-dimensi-input" placeholder="Cari karakteristik..." autocomplete="off">
+                                <span class="search-count-mini d-none" id="count_search_karakteristik"></span>
                                 <button type="button" class="btn-clear-search-dimensi d-none" id="clear_search_karakteristik" title="Bersihkan pencarian">
                                     <i class="bi bi-x-circle-fill"></i>
                                 </button>
                             </div>
                         </div>
-                        <span class="badge bg-white text-secondary border shadow-xs search-count-badge d-none py-2 px-2.5" id="count_search_karakteristik" style="border-radius: 8px; font-size: 0.8rem;"></span>
                         <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
                                 style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
                                 data-bs-toggle="modal" data-bs-target="#modalAddKarakteristik">
@@ -790,18 +807,18 @@
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Judul Baris (Dimensi Baris)</h5>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
                         <!-- Kotak Pencarian Realtime Judul Baris -->
                         <div class="search-dimensi-wrapper">
                             <div class="search-dimensi-box shadow-xs">
                                 <i class="bi bi-search text-muted" style="font-size: 0.85rem;"></i>
-                                <input type="text" id="search_master_baris" class="search-dimensi-input" placeholder="Cari kelompok judul baris..." autocomplete="off">
+                                <input type="text" id="search_master_baris" class="search-dimensi-input" placeholder="Cari judul baris..." autocomplete="off">
+                                <span class="search-count-mini d-none" id="count_search_baris"></span>
                                 <button type="button" class="btn-clear-search-dimensi d-none" id="clear_search_baris" title="Bersihkan pencarian">
                                     <i class="bi bi-x-circle-fill"></i>
                                 </button>
                             </div>
                         </div>
-                        <span class="badge bg-white text-secondary border shadow-xs search-count-badge d-none py-2 px-2.5" id="count_search_baris" style="border-radius: 8px; font-size: 0.8rem;"></span>
                         <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
                                 style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
                                 data-bs-toggle="modal" data-bs-target="#modalAddBaris">
@@ -898,18 +915,18 @@
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Periode Waktu (Dimensi Waktu)</h5>
                     </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
                         <!-- Kotak Pencarian Realtime Periode Waktu -->
                         <div class="search-dimensi-wrapper">
                             <div class="search-dimensi-box shadow-xs">
                                 <i class="bi bi-search text-muted" style="font-size: 0.85rem;"></i>
-                                <input type="text" id="search_master_periode" class="search-dimensi-input" placeholder="Cari kelompok periode..." autocomplete="off">
+                                <input type="text" id="search_master_periode" class="search-dimensi-input" placeholder="Cari periode..." autocomplete="off">
+                                <span class="search-count-mini d-none" id="count_search_periode"></span>
                                 <button type="button" class="btn-clear-search-dimensi d-none" id="clear_search_periode" title="Bersihkan pencarian">
                                     <i class="bi bi-x-circle-fill"></i>
                                 </button>
                             </div>
                         </div>
-                        <span class="badge bg-white text-secondary border shadow-xs search-count-badge d-none py-2 px-2.5" id="count_search_periode" style="border-radius: 8px; font-size: 0.8rem;"></span>
                         <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
                                 style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
                                 data-bs-toggle="modal" data-bs-target="#modalAddPeriode">
@@ -3294,7 +3311,7 @@ $(document).ready(function() {
             if (query === '') {
                 $rows.show();
                 $clearBtn.addClass('d-none');
-                $countBadge.addClass('d-none').empty();
+                $countBadge.addClass('d-none').empty().removeClass('has-zero');
 
                 // Re-number urutan asli 1..N
                 let idx = 1;
@@ -3323,11 +3340,14 @@ $(document).ready(function() {
                 }
             });
 
-            // Tampilkan counter info hasil pencarian
+            // Tampilkan counter info hasil pencarian minimalis (e.g. 78/260) di dalam search box
             if ($countBadge.length) {
-                $countBadge.removeClass('d-none').html(
-                    '<i class="bi bi-filter text-primary me-1"></i>Menampilkan <strong>' + matchedCount + '</strong> dari ' + totalRows + ' ' + itemType
-                );
+                $countBadge.removeClass('d-none');
+                if (matchedCount === 0) {
+                    $countBadge.addClass('has-zero').text('0/' + totalRows);
+                } else {
+                    $countBadge.removeClass('has-zero').text(matchedCount + '/' + totalRows);
+                }
             }
 
             // Jika tidak ada data yang cocok
