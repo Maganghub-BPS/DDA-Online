@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buku Panduan Sistem Tabel Dinamis DDA Online — BPS Provinsi Jawa Tengah</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy-dark: #071E3D;
+      --navy-primary: #0B2E59;
+      --navy-light: #1F4287;
+      --yellow-gold: #FFC107;
+      --yellow-bright: #FFD54F;
+      --yellow-light: #FFF9E6;
+      --bps-orange: #FF6D1F;
+      --bps-peach: #f9a55f;
+      --bps-odd: #fde5ce;
+      --bps-even: #fef3e6;
+      --bps-banner: #fff1e6;
+      --text-dark: #0F172A;
+      --text-muted: #64748B;
+      --border-light: #E2E8F0;
+      --page-w: 1024px;
+      --page-h: 1448px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0c1424;
+      background-image: radial-gradient(#1e293b 1px, transparent 1px);
+      background-size: 20px 20px;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text-dark);
+      line-height: 1.5;
+      padding-top: 76px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* -------------------------------------------------------------
+       STICKY TOP TOOLBAR
+       ------------------------------------------------------------- */
+    .top-toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: rgba(11, 46, 89, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 2px solid var(--yellow-gold);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      color: #ffffff;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-badge {
+      background: var(--yellow-gold);
+      color: var(--navy-dark);
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--yellow-bright);
+      opacity: 0.9;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-tool {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-tool:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: var(--yellow-gold);
+    }
+
+    .btn-tool.active {
+      background: var(--yellow-gold);
+      color: var(--navy-dark);
+      border-color: var(--yellow-gold);
+    }
+
+    .btn-tool-cta {
+      background: var(--bps-orange);
+      color: #ffffff;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(255, 109, 31, 0.4);
+    }
+
+    .btn-tool-cta:hover {
+      background: #e05c13;
+    }
+
+    /* -------------------------------------------------------------
+       PAGES CONTAINER & SPREAD MODES
+       ------------------------------------------------------------- */
+    .pages-container {
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+      margin: 24px 0 60px 0;
+      transition: all 0.3s ease;
+    }
+
+    .pages-container.mode-spread {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 2200px;
+    }
+
+    /* -------------------------------------------------------------
+       BOOKLET PAGE CANVAS: EXACT 1024 x 1448 px (CANVA RATIO)
+       ------------------------------------------------------------- */
+    .book-page {
+      width: var(--page-w);
+      height: var(--page-h);
+      min-width: var(--page-w);
+      min-height: var(--page-h);
+      background: #ffffff;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      page-break-after: always;
+      display: flex;
+      flex-direction: column;
+      isolation: isolate;
+    }
+
+    /* Header Strip Canva Modern */
+    .page-header-canva {
+      position: relative;
+      height: 90px;
+      background: var(--navy-primary);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 46px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .header-yellow-cutout {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 280px;
+      height: 10px;
+      background: var(--yellow-gold);
+    }
+
+    .header-diagonal-accent {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 160px;
+      background: linear-gradient(135deg, transparent 40%, rgba(255, 193, 7, 0.25) 40%, rgba(255, 193, 7, 0.9) 100%);
+      pointer-events: none;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 2;
+    }
+
+    .header-chapter-tag {
+      background: var(--yellow-gold);
+      color: var(--navy-dark);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      padding: 5px 12px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .header-doc-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #ffffff;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      z-index: 2;
+    }
+
+    .header-page-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--yellow-gold);
+      color: var(--navy-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    /* Footer Strip Canva Modern */
+    .page-footer-canva {
+      margin-top: auto;
+      height: 54px;
+      background: #F8FAFC;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 46px;
+      font-size: 12px;
+      color: var(--text-muted);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .footer-yellow-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--navy-primary);
+    }
+
+    .footer-yellow-corner {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 120px;
+      height: 4px;
+      background: var(--yellow-gold);
+    }
+
+    /* Page Content Body */
+    .page-body {
+      padding: 36px 46px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .page-title-group {
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .page-title-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--bps-orange);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-title-label::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-light);
+    }
+
+    .page-heading {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--navy-primary);
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .page-subheading {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Canva Layout Cards */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    .card-modern {
+      background: #ffffff;
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      position: relative;
+    }
+
+    .card-navy {
+      background: var(--navy-dark);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 22px;
+    }
+
+    .card-navy .card-title {
+      color: var(--yellow-gold);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--navy-primary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title .icon-circle {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: var(--yellow-gold);
+      color: var(--navy-dark);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .step-num-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--navy-primary);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 2px solid var(--yellow-gold);
+    }
+
+    .step-content-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--navy-primary);
+      margin-bottom: 3px;
+    }
+
+    .step-content-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .callout-yellow {
+      background: var(--yellow-light);
+      border-left: 4px solid var(--yellow-gold);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 12.5px;
+      color: #6d4c00;
+      line-height: 1.5;
+    }
+
+    .callout-yellow strong {
+      color: #4a3400;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .callout-orange {
+      background: #fff4ec;
+      border-left: 4px solid var(--bps-orange);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 12.5px;
+      color: #8c3203;
+      line-height: 1.5;
+    }
+
+    .code-badge {
+      font-family: 'JetBrains Mono', monospace;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      border: 1px solid #e2e8f0;
+      font-weight: 600;
+    }
+
+    /* -------------------------------------------------------------
+       REPLIKA 100% TABEL DINAMIS (IDENTIK v_tabel_dinamis.php)
+       ------------------------------------------------------------- */
+    .table-preview-wrapper {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+      margin-top: 12px;
+    }
+
+    .mockup-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .btn-mock-back {
+      background: #f8fafc;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+      border-radius: 50px;
+      padding: 4px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge-mock-tahun {
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .badge-mock-tahun b {
+      color: var(--bps-orange);
+    }
+
+    .btn-mock-upload {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #ffffff;
+      border: none;
+      border-radius: 50px;
+      padding: 5px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-mock-export {
+      background: var(--bps-orange);
+      color: #ffffff;
+      border: none;
+      border-radius: 50px;
+      padding: 5px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 6px rgba(255, 109, 31, 0.3);
+    }
+
+    .mockup-header-title {
+      display: flex;
+      align-items: stretch;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .mockup-label-box {
+      border: 1px solid #000000;
+      border-right: 1px solid #000000;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #000000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fafafa;
+      line-height: 1.2;
+      flex-shrink: 0;
+    }
+
+    .mockup-title-box {
+      flex: 1;
+    }
+
+    .mockup-title-id {
+      font-weight: bold;
+      font-size: 12.5px;
+      color: #000000;
+      line-height: 1.3;
+      margin-bottom: 2px;
+    }
+
+    .mockup-title-en {
+      font-style: italic;
+      font-size: 11.5px;
+      color: #333333;
+      line-height: 1.3;
+    }
+
+    .bps-identic-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 1px solid #000000;
+      font-family: 'Arial', sans-serif;
+      font-size: 11px;
+    }
+
+    .bps-identic-table thead th {
+      background: var(--bps-orange);
+      color: #ffffff;
+      border: 1px solid #ffffff !important;
+      padding: 6px 5px;
+      font-size: 11px;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      line-height: 1.25;
+    }
+
+    .bps-identic-table thead th i {
+      display: block;
+      font-weight: normal;
+      font-size: 0.85em;
+      margin-top: 2px;
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    .bps-identic-table thead tr.num-row th {
+      background: var(--bps-peach) !important;
+      color: #000000 !important;
+      font-weight: bold !important;
+      padding: 3px 4px;
+      font-size: 10.5px;
+      border: 1px solid #ffffff !important;
+    }
+
+    .bps-identic-table tbody td {
+      border: 1px solid #ffffff !important;
+      padding: 5px 6px;
+      font-size: 11px;
+      vertical-align: middle;
+      color: #000000;
+    }
+
+    .bps-identic-table tbody tr.row-odd td {
+      background-color: var(--bps-odd) !important;
+    }
+
+    .bps-identic-table tbody tr.row-even td {
+      background-color: var(--bps-even) !important;
+    }
+
+    .bps-identic-table tbody tr.row-banner td {
+      background-color: var(--bps-banner) !important;
+      font-weight: bold;
+      font-style: italic;
+      color: #2b1704;
+      padding: 5px 8px;
+    }
+
+    .bps-identic-table tbody tr.row-total td {
+      background-color: var(--bps-orange) !important;
+      color: #ffffff !important;
+      font-weight: bold !important;
+    }
+
+    .bps-identic-table tbody td.col-val {
+      text-align: right !important;
+      padding-right: 8px !important;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mockup-table-footer {
+      margin-top: 10px;
+      font-size: 10.5px;
+      color: #334155;
+      line-height: 1.4;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 6px;
+    }
+
+    /* Print optimization */
+    @media print {
+      body {
+        background: transparent !important;
+        padding-top: 0 !important;
+      }
+      .top-toolbar {
+        display: none !important;
+      }
+      .pages-container {
+        margin: 0 !important;
+        gap: 0 !important;
+      }
+      .book-page {
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- STICKY TOP TOOLBAR -->
+  <header class="top-toolbar">
+    <div class="brand-section">
+      <span class="brand-badge">SOP RESMI</span>
+      <div>
+        <div class="brand-title">Buku Panduan Sistem Tabel Dinamis DDA Online</div>
+        <div class="brand-sub">BPS Provinsi Jawa Tengah • Dimensi Canva A4 (1024 × 1448 px)</div>
+      </div>
+    </div>
+
+    <div class="toolbar-actions">
+      <button class="btn-tool active" onclick="setMode('single')">Halaman Tunggal</button>
+      <button class="btn-tool" onclick="setMode('spread')">Buku Terbuka (Spread)</button>
+      <button class="btn-tool" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+      <a href="http://localhost:5173/s/panduan-tabel-dinamis" target="_blank" class="btn-tool-cta">Buka di OpenSlide ›</a>
+    </div>
+  </header>
+
+  <main class="pages-container" id="pagesContainer">
+
+    <!-- =========================================================
+         HALAMAN 01: COVER (CANVA BLUE & YELLOW STYLE)
+         ========================================================= -->
+    <article class="book-page" style="background: var(--navy-dark); color: #ffffff;">
+      <!-- Angled Yellow Cutout Cover -->
+      <div style="position: absolute; top: 0; right: 0; width: 420px; height: 420px; background: linear-gradient(135deg, var(--yellow-bright), var(--yellow-gold)); clip-path: polygon(100% 0, 0 0, 100% 100%);"></div>
+      <div style="position: absolute; bottom: 0; left: 0; width: 340px; height: 16px; background: var(--yellow-gold);"></div>
+
+      <div style="padding: 70px 60px; height: 100%; display: flex; flex-direction: column; justify-content: space-between; z-index: 2;">
+        <div>
+          <div style="display: inline-flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.12); padding: 6px 16px; border-radius: 6px; border-left: 4px solid var(--yellow-gold); margin-bottom: 30px;">
+            <span style="font-size: 13px; font-weight: 800; letter-spacing: 0.1em; color: var(--yellow-gold); text-transform: uppercase;">
+              BPS PROVINSI JAWA TENGAH • STANDAR OPERASIONAL PROSEDUR
+            </span>
+          </div>
+
+          <h1 style="font-size: 46px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 20px; max-width: 820px;">
+            BUKU PANDUAN SISTEM<br>
+            <span style="color: var(--yellow-gold);">TABEL DINAMIS</span> DDA ONLINE
+          </h1>
+
+          <p style="font-size: 18px; color: #cbd5e1; max-width: 740px; line-height: 1.6; margin-bottom: 40px;">
+            Pedoman Teknis Lengkap Arsitektur Data 3D, Setup Master Dimensi, Perakitan Matriks, Distribusi Template Excel OPD, dan Otomasi Publikasi Web.
+          </p>
+
+          <!-- 3D Concept Highlight Box -->
+          <div style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 26px; max-width: 780px;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--yellow-bright); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px;">
+              ⚡ Formulasi Fundamental Matriks Data 3D
+            </div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #ffffff; background: rgba(0,0,0,0.3); padding: 14px 20px; border-radius: 8px; border-left: 4px solid var(--bps-orange); margin-bottom: 12px;">
+              f(Dimensi Baris, Dimensi Kolom, Periode Waktu) → Nilai Sel
+            </div>
+            <div style="font-size: 13.5px; color: #94a3b8; line-height: 1.5;">
+              Pemisahan total antara struktur tabel (*metadata*) dengan nilai data (*cell values*). Menghilangkan duplikasi skema, menjaga konsistensi format BPS, dan mendukung pengisian multi-metode (PDF OCR, Excel OPD, dan Inline Web).
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 24px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: #ffffff;">Tim Pengembang DDA Online</div>
+            <div style="font-size: 13px; color: #94a3b8;">Badan Pusat Statistik Provinsi Jawa Tengah</div>
+            <div style="font-size: 12px; color: var(--yellow-bright); margin-top: 4px;">Edisi Operasional 2025/2026 • Versi Modul 2.4</div>
+          </div>
+
+          <div style="text-align: right;">
+            <div style="background: var(--yellow-gold); color: var(--navy-dark); font-weight: 800; font-size: 14px; padding: 6px 18px; border-radius: 4px; display: inline-block;">
+              DOKUMEN RESMI A4
+            </div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 6px;">Format Ukuran: 1024 × 1448 px</div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 02: DAFTAR ISI & FILOSOFI DATA 3D
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">PENDAHULUAN</span>
+          <span class="header-doc-title">Daftar Isi & Filosofi Data 3D</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">02</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">STRUKTUR MODUL OPERASIONAL</div>
+          <h2 class="page-heading">Peta Panduan & Filosofi Arsitektur Data 3D</h2>
+          <div class="page-subheading">Memahami alur kerja komprehensif dari pembuatan dimensi hingga data siap diakses publik.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 24px;">
+          <!-- Left: Daftar Isi -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">📑</span>
+              Daftar Bab Panduan Operasional
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 1:</b> Setup Dimensi Baris (Kategori, Total & Auto No)</span>
+                <b style="color: var(--navy-primary);">Hal 03</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 2:</b> Setup Dimensi Kolom (Hierarki || & Satuan)</span>
+                <b style="color: var(--navy-primary);">Hal 04</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 3:</b> Setup Dimensi Periode (Frekuensi & Posisi Header)</span>
+                <b style="color: var(--navy-primary);">Hal 05</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 4:</b> Perakitan di Generator Matriks & Live Preview</span>
+                <b style="color: var(--navy-primary);">Hal 06</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 5:</b> Pengisian Metode A: Injeksi Cepat PDF Master</span>
+                <b style="color: var(--navy-primary);">Hal 07</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 6:</b> Pengisian Metode B: Distribusi Template Excel OPD</span>
+                <b style="color: var(--navy-primary);">Hal 08</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 7:</b> Pengisian Metode C: Inline Editing Langsung Web</span>
+                <b style="color: var(--navy-primary);">Hal 09</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-light); padding-bottom: 4px;">
+                <span><b>Bab 8:</b> Publikasi Resmi Portal & Distribusi Data Publik</span>
+                <b style="color: var(--navy-primary);">Hal 10</b>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-bottom: 4px;">
+                <span><b>Bab 9:</b> Ringkasan Operasional & Standar Notasi BPS</span>
+                <b style="color: var(--navy-primary);">Hal 11</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Filosofi 3D -->
+          <div class="card-navy">
+            <div class="card-title">
+              <span class="icon-circle">🧊</span>
+              Mengapa Tabel Dinamis?
+            </div>
+            <p style="font-size: 13px; color: #cbd5e1; line-height: 1.5; margin-bottom: 14px;">
+              Pada sistem tabel statis lama, setiap kali ada perubahan tahun atau penambahan kolom, admin harus mendesain ulang seluruh HTML atau tabel SQL.
+            </p>
+            <div style="background: rgba(255,255,255,0.08); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+              <div style="color: var(--yellow-gold); font-weight: 700; font-size: 13px; margin-bottom: 4px;">3 Keunggulan Utama Arsitektur 3D:</div>
+              <ul style="padding-left: 18px; font-size: 12.5px; color: #e2e8f0; line-height: 1.6;">
+                <li><b>Dimensi Mandiri (Reusable):</b> Satu kelompok 35 Kab/Kota bisa dipakai pada 50 tabel berbeda.</li>
+                <li><b>Runtun Waktu Instan:</b> Menambah data tahun 2025 tidak merusak struktur data tahun 2024.</li>
+                <li><b>Format Standar Terkunci:</b> Warna, font, garis ganda total, dan nomor kolom terformat otomatis.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alur Visual 4 Fase Utama -->
+        <div class="card-modern" style="border-top: 3px solid var(--navy-primary);">
+          <div style="font-size: 14px; font-weight: 700; color: var(--navy-primary); margin-bottom: 14px;">
+            Alur Besar Pengelolaan Tabel Dinamis DDA
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+            <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 12px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; margin-bottom: 4px;">1️⃣</div>
+              <div style="font-weight: 700; font-size: 13px; color: var(--navy-primary);">Setup Dimensi</div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Baris, Kolom, Periode</div>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 12px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; margin-bottom: 4px;">2️⃣</div>
+              <div style="font-weight: 700; font-size: 13px; color: var(--navy-primary);">Rakit Matriks</div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Satuan, Desimal & Preview</div>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 12px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; margin-bottom: 4px;">3️⃣</div>
+              <div style="font-weight: 700; font-size: 13px; color: var(--navy-primary);">Isi Nilai</div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">PDF OCR / Excel / Web</div>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 12px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 20px; margin-bottom: 4px;">4️⃣</div>
+              <div style="font-weight: 700; font-size: 13px; color: var(--navy-primary);">Publikasi Portal</div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">Filter Tahun & Ekspor XLSX</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 02 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 03: BAB 1: SETUP DIMENSI BARIS
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 01</span>
+          <span class="header-doc-title">Setup Dimensi Baris</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">03</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">MODUL MASTER DIMENSI (admin/master_dimensi)</div>
+          <h2 class="page-heading">Konfigurasi Dimensi Baris & Auto-Penomoran BPS</h2>
+          <div class="page-subheading">Membangun susunan baris wilayah atau komoditas, mengatur tipe baris, dan penomoran otomatis.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 20px;">
+          <!-- Left: Step By Step -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">1</span>
+              Langkah Pembuatan Baris
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">1</div>
+              <div>
+                <div class="step-content-title">Buka Tab "Judul Baris"</div>
+                <div class="step-content-desc">Masuk ke menu <b>Master Dimensi</b> lalu pilih tab <i>Judul Baris</i>.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">2</div>
+              <div>
+                <div class="step-content-title">Tambah Kelompok Baris Baru</div>
+                <div class="step-content-desc">Ketik nama kelompok (contoh: <span class="code-badge">35 Kabupaten/Kota Jawa Tengah</span> atau <span class="code-badge">Komoditas Pangan</span>).</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">3</div>
+              <div>
+                <div class="step-content-title">Input Item Baris & Indentasi</div>
+                <div class="step-content-desc">Tambahkan item baris, nama bilingual (Ind/En), dan tentukan tingkat indentasinya (Level 0, Level 1, Level 2).</div>
+              </div>
+            </div>
+
+            <div class="callout-yellow">
+              <strong>⚡ Fitur Auto-Generate Nomor BPS</strong>
+              Klik tombol <b>Auto Nomor BPS</b> untuk memberikan nomor otomatis hierarkis standar publikasi BPS (A, B, C untuk kelompok, 1, 2, 3 untuk item utama, a, b, c untuk rincian).
+            </div>
+          </div>
+
+          <!-- Right: 4 Tipe Baris -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">2</span>
+              4 Tipe Baris Standar BPS
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12.5px;">
+              <div style="background: #f8fafc; border-left: 4px solid #3b82f6; padding: 10px 12px; border-radius: 4px;">
+                <b style="color: #1d4ed8;">1. Tipe `data` (Baris Nilai Normal)</b>
+                <div style="color: var(--text-muted); margin-top: 2px;">Wajib diisi angka. Contoh: <i>Kabupaten Cilacap, Kabupaten Banyumas</i>. Tampil berselang-seling peach muda.</div>
+              </div>
+
+              <div style="background: var(--bps-banner); border-left: 4px solid var(--bps-orange); padding: 10px 12px; border-radius: 4px;">
+                <b style="color: #9a3412;">2. Tipe `kategori` (Banner Pembagi)</b>
+                <div style="color: var(--text-muted); margin-top: 2px;">Judul kelompok, teks tebal/arsir, tidak diisi angka. Contoh: <i>Kabupaten / Regency</i> dan <i>Kota / Municipality</i>.</div>
+              </div>
+
+              <div style="background: #fff7ed; border-left: 4px solid var(--bps-peach); padding: 10px 12px; border-radius: 4px;">
+                <b style="color: #c2410c;">3. Tipe `subtotal` (Sub-Jumlah)</b>
+                <div style="color: var(--text-muted); margin-top: 2px;">Penjumlahan parsial kelompok. Tampil dengan latar warna peach tebal (<span class="code-badge">#f9a55f</span>).</div>
+              </div>
+
+              <div style="background: #fff1e6; border-left: 4px solid var(--bps-orange); padding: 10px 12px; border-radius: 4px;">
+                <b style="color: var(--bps-orange);">4. Tipe `total` (Grand Total Jawa Tengah)</b>
+                <div style="color: var(--text-muted); margin-top: 2px;">Baris akhir kumulatif. Tampil dengan background oranye resmi BPS (<span class="code-badge">#FF6D1F</span>) dan teks putih tebal.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Table Mockup Baris -->
+        <div class="card-modern" style="padding: 14px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--navy-primary); margin-bottom: 8px;">
+            Pratinjau Hasil Konfigurasi Tipe Baris pada Matriks Nyata:
+          </div>
+          <table class="bps-identic-table">
+            <thead>
+              <tr>
+                <th style="width: 50%;">Kabupaten/Kota</th>
+                <th>Tipe Baris di Sistem</th>
+                <th>Warna Latar</th>
+                <th>Status Input</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-banner">
+                <td>Kabupaten / Regency</td>
+                <td>`kategori`</td>
+                <td>#fff1e6 (Banner)</td>
+                <td>Terkunci (Tanpa Nilai)</td>
+              </tr>
+              <tr class="row-odd">
+                <td>01. Cilacap</td>
+                <td>`data`</td>
+                <td>#fde5ce (Soft Peach)</td>
+                <td>Wajib Diisi Angka</td>
+              </tr>
+              <tr class="row-even">
+                <td>02. Banyumas</td>
+                <td>`data`</td>
+                <td>#fef3e6 (Soft Cream)</td>
+                <td>Wajib Diisi Angka</td>
+              </tr>
+              <tr class="row-total">
+                <td>JAWA TENGAH</td>
+                <td>`total`</td>
+                <td>#FF6D1F (Oranye BPS)</td>
+                <td>Grand Total Otomatis / Manual</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 03 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 04: BAB 2: SETUP DIMENSI KOLOM
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 02</span>
+          <span class="header-doc-title">Setup Dimensi Kolom</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">04</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">MODUL MASTER DIMENSI (admin/master_dimensi)</div>
+          <h2 class="page-heading">Hierarki Kolom Bertingkat (||) & Satuan Data</h2>
+          <div class="page-subheading">Membuat struktur header multi-level otomatis, penentuan peran kolom, dan asosiasi unit data.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 20px;">
+          <!-- Left: Kolom Bertingkat -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">1</span>
+              Sintaks Kolom Bertingkat (||)
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+              Untuk membuat header bertingkat (*super-header* dengan beberapa sub-kolom di bawahnya), gunakan pemisah ganda <span class="code-badge">||</span> tanpa perlu mengutak-atik kode HTML.
+            </p>
+
+            <div style="background: #0f172a; color: #f8fafc; padding: 14px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; margin-bottom: 12px;">
+              <span style="color: #94a3b8;">// Format: Induk || Anak</span><br>
+              <span style="color: #f59e0b;">Distribusi || PBF</span><br>
+              <span style="color: #f59e0b;">Distribusi || Gudang Farmasi</span><br>
+              <span style="color: #38bdf8;">Pelayanan || Rumah Sakit</span><br>
+              <span style="color: #38bdf8;">Pelayanan || Puskesmas</span><br>
+              <span style="color: #38bdf8;">Pelayanan || Apotek</span><br>
+              <span style="color: #4ade80;">Jumlah / Total</span>
+            </div>
+
+            <div class="callout-yellow">
+              <strong>Otomasi Colspan & Rowspan</strong>
+              Sistem backend PHP secara cerdas mendeteksi induk yang sama, menggabungkannya secara horizontal (*colspan*), dan memberikan *rowspan* otomatis pada kolom tunggal.
+            </div>
+          </div>
+
+          <!-- Right: Peran & Satuan -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">2</span>
+              Peran Sel Kolom & Satuan Data
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12.5px;">
+              <div>
+                <b>1. Peran Sel Kolom (Cell Role):</b>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+                  <span class="code-badge" style="text-align: center; background: #e0f2fe; color: #0369a1;">Data (Nilai)</span>
+                  <span class="code-badge" style="text-align: center; background: #fef3c7; color: #92400e;">Subtotal</span>
+                  <span class="code-badge" style="text-align: center; background: #fee2e2; color: #b91c1c;">Total Akhir</span>
+                  <span class="code-badge" style="text-align: center; background: #f3f4f6; color: #374151;">Keterangan</span>
+                </div>
+              </div>
+
+              <div style="border-top: 1px solid var(--border-light); padding-top: 10px;">
+                <b>2. Asosiasi Satuan / Unit Data:</b>
+                <div style="color: var(--text-muted); margin-top: 4px;">
+                  Setiap kelompok karakteristik dapat diberi satuan resmi dwibahasa:
+                </div>
+                <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
+                  <span class="code-badge">Jiwa / Persons</span>
+                  <span class="code-badge">Ton</span>
+                  <span class="code-badge">Hektar (Ha)</span>
+                  <span class="code-badge">Persen (%)</span>
+                  <span class="code-badge">Rupiah</span>
+                </div>
+              </div>
+
+              <div class="callout-orange">
+                <strong>Nomor Kolom Peach Otomatis</strong>
+                Sistem otomatis menyisipkan baris nomor kolom peach <span class="code-badge">(1), (2), (3)...</span> tepat di bawah header kolom untuk kepatuhan tata letak publikasi BPS.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Thead Bertingkat Asli BPS -->
+        <div class="card-modern" style="padding: 14px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--navy-primary); margin-bottom: 8px;">
+            Hasil Render Thead Oranye BPS dengan Hierarki Bertingkat:
+          </div>
+          <table class="bps-identic-table">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width: 28%;">Kabupaten/Kota<br><i>Regency/Municipality</i></th>
+                <th colspan="2">Distribusi<br><i>Distribution</i></th>
+                <th colspan="3">Pelayanan Kesehatan<br><i>Health Services</i></th>
+                <th rowspan="2">Jumlah<br><i>Total</i></th>
+              </tr>
+              <tr>
+                <th>PBF</th>
+                <th>Gudang</th>
+                <th>Rumah Sakit</th>
+                <th>Puskesmas</th>
+                <th>Apotek</th>
+              </tr>
+              <tr class="num-row">
+                <th>(1)</th>
+                <th>(2)</th>
+                <th>(3)</th>
+                <th>(4)</th>
+                <th>(5)</th>
+                <th>(6)</th>
+                <th>(7)</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 04 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 05: BAB 3: SETUP DIMENSI PERIODE
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 03</span>
+          <span class="header-doc-title">Setup Dimensi Periode</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">05</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">MODUL MASTER DIMENSI (admin/master_dimensi)</div>
+          <h2 class="page-heading">Dimensi Waktu & Posisi Penempatan Header Periode</h2>
+          <div class="page-subheading">Mengelola runtun waktu data, frekuensi berkala, dan orientasi header matriks.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 22px;">
+          <!-- Left: Frekuensi Waktu -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">1</span>
+              Pilihan Frekuensi Waktu
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+              Sistem Tabel Dinamis DDA mendukung 4 jenis periodesasi waktu data sesuai standar sensus dan survei BPS:
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12.5px;">
+              <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 10px 12px; border-radius: 6px;">
+                <b style="color: var(--navy-primary);">A. Tahunan (Annual):</b>
+                <div style="color: var(--text-muted);">Paling sering digunakan pada buku DDA. Contoh: <span class="code-badge">2022</span>, <span class="code-badge">2023</span>, <span class="code-badge">2024</span>.</div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 10px 12px; border-radius: 6px;">
+                <b style="color: var(--navy-primary);">B. Semesteran (Bi-Annual):</b>
+                <div style="color: var(--text-muted);">Data semester. Contoh: <span class="code-badge">Semester I</span> dan <span class="code-badge">Semester II</span>.</div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 10px 12px; border-radius: 6px;">
+                <b style="color: var(--navy-primary);">C. Triwulanan (Quarterly):</b>
+                <div style="color: var(--text-muted);">Data PDRB / ekonomi. Contoh: <span class="code-badge">Triwulan I</span>, <span class="code-badge">II</span>, <span class="code-badge">III</span>, <span class="code-badge">IV</span>.</div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 10px 12px; border-radius: 6px;">
+                <b style="color: var(--navy-primary);">D. Bulanan (Monthly):</b>
+                <div style="color: var(--text-muted);">Data inflasi / curah hujan: <span class="code-badge">Januari</span> s/d <span class="code-badge">Desember</span>.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Posisi Header Periode -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">2</span>
+              Orientasi Penempatan Header Periode
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+              Administrator dapat memilih bagaimana waktu ditampilkan dalam matriks tabel:
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 14px; font-size: 12.5px;">
+              <div style="border: 2px solid var(--navy-primary); border-radius: 8px; padding: 12px; background: #f0fdf4;">
+                <b style="color: var(--navy-primary);">Opsi 1: Periode Waktu di Atas Kolom (Direkomendasikan)</b>
+                <div style="color: var(--text-muted); margin-top: 4px;">
+                  Tahun menjadi super-header utama, lalu karakteristik berada di bawahnya. Ideal untuk tabel komparasi multi-tahun (misal: 2023 vs 2024).
+                </div>
+              </div>
+
+              <div style="border: 1px solid var(--border-light); border-radius: 8px; padding: 12px; background: #f8fafc;">
+                <b style="color: var(--navy-primary);">Opsi 2: Kolom di Atas Periode Waktu</b>
+                <div style="color: var(--text-muted); margin-top: 4px;">
+                  Karakteristik menjadi header atas, dan tahun menjadi rincian di bawah setiap kolom.
+                </div>
+              </div>
+
+              <div class="callout-yellow">
+                <strong>Switcher Tahun Otomatis di Portal Publik</strong>
+                Selain multi-kolom waktu, sistem otomatis menyediakan tombol filter tahun (*dropdown / pills*) di halaman web publik sehingga pengguna bebas berganti tahun data secara instan.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ilustrasi Header Periode Waktu di Atas Kolom -->
+        <div class="card-modern" style="padding: 14px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--navy-primary); margin-bottom: 8px;">
+            Simulasi Header: Periode Tahun di Atas Kolom Karakteristik
+          </div>
+          <table class="bps-identic-table">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width: 30%;">Kabupaten/Kota</th>
+                <th colspan="2">2023</th>
+                <th colspan="2">2024</th>
+              </tr>
+              <tr>
+                <th>Laki-Laki</th>
+                <th>Perempuan</th>
+                <th>Laki-Laki</th>
+                <th>Perempuan</th>
+              </tr>
+              <tr class="num-row">
+                <th>(1)</th>
+                <th>(2)</th>
+                <th>(3)</th>
+                <th>(4)</th>
+                <th>(5)</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 05 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 06: BAB 4: PERAKITAN GENERATOR MATRIKS
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 04</span>
+          <span class="header-doc-title">Generator Matriks</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">06</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">MODUL GENERATOR (admin/master_tabel -> f_generator_tabel)</div>
+          <h2 class="page-heading">Perakitan Matriks Tabel & Evaluasi Live Preview</h2>
+          <div class="page-subheading">Menggabungkan 3 dimensi menjadi satu tabel utuh, mengatur format desimal, dan metadata resmi.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 20px;">
+          <!-- Left: Alur Generator -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">1</span>
+              Langkah Penggunaan Generator
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">1</div>
+              <div>
+                <div class="step-content-title">Akses Menu Master Tabel</div>
+                <div class="step-content-desc">Cari baris tabel yang ingin dirakit $\rightarrow$ Klik tombol <b>Aksi (titik tiga)</b> $\rightarrow$ Pilih <b>Rakit Tabel Dinamis</b>.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">2</div>
+              <div>
+                <div class="step-content-title">Pilih 3 Kelompok Dimensi</div>
+                <div class="step-content-desc">
+                  • Pilih <b>Kelompok Karakteristik</b> (susunan kolom)<br>
+                  • Pilih <b>Kelompok Baris</b> (susunan wilayah/komoditas)<br>
+                  • Pilih <b>Kelompok Periode</b> (runtun waktu)
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">3</div>
+              <div>
+                <div class="step-content-title">Tentukan Format Desimal BPS</div>
+                <div class="step-content-desc">
+                  • <span class="code-badge">0</span> Desimal: Bulat utuh (<span class="code-badge">1.500</span>)<br>
+                  • <span class="code-badge">1</span> Desimal: 1 angka di belakang koma (<span class="code-badge">12,5</span>)<br>
+                  • <span class="code-badge">2</span> Desimal: 2 angka standar BPS (<span class="code-badge">1.007,98</span> dan <span class="code-badge">2,80</span>)
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">4</div>
+              <div>
+                <div class="step-content-title">Input Metadata Resmi BPS</div>
+                <div class="step-content-desc">Isi <b>Sumber Data</b> (Ind/En) dan <b>Catatan Kaki</b> resmi di form bawah.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Live Preview Panel -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">2</span>
+              Evaluasi Live Matrix Preview
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+              Form generator dilengkapi panel interaktif di sisi kanan yang menampilkan <b>Live Matrix Preview</b> secara *realtime* sebelum disimpan ke database:
+            </p>
+
+            <div style="background: #f8fafc; border: 1px solid var(--border-light); border-radius: 8px; padding: 14px; font-size: 12.5px; margin-bottom: 12px;">
+              <b style="color: var(--navy-primary);">Ceklist Verifikasi Admin Sebelum Simpan:</b>
+              <ul style="padding-left: 18px; margin-top: 6px; color: var(--text-muted); line-height: 1.6;">
+                <li>Apakah nama kolom bertingkat sudah menyatu rapi (*colspan*)?</li>
+                <li>Apakah banner wilayah (*Kabupaten/Kota*) sudah terarsir benar?</li>
+                <li>Apakah baris grand total sudah berwarna oranye BPS di bawah?</li>
+                <li>Apakah jumlah nomor kolom <span class="code-badge">(1)...(n)</span> sudah sesuai?</li>
+              </ul>
+            </div>
+
+            <div class="callout-yellow">
+              <strong>Simpan & Status Otomatis Aktif</strong>
+              Klik <b>Simpan Konfigurasi Matriks</b>. Begitu tersimpan, status tabel otomatis berganti menjadi badge biru: <span class="code-badge" style="background: #dbeafe; color: #1e40af;">TABEL DINAMIS</span>.
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Mini Screenshot Form Generator -->
+        <div class="card-navy" style="padding: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-weight: 700; font-size: 13px; color: var(--yellow-gold);">Panel Generator: Konfigurasi Berhasil Disimpan</span>
+            <span style="background: #10b981; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 4px;">STATUS: AKTIF</span>
+          </div>
+          <div style="font-size: 12.5px; color: #cbd5e1; line-height: 1.5;">
+            Tabel ID: <b>101</b> • No Tabel: <b>1.1.1</b> • Judul: <i>Jumlah Penduduk Menurut Kabupaten/Kota di Jawa Tengah</i> • Desimal: <b>0 Digit</b> • Satuan: <b>Jiwa / Persons</b>.
+          </div>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 06 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 07: BAB 5: METODE PENGISIAN A (INJEKSI CEPAT PDF)
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 05</span>
+          <span class="header-doc-title">Metode A: Injeksi PDF</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">07</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">MODUL MATCHING PDF (admin/matching_pdf)</div>
+          <h2 class="page-heading">Pengisian Cepat Otomatis dari Buku PDF Master</h2>
+          <div class="page-subheading">Metode tercepat: 1 klik langsung memetakan koordinat halaman PDF dan mengisi database.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 20px;">
+          <!-- Left: Alur Injeksi -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">⚡</span>
+              Alur Injeksi Cepat 1 Klik
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">1</div>
+              <div>
+                <div class="step-content-title">Buka Menu Matching PDF</div>
+                <div class="step-content-desc">Masuk ke menu <span class="code-badge">admin/matching_pdf</span>. Pastikan berkas PDF buku DDA sudah terunggah pada sistem.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">2</div>
+              <div>
+                <div class="step-content-title">Cari Nomor Tabel</div>
+                <div class="step-content-desc">Gunakan kotak pencarian untuk menemukan tabel (contoh: <span class="code-badge">Tabel 1.1.1</span>).</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">3</div>
+              <div>
+                <div class="step-content-title">Klik Tombol Kuning "Isi / Detail"</div>
+                <div class="step-content-desc">Tekan tombol kuning <b>Isi / Detail</b> di sebelah kanan daftar tabel.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">4</div>
+              <div>
+                <div class="step-content-title">Engine Parsing Otomatis Bekerja</div>
+                <div class="step-content-desc">Backend mengekstrak teks, mencocokkan bounding box koordinat baris & kolom, dan menyuntikkan seluruh angka ke tabel database.</div>
+              </div>
+            </div>
+
+            <div class="callout-yellow">
+              <strong>Hasil Instan: Status Langsung Hijau</strong>
+              Dalam waktu 1-2 detik, status tabel seketika berubah menjadi badge hijau: <span class="code-badge" style="background: #dcfce7; color: #166534;">100% Cocok (Data Sesuai)</span>.
+            </div>
+          </div>
+
+          <!-- Right: Visual Tombol & Keamanan -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">🛡️</span>
+              Kelebihan & Garansi Presisi
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12.5px;">
+              <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 12px; border-radius: 6px;">
+                <b style="color: #065f46;">Kecepatan Maksimal:</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  Menghemat hingga 95% waktu input operator dibanding mengetik manual 35 kabupaten satu demi satu.
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border-left: 4px solid var(--bps-orange); padding: 12px; border-radius: 6px;">
+                <b style="color: #9a3412;">Pembersihan Format Angka:</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  Engine otomatis membersihkan spasi pemisah ribuan BPS (<span class="code-badge">1 180 811</span> $\rightarrow$ <span class="code-badge">1180811</span>) dan mengonversi strip (<span class="code-badge">–</span>) menjadi nol/nihil.
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border-left: 4px solid var(--navy-primary); padding: 12px; border-radius: 6px;">
+                <b style="color: var(--navy-primary);">Audit Koordinat Sel:</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  Setiap sel yang diekstrak memiliki rekam jejak koordinat halaman PDF asal untuk kebutuhan pembuktian validasi data.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mockup List Table Matching PDF -->
+        <div class="card-modern" style="padding: 14px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--navy-primary); margin-bottom: 8px;">
+            Simulasi Tampilan Menu Matching PDF & Tombol Aksi:
+          </div>
+          <table class="bps-identic-table">
+            <thead>
+              <tr>
+                <th style="width: 10%;">No Tabel</th>
+                <th style="width: 45%;">Judul Tabel Publikasi</th>
+                <th style="width: 25%;">Status Verifikasi</th>
+                <th style="width: 20%;">Aksi Admin</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-even">
+                <td style="text-align: center; font-weight: bold;">1.1.1</td>
+                <td>Jumlah Penduduk Menurut Kabupaten/Kota di Jawa Tengah</td>
+                <td style="text-align: center;">
+                  <span style="background: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 50px; font-weight: bold; font-size: 10.5px;">
+                    ● 100% Cocok
+                  </span>
+                </td>
+                <td style="text-align: center;">
+                  <button style="background: var(--yellow-gold); color: var(--navy-dark); border: none; font-weight: bold; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+                    ⚡ Isi / Detail
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 07 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 08: BAB 6: METODE PENGISIAN B (TEMPLATE EXCEL OPD)
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 06</span>
+          <span class="header-doc-title">Metode B: Template Excel</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">08</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">DISTRIBUSI DATA OPD WALIDATA</div>
+          <h2 class="page-heading">Alur Distribusi Template Excel & Upload Berproteksi</h2>
+          <div class="page-subheading">Format pengumpulan data dari dinas sektoral luar tanpa risiko perubahan struktur sel.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 20px;">
+          <!-- Left: Alur Blanko -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">📊</span>
+              SOP Distribusi ke OPD / Dinas Luar
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">1</div>
+              <div>
+                <div class="step-content-title">Unduh Blanko Excel Berproteksi</div>
+                <div class="step-content-desc">Admin mengunduh template melalui tombol <b>Unduh Template Excel</b>. Berkas berekstensi <span class="code-badge">.xlsx</span> dengan metadata tersembunyi <span class="code-badge">__METADATA_DDA__</span>.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">2</div>
+              <div>
+                <div class="step-content-title">Distribusi ke OPD Walidata</div>
+                <div class="step-content-desc">Kirim berkas ke instansi/dinas luar. Sel header dan nama kabupaten terkunci permanen agar tidak diubah atau digeser.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">3</div>
+              <div>
+                <div class="step-content-title">Pengisian oleh OPD</div>
+                <div class="step-content-desc">OPD hanya mengisi sel nilai berwarna putih mengikuti aturan standar BPS.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">4</div>
+              <div>
+                <div class="step-content-title">Upload Kembali via PHP Backend</div>
+                <div class="step-content-desc">Admin menerima file $\rightarrow$ Masuk form $\rightarrow$ Klik tombol hijau <b>UPLOAD EXCEL</b>. Sistem memvalidasi dan menyimpan seketika.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Aturan Input BPS -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">📝</span>
+              3 Aturan Pengisian Dinas (Wajib)
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12.5px;">
+              <div style="background: #f8fafc; border-left: 4px solid #10b981; padding: 10px 12px; border-radius: 4px;">
+                <b style="color: #065f46;">1. Angka Murni (Tanpa Huruf Satuan)</b>
+                <div style="color: var(--text-muted); margin-top: 2px;">
+                  Ketik nilai angka murni. Contoh: <span class="code-badge">1500</span> atau <span class="code-badge">12.5</span>. <u>Dilarang</u> mengetik <span class="code-badge">1.500 jiwa</span> atau <span class="code-badge">Rp 12.500</span>.
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border-left: 4px solid var(--bps-peach); padding: 10px 12px; border-radius: 4px;">
+                <b style="color: #c2410c;">2. Data Nihil / Nol: Ketik Strip (-)</b>
+                <div style="color: var(--text-muted); margin-top: 2px;">
+                  Jika data bernilai nol atau nihil, ketik tanda strip <span class="code-badge">-</span> atau angka <span class="code-badge">0</span>.
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border-left: 4px solid #ef4444; padding: 10px 12px; border-radius: 4px;">
+                <b style="color: #991b1b;">3. Data Belum Tersedia: Titik-Titik (...)</b>
+                <div style="color: var(--text-muted); margin-top: 2px;">
+                  Jika data belum dirilis atau instansi belum memiliki angka, ketik titik tiga <span class="code-badge">...</span> atau kosongkan sel.
+                </div>
+              </div>
+
+              <div class="callout-yellow">
+                <strong>Engine Murni PHP: Aman & Mandiri</strong>
+                Proses upload Excel berjalan pada engine murni PHP (native XML parsing). Tidak membutuhkan ekstensi python / library tambahan, sehingga bebas risiko crash di server produksi.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ilustrasi Tombol Toolbar -->
+        <div class="card-modern" style="padding: 16px; background: #f8fafc;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 700; font-size: 13.5px; color: var(--navy-primary);">Tombol Operasional Toolbar Excel di Web:</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Terletak di sudut kanan atas viewer tabel dinamis.</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <span class="btn-mock-upload">📁 UPLOAD EXCEL</span>
+              <span class="btn-mock-export">📥 EXPORT EXCEL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 08 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 09: BAB 7: METODE PENGISIAN C (INLINE EDITING WEB)
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 07</span>
+          <span class="header-doc-title">Metode C: Inline Edit Web</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">09</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">ADMIN VIEWER (admin/view_tabel_dinamis/{id})</div>
+          <h2 class="page-heading">Revisi Langsung Nilai Sel di Browser (Inline AJAX)</h2>
+          <div class="page-subheading">Koreksi instan tanpa perlu unggah ulang berkas untuk penyesuaian 1 atau beberapa sel angka.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 22px;">
+          <!-- Left: 4 Langkah Inline Edit -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">🖱️</span>
+              4 Langkah Mudah Edit Langsung
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">1</div>
+              <div>
+                <div class="step-content-title">Buka Halaman Tabel di Admin</div>
+                <div class="step-content-desc">Masuk ke menu <span class="code-badge">admin/view_tabel_dinamis/{id}</span> pada tabel yang ingin dikoreksi.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">2</div>
+              <div>
+                <div class="step-content-title">Double Click pada Sel Angka</div>
+                <div class="step-content-desc">Klik dua kali (*double click*) tepat pada kotak sel nilai yang ingin diganti.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">3</div>
+              <div>
+                <div class="step-content-title">Sel Berubah Menjadi Input Aktif</div>
+                <div class="step-content-desc">Sel seketika bertransformasi menjadi kotak input teks berbingkai biru/kuning. Ketik nilai angka yang baru.</div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-num-badge">4</div>
+              <div>
+                <div class="step-content-title">Tekan Enter untuk Menyimpan</div>
+                <div class="step-content-desc">Tekan <b>Enter</b> pada keyboard atau klik di luar kotak sel. Nilai langsung tersimpan otomatis ke database via request AJAX.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Fitur Pintar & Pencegahan Human Error -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">💡</span>
+              Fitur Cerdas Inline Editor
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12.5px;">
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 6px;">
+                <b style="color: #15803d;">Auto Re-Formatting:</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  Operator cukup mengetik <span class="code-badge">1250000</span>, sistem langsung otomatis mengubah tampilannya menjadi standar BPS dengan spasi ribuan: <span class="code-badge">1 250 000</span>.
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 12px; border-radius: 6px;">
+                <b style="color: var(--navy-primary);">Indikator Status Penyimpanan:</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  Sel akan berkedip hijau lembut sesaat setelah tombol Enter ditekan sebagai konfirmasi bahwa server telah menerima data.
+                </div>
+              </div>
+
+              <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 12px; border-radius: 6px;">
+                <b style="color: #9a3412;">Proteksi Baris Kategori & Total:</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  Baris banner pembatas wilayah (<span class="code-badge">Kabupaten/Kota</span>) dan baris judul terkunci dari aksi klik ganda untuk mencegah salah edit struktur.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mockup Visual Sel yang Sedang Diedit -->
+        <div class="card-modern" style="padding: 16px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--navy-primary); margin-bottom: 10px;">
+            Simulasi Tampilan Sel yang Sedang Aktif Mode Edit Langsung:
+          </div>
+          <table class="bps-identic-table">
+            <thead>
+              <tr>
+                <th style="width: 40%;">Kabupaten/Kota</th>
+                <th style="width: 30%;">2023</th>
+                <th style="width: 30%;">2024</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="row-odd">
+                <td>01. Cilacap</td>
+                <td class="col-val">1 893 256</td>
+                <!-- Active Edit Cell -->
+                <td style="background: #fffbe8 !important; padding: 2px !important; text-align: right;">
+                  <input type="text" value="1905400" style="width: 95%; padding: 4px 6px; font-family: 'Arial'; font-weight: bold; font-size: 11px; text-align: right; border: 2px solid var(--bps-orange); border-radius: 4px; outline: none; background: #ffffff;">
+                </td>
+              </tr>
+              <tr class="row-even">
+                <td>02. Banyumas</td>
+                <td class="col-val">1 789 421</td>
+                <td class="col-val">1 802 110</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+            * Kotak bergaris oranye di atas adalah contoh tampilan sel Cilacap 2024 saat operator sedang mengetik revisi angka.
+          </div>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 09 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 10: BAB 8: PUBLIKASI RESMI PORTAL PUBLIK
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 08</span>
+          <span class="header-doc-title">Publikasi Portal Resmi</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">10</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">HALAMAN PUBLIKASI (tabel_dinamis/{id})</div>
+          <h2 class="page-heading">Tampilan Publikasi Resmi & Ekspor Multi-Format</h2>
+          <div class="page-subheading">Standar visual final tabel dinamis yang disajikan kepada masyarakat dan pemangku kepentingan.</div>
+        </div>
+
+        <div style="display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px;">
+          <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-weight: 600;">
+            🌐 Akses Publik Bebas Login
+          </span>
+          <span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 4px; font-weight: 600;">
+            📅 Runtun Waktu Interaktif
+          </span>
+          <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 4px; font-weight: 600;">
+            💾 Ekspor XLSX, CSV & Print View
+          </span>
+        </div>
+
+        <!-- REPLIKA PENUH TABEL DINAMIS 100% IDENTIK v_tabel_dinamis.php -->
+        <div class="table-preview-wrapper">
+          <!-- Toolbar Modern -->
+          <div class="mockup-toolbar">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="btn-mock-back">‹ Kembali</span>
+              <span class="badge-mock-tahun">Tahun: <b>2024</b></span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <span class="btn-mock-upload">UPLOAD EXCEL</span>
+              <span class="btn-mock-export">EXPORT EXCEL</span>
+            </div>
+          </div>
+
+          <!-- Header Title Dwibahasa dengan Kotak Label Asli BPS -->
+          <div class="mockup-header-title">
+            <div class="mockup-label-box">
+              Tabel<br>1.1.1
+            </div>
+            <div class="mockup-title-box">
+              <div class="mockup-title-id">
+                Jumlah Penduduk Menurut Kabupaten/Kota dan Jenis Kelamin di Provinsi Jawa Tengah, 2024
+              </div>
+              <div class="mockup-title-en">
+                Population by Regency/Municipality and Sex in Jawa Tengah Province, 2024
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabel Utama Oranye BPS -->
+          <table class="bps-identic-table">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width: 32%;">
+                  Kabupaten/Kota<br>
+                  <i>Regency/Municipality</i>
+                </th>
+                <th colspan="2">
+                  Jenis Kelamin<br>
+                  <i>Sex</i>
+                </th>
+                <th rowspan="2" style="width: 22%;">
+                  Jumlah<br>
+                  <i>Total</i>
+                </th>
+              </tr>
+              <tr>
+                <th>Laki-Laki<br><i>Male</i></th>
+                <th>Perempuan<br><i>Female</i></th>
+              </tr>
+              <tr class="num-row">
+                <th>(1)</th>
+                <th>(2)</th>
+                <th>(3)</th>
+                <th>(4)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Banner Pembatas Kabupaten -->
+              <tr class="row-banner">
+                <td colspan="4">Kabupaten / Regency</td>
+              </tr>
+              <tr class="row-odd">
+                <td>01. Cilacap</td>
+                <td class="col-val">1 007 982</td>
+                <td class="col-val">998 420</td>
+                <td class="col-val">2 006 402</td>
+              </tr>
+              <tr class="row-even">
+                <td>02. Banyumas</td>
+                <td class="col-val">912 300</td>
+                <td class="col-val">905 110</td>
+                <td class="col-val">1 817 410</td>
+              </tr>
+              <tr class="row-odd">
+                <td>03. Purbalingga</td>
+                <td class="col-val">520 110</td>
+                <td class="col-val">518 900</td>
+                <td class="col-val">1 039 010</td>
+              </tr>
+
+              <!-- Banner Pembatas Kota -->
+              <tr class="row-banner">
+                <td colspan="4">Kota / Municipality</td>
+              </tr>
+              <tr class="row-odd">
+                <td>71. Kota Magelang</td>
+                <td class="col-val">63 210</td>
+                <td class="col-val">64 100</td>
+                <td class="col-val">127 310</td>
+              </tr>
+              <tr class="row-even">
+                <td>72. Kota Surakarta</td>
+                <td class="col-val">256 120</td>
+                <td class="col-val">268 400</td>
+                <td class="col-val">524 520</td>
+              </tr>
+              <tr class="row-odd">
+                <td>73. Kota Semarang</td>
+                <td class="col-val">840 500</td>
+                <td class="col-val">865 300</td>
+                <td class="col-val">1 705 800</td>
+              </tr>
+
+              <!-- Grand Total Oranye BPS -->
+              <tr class="row-total">
+                <td>JAWA TENGAH</td>
+                <td class="col-val">18 720 100</td>
+                <td class="col-val">18 910 200</td>
+                <td class="col-val">37 630 300</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Footer Catatan & Sumber Dwibahasa Standar BPS -->
+          <div class="mockup-table-footer">
+            <div><b>Sumber / Source:</b> Proyeksi Penduduk Interim 2020–2025, BPS Provinsi Jawa Tengah</div>
+            <div><b>Catatan / Note:</b> Angka tahun 2024 merupakan angka proyeksi hasil pemutakhiran SP2020.</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 10 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+    <!-- =========================================================
+         HALAMAN 11: BAB 9: RINGKASAN OPERASIONAL & FAQ
+         ========================================================= -->
+    <article class="book-page">
+      <header class="page-header-canva">
+        <div class="header-yellow-cutout"></div>
+        <div class="header-left">
+          <span class="header-chapter-tag">BAB 09</span>
+          <span class="header-doc-title">Ringkasan & Standar Notasi</span>
+        </div>
+        <div class="header-right">
+          <span class="header-page-badge">11</span>
+        </div>
+        <div class="header-diagonal-accent"></div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-title-group">
+          <div class="page-title-label">STANDARISASI PUBLIKASI STATISTIK</div>
+          <h2 class="page-heading">Matriks Keputusan & Notasi Resmi Publikasi BPS</h2>
+          <div class="page-subheading">Panduan cepat memilih metode pengisian dan konvensi penulisan simbol statistik resmi.</div>
+        </div>
+
+        <div class="grid-2col" style="margin-bottom: 20px;">
+          <!-- Left: Matriks Keputusan -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">🎯</span>
+              Kapan Memilih Metode A, B, atau C?
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12.5px;">
+              <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 6px;">
+                <b style="color: #15803d;">Metode A: Injeksi PDF Master</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  <b>Paling Tepat Jika:</b> Berkas PDF buku DDA sudah terbit / tersedia di server. Cukup 1 klik untuk mengisi ratusan sel sekaligus.
+                </div>
+              </div>
+
+              <div style="background: #f8fafc; border: 1px solid var(--border-light); padding: 12px; border-radius: 6px;">
+                <b style="color: var(--navy-primary);">Metode B: Distribusi Template Excel</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  <b>Paling Tepat Jika:</b> Data dikumpulkan dari dinas luar (Dinkes, Disdik, Dishub). Header terkunci sehingga aman dari distorsi dinas.
+                </div>
+              </div>
+
+              <div style="background: #fffbe8; border: 1px solid #fde68a; padding: 12px; border-radius: 6px;">
+                <b style="color: #92400e;">Metode C: Inline Edit Web (Browser)</b>
+                <div style="color: var(--text-muted); margin-top: 3px;">
+                  <b>Paling Tepat Jika:</b> Koreksi darurat 1 atau 2 sel angka salah ketik saat proses *final proofreading* publikasi.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Notasi Resmi BPS -->
+          <div class="card-modern">
+            <div class="card-title">
+              <span class="icon-circle">📐</span>
+              Arti Notasi & Simbol Resmi BPS
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px;">
+              <div style="display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                <span class="code-badge" style="width: 38px; text-align: center;">...</span>
+                <span><b>Data Belum Tersedia</b> (Belum ada rilis resmi)</span>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                <span class="code-badge" style="width: 38px; text-align: center;">–</span>
+                <span><b>Nihil / Nol</b> (Tidak ada kejadian/populasi)</span>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                <span class="code-badge" style="width: 38px; text-align: center;">*</span>
+                <span><b>Angka Sementara</b> (Masih dapat berubah)</span>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                <span class="code-badge" style="width: 38px; text-align: center;">**</span>
+                <span><b>Angka Sangat Sementara</b> (Estimasi awal)</span>
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                <span class="code-badge" style="width: 38px; text-align: center;">r</span>
+                <span><b>Angka Revisi</b> (Perbaikan dari data terbitan lalu)</span>
+              </div>
+            </div>
+
+            <div class="callout-yellow" style="margin-top: 14px;">
+              <strong>Pemisah Ribuan & Desimal</strong>
+              Standar cetak publikasi BPS menggunakan <b>spasi tipis</b> sebagai pemisah ribuan (<span class="code-badge">1 500 000</span>) dan tanda <b>koma</b> sebagai pemisah desimal (<span class="code-badge">12,50</span>).
+            </div>
+          </div>
+        </div>
+
+        <!-- Helpdesk & Info Box -->
+        <div class="card-navy" style="padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 800; font-size: 15px; color: var(--yellow-gold);">Bantuan Teknis & Konsultasi Sistem DDA Online</div>
+              <div style="font-size: 12.5px; color: #cbd5e1; margin-top: 3px;">
+                Tim Pengolahan Data & Statistik Sosial • BPS Provinsi Jawa Tengah
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="background: var(--bps-orange); color: #fff; padding: 6px 14px; border-radius: 50px; font-weight: 700; font-size: 12px;">
+                DDA Online v2.4
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="page-footer-canva">
+        <span>Buku Panduan Teknis Sistem Tabel Dinamis • BPS Provinsi Jawa Tengah</span>
+        <span>Halaman 11 dari 11</span>
+        <div class="footer-yellow-line"></div>
+        <div class="footer-yellow-corner"></div>
+      </footer>
+    </article>
+
+  </main>
+
+  <script>
+    function setMode(mode) {
+      const container = document.getElementById('pagesContainer');
+      const buttons = document.querySelectorAll('.toolbar-actions .btn-tool');
+      
+      buttons.forEach(btn => btn.classList.remove('active'));
+      
+      if (mode === 'spread') {
+        container.classList.add('mode-spread');
+        buttons[1].classList.add('active');
+      } else {
+        container.classList.remove('mode-spread');
+        buttons[0].classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>
