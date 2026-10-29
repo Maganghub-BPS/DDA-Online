@@ -43,9 +43,127 @@ JATENG_REGISTRY = [
 
 KAB_KOTA_JATENG = [name.replace("Kab. ", "").replace("Kota ", "") for _, name, _ in JATENG_REGISTRY if name != "Total Jawa Tengah"] + ["Jawa Tengah"]
 
+def strip_pdf_page_watermark(doc, page):
+    """
+    Menghapus stream watermark diagonal b"0.70711" (https://jateng.bps.go.id)
+    secara in-memory pada objek halaman PyMuPDF (fitz) sebelum page.find_tables() dipanggil.
+    """
+    if not doc or not page:
+        return False
+    modified = False
+    try:
+        contents = page.get_contents()
+        if not contents:
+            return False
+        for xref in contents:
+            try:
+                stream = doc.xref_stream(xref)
+                if b"0.70711" in stream:
+                    if len(stream) < 600:
+                        doc.update_stream(xref, b"")
+                        modified = True
+                    else:
+                        cleaned = re.sub(rb'q\s+0\.70711.*?ET\s+Q', b'', stream, flags=re.DOTALL)
+                        if cleaned != stream:
+                            doc.update_stream(xref, cleaned)
+                            modified = True
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return modified
+
+_WATERMARK_CHARS = set("https://jateng.bps.go.id\r\n\t :./")
+_VALID_SHORT_TOKENS = {
+    'i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x',
+    'iv/a', 'iv/b', 'iv/c', 'iv/d', 'iv/e',
+    'iii/a', 'iii/b', 'iii/c', 'iii/d',
+    'ii/a', 'ii/b', 'ii/c', 'ii/d',
+    'i/a', 'i/b', 'i/c', 'i/d',
+    'sd', 'smp', 'sma', 'smk', 'di', 'pt', 'tb', 'ha', 'kg', 'm2', 'm3', 'km', 'rp'
+}
+
+def is_watermark_only_token(tok):
+    if not tok: return False
+    t = str(tok).strip().lower()
+    if all(c in '.-–—…�' for c in t):
+        return False
+    if t in _VALID_SHORT_TOKENS:
+        return False
+    non_ws = re.sub(r'\s+', '', t)
+    if non_ws and len(non_ws) <= 4 and all(c in _WATERMARK_CHARS for c in non_ws) and not any(c.isdigit() for c in non_ws):
+        return True
+    return False
+
+def clean_pdf_watermark_text(text):
+    if not text: return ""
+    s = str(text)
+    s = re.sub(r'https?://[a-zA-Z0-9\./\-_]+', '', s)
+    lines = s.split('\n')
+    cleaned_lines = [l for l in lines if not is_watermark_only_token(l.strip())]
+    s = '\n'.join(cleaned_lines)
+    s = re.sub(r'(?<=\d)[a-zA-Z](?=\d)', '', s)
+    s = re.sub(r'^(?i:[a-z\s\.\/:\n\r]+)(?=[0-9–\-—\ufffd\u2026…])', lambda m: '' if not any(w in m.group(0).lower() for w in ['sd', 'smp', 'sma', 'smk', 'rp', 'di', 'pt', 'tb', 'ha']) else m.group(0), s)
+    s = re.sub(r'(?<=\d)(?i:[\s\.\/:\n\r]+[a-z]{1,2})$', '', s)
+    return s.strip()
+
+ENGLISH_SIGNAL_WORDS = {
+    'of', 'to', 'in', 'by', 'and', 'the', 'for', 'with', 'from', 'on', 'at', 'or',
+    'right', 'rights', 'ownership', 'endowments', 'management', 'mortgage', 'use', 'build',
+    'number', 'total', 'area', 'value', 'rate', 'ratio', 'percentage', 'distribution',
+    'group', 'groups', 'type', 'types', 'kind', 'kinds', 'status', 'level', 'levels',
+    'public', 'private', 'male', 'female', 'sex', 'age', 'urban', 'rural',
+    'regency', 'municipality', 'province', 'district', 'subdistrict', 'village', 'villages',
+    'school', 'schools', 'teacher', 'teachers', 'headmaster', 'headmasters', 'pupil', 'pupils', 'student', 'students',
+    'average', 'minimum', 'maximum', 'temperature', 'humidity', 'velocity', 'pressure', 'precipitation', 'rainy', 'days',
+    'coastal', 'non-coastal', 'flat', 'slope', 'valley', 'altitude', 'distance', 'capital', 'island', 'islands',
+    'production', 'capacity', 'customer', 'customers', 'household', 'households', 'industry', 'business', 'social', 'government',
+    'employee', 'employees', 'civil', 'servant', 'servants', 'state', 'agreement', 'agreements',
+    'population', 'thousand', 'people', 'million', 'billion', 'rupiahs', 'rupiah', 'year', 'years', 'month', 'months',
+    'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'
+}
+
+def is_english_line(line):
+    words = re.findall(r'[a-zA-Z]+', str(line).lower())
+    if not words: return False
+    return sum(1 for w in words if w in ENGLISH_SIGNAL_WORDS) >= 1
+
+TYPO_WATERMARK_MAP = {
+    'sejahtepra': 'sejahtera',
+    'pemtbangunan': 'pembangunan',
+    'perlitndungan': 'perlindungan',
+    'pelayanjan': 'pelayanan',
+    'mhargono': 'margono',
+}
+
+def extract_indonesian_label(text):
+    if not text: return ""
+    s = str(text).strip()
+    s = clean_pdf_watermark_text(s)
+    lines = [l.strip() for l in s.split('\n') if l.strip()]
+    if not lines: return ""
+    id_lines = []
+    for line in lines:
+        if is_watermark_only_token(line):
+            continue
+        if '/' in line and not re.search(r'\d/\d', line):
+            parts = line.split('/')
+            if len(parts) >= 2 and any(c.isalpha() for c in parts[0]):
+                id_lines.append(parts[0].strip())
+                break
+        if is_english_line(line) and id_lines:
+            break
+        id_lines.append(line)
+    res = ' '.join(id_lines).strip()
+    for typo, fixed in TYPO_WATERMARK_MAP.items():
+        res = re.sub(rf'\b{typo}\b', fixed, res, flags=re.IGNORECASE)
+    return res
+
 def resolve_jateng_entity(text, is_kota_mode=False):
     if not text: return None, None
     t = str(text).lower().strip()
+    if any(k in t for k in ['gubernur', 'sekretariat', 'dinas', 'badan', 'inspektorat', 'satuan', 'rsud', 'rsjd', 'rumah sakit', 'balai', 'universitas', 'partai']):
+        return None, None
     if 'provinsi jawa tengah' in t or 'pemprov' in t:
         return "33.00", "Provinsi Jawa Tengah"
     
@@ -124,6 +242,8 @@ PROVINSI_MAP = [(name, patterns) for _, name, patterns in PROVINSI_REGISTRY]
 def resolve_provinsi_entity(text):
     if not text: return None, None
     t = str(text).lower().strip()
+    if any(k in t for k in ['gubernur', 'sekretariat', 'dinas', 'badan', 'inspektorat', 'satuan', 'rsud', 'rsjd', 'rumah sakit', 'balai', 'universitas', 'partai']):
+        return None, None
     if re.search(r'\b(?:kab|kabupaten)\b', t):
         return None, None
     # Strip trailing footnote numbers / symbols attached to province names (e.g., Papua Barat Daya5, Papua Barat4)
@@ -175,6 +295,12 @@ _MINUS_CHARS = '\u2212\u2013\u2014\u2012\u2015\u2011'
 _PERIOD_LABEL_RE = re.compile(r'^\s*(?:19|20)\d{2}\s*[/\-\u2013]\s*(?:(?:19|20)?\d{2})\s*[a-zA-Z]?\s*$')
 
 
+def is_interval_label(s):
+    if not s: return False
+    s_clean = clean_pdf_watermark_text(str(s))
+    s_clean = re.sub(r'[\s\*]', '', s_clean)
+    return bool(re.match(r'^(?:\d+[\-–—\ufffd]\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]\s*\d+)$', s_clean))
+
 def parse_num(val_str, is_pdf=False):
     if val_str is None: return None
     # Angka native (dari DB/JSON) dipakai apa adanya: JANGAN dikonversi ke string lalu ditebak ulang
@@ -186,6 +312,14 @@ def parse_num(val_str, is_pdf=False):
         return f if f == f and f not in (float('inf'), float('-inf')) else None
     s = str(val_str).strip()
     if not s: return None
+
+    if is_pdf:
+        s = clean_pdf_watermark_text(s)
+        if not s: return None
+
+    # Interval label seperti '21-35' atau '60+' bukan angka
+    if is_interval_label(s):
+        return None
 
     # Label periode seperti '2023/2024' bukan angka
     if _PERIOD_LABEL_RE.match(s) and not re.match(r'^\s*-', s):
@@ -201,8 +335,14 @@ def parse_num(val_str, is_pdf=False):
     # Strip vertical watermark artifacts (e.g., newline followed by single letter)
     s = re.sub(r'[\r\n]+[a-z][\r\n]*', '', s)
 
-    # Filter unit/code tokens where digits belong to unit or classification code (e.g. 'm3/m3', 'Rp/m3', 'Rp/sm', '(K1)', '(K2)', '(KP3)', '(KMP3)')
     s_raw_token = s.strip()
+
+    # Cek kata alfabet bermakna >= 2 huruf SEBELUM stripping agar label teks seperti '1.1 Pajak Daerah' tidak terkonversi ke 1.1
+    s_cleaned_no_wm = re.sub(r'(?i)\b(?:km[23]?|m[23]?|cm[23]?|dm[23]?|mm[23]?|ha|kg|ton|jiwa|orang|rupiah|persen|ribu|juta|miliar|triliun|sm)\b', '', s_raw_token)
+    if re.search(r'[a-zA-Z]{2,}', s_cleaned_no_wm):
+        return None
+
+    # Filter unit/code tokens where digits belong to unit or classification code (e.g. 'm3/m3', 'Rp/m3', 'Rp/sm', '(K1)', '(K2)', '(KP3)', '(KMP3)')
     if re.match(r'^\(?[a-zA-Z]+\d{1,2}\)?$', s_raw_token):
         return None
     if re.match(r'^\(?[a-zA-Z]{1,4}\d{1,2}(?:/[a-zA-Z]{1,4}\d{1,2})?\)?$', s_raw_token):
@@ -317,11 +457,6 @@ def find_wilayah_with_type(ctx, is_kota=False):
     code, name = resolve_jateng_entity(ctx, is_kota_mode=is_kota)
     return name if name else "Umum"
 
-def is_interval_label(s):
-    if not s: return False
-    s_clean = re.sub(r'[\s\*]', '', str(s))
-    return bool(re.match(r'^(?:\d+[\-–—\ufffd]\d+|\d+\+|\<\s*\d+|\>\s*\d+)$', s_clean))
-
 def is_bps_col_num(val):
     if not val: return False
     s = str(val).strip()
@@ -344,8 +479,8 @@ def is_header_or_metadata_row(row):
     ctx = ' | '.join(non_empty).lower()
     ctx_norm = re.sub(r'\s*/\s*', '/', ctx)
     
+    # 1. Kolom penanda BPS
     if any(k in ctx_norm for k in ['kabupaten/regency', 'kota/municipality']): return True
-    
     cleaned_cells = [re.sub(r'^[a-zA-Z\.\s/]+\n', '', c).strip() for c in non_empty if c]
     if cleaned_cells and all(is_bps_col_num(c) for c in cleaned_cells): return True
         
@@ -353,22 +488,37 @@ def is_header_or_metadata_row(row):
     year_matches = sum(1 for c in clean_years if re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', c))
     if year_matches >= len(non_empty) * 0.6: return True
     if len(non_empty) >= 3 and year_matches >= (len(non_empty) - 1) * 0.7: return True
-        
+
+    # 2. Baris Header Interval (misal: Partai Politik | 21-35 | 36-49 | 50-59 | 60+ | Jumlah)
     clean_intervals = sum(1 for c in non_empty if is_interval_label(c))
-    if clean_intervals >= 2 and not any(re.search(r'[a-zA-Z]{3,}', c) for c in non_empty[:2]):
+    plain_nums = sum(1 for c in non_empty if parse_num(c) is not None and not is_bps_col_num(str(c).strip()) and not is_interval_label(str(c).strip()) and not re.match(r'^(?:19|20)\d{2}', str(c).strip()))
+    if clean_intervals >= 2 and plain_nums == 0:
         return True
 
-    if any(k in ctx for k in ['tabel', 'table', 'sumber', 'source', 'catatan', 'note', 'perubahan data', 'diakses']): return True
+    # 3. Baris Metadata (Hanya jika diawali prefix atau label metadata murni, bukan substring sembarang)
+    first_cell = non_empty[0].lower().strip()
+    if any(first_cell.startswith(k) for k in ['sumber:', 'source:', 'catatan:', 'note:', 'sumber/source', 'catatan/note', 'perubahan data', 'diakses:']):
+        return True
+    if any(re.match(r'^(?:sumber|source|catatan|note)\s*[:/]', c.lower().strip()) for c in non_empty):
+        return True
+    if any(re.match(r'^(?:tabel|table)\b', c.lower().strip()) for c in non_empty[:2]):
+        return True
 
-    num_non_years = sum(1 for c in non_empty if parse_num(c) is not None and not is_bps_col_num(str(c).strip()) and not re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', re.sub(r'[\*\^#\s\†\‡]', '', str(c))))
-    if num_non_years >= 2:
+    # 4. Jika ada >= 2 angka numerik non-tahun, pasti baris data (bukan header)
+    if plain_nums >= 2:
         return False
-        
+
+    # 5. Baris Dimensi Header dengan Tahun (0 angka biasa, >= 1 tahun, dan kata kunci dimensi)
+    dim_keywords = ['dinas', 'instansi', 'organisasi perangkat daerah', 'kabupaten/kota', 'partai politik', 'kelompok umur', 'jenis kelamin', 'golongan', 'pangkat', 'tingkat pendidikan']
+    if plain_nums == 0 and year_matches >= 1 and any(any(k in str(c).lower() for k in dim_keywords) for c in non_empty):
+        return True
+
     if any(k in ctx for k in ['laki-laki', 'perempuan', 'female', 'male', 'jenis kelamin', 'sex', 'pangkat', 'golongan', 'tingkat pendidikan']):
-        if not any(parse_num(c) is not None for c in non_empty if not is_bps_col_num(str(c).strip())): return True
+        if plain_nums == 0: return True
 
     if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit']):
-        if not any(parse_num(c) is not None and not is_bps_col_num(str(c).strip()) and not re.match(r'^(?:19|20)\d{2}', str(c).strip()) for c in non_empty): return True
+        if plain_nums == 0: return True
+        
     return False
 
 def rounding_noise(pv, sv):
@@ -393,17 +543,16 @@ def match_party_name(text):
     t = re.sub(r'[^\w\s]', ' ', t)
     t = re.sub(r'\s+', ' ', t).strip()
     
-    if 'PDI' in t or 'DEMOKRASI INDONESIA PERJUANGAN' in t: return 'PDI-P'
-    if 'PKB' in t or 'KEBANGKITAN BANGSA' in t: return 'PKB'
-    if 'GERINDRA' in t or 'GERAKAN INDONESIA RAYA' in t: return 'GERINDRA'
-    if 'GOLKAR' in t or 'GOLONGAN KARYA' in t: return 'GOLKAR'
-    if 'PKS' in t or 'KEADILAN SEJAHTERA' in t: return 'PKS'
+    if re.search(r'\bPDI\b', t) or 'DEMOKRASI INDONESIA' in t: return 'PDI-P'
+    if re.search(r'\bPKB\b', t) or 'KEBANGKITAN BANGSA' in t: return 'PKB'
+    if re.search(r'\bGERINDRA\b', t) or 'GERAKAN INDONESIA RAYA' in t: return 'GERINDRA'
+    if re.search(r'\bGOLKAR\b', t) or 'GOLONGAN KARYA' in t: return 'GOLKAR'
+    if re.search(r'\bPKS\b', t) or 'KEADILAN SEJAHTERA' in t: return 'PKS'
     if 'DEMOKRAT' in t: return 'DEMOKRAT'
-    if 'PPP' in t or 'PERSATUAN PEMBANGUNAN' in t: return 'PPP'
-    if 'PAN' in t or 'AMANAT NASIONAL' in t: return 'PAN'
-    if 'NASDEM' in t: return 'NASDEM'
-    if 'PSI' in t or 'SOLIDARITAS INDONESIA' in t: return 'PSI'
-    if 'JAWA TENGAH' in t or 'TOTAL' in t or 'JUMLAH' in t: return 'TOTAL'
+    if re.search(r'\bPPP\b', t) or 'PERSATUAN PEMBANGUNAN' in t: return 'PPP'
+    if re.search(r'\bPAN\b', t) or 'AMANAT NASIONAL' in t: return 'PAN'
+    if re.search(r'\bNASDEM\b', t): return 'NASDEM'
+    if re.search(r'\bPSI\b', t) or 'SOLIDARITAS INDONESIA' in t: return 'PSI'
     return None
 
 def _exactly_equal(a, b):

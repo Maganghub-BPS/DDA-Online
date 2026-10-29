@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulasi Opsi 2: Skalabilitas Kolom 1, 2, 3, dan 4 Tingkat - DDA Online</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --primary-navy: #0B2E59;
+      --bg-slate: #f8fafc;
+      --border-subtle: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+    body {
+      background-color: var(--bg-slate);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-main);
+      padding-bottom: 90px;
+    }
+    .hero-header {
+      background: linear-gradient(135deg, #0B2E59 0%, #1e3a8a 65%, #2563eb 100%);
+      color: white;
+      border-radius: 18px;
+      padding: 26px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px -4px rgba(11, 46, 89, 0.2);
+    }
+    .custom-nav-pills .nav-link {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: #64748b;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      transition: all 0.2s ease;
+    }
+    .custom-nav-pills .nav-link.active {
+      background-color: #0B2E59;
+      color: #ffffff;
+      border-color: #0B2E59;
+      box-shadow: 0 4px 12px rgba(11, 46, 89, 0.2);
+    }
+    .sample-box {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    /* CARD OPSI 2 MATRIX COORDINATES */
+    .card-diff-matrix {
+      border: 1px solid #fecaca;
+      border-radius: 14px;
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.04);
+      transition: all 0.2s ease;
+    }
+    .card-diff-matrix:hover {
+      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.08);
+      border-color: #fca5a5;
+    }
+
+    .split-left {
+      background: #f8fafc;
+      border-right: 1px solid #f1f5f9;
+      padding: 20px 22px;
+    }
+    .split-right {
+      background: #ffffff;
+      padding: 20px 22px;
+    }
+
+    /* GRID MATRIX COORDINATE */
+    .s2-grid {
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      row-gap: 9px;
+      margin-top: 10px;
+      margin-bottom: 12px;
+    }
+    .s2-label {
+      color: #64748b;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding-top: 3px;
+    }
+    .s2-val {
+      color: #0f172a;
+      font-size: 1.02rem;
+      font-weight: 600;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    /* NUMBER BOXES */
+    .num-box {
+      border-radius: 12px;
+      padding: 12px 16px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .num-box-pdf {
+      background: #ffffff;
+      border: 1.5px solid #ef4444;
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.06);
+    }
+    .num-box-db {
+      background: #ffffff;
+      border: 1.5px solid #10b981;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.06);
+    }
+
+    /* LEVEL BADGES */
+    .level-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+
+    /* TOAST */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 14px 22px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4" style="max-width: 1040px;">
+
+  <!-- Hero Header -->
+  <div class="hero-header">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <span class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill mb-2">
+          <i class="bi bi-check2-circle me-1"></i> ACC Desain Terkonfirmasi: Opsi 2 (Matrix Coordinates)
+        </span>
+        <h3 class="fw-bold mb-1">Simulasi Skalabilitas Kolom: 1, 2, 3, dan 4 Tingkat</h3>
+        <p class="mb-0 text-white-50 small">
+          Memverifikasi fleksibilitas tata letak saat tabel memiliki header tunggal, 2 tingkat, 3 tingkat, hingga 4 tingkat tanpa merusak kerapian grid.
+        </p>
+      </div>
+      <div class="bg-white bg-opacity-10 p-3 rounded-4 border border-white border-opacity-20 text-center">
+        <div class="small text-white-50">Status Penerapan</div>
+        <div class="fw-bold text-success fs-6">✓ Ukuran Font Disesuaikan (1.02rem)</div>
+        <div class="small text-white-50">Menunggu Review Simulasi Akhir</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Navigasi -->
+  <ul class="nav nav-pills custom-nav-pills mb-4 gap-2 border-bottom pb-3" id="pills-tab" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active" id="tab-all" data-bs-toggle="pill" data-bs-target="#content-all" type="button">
+        <i class="bi bi-grid-fill me-1"></i> Tampilkan Semua Level (Bandingkan Langsung)
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="tab-l1" data-bs-toggle="pill" data-bs-target="#content-l1" type="button">
+        1 Tingkat (Sederhana)
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="tab-l2" data-bs-toggle="pill" data-bs-target="#content-l2" type="button">
+        2 Tingkat (Standar)
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="tab-l3" data-bs-toggle="pill" data-bs-target="#content-l3" type="button">
+        3 Tingkat (Menengah)
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="tab-l4" data-bs-toggle="pill" data-bs-target="#content-l4" type="button">
+        4 Tingkat (Kompleks / Deep)
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tab Content -->
+  <div class="tab-content" id="pills-tabContent">
+
+    <!-- ALL TOGETHER -->
+    <div class="tab-pane fade show active" id="content-all" role="tabpanel">
+
+      <!-- =================================================================== -->
+      <!-- LEVEL 1: KOLOM 1 TINGKAT (TUNGGAL / SEDERHANA) -->
+      <!-- =================================================================== -->
+      <div class="sample-box" id="box-l1">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary level-pill">1 TINGKAT KOLOM</span>
+            <h5 class="fw-bold mb-0">Tabel Header Tunggal (Contoh: Tabel Kependudukan / PDRB)</h5>
+          </div>
+          <span class="text-muted small">Struktur: <code>[Kolom Tunggal]</code></span>
+        </div>
+        <p class="text-muted small mb-3">
+          Contoh kasus: Tabel demografi atau ekonomi sederhana yang tidak memiliki sub-kolom, hanya 1 baris header metrik.
+        </p>
+
+        <!-- KARTU 1 TINGKAT -->
+        <div class="card card-diff-matrix">
+          <div class="row g-0 align-items-stretch">
+            
+            <!-- PANEL KIRI -->
+            <div class="col-md-5 split-left d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                  <span class="fw-bold text-dark small"><i class="bi bi-grid-3x3 me-1 text-primary"></i>Koordinat Sel Tabel:</span>
+                  <span class="text-muted small" style="font-size:0.75rem;">Hal. 142 (Tabel 3.1.1)</span>
+                </div>
+
+                <div class="s2-grid">
+                  <div class="s2-label">Baris:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-primary me-1" style="font-size:0.9rem;"></i>Kab. Cilacap</span>
+                  </div>
+
+                  <div class="s2-label">Kolom:</div>
+                  <div class="s2-val">
+                    <!-- 1 Tingkat: Langsung Bold Utama -->
+                    <strong class="text-dark">Jumlah Penduduk (Jiwa)</strong>
+                  </div>
+
+                  <div class="s2-label">Tahun:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-primary"><i class="bi bi-calendar3 me-1" style="font-size:0.85rem;"></i>2024</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-top border-light-subtle d-flex align-items-center justify-content-between">
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill small fw-bold">
+                  Selisih: 1.250
+                </span>
+                <span class="text-muted small" style="font-size:0.72rem;">Kolom (2) &bull; Orang</span>
+              </div>
+            </div>
+
+            <!-- PANEL KANAN -->
+            <div class="col-md-7 split-right d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Perbandingan:</span>
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Berbeda
+                  </span>
+                </div>
+
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">2.015.480</div>
+                    </div>
+                  </div>
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;">≠</span>
+                  </div>
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">2.014.230</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiToast('2.015.480')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (2.015.480) ke Database</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- LEVEL 2: KOLOM 2 TINGKAT (STANDAR) -->
+      <!-- =================================================================== -->
+      <div class="sample-box" id="box-l2">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-info text-white level-pill">2 TINGKAT KOLOM</span>
+            <h5 class="fw-bold mb-0">Tabel 2 Tingkat (Contoh: Tabel Kendaraan Bermotor)</h5>
+          </div>
+          <span class="text-muted small">Struktur: <code>[Induk Kolom] › [Sub Kolom]</code></span>
+        </div>
+        <p class="text-muted small mb-3">
+          Contoh kasus: Tabel 9.1.2 Kendaraan Bermotor. Induknya adalah kategori kendaraan, sub-kolomnya adalah jenis kendaraan spesifik.
+        </p>
+
+        <!-- KARTU 2 TINGKAT -->
+        <div class="card card-diff-matrix">
+          <div class="row g-0 align-items-stretch">
+            
+            <div class="col-md-5 split-left d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                  <span class="fw-bold text-dark small"><i class="bi bi-grid-3x3 me-1 text-primary"></i>Koordinat Sel Tabel:</span>
+                  <span class="text-muted small" style="font-size:0.75rem;">Hal. 918-922 (Tabel 9.1.2)</span>
+                </div>
+
+                <div class="s2-grid">
+                  <div class="s2-label">Baris:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-primary me-1" style="font-size:0.9rem;"></i>Kab. Sukoharjo</span>
+                  </div>
+
+                  <div class="s2-label">Kolom:</div>
+                  <div class="s2-val">
+                    <!-- 2 Tingkat: Induk Abu-Abu > Sub Bold Hitam -->
+                    <span class="text-secondary">Jenis Kendaraan <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">Mobil Penumpang</strong>
+                  </div>
+
+                  <div class="s2-label">Tahun:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-primary"><i class="bi bi-calendar3 me-1" style="font-size:0.85rem;"></i>2023</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-top border-light-subtle d-flex align-items-center justify-content-between">
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill small fw-bold">
+                  Selisih: 64.037.874
+                </span>
+                <span class="text-muted small" style="font-size:0.72rem;">Kolom (2) &bull; Unit</span>
+              </div>
+            </div>
+
+            <div class="col-md-7 split-right d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Perbandingan:</span>
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Berbeda
+                  </span>
+                </div>
+
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">64.067</div>
+                    </div>
+                  </div>
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;">≠</span>
+                  </div>
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">29,126</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiToast('64.067')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (64.067) ke Database</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- LEVEL 3: KOLOM 3 TINGKAT (MENENGAH) -->
+      <!-- =================================================================== -->
+      <div class="sample-box" id="box-l3">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-warning text-dark level-pill">3 TINGKAT KOLOM</span>
+            <h5 class="fw-bold mb-0">Tabel 3 Tingkat (Contoh: Tabel DAOP IV Kereta Api)</h5>
+          </div>
+          <span class="text-muted small">Struktur: <code>[Induk Level 1] › [Sub Level 2] › [Kategori Level 3]</code></span>
+        </div>
+        <p class="text-muted small mb-3">
+          Contoh kasus: Tabel 9.1.21 PT KAI DAOP IV. Induk = Angkutan Barang &bull; Sub = Kiriman Khusus &bull; Metrik = Hantaran & Bagasi.
+        </p>
+
+        <!-- KARTU 3 TINGKAT -->
+        <div class="card card-diff-matrix">
+          <div class="row g-0 align-items-stretch">
+            
+            <div class="col-md-5 split-left d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                  <span class="fw-bold text-dark small"><i class="bi bi-grid-3x3 me-1 text-primary"></i>Koordinat Sel Tabel:</span>
+                  <span class="text-muted small" style="font-size:0.75rem;">Hal. 948 (Tabel 9.1.21)</span>
+                </div>
+
+                <div class="s2-grid">
+                  <div class="s2-label">Baris:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-primary me-1" style="font-size:0.9rem;"></i>Bulan: Januari</span>
+                  </div>
+
+                  <div class="s2-label">Kolom:</div>
+                  <div class="s2-val">
+                    <!-- 3 Tingkat: Level 1 > Level 2 > Leaf Bold -->
+                    <span class="text-secondary">Barang (Ton) <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i> Kiriman Biasa <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">Hantaran & Bagasi</strong>
+                  </div>
+
+                  <div class="s2-label">Tahun:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-primary"><i class="bi bi-calendar3 me-1" style="font-size:0.85rem;"></i>2025</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-top border-light-subtle d-flex align-items-center justify-content-between">
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill small fw-bold">
+                  Selisih: 44.000
+                </span>
+                <span class="text-muted small" style="font-size:0.72rem;">Kolom (3) &bull; Ton</span>
+              </div>
+            </div>
+
+            <div class="col-md-7 split-right d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Perbandingan:</span>
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Berbeda
+                  </span>
+                </div>
+
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">597</div>
+                    </div>
+                  </div>
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;">≠</span>
+                  </div>
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">553</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiToast('597')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (597) ke Database</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
+      <!-- LEVEL 4: KOLOM 4 TINGKAT (DEEP HIERARCHY / KOMPLEKS) -->
+      <!-- =================================================================== -->
+      <div class="sample-box" id="box-l4">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-danger level-pill">4 TINGKAT KOLOM (DEEP)</span>
+            <h5 class="fw-bold mb-0">Tabel 4 Tingkat (Contoh: Sektor Pertanian / Pendidikan Mendalam)</h5>
+          </div>
+          <span class="text-muted small">Struktur: <code>[Sektor] › [Subsektor] › [Komoditas] › [Metrik Satuan]</code></span>
+        </div>
+        <p class="text-muted small mb-3">
+          Contoh kasus paling kompleks: Tabel Pertanian Tanaman Pangan atau Detail Jenjang Sekolah. Memiliki 4 cabang hierarki kolom vertikal. Perhatikan bagaimana teks melipat dengan sangat rapi tanpa merusak baris tahun di bawahnya.
+        </p>
+
+        <!-- KARTU 4 TINGKAT -->
+        <div class="card card-diff-matrix">
+          <div class="row g-0 align-items-stretch">
+            
+            <div class="col-md-5 split-left d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                  <span class="fw-bold text-dark small"><i class="bi bi-grid-3x3 me-1 text-primary"></i>Koordinat Sel Tabel:</span>
+                  <span class="text-muted small" style="font-size:0.75rem;">Hal. 412 (Tabel 5.1.8)</span>
+                </div>
+
+                <div class="s2-grid">
+                  <div class="s2-label">Baris:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-primary me-1" style="font-size:0.9rem;"></i>Kab. Grobogan</span>
+                  </div>
+
+                  <div class="s2-label">Kolom:</div>
+                  <div class="s2-val">
+                    <!-- 4 Tingkat: Melipat alami dengan rapi -->
+                    <span class="text-secondary">Pertanian <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i> Tanaman Pangan <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i> Padi Sawah <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">Luas Panen (Ha)</strong>
+                  </div>
+
+                  <div class="s2-label">Tahun:</div>
+                  <div class="s2-val">
+                    <span class="fw-bold text-primary"><i class="bi bi-calendar3 me-1" style="font-size:0.85rem;"></i>2024</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-top border-light-subtle d-flex align-items-center justify-content-between">
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill small fw-bold">
+                  Selisih: 3.420
+                </span>
+                <span class="text-muted small" style="font-size:0.72rem;">Kolom (4) &bull; Hektar (Ha)</span>
+              </div>
+            </div>
+
+            <div class="col-md-7 split-right d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Perbandingan:</span>
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Berbeda
+                  </span>
+                </div>
+
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">118.750</div>
+                    </div>
+                  </div>
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;">≠</span>
+                  </div>
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">115.330</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiToast('118.750')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (118.750) ke Database</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB INDIVIDUAL L1 -->
+    <div class="tab-pane fade" id="content-l1" role="tabpanel">
+      <div id="target-l1"></div>
+    </div>
+    <!-- TAB INDIVIDUAL L2 -->
+    <div class="tab-pane fade" id="content-l2" role="tabpanel">
+      <div id="target-l2"></div>
+    </div>
+    <!-- TAB INDIVIDUAL L3 -->
+    <div class="tab-pane fade" id="content-l3" role="tabpanel">
+      <div id="target-l3"></div>
+    </div>
+    <!-- TAB INDIVIDUAL L4 -->
+    <div class="tab-pane fade" id="content-l4" role="tabpanel">
+      <div id="target-l4"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="simpleToast" class="toast-box">
+  <i class="bi bi-check-circle-fill text-success fs-5"></i>
+  <span id="toastMsg">Simulasi Berhasil!</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("target-l1").innerHTML = document.getElementById("box-l1").innerHTML;
+    document.getElementById("target-l2").innerHTML = document.getElementById("box-l2").innerHTML;
+    document.getElementById("target-l3").innerHTML = document.getElementById("box-l3").innerHTML;
+    document.getElementById("target-l4").innerHTML = document.getElementById("box-l4").innerHTML;
+  });
+
+  function simulasiToast(val) {
+    const t = document.getElementById('simpleToast');
+    document.getElementById('toastMsg').innerText = `Simulasi Sinkronisasi Nilai (${val}) Sukses!`;
+    t.style.display = 'flex';
+    setTimeout(() => { t.style.display = 'none'; }, 3000);
+  }
+</script>
+
+</body>
+</html>

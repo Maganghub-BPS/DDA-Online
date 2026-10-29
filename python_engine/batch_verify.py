@@ -170,12 +170,12 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
                     status = "diff"
                     diff_count = total_diffs
                 elif total_matches == 0:
-                    if res.get("is_api_empty"):
-                        status = "api_empty"
-                        diff_count = 0
-                    elif total_pdf_only > 0:
+                    if total_pdf_only > 0:
                         status = "pdf_only"
                         diff_count = total_pdf_only
+                    elif res.get("is_api_empty"):
+                        status = "api_empty"
+                        diff_count = 0
                     elif is_api_or_dyn:
                         status = "api_empty"
                         diff_count = 0

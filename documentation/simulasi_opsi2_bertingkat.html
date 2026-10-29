@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulasi Opsi 2: Penanganan Kolom Bertingkat - DDA Online</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --primary-navy: #0B2E59;
+      --accent-blue: #2563eb;
+      --bg-slate: #f8fafc;
+      --border-subtle: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+    body {
+      background-color: var(--bg-slate);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-main);
+      padding-bottom: 80px;
+    }
+    .hero-header {
+      background: linear-gradient(135deg, #0B2E59 0%, #1e3a8a 60%, #1d4ed8 100%);
+      color: white;
+      border-radius: 18px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px -5px rgba(11, 46, 89, 0.2);
+    }
+    .custom-pill-nav .nav-link {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #64748b;
+      padding: 8px 18px;
+      border-radius: 999px;
+      transition: all 0.2s ease;
+    }
+    .custom-pill-nav .nav-link.active {
+      background-color: #0B2E59;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(11, 46, 89, 0.25);
+    }
+    .sample-container {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+
+    /* CARD OPSI 2 BASE */
+    .card-opsi-2-pro {
+      border: 1px solid #fecaca;
+      border-radius: 14px;
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.04);
+      transition: all 0.25s ease;
+    }
+    .card-opsi-2-pro:hover {
+      box-shadow: 0 8px 24px rgba(239, 68, 68, 0.08);
+      border-color: #fca5a5;
+    }
+
+    /* LEFT SPLIT PANE */
+    .split-pane-left {
+      background: #f8fafc;
+      border-right: 1px solid #f1f5f9;
+      padding: 20px;
+    }
+    
+    /* RIGHT SPLIT PANE */
+    .split-pane-right {
+      background: #ffffff;
+      padding: 20px;
+    }
+
+    /* NUMBER COMPARISON BOXES */
+    .num-box {
+      border-radius: 12px;
+      padding: 12px 16px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .num-box-pdf {
+      background: #ffffff;
+      border: 1.5px solid #ef4444;
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.06);
+    }
+    .num-box-db {
+      background: #ffffff;
+      border: 1.5px solid #10b981;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.06);
+    }
+
+    /* ========================================================= */
+    /* VARIASI 2A: BREADCRUMB PATH TAGS */
+    /* ========================================================= */
+    .crumb-tag {
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      line-height: 1.3;
+    }
+    .crumb-l1 {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+    .crumb-l2 {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+    .crumb-l3 {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      font-weight: 700;
+    }
+    .crumb-arrow {
+      color: #94a3b8;
+      font-size: 0.8rem;
+      margin: 0 4px;
+    }
+
+    /* ========================================================= */
+    /* VARIASI 2B: MINI TREE CONNECTOR */
+    /* ========================================================= */
+    .tree-block {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-top: 8px;
+    }
+    .tree-node {
+      position: relative;
+      padding-left: 20px;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      margin-bottom: 4px;
+    }
+    .tree-node:last-child {
+      margin-bottom: 0;
+    }
+    .tree-node::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: -2px;
+      bottom: 8px;
+      width: 2px;
+      background: #cbd5e1;
+    }
+    .tree-node::after {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 9px;
+      width: 10px;
+      height: 2px;
+      background: #cbd5e1;
+    }
+    .tree-node.root::before, .tree-node.root::after {
+      display: none;
+    }
+    .tree-node.root {
+      padding-left: 0;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    /* ========================================================= */
+    /* VARIASI 2C: CONTEXTUAL EYEBROW + BOLD LEAF */
+    /* ========================================================= */
+    .eyebrow-path {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .eyebrow-leaf-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.3;
+    }
+
+    /* TOAST NOTIFICATION */
+    .custom-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 14px 22px;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4" style="max-width: 1080px;">
+
+  <!-- Hero Header -->
+  <div class="hero-header">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div>
+        <span class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill mb-2">
+          <i class="bi bi-layout-split me-1"></i> Special Deep Dive: Opsi 2 (Split Panel)
+        </span>
+        <h3 class="fw-bold mb-1">Simulasi Penanganan Kolom Bertingkat</h3>
+        <p class="mb-0 text-white-50 small">
+          Memastikan data dengan header bertingkat 2, 3, hingga 4 level (seperti Tabel 9.1.21 & 9.1.2) tampil super jelas, lega, dan tidak kegencet.
+        </p>
+      </div>
+      <div class="bg-white bg-opacity-10 p-3 rounded-4 border border-white border-opacity-20 text-center">
+        <div class="small text-white-50">Status Pemilihan</div>
+        <div class="fw-bold text-white fs-6">Opsi 2 Dipilih Bos Anas 👍</div>
+        <div class="badge bg-success-subtle text-success border border-success-subtle mt-1">Siap Evaluasi Sub-Variasi</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Penjelasan Masalah & Solusi -->
+  <div class="alert alert-light border border-primary-subtle shadow-xs rounded-4 p-3 mb-4">
+    <div class="d-flex align-items-start gap-3">
+      <div class="bg-primary text-white p-2 rounded-3 fs-5">
+        <i class="bi bi-info-circle-fill"></i>
+      </div>
+      <div>
+        <h6 class="fw-bold text-primary mb-1">Tantangan Kolom Bertingkat Pada Data BPS / DDA</h6>
+        <p class="small text-muted mb-0">
+          Tabel publikasi BPS sering memiliki header bertingkat, contohnya: 
+          <strong>"Barang (Ton)"</strong> (Induk) $\rightarrow$ <strong>"Hantaran dan Bagasi"</strong> (Sub-Kolom) $\rightarrow$ <strong>"2024 / Realisasi"</strong> (Metrik).
+          Di bawah ini ada <strong>3 Variasi Gaya Penataan Panel Kiri</strong> untuk menampilkan hierarki tersebut dengan rapi tanpa mengorbankan kelegaan angka di panel kanan.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <ul class="nav nav-pills custom-pill-nav mb-4 gap-2 border-bottom pb-3" id="pills-tab" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active" id="tab-all" data-bs-toggle="pill" data-bs-target="#content-all" type="button">
+        <i class="bi bi-grid-fill me-1"></i> Tampilkan Semua (Bandingkan Langsung)
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="tab-v2a" data-bs-toggle="pill" data-bs-target="#content-v2a" type="button">
+        Variasi 2A: Breadcrumb Path Tags ⭐
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="tab-v2b" data-bs-toggle="pill" data-bs-target="#content-v2b" type="button">
+        Variasi 2B: Mini Tree Connector
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="tab-v2c" data-bs-toggle="pill" data-bs-target="#content-v2c" type="button">
+        Variasi 2C: Contextual Eyebrow
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tab Content -->
+  <div class="tab-content" id="pills-tabContent">
+
+    <!-- TAB 1: ALL TOGETHER -->
+    <div class="tab-pane fade show active" id="content-all" role="tabpanel">
+
+      <!-- ====================================================================== -->
+      <!-- VARIASI 2A: BREADCRUMB PATH TAGS -->
+      <!-- ====================================================================== -->
+      <div class="sample-container">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-primary px-3 py-1-5 rounded-pill fw-bold">VARIASI 2A</span>
+              <h5 class="fw-bold mb-0">Breadcrumb Path Tags (Untaian Kapsul Bertingkat)</h5>
+              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small">Sangat Direkomendasikan ⭐</span>
+            </div>
+            <div class="small text-muted mt-1">
+              Menampilkan hierarki sebagai alur tag kapsul interaktif: Induk Kolom $\rightarrow$ Sub Kolom $\rightarrow$ Tahun/Satuan.
+            </div>
+          </div>
+          <button onclick="pilihSubVariasi('Variasi 2A (Breadcrumb Tags)')" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold">
+            <i class="bi bi-check-lg me-1"></i> Pilih Variasi 2A
+          </button>
+        </div>
+
+        <!-- CONTOH 1: Tabel 9.1.21 (3 Level Header) -->
+        <div class="card card-opsi-2-pro mb-3">
+          <div class="row g-0 align-items-stretch">
+            
+            <!-- PANEL KIRI (42%): IDENTITAS & HIERARKI BREADCRUMB -->
+            <div class="col-md-5 split-pane-left d-flex flex-column justify-content-between">
+              <div>
+                <!-- Baris Wilayah & Halaman -->
+                <div class="d-flex align-items-center flex-wrap gap-1 mb-2">
+                  <span class="badge bg-primary text-white fw-bold px-2 py-1 shadow-xs" style="font-size: 0.75rem;">
+                    <i class="bi bi-geo-alt-fill me-1"></i>Bulan: Januari
+                  </span>
+                  <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.75rem;">
+                    <i class="bi bi-book me-1"></i>Hal. 948 (Tabel 9.1.21)
+                  </span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.72rem;">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Selisih: 44.000
+                  </span>
+                </div>
+
+                <!-- Breadcrumb Path Bertingkat (Induk -> Sub -> Metrik) -->
+                <div class="mt-2 mb-2">
+                  <div class="small text-uppercase text-muted fw-bold mb-1" style="font-size:0.68rem; letter-spacing:0.04em;">
+                    <i class="bi bi-diagram-3 me-1 text-primary"></i>Hierarki Kolom Tabel:
+                  </div>
+                  <div class="d-flex align-items-center flex-wrap gap-1 py-1">
+                    <span class="crumb-tag crumb-l1" title="Induk Kolom (Level 1)">
+                      <i class="bi bi-folder2-open me-1 text-secondary"></i>Barang (Ton)
+                    </span>
+                    <i class="bi bi-chevron-right crumb-arrow"></i>
+                    <span class="crumb-tag crumb-l2" title="Sub Kolom (Level 2)">
+                      <i class="bi bi-file-text me-1 text-info"></i>Hantaran & Bagasi
+                    </span>
+                    <i class="bi bi-chevron-right crumb-arrow"></i>
+                    <span class="crumb-tag crumb-l3" title="Kolom Spesifik">
+                      <i class="bi bi-calendar3 me-1 text-primary"></i>Tahun 2025
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Title Metrik Utama -->
+                <div class="fw-bold text-dark fs-6 mt-1">
+                  Kiriman Barang PT KAI DAOP IV
+                </div>
+              </div>
+
+              <!-- Info Status / Catatan Bawah Kiri -->
+              <div class="pt-3 mt-2 border-top border-light-subtle d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle text-primary"></i>
+                <span class="small text-muted" style="font-size: 0.78rem;">
+                  Kolom (3) pada cetakan BPS Jawa Tengah
+                </span>
+              </div>
+            </div>
+
+            <!-- PANEL KANAN (58%): KOMPARASI LEGA & TOMBOL AKSI -->
+            <div class="col-md-7 split-pane-right d-flex flex-column justify-content-between">
+              <div>
+                <!-- Label Perbandingan -->
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Angka Selisih:</span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Perlu Sinkronisasi
+                  </span>
+                </div>
+
+                <!-- 2 Box Angka Berdampingan (Lega & Besar) -->
+                <div class="row g-2 align-items-center">
+                  <!-- PDF Box -->
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">597</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Asli Tercetak</div>
+                    </div>
+                  </div>
+
+                  <!-- VS Pill Separator -->
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">
+                      ≠
+                    </span>
+                  </div>
+
+                  <!-- DB Box -->
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">553</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Sistem Dinamis</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tombol Aksi Nyaman (Full Width di Panel Kanan) -->
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiAction('597', 'Januari - Hantaran & Bagasi')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (597) ke Database</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- CONTOH 2: Tabel 9.1.2 Kendaraan (2 Level Header) -->
+        <div class="card card-opsi-2-pro mb-2">
+          <div class="row g-0 align-items-stretch">
+            
+            <div class="col-md-5 split-pane-left d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center flex-wrap gap-1 mb-2">
+                  <span class="badge bg-primary text-white fw-bold px-2 py-1 shadow-xs" style="font-size: 0.75rem;">
+                    <i class="bi bi-geo-alt-fill me-1"></i>Kab. Sukoharjo
+                  </span>
+                  <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.75rem;">
+                    Hal. 918-922
+                  </span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.72rem;">
+                    Selisih: 64.037.874
+                  </span>
+                </div>
+
+                <div class="mt-2 mb-2">
+                  <div class="small text-uppercase text-muted fw-bold mb-1" style="font-size:0.68rem; letter-spacing:0.04em;">
+                    <i class="bi bi-diagram-3 me-1 text-primary"></i>Hierarki Kolom Tabel:
+                  </div>
+                  <div class="d-flex align-items-center flex-wrap gap-1 py-1">
+                    <span class="crumb-tag crumb-l1">
+                      <i class="bi bi-truck me-1"></i>Jenis Kendaraan
+                    </span>
+                    <i class="bi bi-chevron-right crumb-arrow"></i>
+                    <span class="crumb-tag crumb-l2">
+                      <i class="bi bi-car-front-fill me-1"></i>Mobil Penumpang
+                    </span>
+                    <i class="bi bi-chevron-right crumb-arrow"></i>
+                    <span class="crumb-tag crumb-l3">
+                      <i class="bi bi-calendar-event me-1"></i>Tahun 2023
+                    </span>
+                  </div>
+                </div>
+
+                <div class="fw-bold text-dark fs-6 mt-1">
+                  Jumlah Mobil Penumpang
+                </div>
+              </div>
+
+              <div class="pt-3 mt-2 border-top border-light-subtle d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle text-primary"></i>
+                <span class="small text-muted" style="font-size: 0.78rem;">
+                  Terletak di tabel kendaraan bermotor tahunan
+                </span>
+              </div>
+            </div>
+
+            <div class="col-md-7 split-pane-right d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Angka Selisih:</span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Perlu Sinkronisasi
+                  </span>
+                </div>
+
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">64.067</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Cetak Resmi</div>
+                    </div>
+                  </div>
+
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">
+                      ≠
+                    </span>
+                  </div>
+
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">29,126</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Input Dinamis</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiAction('64.067', 'Sukoharjo - Mobil Penumpang (2023)')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (64.067) ke Database</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================== -->
+      <!-- VARIASI 2B: MINI TREE CONNECTOR -->
+      <!-- ====================================================================== -->
+      <div class="sample-container">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-secondary px-3 py-1-5 rounded-pill fw-bold">VARIASI 2B</span>
+              <h5 class="fw-bold mb-0">Mini Tree Connector (Struktur Pohon Ranting)</h5>
+              <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill small">Gaya Explorer / CAD</span>
+            </div>
+            <div class="small text-muted mt-1">
+              Menampilkan hierarki dalam bentuk kotak ranting pohon mini (`├──` dan `└──`), persis seperti representasi struktur folder atau database schema.
+            </div>
+          </div>
+          <button onclick="pilihSubVariasi('Variasi 2B (Mini Tree Connector)')" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold">
+            <i class="bi bi-check-lg me-1"></i> Pilih Variasi 2B
+          </button>
+        </div>
+
+        <div class="card card-opsi-2-pro mb-2">
+          <div class="row g-0 align-items-stretch">
+            
+            <!-- PANEL KIRI: TREE CONNECTOR -->
+            <div class="col-md-5 split-pane-left d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center flex-wrap gap-1 mb-2">
+                  <span class="badge bg-primary text-white fw-bold px-2 py-1 shadow-xs" style="font-size: 0.75rem;">
+                    <i class="bi bi-geo-alt-fill me-1"></i>Bulan: Januari
+                  </span>
+                  <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.75rem;">
+                    Hal. 948 (Tabel 9.1.21)
+                  </span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.72rem;">
+                    Selisih: 44.000
+                  </span>
+                </div>
+
+                <!-- MINI TREE BLOCK -->
+                <div class="tree-block">
+                  <div class="tree-node root">
+                    <i class="bi bi-folder-fill text-warning me-1"></i>
+                    <span>Barang (Ton)</span>
+                    <span class="badge bg-light text-muted border py-0 px-1" style="font-size:0.65rem;">Induk</span>
+                  </div>
+                  <div class="tree-node">
+                    <i class="bi bi-file-earmark-text text-primary me-1"></i>
+                    <span>Hantaran dan Bagasi</span>
+                    <span class="badge bg-light text-muted border py-0 px-1" style="font-size:0.65rem;">Sub</span>
+                  </div>
+                  <div class="tree-node">
+                    <i class="bi bi-bullseye text-danger me-1"></i>
+                    <strong class="text-danger">Tahun 2025</strong>
+                    <span class="badge bg-danger text-white py-0 px-1" style="font-size:0.65rem;">Metrik Selisih</span>
+                  </div>
+                </div>
+
+                <div class="small text-muted mt-2">
+                  <i class="bi bi-info-circle me-1"></i>Kiriman barang khusus bagasi & hantaran kereta api.
+                </div>
+              </div>
+
+              <div class="pt-3 mt-2 border-top border-light-subtle">
+                <span class="small text-muted" style="font-size: 0.78rem;">
+                  Kolom (3) matriks data BPS
+                </span>
+              </div>
+            </div>
+
+            <!-- PANEL KANAN -->
+            <div class="col-md-7 split-pane-right d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Angka Selisih:</span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Perlu Sinkronisasi
+                  </span>
+                </div>
+
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">597</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Asli Tercetak</div>
+                    </div>
+                  </div>
+
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">
+                      ≠
+                    </span>
+                  </div>
+
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">553</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Sistem Dinamis</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiAction('597', 'Januari - Hantaran & Bagasi')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (597) ke Database</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ====================================================================== -->
+      <!-- VARIASI 2C: CONTEXTUAL EYEBROW + BOLD LEAF -->
+      <!-- ====================================================================== -->
+      <div class="sample-container">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-dark px-3 py-1-5 rounded-pill fw-bold">VARIASI 2C</span>
+              <h5 class="fw-bold mb-0">Contextual Eyebrow (SaaS Clean & Compact)</h5>
+              <span class="badge bg-light text-secondary border rounded-pill small">Gaya Stripe / Datadog</span>
+            </div>
+            <div class="small text-muted mt-1">
+              Menampilkan induk kolom sebagai *eyebrow* (teks kecil kapital berurutan di atas), lalu sub-kolom aktif sebagai judul besar tebal di bawahnya.
+            </div>
+          </div>
+          <button onclick="pilihSubVariasi('Variasi 2C (Contextual Eyebrow)')" class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-bold">
+            <i class="bi bi-check-lg me-1"></i> Pilih Variasi 2C
+          </button>
+        </div>
+
+        <div class="card card-opsi-2-pro mb-2">
+          <div class="row g-0 align-items-stretch">
+            
+            <!-- PANEL KIRI: EYEBROW STYLE -->
+            <div class="col-md-5 split-pane-left d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center flex-wrap gap-1 mb-2">
+                  <span class="badge bg-primary text-white fw-bold px-2 py-1 shadow-xs" style="font-size: 0.75rem;">
+                    <i class="bi bi-geo-alt-fill me-1"></i>Bulan: Januari
+                  </span>
+                  <span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.75rem;">
+                    Hal. 948 (Tabel 9.1.21)
+                  </span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.72rem;">
+                    Selisih: 44.000
+                  </span>
+                </div>
+
+                <!-- EYEBROW PATH -->
+                <div class="eyebrow-path mt-2">
+                  <span>BARANG (TON)</span>
+                  <i class="bi bi-chevron-right text-muted" style="font-size:0.65rem;"></i>
+                  <span class="text-primary">HANTARAN & BAGASI</span>
+                </div>
+
+                <!-- LEAF TITLE (BOLD) -->
+                <div class="eyebrow-leaf-title">
+                  Tahun 2025
+                </div>
+
+                <div class="small text-muted mt-2">
+                  Data volume angkutan barang kereta api daop IV semarang.
+                </div>
+              </div>
+
+              <div class="pt-3 mt-2 border-top border-light-subtle">
+                <span class="small text-muted" style="font-size: 0.78rem;">
+                  Kolom (3) matriks data BPS
+                </span>
+              </div>
+            </div>
+
+            <!-- PANEL KANAN -->
+            <div class="col-md-7 split-pane-right d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="small text-muted fw-semibold">Nilai Angka Selisih:</span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                    Perlu Sinkronisasi
+                  </span>
+                </div>
+
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <div class="num-box num-box-pdf">
+                      <div class="small text-danger fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                      </div>
+                      <div class="fs-4 fw-black text-danger font-monospace text-truncate">597</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Asli Tercetak</div>
+                    </div>
+                  </div>
+
+                  <div class="col-2 text-center">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-circle p-2 fw-bold" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">
+                      ≠
+                    </span>
+                  </div>
+
+                  <div class="col-5">
+                    <div class="num-box num-box-db">
+                      <div class="small text-success fw-bold text-uppercase mb-1" style="font-size:0.68rem;">
+                        <i class="bi bi-database-fill me-1"></i>Di Database
+                      </div>
+                      <div class="fs-4 fw-black text-success font-monospace text-truncate">553</div>
+                      <div class="text-muted" style="font-size:0.68rem;">Data Sistem Dinamis</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 mt-3 border-top border-light-subtle">
+                <button type="button" onclick="simulasiAction('597', 'Januari - Hantaran & Bagasi')" class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
+                  <i class="bi bi-magic"></i>
+                  <span>Gunakan Angka PDF (597) ke Database</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 2: ONLY VARIASI 2A -->
+    <div class="tab-pane fade" id="content-v2a" role="tabpanel">
+      <div class="alert alert-primary border-primary-subtle d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-star-fill text-warning fs-5"></i>
+        <div>
+          <strong>Variasi 2A (Breadcrumb Path Tags):</strong> Format kapsul yang sangat fleksibel. Jika nama kolom panjang, tag otomatis wrap ke baris baru dengan anggun.
+        </div>
+      </div>
+      <div id="v2a-target"></div>
+    </div>
+
+    <!-- TAB 3: ONLY VARIASI 2B -->
+    <div class="tab-pane fade" id="content-v2b" role="tabpanel">
+      <div class="alert alert-secondary border-secondary-subtle d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-diagram-2-fill text-primary fs-5"></i>
+        <div>
+          <strong>Variasi 2B (Mini Tree Connector):</strong> Format ranting pohon (induk &rarr; sub &rarr; metrik), sangat intuitif untuk melihat relasi hierarkis antar level header.
+        </div>
+      </div>
+      <div id="v2b-target"></div>
+    </div>
+
+    <!-- TAB 4: ONLY VARIASI 2C -->
+    <div class="tab-pane fade" id="content-v2c" role="tabpanel">
+      <div class="alert alert-dark border-dark-subtle d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-type-h1 text-warning fs-5"></i>
+        <div>
+          <strong>Variasi 2C (Contextual Eyebrow):</strong> Format modern minimalis ala dashboard enterprise. Hemat ruang vertikal.
+        </div>
+      </div>
+      <div id="v2c-target"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Toast Feedback -->
+<div id="simulasiToast" class="custom-toast">
+  <i class="bi bi-check-circle-fill text-success fs-4"></i>
+  <div>
+    <div class="fw-bold" id="toastTitle">Berhasil Memilih Variasi!</div>
+    <div class="small opacity-80" id="toastDesc">Desain ini akan dijadikan acuan penerapan.</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Isi konten tab individual dari sample containers
+  document.addEventListener("DOMContentLoaded", () => {
+    const containers = document.querySelectorAll("#content-all .sample-container");
+    if (containers.length >= 3) {
+      document.getElementById("v2a-target").innerHTML = containers[0].innerHTML;
+      document.getElementById("v2b-target").innerHTML = containers[1].innerHTML;
+      document.getElementById("v2c-target").innerHTML = containers[2].innerHTML;
+    }
+  });
+
+  function simulasiAction(val, label) {
+    showToast(`Sinkronisasi Simulasi (${val})`, `Berhasil mensimulasikan penerapan angka PDF untuk ${label}!`);
+  }
+
+  function pilihSubVariasi(nama) {
+    showToast(`Pilihan Disimpan!`, `Bos Anas memilih ${nama}. Siap diterapkan saat acc.`);
+  }
+
+  function showToast(title, desc) {
+    const toast = document.getElementById('simulasiToast');
+    document.getElementById('toastTitle').innerText = title;
+    document.getElementById('toastDesc').innerText = desc;
+    toast.style.display = 'flex';
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 3200);
+  }
+</script>
+
+</body>
+</html>

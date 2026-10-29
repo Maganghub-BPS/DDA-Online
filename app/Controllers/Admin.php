@@ -3581,8 +3581,16 @@ class Admin extends BaseController
 
 		$res = json_decode($output, true);
 		if (!$res && !empty($output)) {
-			$cleanOutput = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
-			$res = json_decode($cleanOutput, true);
+			$jsonStart = strpos($output, '{');
+			$jsonEnd = strrpos($output, '}');
+			if ($jsonStart !== false && $jsonEnd !== false && $jsonEnd >= $jsonStart) {
+				$subJson = substr($output, $jsonStart, $jsonEnd - $jsonStart + 1);
+				$res = json_decode($subJson, true);
+			}
+			if (!$res) {
+				$cleanOutput = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
+				$res = json_decode($cleanOutput, true);
+			}
 		}
 		if (!$res) {
 			$cleanOutput = mb_convert_encoding($output ?? 'Gagal membaca respon python.', 'UTF-8', 'UTF-8');
@@ -4294,10 +4302,58 @@ class Admin extends BaseController
 			return $this->response->setStatusCode(404)->setBody('File PDF Master tidak ditemukan.');
 		}
 
+		$size = filesize($pdfPath);
 		return $this->response
 			->setHeader('Content-Type', 'application/pdf')
 			->setHeader('Content-Disposition', 'inline; filename="dda_master_' . $ta . '.pdf"')
+			->setHeader('Accept-Ranges', 'bytes')
+			->setHeader('Content-Length', (string)$size)
 			->setBody(file_get_contents($pdfPath));
+	}
+
+	/**
+	 * Merender dan menyajikan halaman spesifik dari PDF Master sebagai gambar PNG resolusi tinggi.
+	 * Sangat andal untuk Split-View / Preview di browser tanpa memicu forced download atau kendala plugin browser.
+	 */
+	public function serve_pdf_page()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(403)->setBody('Unauthorized');
+		}
+
+		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$page = (int)($this->request->getGet('page') ?? 1);
+		if ($page < 1) $page = 1;
+		$dpi = (int)($this->request->getGet('dpi') ?? 150);
+		if ($dpi < 72 || $dpi > 300) $dpi = 150;
+
+		$pdfPath = WRITEPATH . "uploads/dda_master_{$ta}.pdf";
+		if (!file_exists($pdfPath)) {
+			return $this->response->setStatusCode(404)->setBody('File PDF Master tidak ditemukan.');
+		}
+
+		$cacheDir = WRITEPATH . 'cache/pdf_pages/';
+		if (!is_dir($cacheDir)) {
+			mkdir($cacheDir, 0777, true);
+		}
+		$cacheFile = $cacheDir . "dda_{$ta}_p{$page}_{$dpi}.png";
+
+		if (!file_exists($cacheFile) || filesize($cacheFile) === 0) {
+			$pythonScript = FCPATH . '../python_engine/render_pdf_page.py';
+			$cmd = "python " . escapeshellarg($pythonScript) . " --pdf " . escapeshellarg($pdfPath) . " --page " . (int)$page . " --output " . escapeshellarg($cacheFile) . " --dpi " . (int)$dpi . " 2>&1";
+			$out = shell_exec($cmd);
+
+			if (!file_exists($cacheFile) || filesize($cacheFile) === 0) {
+				log_message('error', 'Gagal render halaman PDF: ' . ($out ?? ''));
+				return $this->response->setStatusCode(500)->setBody('Gagal merender halaman PDF: ' . htmlspecialchars($out ?? 'Unknown error'));
+			}
+		}
+
+		return $this->response
+			->setHeader('Content-Type', 'image/png')
+			->setHeader('Cache-Control', 'public, max-age=86400')
+			->setBody(file_get_contents($cacheFile));
 	}
 
 	/**
