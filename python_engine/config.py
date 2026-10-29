@@ -23,7 +23,8 @@ def _load_dotenv(path):
 _load_dotenv(os.path.join(_PROJECT_ROOT, ".env"))
 
 # API Satu Data Jateng. WAJIB di-set lewat environment / .env (lihat python_engine/sample.env).
-SATUDATA_TOKEN = os.environ.get("SATUDATA_TOKEN", "").strip()
+DEFAULT_SATUDATA_TOKEN = "sdj_UYf5h0TPgUW3E0kcZisn33xrTe5PMRqLuXq6CWbAfb69tEA7dILT0TLhpFtjQiWHqrd1pn9SGvE4NYlN"
+SATUDATA_TOKEN = os.environ.get("SATUDATA_TOKEN", "").strip() or DEFAULT_SATUDATA_TOKEN
 
 HTTP_TIMEOUT = int(os.environ.get("HTTP_TIMEOUT", "15"))
 HTTP_USER_AGENT = os.environ.get(

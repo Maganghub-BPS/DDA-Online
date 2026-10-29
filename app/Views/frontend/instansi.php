@@ -232,7 +232,7 @@
             <span style="color: var(--bps-orange);">Instansi</span>
         </h1>
         <p class="hero-subtitle mx-auto mb-5" style="font-size: clamp(1.1rem, 2vw, 1.3rem); color: rgba(255,255,255,0.9); max-width: 800px; line-height: 1.6; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-            Telusuri dan temukan seluruh data statistik sektoral berdasarkan Organisasi Perangkat Daerah (OPD) terkait.
+            Telusuri dan temukan seluruh data statistik sektoral berdasarkan Organisasi Perangkat Daerah (OPD) dan Instansi Vertikal terkait.
         </p>
     </div>
 </div>

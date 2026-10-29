@@ -14,7 +14,7 @@ class AddKolomNomorToIndikatorTabel extends Migration
                     'kolom_nomor' => [
                         'type'       => 'ENUM',
                         'constraint' => ['tampilkan', 'sembunyikan'],
-                        'default'    => 'tampilkan',
+                        'default'    => 'sembunyikan',
                         'after'      => 'tampilan_baris',
                         'comment'    => 'tampilkan=Tampilkan kolom No. terpisah (1, 2, 3), sembunyikan=Tanpa kolom No terpisah (nomor menyatu di teks)',
                     ],

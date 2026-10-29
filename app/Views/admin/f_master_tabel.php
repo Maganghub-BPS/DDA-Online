@@ -223,14 +223,9 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <i class="bi bi-sliders text-primary me-1"></i> Konfigurasi Dimensi Matriks Dinamis
                                 </span>
                                 <?php if (!empty($idp)): ?>
-                                <div class="d-flex align-items-center gap-2">
-                                    <a href="<?= base_url('admin/download_template_tabel/' . $idp); ?>" class="btn btn-sm btn-success px-3 py-1.5 rounded-pill fw-semibold text-xs shadow-xs d-inline-flex align-items-center gap-1" title="Unduh Template Excel (.xlsx)">
-                                        <i class="bi bi-file-earmark-excel"></i> Unduh Template Excel
-                                    </a>
-                                    <a href="<?= base_url('admin/generator_tabel/' . $idp); ?>" class="btn btn-sm btn-primary px-3 py-1.5 rounded-pill fw-semibold text-xs shadow-xs d-inline-flex align-items-center gap-1">
-                                        <i class="bi bi-tools"></i> Kelola Dimensi Matriks
-                                    </a>
-                                </div>
+                                <a href="<?= base_url('admin/generator_tabel/' . $idp); ?>" class="btn btn-sm btn-primary px-3 py-1.5 rounded-pill fw-semibold text-xs shadow-xs d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-tools"></i> Kelola Dimensi Matriks
+                                </a>
                                 <?php endif; ?>
                             </div>
                             <div class="card-body p-3">

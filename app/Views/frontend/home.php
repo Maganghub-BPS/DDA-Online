@@ -1222,7 +1222,7 @@
                 </div>
             </div>
 
-            <!-- Stat 2: OPD Terdaftar -->
+            <!-- Stat 2: OPD & Instansi Vertikal -->
             <div class="col-md-6">
                 <div class="stat-clean-card stat-orange">
                     <div class="stat-card-header">
@@ -1238,9 +1238,9 @@
                         <div class="stat-number">
                             <?= isset($total_opd) ? number_format($total_opd, 0, ',', '.') : '0' ?>
                         </div>
-                        <h3 class="stat-title">OPD & Instansi Terdaftar</h3>
+                        <h3 class="stat-title">OPD & Instansi Vertikal</h3>
                         <p class="stat-desc">
-                            Organisasi Perangkat Daerah dan Instansi resmi penyedia data yang terintegrasi di portal ini.
+                            Organisasi Perangkat Daerah dan Instansi Vertikal resmi penyedia data yang terintegrasi di portal ini.
                         </p>
                     </div>
                 </div>

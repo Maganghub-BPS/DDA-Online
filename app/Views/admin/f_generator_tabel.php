@@ -17,7 +17,7 @@ $sel_tingkat_kolom = $indikator->tingkat_kolom ?? 'semua';
 $sel_konfigurasi_total = $indikator->konfigurasi_total ?? 'default';
 $sel_label_total_kustom = $indikator->label_total_kustom ?? '';
 $sel_tampilan_baris = $indikator->tampilan_baris ?? '1_kolom';
-$sel_kolom_nomor = $indikator->kolom_nomor ?? 'tampilkan';
+$sel_kolom_nomor = $indikator->kolom_nomor ?? 'sembunyikan';
 $sumber_val = !empty($tabel->unitkerja_ind) ? 'Dinas/Instansi ' . $tabel->unitkerja_ind : 'BPS Provinsi Jawa Tengah';
 $catatan_val = $indikator->catatan ?? '';
 ?>
@@ -1036,23 +1036,20 @@ $catatan_val = $indikator->catatan ?? '';
                         <!-- Divider halus vertikal -->
                         <div class="toolbar-divider d-none d-md-block"></div>
 
-                        <!-- 5. Kolom Nomor (Segmented Toggle: Tampilkan vs Tanpa No) -->
-                        <div id="box_kolom_nomor" class="toolbar-setting-item <?= $is_locked ? 'is-locked' : ''; ?>" title="<?= $is_locked ? 'Pengaturan terkunci: tabel memiliki ' . $total_nilai . ' data nilai terisi' : 'Atur kolom nomor: Tampilkan kolom No. terpisah (1, 2, 3...) atau Tanpa Kolom No (nomor kode menyatu di teks seperti PDRB/KBLI)'; ?>">
+                        <!-- 5. Kolom Nomor (Segmented Toggle: Tampilkan vs Tanpa No) - Bebas diubah kapan saja -->
+                        <div id="box_kolom_nomor" class="toolbar-setting-item" title="Atur kolom nomor: Tampilkan kolom No. terpisah (1, 2, 3...) atau Tanpa Kolom No (nomor kode menyatu di teks seperti PDRB/KBLI). Bebas diubah kapan saja tanpa merusak data nilai.">
                             <span class="toolbar-setting-label">
                                 <i class="bi bi-hash text-primary me-1"></i> Kolom No:
-                                <?php if ($is_locked): ?>
-                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Pengaturan matriks terkunci"></i>
-                                <?php endif; ?>
                             </span>
-                            <div class="posisi-segmented-group <?= $is_locked ? 'disabled' : ''; ?>" id="group_kolom_nomor">
-                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'sembunyikan') ? '' : 'active'; ?>" data-val="tampilkan" id="btn_nomor_tampilkan" title="Tampilkan kolom nomor urut terpisah (1, 2, 3...)" <?= $is_locked ? 'disabled' : ''; ?>>
+                            <div class="posisi-segmented-group" id="group_kolom_nomor">
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? 'active' : ''; ?>" data-val="tampilkan" id="btn_nomor_tampilkan" title="Tampilkan kolom nomor urut terpisah (1, 2, 3...)">
                                     <i class="bi bi-list-ol me-1"></i> Tampilkan
                                 </button>
-                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'sembunyikan') ? 'active' : ''; ?>" data-val="sembunyikan" id="btn_nomor_sembunyikan" title="Tanpa kolom nomor terpisah, nomor kode menyatu di teks" <?= $is_locked ? 'disabled' : ''; ?>>
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? '' : 'active'; ?>" data-val="sembunyikan" id="btn_nomor_sembunyikan" title="Tanpa kolom nomor terpisah, nomor kode menyatu di teks">
                                     <i class="bi bi-card-text me-1"></i> Tanpa No
                                 </button>
                             </div>
-                            <input type="hidden" name="kolom_nomor" id="input_kolom_nomor" value="<?= esc($sel_kolom_nomor ?? 'tampilkan'); ?>">
+                            <input type="hidden" name="kolom_nomor" id="input_kolom_nomor" value="<?= esc($sel_kolom_nomor ?? 'sembunyikan'); ?>">
                         </div>
                     </div>
                 </div>
@@ -1338,7 +1335,7 @@ $(document).ready(function() {
     // Handler switch kolom nomor (Tampilkan vs Tanpa No)
     $('#group_kolom_nomor .btn-segmented').on('click', function(e) {
         e.preventDefault();
-        if (isTableLocked || $(this).prop('disabled') || $('#group_kolom_nomor').hasClass('disabled')) {
+        if ($(this).prop('disabled') || $('#group_kolom_nomor').hasClass('disabled')) {
             return false;
         }
         const val = $(this).data('val');
@@ -1524,17 +1521,18 @@ $(document).ready(function() {
                 $('#btn_baris_1kolom').addClass('active');
             }
 
-            $('#group_kolom_nomor').addClass('disabled').css({'opacity': '0.55', 'pointer-events': 'none'});
-            $('#group_kolom_nomor .btn-segmented').prop('disabled', true);
-            $('#box_kolom_nomor').addClass('is-locked').css({'opacity': '0.55', 'pointer-events': 'none'});
+            // Kolom No tetap aktif dan bebas diubah kapan saja meski tabel memiliki data nilai
+            $('#group_kolom_nomor').removeClass('disabled').css({'opacity': '1', 'pointer-events': 'auto'});
+            $('#group_kolom_nomor .btn-segmented').prop('disabled', false);
+            $('#box_kolom_nomor').removeClass('is-locked').css({'opacity': '1', 'pointer-events': 'auto'});
 
             // Sinkronisasi status active kolom nomor
-            const curNomor = $('#input_kolom_nomor').val() || 'tampilkan';
+            const curNomor = $('#input_kolom_nomor').val() || 'sembunyikan';
             $('#group_kolom_nomor .btn-segmented').removeClass('active');
-            if (curNomor === 'sembunyikan') {
-                $('#btn_nomor_sembunyikan').addClass('active');
-            } else {
+            if (curNomor === 'tampilkan') {
                 $('#btn_nomor_tampilkan').addClass('active');
+            } else {
+                $('#btn_nomor_sembunyikan').addClass('active');
             }
 
             // Sinkronisasi status active posisi hirarki agar highlight pilihan yang tersimpan tetap terlihat
@@ -1631,9 +1629,14 @@ $(document).ready(function() {
         // Status box_tampilan_baris: hanya aktif bila ada dimensi baris dan bukan mode periode baris / runtun waktu
         const posCurrent = $('#input_posisi_hirarki').val() || 'kolom_atas';
         const isPeriodeBarisNow = (posCurrent === 'periode_baris' || posCurrent === 'periode_baris_pisah');
-        if (hasBaris && !isRuntunWaktu && !isPeriodeBarisNow) {
+        const isMultiBarisLocked = ($('#badge_auto_multibaris').length > 0);
+        if (hasBaris && !isRuntunWaktu && !isPeriodeBarisNow && !isMultiBarisLocked) {
             $('#box_tampilan_baris').css({'opacity': '1', 'pointer-events': 'auto'});
             $('#group_tampilan_baris .btn-segmented').prop('disabled', false);
+        } else if (isMultiBarisLocked) {
+            $('#box_tampilan_baris').css({'opacity': '1', 'pointer-events': 'auto'});
+            $('#group_tampilan_baris').addClass('disabled').css({'opacity': '0.7', 'pointer-events': 'none'});
+            $('#group_tampilan_baris .btn-segmented').prop('disabled', true);
         } else {
             $('#box_tampilan_baris').css({'opacity': '0.45', 'pointer-events': 'none'});
             $('#group_tampilan_baris .btn-segmented').prop('disabled', true);
@@ -1657,12 +1660,12 @@ $(document).ready(function() {
             $('#group_kolom_nomor .btn-segmented').prop('disabled', true);
         }
 
-        const curNomor = $('#input_kolom_nomor').val() || 'tampilkan';
+        const curNomor = $('#input_kolom_nomor').val() || 'sembunyikan';
         $('#group_kolom_nomor .btn-segmented').removeClass('active');
-        if (curNomor === 'sembunyikan') {
-            $('#btn_nomor_sembunyikan').addClass('active');
-        } else {
+        if (curNomor === 'tampilkan') {
             $('#btn_nomor_tampilkan').addClass('active');
+        } else {
+            $('#btn_nomor_sembunyikan').addClass('active');
         }
     }
 
@@ -2004,15 +2007,6 @@ $(document).ready(function() {
         let cleanTitleSubInd = titleSubBarisInd ? titleSubBarisInd.replace(/^\d+\s+/, '').trim() : '';
         let cleanTitleSubEn = titleSubBarisEn ? titleSubBarisEn.trim() : '';
 
-        // Tampilan Baris dikontrol MANUAL via tombol, bukan otomatis
-        const modeTampilanBaris = $('#input_tampilan_baris').val() || '1_kolom';
-        const isBarisDuaKolom = (!isPeriodeBaris && !isRuntunWaktu && hasBaris && modeTampilanBaris === '2_kolom');
-
-        if (isBarisDuaKolom && !cleanTitleSubInd) {
-            cleanTitleSubInd = 'Rincian';
-            cleanTitleSubEn = 'Details';
-        }
-
         // Deteksi Multi-Baris (Multi-Column Row misal: "Jenis Usaha || Satuan" atau "Jenis Komoditi || Provinsi")
         let isMultiBaris = cleanTitleInd.includes('||');
         if (!isMultiBaris) {
@@ -2022,6 +2016,32 @@ $(document).ready(function() {
                     break;
                 }
             }
+        }
+
+        // Tampilan Baris: Otomatis 2 Kolom jika master data berformat ||, atau manual via tombol jika tabel hierarki biasa
+        let modeTampilanBaris = $('#input_tampilan_baris').val() || '1_kolom';
+        if (isMultiBaris) {
+            modeTampilanBaris = '2_kolom';
+            $('#input_tampilan_baris').val('2_kolom');
+            $('#group_tampilan_baris .btn-segmented').removeClass('active');
+            $('#btn_baris_2kolom').addClass('active');
+            $('#group_tampilan_baris').addClass('disabled').css({'opacity': '0.7', 'pointer-events': 'none'});
+            $('#group_tampilan_baris .btn-segmented').prop('disabled', true);
+            $('#badge_auto_multibaris').remove();
+            $('#group_tampilan_baris').after('<span id="badge_auto_multibaris" class="badge bg-light text-secondary border text-xxs rounded-pill ms-2 d-inline-flex align-items-center gap-1 py-1 px-2" title="Format 2 kolom aktif otomatis karena master data baris memiliki rincian multi-kolom (||)"><i class="bi bi-link-45deg text-primary"></i> Otomatis Multi-Kolom</span>');
+        } else {
+            $('#badge_auto_multibaris').remove();
+            if (!isTableLocked && hasBaris && !isRuntunWaktu && !isPeriodeBaris) {
+                $('#group_tampilan_baris').removeClass('disabled').css({'opacity': '1', 'pointer-events': 'auto'});
+                $('#group_tampilan_baris .btn-segmented').prop('disabled', false);
+            }
+        }
+
+        const isBarisDuaKolom = (!isPeriodeBaris && !isRuntunWaktu && hasBaris && modeTampilanBaris === '2_kolom');
+
+        if (isBarisDuaKolom && !isMultiBaris && !cleanTitleSubInd) {
+            cleanTitleSubInd = 'Rincian';
+            cleanTitleSubEn = 'Details';
         }
 
         let titleCol1Ind = cleanTitleInd;
@@ -2113,7 +2133,7 @@ $(document).ready(function() {
          * Helper untuk menghasilkan string HTML elemen <th> kolom judul baris (1 kolom atau 2 kolom)
          */
         function getRowHeaderTh(rowspan) {
-            if (isBarisDuaKolom) {
+            if (isBarisDuaKolom && !isMultiBaris) {
                 let html = '<th rowspan="' + rowspan + '" class="th-freeze-col text-start">';
                 html += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
                 if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
@@ -2869,7 +2889,7 @@ $(document).ready(function() {
 
             // Pre-hitung jumlah anak untuk mode 2 kolom (Induk Komoditi & Rincian Provinsi)
             let childCountMap = {};
-            if (isBarisDuaKolom) {
+            if (isBarisDuaKolom && !isMultiBaris) {
                 for (let i = 0; i < barisItems.length; i++) {
                     const lvl = parseInt(barisItems[i].level_indentasi) || 0;
                     if (lvl === 0) {
@@ -2990,7 +3010,7 @@ $(document).ready(function() {
 
 
                 // Mode 2 Kolom Baris: Induk di Kolom 1 (rowspan), Rincian Anak di Kolom 2
-                if (isBarisDuaKolom) {
+                if (isBarisDuaKolom && !isMultiBaris) {
                     const hasChildren = (childCountMap[bIdx] || 0) > 0;
                     if (level === 0 && hasChildren) {
                         currentParentInd = namaBarisInd;
@@ -3207,36 +3227,48 @@ $(document).ready(function() {
         });
     }
 
-    // Handler Buka Kunci & Reset Data Sel Matriks
+    // Handler Buka Kunci & Reset Data Sel Matriks (Clean & Simple)
     $('#btn_unlock_reset_data').on('click', function(e) {
         e.preventDefault();
         Swal.fire({
-            title: 'Buka Kunci & Reset Data?',
             html: `
-                <div class="text-start text-sm">
-                    <p class="mb-2">Tabel ini saat ini memiliki <b><?= number_format($total_nilai, 0, ',', '.'); ?> data nilai sel</b> yang tersimpan di database.</p>
-                    <div class="alert alert-danger py-2 px-3 text-xs mb-3">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                        <b>PERHATIAN:</b> Mengubah dimensi baris, kolom, atau periode akan merusak relasi koordinat data yang lama.
+                <div class="text-center pt-2 pb-1">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 52px; height: 52px; background: #fee2e2; color: #dc2626;">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 1.45rem;"></i>
                     </div>
-                    <p class="mb-0 text-xs text-muted">
-                        Jika Anda membuka kunci, <b>seluruh <?= number_format($total_nilai, 0, ',', '.'); ?> data nilai sel pada tabel ini akan dihapus secara permanen</b> dari database. Setelah itu Anda dapat memilih ulang dimensi dan mengunggah/mengisi data baru.
+                    <h5 class="fw-bold text-dark mb-2">Buka Kunci & Reset Data?</h5>
+                    <p class="text-secondary small mb-0 px-2" style="line-height: 1.55;">
+                        Tabel ini memiliki <b><?= number_format($total_nilai, 0, ',', '.'); ?> data nilai sel</b>. Membuka kunci dimensi akan menghapus seluruh data nilai tersebut secara permanen.
                     </p>
                 </div>
             `,
-            icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: '<i class="bi bi-trash-fill me-1"></i> Ya, Hapus Data & Buka Kunci',
+            confirmButtonText: '<i class="bi bi-trash3 me-1"></i> Ya, Buka & Hapus Data',
             cancelButtonText: 'Batal',
-            focusCancel: true
+            reverseButtons: true,
+            focusCancel: true,
+            width: '390px',
+            customClass: {
+                popup: 'rounded-4 shadow-sm border-0 p-4',
+                htmlContainer: 'm-0 p-0',
+                actions: 'gap-2 mt-3 w-100 justify-content-center border-0 p-0',
+                confirmButton: 'btn btn-danger rounded-pill px-3 py-2 text-xs fw-semibold shadow-xs',
+                cancelButton: 'btn btn-light border text-secondary rounded-pill px-3 py-2 text-xs fw-semibold shadow-xs'
+            },
+            buttonsStyling: false
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.fire({
-                    title: 'Memproses Reset Data...',
-                    text: 'Mohon tunggu sebentar, sedang membersihkan sel matriks.',
+                    title: 'Mereset Data...',
+                    text: 'Mohon tunggu sebentar...',
                     allowOutsideClick: false,
+                    showConfirmButton: false,
+                    width: '320px',
+                    customClass: {
+                        popup: 'rounded-4 shadow-sm border-0 p-4',
+                        title: 'fs-6 fw-bold text-dark mb-0',
+                        htmlContainer: 'text-muted small m-0'
+                    },
                     didOpen: () => {
                         Swal.showLoading();
                     }
@@ -3253,15 +3285,35 @@ $(document).ready(function() {
                         if (res.status === 'success') {
                             Swal.fire({
                                 icon: 'success',
-                                title: 'Kunci Dibuka!',
-                                text: res.message || 'Data berhasil direset. Halaman akan dimuat ulang.',
-                                timer: 2000,
-                                showConfirmButton: false
+                                iconColor: '#10b981',
+                                title: 'Kunci Dibuka',
+                                text: res.message || 'Data berhasil direset.',
+                                timer: 1500,
+                                showConfirmButton: false,
+                                width: '320px',
+                                customClass: {
+                                    popup: 'rounded-4 shadow-sm border-0 p-4',
+                                    title: 'fs-6 fw-bold text-dark mb-1',
+                                    htmlContainer: 'text-muted small m-0'
+                                }
                             }).then(() => {
                                 window.location.reload();
                             });
                         } else {
-                            Swal.fire('Gagal', res.message || 'Terjadi kesalahan saat mereset data.', 'error');
+                            Swal.fire({
+                                icon: 'error',
+                                iconColor: '#ef4444',
+                                title: 'Gagal',
+                                text: res.message || 'Terjadi kesalahan saat mereset data.',
+                                width: '340px',
+                                customClass: {
+                                    popup: 'rounded-4 shadow-sm border-0 p-4',
+                                    title: 'fs-6 fw-bold text-dark mb-1',
+                                    htmlContainer: 'text-muted small m-0',
+                                    confirmButton: 'btn btn-secondary rounded-pill px-3 py-1.5 text-xs'
+                                },
+                                buttonsStyling: false
+                            });
                         }
                     },
                     error: function(xhr) {
@@ -3269,34 +3321,59 @@ $(document).ready(function() {
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             errMsg = xhr.responseJSON.message;
                         }
-                        Swal.fire('Error', errMsg, 'error');
+                        Swal.fire({
+                            icon: 'error',
+                            iconColor: '#ef4444',
+                            title: 'Error',
+                            text: errMsg,
+                            width: '340px',
+                            customClass: {
+                                popup: 'rounded-4 shadow-sm border-0 p-4',
+                                title: 'fs-6 fw-bold text-dark mb-1',
+                                htmlContainer: 'text-muted small m-0',
+                                confirmButton: 'btn btn-secondary rounded-pill px-3 py-1.5 text-xs'
+                            },
+                            buttonsStyling: false
+                        });
                     }
                 });
             }
         });
     });
 
-    // Handler Konfirmasi SweetAlert2 saat melepas status dinamis
+    // Handler Konfirmasi SweetAlert2 saat melepas status dinamis (Clean & Simple)
     $('.btn-unlink-dinamis').on('click', function(e) {
         e.preventDefault();
         const url = $(this).attr('href');
         const hasData = <?= $total_nilai > 0 ? 'true' : 'false'; ?>;
         const totalData = '<?= number_format($total_nilai, 0, ',', '.'); ?>';
 
-        let warningHtml = '<p class="text-xs mb-1">Tabel akan dikembalikan ke format non-dinamis (spreadsheet biasa). Konfigurasi dimensi akan dihapus.</p>';
-        if (hasData) {
-            warningHtml += `<div class="alert alert-danger py-2 px-3 text-xs mt-2 text-start"><i class="bi bi-exclamation-triangle-fill me-1"></i><b>Perhatian:</b> Sebanyak <b>${totalData} data nilai sel</b> yang tersimpan di tabel ini juga akan ikut dihapus secara permanen.</div>`;
-        }
-
         Swal.fire({
-            title: 'Lepas Status Tabel Dinamis?',
-            html: warningHtml,
-            icon: 'warning',
+            html: `
+                <div class="text-center pt-2 pb-1">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 52px; height: 52px; background: #fff7ed; color: #ea580c;">
+                        <i class="bi bi-link-45deg" style="font-size: 1.6rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-dark mb-2">Lepas Status Dinamis?</h5>
+                    <p class="text-secondary small mb-0 px-2" style="line-height: 1.55;">
+                        Format tabel akan kembali ke non-dinamis.${hasData ? ` Sebanyak <b>${totalData} data nilai sel</b> juga akan ikut dihapus.` : ''}
+                    </p>
+                </div>
+            `,
             showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Lepas Status Dinamis',
-            cancelButtonText: 'Batal'
+            confirmButtonText: 'Ya, Lepas Status',
+            cancelButtonText: 'Batal',
+            reverseButtons: true,
+            focusCancel: true,
+            width: '390px',
+            customClass: {
+                popup: 'rounded-4 shadow-sm border-0 p-4',
+                htmlContainer: 'm-0 p-0',
+                actions: 'gap-2 mt-3 w-100 justify-content-center border-0 p-0',
+                confirmButton: 'btn btn-danger rounded-pill px-3 py-2 text-xs fw-semibold shadow-xs',
+                cancelButton: 'btn btn-light border text-secondary rounded-pill px-3 py-2 text-xs fw-semibold shadow-xs'
+            },
+            buttonsStyling: false
         }).then((result) => {
             if (result.isConfirmed) {
                 window.location.href = url;
