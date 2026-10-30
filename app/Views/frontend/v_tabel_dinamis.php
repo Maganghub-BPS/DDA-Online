@@ -37,11 +37,17 @@ if (!empty($no_tabel)) {
     $cleanJudulInd = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/i', '', $cleanJudulInd);
 }
 
-// Tambahkan periode waktu jika belum tercantum di akhir judul
+// Tambahkan periode waktu jika belum tercantum di akhir judul (normalisasi tanda strip agar tidak terjadi duplikasi)
 $periode_str = trim((string)($tabel->periode_id ?? $tabel->periode ?? ''));
-if (!empty($periode_str) && stripos($cleanJudulInd, $periode_str) === false) {
-    $cleanJudulInd = rtrim($cleanJudulInd, " ,") . ', ' . $periode_str;
+$periode_clean = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $periode_str);
+
+if (!empty($periode_clean)) {
+    $has_periode = (stripos($cleanJudulInd, $periode_clean) !== false) || preg_match('/,\s*\d{4}(?:-\d{4})?\s*$/i', $cleanJudulInd);
+    if (!$has_periode) {
+        $cleanJudulInd = rtrim($cleanJudulInd, " ,") . ', ' . $periode_clean;
+    }
 }
+$cleanJudulInd = preg_replace('/(,\s*\d{4}(?:-\d{4})?)\s*,\s*\d{4}(?:-\d{4})?\s*$/i', '$1', $cleanJudulInd);
 
 // Judul Bahasa Inggris
 $eng_title_raw = $tabel->judul_en ?: ($tabel->judul_ind ?? '');
@@ -62,9 +68,15 @@ if (!empty($no_tabel)) {
 }
 
 $periode_en_str = trim((string)($tabel->periode_en ?? $tabel->periode_id ?? $tabel->periode ?? ''));
-if (!empty($periode_en_str) && stripos($cleanJudulEn, $periode_en_str) === false) {
-    $cleanJudulEn = rtrim($cleanJudulEn, " ,") . ', ' . $periode_en_str;
+$periode_en_clean = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $periode_en_str);
+
+if (!empty($periode_en_clean)) {
+    $has_periode_en = (stripos($cleanJudulEn, $periode_en_clean) !== false) || preg_match('/,\s*\d{4}(?:-\d{4})?\s*$/i', $cleanJudulEn);
+    if (!$has_periode_en) {
+        $cleanJudulEn = rtrim($cleanJudulEn, " ,") . ', ' . $periode_en_clean;
+    }
 }
+$cleanJudulEn = preg_replace('/(,\s*\d{4}(?:-\d{4})?)\s*,\s*\d{4}(?:-\d{4})?\s*$/i', '$1', $cleanJudulEn);
 
 // Format judul ringkas untuk breadcrumb
 $core_breadcrumb = preg_split('/\s+(Menurut|Berdasarkan|\()\s+/i', $cleanJudulInd)[0];

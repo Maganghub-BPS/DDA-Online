@@ -1163,7 +1163,7 @@
         
         <!-- SUB JUDUL -->
         <p class="hero-desc mx-auto mb-4 pb-2" style="font-size: 1.22rem; color: #334155; max-width: 760px; font-weight: 500; line-height: 1.65;">
-            Platform terpadu untuk menelusuri dan mengunduh data statistik dari seluruh Organisasi Perangkat Daerah di Jawa Tengah.
+            Platform terpadu untuk menelusuri dan mengunduh data statistik dari seluruh Organisasi Perangkat Daerah dan Instansi Vertikal di Jawa Tengah.
         </p>
 
         <!-- SEARCH BAR -->

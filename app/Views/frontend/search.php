@@ -759,6 +759,29 @@
         color: white;
         border-color: var(--bps-blue);
     }
+    .btn-reset-all {
+        background: var(--bps-blue);
+        color: #ffffff !important;
+        border: 1px solid var(--bps-blue);
+        border-radius: 50px;
+        padding: 10px 24px;
+        font-weight: 600;
+        font-size: 0.92rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 6px rgba(21, 70, 121, 0.15);
+    }
+    .btn-reset-all:hover,
+    .btn-reset-all:focus,
+    .btn-reset-all:active {
+        background: #113861 !important;
+        color: #ffffff !important;
+        border-color: #113861 !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.25);
+    }
     #search-results-container {
         position: relative;
         transition: opacity 0.2s ease;
@@ -1019,7 +1042,7 @@
     </div>
 </div>
 
-<div class="container py-5" id="search-results-container">
+<div class="container <?= empty($results) ? 'pt-4 pb-5' : 'py-5' ?>" id="search-results-container">
 
     <?php
     $current_page = $page_num ?? 1;
@@ -1035,22 +1058,20 @@
     }
     ?>
 
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <!-- Result Count Text (Pure Text) -->
-        <div class="result-count-text">
-            <?php if (!empty($results)): ?>
+    <?php if (!empty($results)): ?>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <!-- Result Count Text (Pure Text) -->
+            <div class="result-count-text">
                 Menampilkan <span class="highlight-num"><?= number_format($start_item, 0, ',', '.') ?>–<?= number_format($end_item, 0, ',', '.') ?></span> dari <span class="highlight-num"><?= number_format($total_count, 0, ',', '.') ?></span> tabel data
-            <?php else: ?>
-                <span>Tidak ada tabel data ditemukan</span>
-            <?php endif; ?>
-        </div>
+            </div>
 
-        <!-- View Toggle Buttons -->
-        <div class="view-toggle d-flex bg-white p-1 rounded-pill shadow-sm" style="border: 1px solid #e2e8f0;">
-            <button class="btn btn-sm view-btn grid-btn" onclick="switchView('grid')" title="Tampilan Grid" style="border-radius: 50px; width: 36px; height: 32px; background: transparent; color: var(--bps-blue); display: flex; align-items: center; justify-content: center; padding: 0; transition: 0.2s;"><i class="fa-solid fa-border-all"></i></button>
-            <button class="btn btn-sm view-btn list-btn" onclick="switchView('list')" title="Tampilan List" style="border-radius: 50px; width: 36px; height: 32px; background: var(--bps-blue); color: white; display: flex; align-items: center; justify-content: center; padding: 0;"><i class="fa-solid fa-list"></i></button>
+            <!-- View Toggle Buttons -->
+            <div class="view-toggle d-flex bg-white p-1 rounded-pill shadow-sm" style="border: 1px solid #e2e8f0;">
+                <button class="btn btn-sm view-btn grid-btn" onclick="switchView('grid')" title="Tampilan Grid" style="border-radius: 50px; width: 36px; height: 32px; background: transparent; color: var(--bps-blue); display: flex; align-items: center; justify-content: center; padding: 0; transition: 0.2s;"><i class="fa-solid fa-border-all"></i></button>
+                <button class="btn btn-sm view-btn list-btn" onclick="switchView('list')" title="Tampilan List" style="border-radius: 50px; width: 36px; height: 32px; background: var(--bps-blue); color: white; display: flex; align-items: center; justify-content: center; padding: 0;"><i class="fa-solid fa-list"></i></button>
+            </div>
         </div>
-    </div>
+    <?php endif; ?>
 
     <!-- Main Content List -->
     <div class="row">
@@ -1248,11 +1269,13 @@
                     </div>
                 <?php endif; ?>
             <?php else: ?>
-                <div class="text-center py-5">
-                    <img src="<?= base_url('aset/img/empty-box.svg') ?>" alt="Data tidak ditemukan" style="max-width: 200px; opacity: 0.6; margin-bottom: 20px;">
-                    <h4 class="text-muted fw-bold">Tidak Ada Data Ditemukan</h4>
-                    <p class="text-muted">Maaf, tabel dengan kata kunci atau filter tersebut tidak tersedia.</p>
-                    <a href="<?= base_url('home/search') ?>" class="btn btn-outline-primary mt-3 rounded-pill px-4">Tampilkan Semua Data</a>
+                <div class="text-center pt-2 pb-4">
+                    <img src="<?= base_url('aset/img/empty-box.svg') ?>" alt="Tidak ada tabel data ditemukan" style="max-width: 140px; opacity: 0.75; margin-bottom: 16px;">
+                    <h4 class="fw-bold mb-2" style="color: #1e293b; font-size: 1.35rem;">Tidak Ada Tabel Data Ditemukan</h4>
+                    <p class="text-muted mx-auto mb-3" style="max-width: 480px; font-size: 0.95rem;">Maaf, tabel data dengan kata kunci atau filter tersebut tidak tersedia.</p>
+                    <a href="<?= base_url('home/search') ?>" class="btn-reset-all btn-outline-primary" id="btn-reset-all">
+                        <i class="fa-solid fa-rotate-left"></i> Tampilkan Semua Data
+                    </a>
                 </div>
             <?php endif; ?>
         </div>
@@ -1495,7 +1518,7 @@ $(document).ready(function() {
     });
 
     // 6. Intercept "Tampilkan Semua Data" reset button in empty state
-    $(document).on('click', '#search-results-container a.btn-outline-primary', function(e) {
+    $(document).on('click', '#search-results-container a.btn-reset-all, #search-results-container a.btn-outline-primary', function(e) {
         if ($(this).text().includes('Tampilkan Semua Data')) {
             e.preventDefault();
             $qInput.val('');
