@@ -1049,6 +1049,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/add_karakteristik'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <div class="modal-body p-4">
                     <!-- Baris 1: Nama Kelompok -->
                     <div class="row g-3 mb-3">
@@ -1122,6 +1123,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/edt_karakteristik'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" id="edit_kolom_id">
                 <div class="modal-body p-4">
                     <div class="mb-3">
@@ -1154,6 +1156,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/sync_karakteristik_items'); ?>" method="post" id="formSyncKolom">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_kelompok" id="manage_kolom_id">
                 <div class="modal-body p-4">
                     <!-- Baris 2: Dynamic Tree Builder Karakteristik (Kolom) -->
@@ -1216,6 +1219,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/add_baris'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <div class="modal-body p-4">
                     <!-- Baris 1: Nama Kelompok & Judul Header Baris -->
                     <div class="bg-light p-3 rounded-3 border mb-3">
@@ -1380,6 +1384,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/edt_baris'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" id="edit_baris_id">
                 <div class="modal-body p-4">
                     <div class="mb-3">
@@ -1432,6 +1437,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/sync_baris_items'); ?>" method="post" id="formSyncBaris">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_kelompok" id="manage_baris_id">
                 <div class="modal-body p-4">
                     <!-- Baris 2: Dynamic Tree Builder Judul Baris -->
@@ -1562,6 +1568,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/add_periode'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <div class="modal-body p-4">
                     <!-- Baris 1: Nama Kelompok -->
                     <div class="row g-3 mb-3">
@@ -1658,6 +1665,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/edt_periode'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" id="edit_periode_id">
                 <div class="modal-body p-4">
                     <div class="mb-3">
@@ -1700,6 +1708,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/sync_periode_items'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_kelompok" id="manage_periode_id">
                 <div class="modal-body p-4">
                     <!-- Baris 2: Dynamic List Builder Periode (Tanpa Sub) -->
