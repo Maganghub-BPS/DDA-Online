@@ -676,9 +676,9 @@ $kHeaderRowsPortrait = $buildKarakteristikHeaderRows($flatKolom, false);
 $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom, $addYearGroupSubtotal) : [];
 ?>
 
-<div class="table-responsive-dda" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; background: #ffffff;">
+<div class="table-responsive-dda">
     <table class="<?= $isTablePreview ? 'table table-bordered table-sm w-100' : 'main-table dda-table-item w-100'; ?>" id="<?= esc($matrix_dom_id ?? 'table-dinamis-matrix'); ?>" style="border-collapse: collapse; margin-bottom: 0;">
-        <thead <?= $isTablePreview ? 'class="bg-white text-dark"' : 'style="background: #154679; color: #ffffff;"'; ?>>
+        <thead <?= $isTablePreview ? 'class="bg-white text-dark"' : 'style="background: #FF6D1F; color: #ffffff;"'; ?>>
             <?php if ($portraitMode): 
                 $totalPortraitHeaderRows = $onlyTotalHorizontal ? 1 : count($kHeaderRowsPortrait);
             ?>
@@ -949,29 +949,29 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
             <?php endif; ?>
 
             <!-- Baris Nomor Urut Kolom: (1), (2), (3)... -->
-            <tr class="num-row" style="background: #0f355c; color: #ffffff; font-size: 11px;">
+            <tr class="num-row" style="background: #f9a066; color: #000000; font-size: 10px; font-weight: bold;">
                 <?php 
                 $numColIdx = 1;
                 if ($hasNoCol): ?>
-                    <th class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
+                    <th class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
                 <?php endif; ?>
 
                 <?php if ($portraitMode && $portraitSplitCol): ?>
-                    <th class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
-                    <th class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
+                    <th class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
+                    <th class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
                 <?php elseif ($isBarisDuaKolom && !$portraitMode): ?>
-                    <th class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
-                    <th class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
+                    <th class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
+                    <th class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
                 <?php else: ?>
                     <?php if ($isRuntunWaktuTotal): ?>
-                        <th colspan="2" class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
+                        <th colspan="2" class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
                     <?php else: ?>
-                        <th class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
+                        <th class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
                     <?php endif; ?>
                 <?php endif; ?>
 
                 <?php foreach ($visibleLeafColumns as $vlCol): ?>
-                    <th class="text-center" style="border: 1px solid rgba(255,255,255,0.15); padding: 3px 6px;">(<?= $numColIdx++; ?>)</th>
+                    <th class="text-center" style="border: 1px solid #ffffff; padding: 2px 4px;">(<?= $numColIdx++; ?>)</th>
                 <?php endforeach; ?>
             </tr>
         </thead>
@@ -1031,42 +1031,44 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 $rowNumericVals[] = (float)$v;
                             }
                         }
+                        $portraitRowClass = (($rowNo + $pIdx) % 2 === 1 ? 'row-odd' : 'row-even');
+                        $portraitRowBg    = (($rowNo + $pIdx) % 2 === 1 ? '#fde5ce' : '#fef3e6');
                     ?>
-                        <tr style="background: <?= (($rowNo + $pIdx) % 2 === 0 ? '#f8fafc' : '#ffffff'); ?>;">
+                        <tr class="<?= $portraitRowClass; ?>" style="background: <?= $portraitRowBg; ?>; color: #000000;">
                             <?php if ($hasNoCol): ?>
                                 <?php if ($isMacroTimeSeries): ?>
-                                    <td class="text-center text-muted" style="border: 1px solid #e2e8f0; vertical-align: middle; font-size: 11px;">
+                                    <td class="text-center text-muted" style="border: 1px solid #ffffff; vertical-align: middle; font-size: 11px;">
                                         <?= ($pIdx + 1); ?>
                                     </td>
                                 <?php elseif ($pIdx === 0): ?>
-                                    <td rowspan="<?= $pCount; ?>" class="text-center text-muted" style="border: 1px solid #e2e8f0; vertical-align: middle; font-size: 11px;">
+                                    <td rowspan="<?= $pCount; ?>" class="text-center text-muted" style="border: 1px solid #ffffff; vertical-align: middle; font-size: 11px;">
                                         <?= $rowNo; ?>
                                     </td>
                                 <?php endif; ?>
                             <?php endif; ?>
 
                             <?php if ($isMacroTimeSeries && $portraitSplitCol): ?>
-                                <td class="fw-semibold text-dark text-center" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
+                                <td class="fw-semibold text-dark text-center" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
                                     <?= esc($yrLabel); ?>
                                 </td>
-                                <td class="text-secondary" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px;">
+                                <td class="text-secondary" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px;">
                                     <?= esc($pLabel); ?>
                                 </td>
                             <?php elseif ($isMacroTimeSeries): ?>
-                                <td class="fw-semibold text-dark" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px;">
+                                <td class="fw-semibold text-dark" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px;">
                                     <?= esc($fullLabel); ?>
                                 </td>
                             <?php elseif ($portraitSplitCol): ?>
                                 <?php if ($pIdx === 0): ?>
-                                    <td rowspan="<?= $pCount; ?>" class="fw-semibold text-dark" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
+                                    <td rowspan="<?= $pCount; ?>" class="fw-semibold text-dark" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
                                         <?= esc($formattedBarisName); ?>
                                     </td>
                                 <?php endif; ?>
-                                <td class="text-center text-secondary" style="border: 1px solid #e2e8f0; padding: 6px 8px; font-size: 11.5px;">
+                                <td class="text-center text-secondary" style="border: 1px solid #ffffff; padding: 6px 8px; font-size: 11.5px;">
                                     <?= esc($fullLabel); ?>
                                 </td>
                             <?php else: ?>
-                                <td class="text-dark" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px;">
+                                <td class="text-dark" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px;">
                                     <?= esc($formattedBarisName); ?> <span class="text-muted small ms-1">(<?= esc($fullLabel); ?>)</span>
                                 </td>
                             <?php endif; ?>
@@ -1086,7 +1088,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                         ? formatDynamicCellValue($rowAgg, null, $cfgDesimal)
                                         : ($rowAgg !== null ? number_format($rowAgg, 2, ',', '.') : '-');
                                 ?>
-                                    <td class="text-end fw-bold" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; background: #fff7ed;">
+                                    <td class="text-end fw-bold" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; background: #fed7aa; color: #9a3412;">
                                         <?= $displayCell; ?>
                                     </td>
                                 <?php else:
@@ -1105,7 +1107,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                         ? formatDynamicCellValue($val, $simb, $cfgDesimal, $dec)
                                         : ($simb ?: ($val !== null ? number_format((float)$val, 2, ',', '.') : '-'));
                                 ?>
-                                    <td class="text-end" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px;">
+                                    <td class="text-end" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px;">
                                         <?= $displayCell; ?>
                                     </td>
                                 <?php endif; ?>
@@ -1206,8 +1208,8 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     // Baris Kategori Pembatas Wilayah
                     if ($tipeBaris === 'kategori' || $lowerBaris === 'kabupaten' || $lowerBaris === 'kota') {
                         if ($groupByRegion): ?>
-                            <tr class="category-row" style="background: #eef2f7; font-weight: bold;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 6px 12px; border: 1px solid #cbd5e1; font-size: 12px;">
+                            <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; border-left: 4px solid #FF6D1F; font-size: 12px;">
                                     <?= esc($namaBaris); ?>
                                 </td>
                             </tr>
@@ -1230,7 +1232,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $indentLevel   = (int)($baris->level_indentasi ?? 0);
                     $indentPadding = 12 + ($indentLevel * 16);
                     $isBoldRow     = $isTotalRow || !empty($baris->is_bold) || ($tipeBaris === 'subtotal');
-                    $rowBg         = $isTotalRow ? '#FFF3E0' : ($rowNo % 2 === 0 ? '#f8fafc' : '#ffffff');
+                    $rowClass      = $isTotalRow ? 'row-total' : ($rowNo % 2 === 1 ? 'row-odd' : 'row-even');
+                    $rowBg         = $isTotalRow ? '#FF6D1F' : ($rowNo % 2 === 1 ? '#fde5ce' : '#fef3e6');
+                    $rowColor      = $isTotalRow ? '#ffffff' : '#000000';
                     $rowFontWeight = $isBoldRow ? 'bold' : 'normal';
 
                     // Mode 2 Kolom Hierarkis: Induk Level 0 yang memiliki anak TIDAK membuat <tr> tersendiri
@@ -1270,22 +1274,22 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                         }
                     }
                 ?>
-                    <tr style="background: <?= $rowBg; ?>; font-weight: <?= $rowFontWeight; ?>; <?= ($isTotalRow ? 'border-top: 2px solid #FF6D1F;' : ''); ?>">
+                    <tr class="<?= $rowClass; ?>" style="background: <?= $rowBg; ?>; font-weight: <?= $rowFontWeight; ?>; color: <?= $rowColor; ?>; <?= ($isTotalRow ? 'border-top: 2px solid #ffffff;' : ''); ?>">
                         <?php if ($hasNoCol): ?>
                             <?php if ($isBarisDuaKolom && !$isMultiBaris): ?>
                                 <?php if ($indentLevel > 0): ?>
                                     <?php if ($isFirstChildOfParent): ?>
-                                        <td rowspan="<?= $currentParentRowspan; ?>" class="text-center text-muted" style="border: 1px solid #e2e8f0; vertical-align: middle; font-size: 11px; padding: 6px 4px;">
+                                        <td rowspan="<?= $currentParentRowspan; ?>" class="text-center" style="border: 1px solid #ffffff; vertical-align: middle; font-size: 11px; padding: 6px 4px; <?= ($isTotalRow ? 'color: #ffffff;' : 'color: #64748b;'); ?>">
                                             <?= $rowNo; ?>
                                         </td>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <td class="text-center text-muted" style="border: 1px solid #e2e8f0; vertical-align: middle; font-size: 11px; padding: 6px 4px;">
+                                    <td class="text-center" style="border: 1px solid #ffffff; vertical-align: middle; font-size: 11px; padding: 6px 4px; <?= ($isTotalRow ? 'color: #ffffff;' : 'color: #64748b;'); ?>">
                                         <?= $isTotalRow ? '' : $rowNo; ?>
                                     </td>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <td class="text-center text-muted" style="border: 1px solid #e2e8f0; vertical-align: middle; font-size: 11px; padding: 6px 4px;">
+                                <td class="text-center" style="border: 1px solid #ffffff; vertical-align: middle; font-size: 11px; padding: 6px 4px; <?= ($isTotalRow ? 'color: #ffffff;' : 'color: #64748b;'); ?>">
                                     <?= $isTotalRow ? '' : $rowNo; ?>
                                 </td>
                             <?php endif; ?>
@@ -1300,11 +1304,11 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 $isSkipCol1 = isset($col1SkipSet[$bIdx]);
                             ?>
                                 <?php if (!$isSkipCol1): ?>
-                                    <td rowspan="<?= $rSpan; ?>" class="col-wilayah" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #b45309;' : ''); ?>">
+                                    <td rowspan="<?= $rSpan; ?>" class="col-wilayah" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
                                         <?= esc($bCol1); ?>
                                     </td>
                                 <?php endif; ?>
-                                <td class="col-rincian" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #b45309;' : ''); ?>">
+                                <td class="col-rincian" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
                                     <?= esc($bCol2); ?>
                                 </td>
                             <?php else: ?>
@@ -1312,7 +1316,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     <?php if ($isFirstChildOfParent): 
                                         $isJustRenderedFirstChild = true;
                                     ?>
-                                        <td rowspan="<?= $currentParentRowspan; ?>" class="col-wilayah fw-bold" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px; font-size: 12px; background: #ffffff;">
+                                        <td rowspan="<?= $currentParentRowspan; ?>" class="col-wilayah fw-bold" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
                                             <div><?= esc($currentParentInd); ?></div>
                                             <?php if (!empty($currentParentEn) && strcasecmp(trim($currentParentEn), trim($currentParentInd)) !== 0): ?>
                                                 <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($currentParentEn); ?></div>
@@ -1320,14 +1324,14 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                         </td>
                                         <?php $isFirstChildOfParent = false; ?>
                                     <?php endif; ?>
-                                    <td class="col-rincian text-center" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #b45309;' : ''); ?>">
+                                    <td class="col-rincian text-center" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
                                         <div><?= esc($displayBarisLabel); ?></div>
                                         <?php if (!empty($namaBarisEn) && strcasecmp(trim($namaBarisEn), trim($displayBarisLabel)) !== 0): ?>
                                             <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($namaBarisEn); ?></div>
                                         <?php endif; ?>
                                     </td>
                                 <?php else: ?>
-                                    <td colspan="2" class="col-wilayah" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #b45309;' : ''); ?>">
+                                    <td colspan="2" class="col-wilayah" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
                                         <div><?= esc($displayBarisLabel); ?></div>
                                         <?php if (!empty($namaBarisEn) && strcasecmp(trim($namaBarisEn), trim($displayBarisLabel)) !== 0): ?>
                                             <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($namaBarisEn); ?></div>
@@ -1336,10 +1340,10 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 <?php endif; ?>
                             <?php endif; ?>
                         <?php else: ?>
-                            <td <?= ($isRuntunWaktuTotal ? 'colspan="2"' : ''); ?> class="col-wilayah" style="border: 1px solid #e2e8f0; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #b45309;' : ''); ?>">
+                            <td <?= ($isRuntunWaktuTotal ? 'colspan="2"' : ''); ?> class="col-wilayah" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
                                 <div><?= esc($displayBarisLabel); ?></div>
                                 <?php if (!empty($namaBarisEn) && strcasecmp(trim($namaBarisEn), trim($displayBarisLabel)) !== 0): ?>
-                                    <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($namaBarisEn); ?></div>
+                                    <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; <?= ($isTotalRow ? 'color: #ffffff;' : ''); ?>"><?= esc($namaBarisEn); ?></div>
                                 <?php endif; ?>
                             </td>
                         <?php endif; ?>
@@ -1363,7 +1367,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     ? formatDynamicCellValue($rowAgg, null, $cfgDesimal)
                                     : ($rowAgg !== null ? number_format($rowAgg, 2, ',', '.') : '-');
                             ?>
-                                <td class="text-end fw-bold" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; background: <?= ($isTotalRow ? '#fed7aa' : '#fff7ed'); ?>; <?= ($isTotalRow ? 'color: #9a3412;' : ''); ?>">
+                                <td class="text-end fw-bold" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'background: #FF6D1F; color: #ffffff !important;' : 'background: #fed7aa; color: #9a3412;'); ?>">
                                     <?= $displayCell; ?>
                                 </td>
                             <?php elseif (!empty($lCol['is_group_total'])):
@@ -1380,7 +1384,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     ? formatDynamicCellValue($gVal, null, $cfgDesimal)
                                     : ($gVal !== null ? number_format($gVal, 2, ',', '.') : '-');
                             ?>
-                                <td class="text-end fw-semibold" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; background: <?= ($isTotalRow ? '#fed7aa' : '#f1f5f9'); ?>; <?= ($isTotalRow ? 'color: #9a3412;' : 'color: #334155;'); ?>">
+                                <td class="text-end fw-semibold" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'background: #FF6D1F; color: #ffffff !important;' : 'background: #fde5ce; color: #000000;'); ?>">
                                     <?= $displayCell; ?>
                                 </td>
                             <?php else:
@@ -1407,7 +1411,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     ? formatDynamicCellValue($val, $simb, $cfgDesimal, $dec)
                                     : ($simb ?: ($val !== null ? number_format((float)$val, 2, ',', '.') : '-'));
                             ?>
-                                <td class="text-end" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #b45309;' : ''); ?>">
+                                <td class="text-end" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important; font-weight: bold;' : ''); ?>">
                                     <?= $displayCell; ?>
                                 </td>
                             <?php endif; ?>
@@ -1462,20 +1466,20 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 foreach ($runtunYears as $rIdx => $hYr):
                     $hYrLabel = $formatTahunLabel($hYr);
             ?>
-                <tr class="grand-total-row" style="background: #FFF3E0; font-weight: bold; border-top: <?= ($rIdx === 0 ? '2px solid #ea580c;' : '1px solid #fed7aa;'); ?>">
+                <tr class="grand-total-row row-total" style="background: #FF6D1F; color: #ffffff; font-weight: bold; border-top: 2px solid #ffffff;">
                     <?php if ($hasNoCol): ?>
                         <?php if ($rIdx === 0): ?>
-                            <td rowspan="<?= $rCount; ?>" class="text-center" style="border: 1px solid #fed7aa; padding: 6px; vertical-align: middle; background: #FFF3E0;"></td>
+                            <td rowspan="<?= $rCount; ?>" class="text-center" style="border: 1px solid #ffffff; padding: 6px; vertical-align: middle; background: #FF6D1F; color: #ffffff;"></td>
                         <?php endif; ?>
                     <?php endif; ?>
 
                     <?php if ($rIdx === 0): ?>
-                        <td rowspan="<?= $rCount; ?>" class="fw-bold td-freeze-col" style="border: 1px solid #fed7aa; padding: 8px 12px; font-size: 12px; color: #b45309; vertical-align: middle; background: #FFF3E0;">
-                            <div><?= esc($totalLabelInd); ?><?php if ($isBilingualTotal): ?> <span style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;">/ <?= esc($totalLabelEn); ?></span><?php endif; ?></div>
+                        <td rowspan="<?= $rCount; ?>" class="fw-bold td-freeze-col" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff; vertical-align: middle; background: #FF6D1F;">
+                            <div><?= esc($totalLabelInd); ?><?php if ($isBilingualTotal): ?> <span style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.9;">/ <?= esc($totalLabelEn); ?></span><?php endif; ?></div>
                         </td>
                     <?php endif; ?>
 
-                    <td class="text-center fw-bold" style="border: 1px solid #fed7aa; padding: 6px 10px; font-size: 12px; color: #b45309; vertical-align: middle; background: #ffedd5; width: 80px;">
+                    <td class="text-center fw-bold" style="border: 1px solid #ffffff; padding: 6px 10px; font-size: 12px; color: #ffffff; vertical-align: middle; background: #FF6D1F; width: 80px;">
                         <?= esc($hYrLabel); ?>
                     </td>
 
@@ -1491,7 +1495,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             ? formatDynamicCellValue($val, $simb, $cfgDesimal, $dec)
                             : ($simb ?: ($val !== null ? number_format((float)$val, 2, ',', '.') : '-'));
                     ?>
-                        <td class="text-end fw-bold" style="border: 1px solid #fed7aa; padding: 6px 12px; font-size: 12px; color: #b45309; background: #FFF3E0;">
+                        <td class="text-end fw-bold" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; color: #ffffff; background: #FF6D1F;">
                             <?= $displayCell; ?>
                         </td>
                     <?php endforeach; ?>
@@ -1516,21 +1520,21 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $grandLabel = 'Jumlah';
                 }
             ?>
-                <tr class="grand-total-row" style="background: #FFF3E0; font-weight: bold; border-top: 2px solid #FF6D1F;">
+                <tr class="grand-total-row row-total" style="background: #FF6D1F; color: #ffffff; font-weight: bold; border-top: 2px solid #ffffff;">
                     <?php if ($hasNoCol): ?>
-                        <td class="text-center" style="border: 1px solid #e2e8f0; padding: 8px 6px;"></td>
+                        <td class="text-center" style="border: 1px solid #ffffff; padding: 8px 6px; color: #ffffff;"></td>
                     <?php endif; ?>
 
                     <?php if ($portraitMode && $portraitSplitCol): ?>
-                        <td colspan="2" class="fw-bold" style="border: 1px solid #e2e8f0; padding: 8px 12px; font-size: 12px; color: #b45309;">
+                        <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
                             <?= esc($grandLabel); ?>
                         </td>
                     <?php elseif ($isBarisDuaKolom && !$portraitMode): ?>
-                        <td colspan="2" class="fw-bold" style="border: 1px solid #e2e8f0; padding: 8px 12px; font-size: 12px; color: #b45309;">
+                        <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
                             <?= esc($grandLabel); ?>
                         </td>
                     <?php else: ?>
-                        <td class="fw-bold" style="border: 1px solid #e2e8f0; padding: 8px 12px; font-size: 12px; color: #b45309;">
+                        <td class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
                             <?= esc($grandLabel); ?>
                         </td>
                     <?php endif; ?>
@@ -1541,7 +1545,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             ? formatDynamicCellValue($cVal, null, $cfgDesimal)
                             : ($cVal !== null ? number_format($cVal, 2, ',', '.') : '-');
                     ?>
-                        <td class="text-end fw-bold" style="border: 1px solid #e2e8f0; padding: 8px 12px; font-size: 12px; <?= (!empty($lCol['is_grand_total']) ? 'background: #fed7aa; color: #9a3412;' : 'color: #b45309;'); ?>">
+                        <td class="text-end fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff; background: #FF6D1F;">
                             <?= $displayCell; ?>
                         </td>
                     <?php endforeach; ?>

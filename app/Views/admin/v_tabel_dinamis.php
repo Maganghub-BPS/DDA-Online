@@ -386,12 +386,12 @@ $isConfigured  = ($indikator && $dimCount >= 2);
 
     .main-table thead tr.num-row th {
         font-weight: bold !important;
-        padding: 4px 4px;
-        background: #f9a55f !important;
-        color: #000 !important;
-        font-size: 11px;
-        border: 1px solid #fff !important;
-        text-align: center;
+        padding: 3px 4px !important;
+        background: #f9a066 !important;
+        color: #000000 !important;
+        font-size: 10px !important;
+        border: 1px solid #ffffff !important;
+        text-align: center !important;
     }
 
     .main-table tbody td {
@@ -405,11 +405,23 @@ $isConfigured  = ($indikator && $dimCount >= 2);
     .main-table tbody tr.row-odd,
     .main-table tbody tr.row-odd td {
         background-color: #fde5ce !important;
+        color: #000000 !important;
     }
 
     .main-table tbody tr.row-even,
     .main-table tbody tr.row-even td {
         background-color: #fef3e6 !important;
+        color: #000000 !important;
+    }
+
+    .main-table tbody tr.category-row,
+    .main-table tbody tr.category-row td {
+        background-color: #fde5ce !important;
+        color: #000000 !important;
+        font-weight: bold !important;
+        border: 1px solid #ffffff !important;
+        border-left: 4px solid #FF6D1F !important;
+        padding: 10px 15px !important;
     }
 
     .main-table tbody td.col-val {
@@ -440,19 +452,25 @@ $isConfigured  = ($indikator && $dimCount >= 2);
 
     /* Baris Grand Total (Jumlah / Total / Jawa Tengah) Menyerupai Header Sesuai Gambar 2 */
     .main-table tbody tr.row-total,
-    .main-table tbody tr.row-total td {
+    .main-table tbody tr.row-total td,
+    .main-table tbody tr.grand-total-row,
+    .main-table tbody tr.grand-total-row td,
+    .main-table tbody tr.grand-total-row th {
         background-color: #FF6D1F !important;
         color: #ffffff !important;
         font-weight: bold !important;
         border: 1px solid #ffffff !important;
     }
 
-    .main-table tbody tr.row-total td.col-val {
+    .main-table tbody tr.row-total td.col-val,
+    .main-table tbody tr.grand-total-row td.text-end,
+    .main-table tbody tr.grand-total-row td.col-val {
         color: #ffffff !important;
         text-align: right !important;
     }
 
-    .main-table tbody tr.row-total td i {
+    .main-table tbody tr.row-total td i,
+    .main-table tbody tr.grand-total-row td i {
         color: rgba(255, 255, 255, 0.95) !important;
     }
 
@@ -558,9 +576,14 @@ $isConfigured  = ($indikator && $dimCount >= 2);
 
             <?php $thDataOtomatis = (int)$ta - 1; ?>
             <!-- Tombol Unduh Template Excel Otomatis Sesuai Tahun Publikasi ($ta - 1) -->
-            <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id . '/' . $thDataOtomatis); ?>" class="btn-rounded-modern export-btn-modern shadow-primary" title="Unduh Template Excel Resmi Data Tahun <?= $thDataOtomatis; ?>">
-                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">UNDUH TEMPLATE</span><span class="d-inline d-sm-none">UNDUH</span>
+            <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id . '/' . $thDataOtomatis); ?>" class="btn-rounded-modern btn-back-modern shadow-sm" title="Unduh Template Excel Resmi Data Tahun <?= $thDataOtomatis; ?>">
+                <i class="bi bi-file-earmark-arrow-down"></i> <span class="d-none d-sm-inline">UNDUH TEMPLATE</span><span class="d-inline d-sm-none">UNDUH</span>
             </a>
+
+            <!-- Tombol Export Excel Resmi (Sama Seperti View Portal Tabel) -->
+            <button onclick="exportTableToExcel('dda-container-all', 'tabel-dinamis-<?= $tabel->id; ?>')" class="btn-rounded-modern export-btn-modern shadow-primary">
+                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">EXPORT EXCEL</span><span class="d-inline d-sm-none">EXPORT</span>
+            </button>
         </div>
     </div>
 
@@ -587,6 +610,9 @@ $isConfigured  = ($indikator && $dimCount >= 2);
             <?php endif; ?>
         </div>
     <?php else: ?>
+        <!-- Helper Export Excel DDA -->
+        <?= view('admin/parts/js_export_excel'); ?>
+
         <!-- ===== TAMPILAN RESMI 100% PERSIS VIEW API (v_portal_tabel.php) ===== -->
         <div id="dda-container-all" style="padding: 20px;">
             <div class="table-wrapper">
@@ -617,17 +643,11 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                 </tr>
             </table>
 
-            <!-- INFO NOTICE & SATUAN DATA -->
+            <!-- INFO NOTICE -->
             <?php if (!empty($fallback_notice)): ?>
                 <div class="alert alert-info py-2 px-3 mb-3 border-0 rounded-3 shadow-none d-flex align-items-center gap-2" style="font-size: 0.82rem; background: #e0f2fe; color: #0369a1;">
                     <i class="bi bi-info-circle-fill fs-6"></i>
                     <span><?= esc($fallback_notice); ?></span>
-                </div>
-            <?php endif; ?>
-
-            <?php if (!empty($indikator->satuan)): ?>
-                <div class="text-end text-muted small fw-semibold mb-2" style="font-size: 0.82rem;">
-                    Satuan / Unit: <span class="badge bg-light text-dark border"><?= esc($indikator->satuan); ?></span>
                 </div>
             <?php endif; ?>
 
@@ -650,6 +670,9 @@ $isConfigured  = ($indikator && $dimCount >= 2);
 
             <!-- FOOTER CATATAN DAN SUMBER RESMI DDA BPS -->
             <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;" class="no-print">
+                <?php if (!empty($indikator->satuan)): ?>
+                    <div><b>Satuan/</b><i>Unit</i>: <?= esc($indikator->satuan); ?></div>
+                <?php endif; ?>
                 <div><b>Catatan/</b><i>Note</i>: <?= nl2br(esc($indikator->catatan ?: '-')); ?></div>
                 <div><b>Sumber/</b><i>Source</i>: <?= esc($tabel->unitkerja_ind ?? 'BPS Provinsi Jawa Tengah'); ?></div>
             </div>
