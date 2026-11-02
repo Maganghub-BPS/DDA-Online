@@ -714,7 +714,8 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                                 Pilih berkas Excel atau seret ke sini
                             </div>
                             <div class="text-secondary small mb-3">
-                                Format template resmi DDA berekstensi <strong>.xlsx</strong>
+                                Format template resmi DDA (Data Tahun <strong><?= esc($thDataOtomatis); ?></strong>) berekstensi <strong>.xlsx</strong><br>
+                                <span class="text-muted text-xxs"><i class="bi bi-info-circle me-1"></i>Berkas dari tahun data lain akan ditolak otomatis oleh sistem.</span>
                             </div>
                             <div>
                                 <span class="btn btn-sm btn-success px-3 py-1.5 fw-semibold shadow-xs" style="background: #059669 !important; border: none; font-size: 0.8rem; border-radius: 6px; pointer-events: none;">

@@ -75,16 +75,31 @@ class ExcelDataParser
         $idTahunTabelExcel = (int)($metaPayload['id_tahun_tabel'] ?? 0);
         $idIndikatorExcel  = (int)($metaPayload['id_indikator'] ?? 0);
         $idMasterExcel     = (int)($metaPayload['id_master_tabel'] ?? 0);
-        $tahunExcel        = (int)($metaPayload['tahun_data'] ?? ($metaPayload['tahun'] ?? $metaSheet->getCell('B6')->getValue()));
+        $tahunExcel        = (int)($metaPayload['tahun_data'] ?? ($metaPayload['tahun'] ?? ($metaSheet->getCell('B16')->getValue() ?: $metaSheet->getCell('B6')->getValue())));
 
-        // Tentukan tahun data: prioritaskan override dari form upload, lalu metadata Excel, lalu active session
-        if ($tahunInputOverride !== null && (int)$tahunInputOverride > 0) {
-            $tahunData = (int)$tahunInputOverride;
-        } elseif ($tahunExcel > 0) {
-            $tahunData = $tahunExcel;
-        } else {
-            $tahunData = (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
+        $activeTa = (int)date('Y');
+        if (PHP_SAPI !== 'cli' && function_exists('session')) {
+            try {
+                $sess = session();
+                if ($sess) {
+                    $activeTa = (int)($sess->get('admin_ta') ?: ($sess->get('tahun') ?: $activeTa));
+                }
+            } catch (\Throwable $eSess) {}
         }
+        $defaultTargetYear = $activeTa - 1;
+        $targetTahun = ($tahunInputOverride !== null && (int)$tahunInputOverride > 0) ? (int)$tahunInputOverride : $defaultTargetYear;
+
+        // Validasi Opsi 1: Cek integritas metadata tahun data pada template Excel
+        if ($tahunExcel <= 0) {
+            throw new \Exception("Metadata tahun data pada berkas template Excel tidak valid atau tidak ditemukan. Pastikan Anda mengunggah berkas template resmi yang diunduh dari sistem DDA Online.");
+        }
+
+        // Validasi Opsi 1: Strict Match - Tolak jika tahun template Excel tidak sama dengan target tahun data
+        if ($targetTahun > 0 && $tahunExcel !== $targetTahun) {
+            throw new \Exception("Tahun data pada berkas template Excel ({$tahunExcel}) tidak sesuai dengan tahun data target ({$targetTahun}) pada DDA {$activeTa}. Pengunggahan dibatalkan untuk mencegah kesalahan data lintas tahun. Harap gunakan berkas template resmi untuk data tahun {$targetTahun}.");
+        }
+
+        $tahunData = $targetTahun;
 
         // 4. Resolusi Konteks Tabel Target
         $context = $this->mTabelDinamis->resolveTableContext($expectedIdTahunTabel, $tahunData, true);

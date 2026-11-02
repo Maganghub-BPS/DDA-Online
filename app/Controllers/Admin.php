@@ -6574,9 +6574,10 @@ class Admin extends BaseController
 
 			return redirect()->back();
 		} catch (\Throwable $e) {
+			$this->db->transRollback();
 			$errMsg = $e->getMessage();
 			if ($this->request->isAJAX()) {
-				return $this->response->setJSON([
+				return $this->response->setStatusCode(422)->setJSON([
 					'status'  => 'error',
 					'message' => $errMsg
 				]);
