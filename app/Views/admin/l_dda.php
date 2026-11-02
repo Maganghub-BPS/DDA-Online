@@ -156,13 +156,18 @@ if (empty($data)) {
         } elseif ($is_portal) {
             $tabel_url = $b->link_tabel;
             if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
-                $tabel_url = base_url() . $tabel_url;
+                $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
+                $tabel_url = base_url($clean_tabel);
+            }
+            if (!empty($b->id)) {
+                $tabel_url .= (strpos($tabel_url, '?') !== false ? '&' : '?') . 'table_id=' . $b->id;
             }
             $target = '';
         } else {
             $tabel_url = $b->link_tabel;
             if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
-                $tabel_url = base_url() . $tabel_url;
+                $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
+                $tabel_url = base_url($clean_tabel);
             }
             $target = 'target="_blank"';
         }

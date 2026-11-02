@@ -1176,14 +1176,26 @@ function get_dda_label_nested($col)
         // --- 1. AUTO-LOAD DARI DATABASE SAAT HALAMAN DIBUKA ---
         window.addEventListener('DOMContentLoaded', (event) => {
             rawApiResults.forEach((res, idx) => {
+                const dataRows = getRowsFromApiResult(res);
+                const baseKeys = (dataRows.length > 0) ? Object.keys(dataRows[0]) : [];
+                const hasIndicatorPattern = baseKeys.some(k => k.toLowerCase() === 'indikator') && baseKeys.some(k => k.toLowerCase() === 'nilai') && baseKeys.length >= 4 && dataRows.some(r => r.indikator !== null && r.indikator !== '');
+
                 if (res.config_tabel) {
                     try {
-                        const savedConfig = JSON.parse(res.config_tabel);
+                        let savedConfig = JSON.parse(res.config_tabel);
+                        if (typeof savedConfig === 'string') savedConfig = JSON.parse(savedConfig);
+                        if (hasIndicatorPattern && (!savedConfig.pivot || (!savedConfig.pivot.enabled && (!savedConfig.pivot.col || savedConfig.pivot.col.length === 0))) && typeof buildSmartPivotConfig === 'function') {
+                            savedConfig = buildSmartPivotConfig(baseKeys, dataRows);
+                        }
                         if (idx === 0) currentTableConfig = savedConfig;
                         renderCustomTable(idx, savedConfig);
                     } catch (e) {
                         console.error("Gagal load config:", e);
                     }
+                } else if (hasIndicatorPattern && typeof buildSmartPivotConfig === 'function') {
+                    const smartCfg = buildSmartPivotConfig(baseKeys, dataRows);
+                    if (idx === 0) currentTableConfig = smartCfg;
+                    renderCustomTable(idx, smartCfg);
                 }
             });
         });

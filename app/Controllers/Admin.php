@@ -2531,6 +2531,7 @@ class Admin extends BaseController
 		}
 
 		$id_api = $this->request->getGet('id');
+		$table_id = (int)($this->request->getGet('table_id') ?: $this->request->getGet('id_db') ?: 0);
 		if (empty($id_api)) {
 			$a['page'] = "d_amain";
 			$this->session->setFlashdata("k", '<div class="alert alert-danger" id="alert">ID Portal Data tidak ditemukan</div>');
@@ -2540,24 +2541,30 @@ class Admin extends BaseController
 		// Support multiple IDs (comma separated)
 		$ids = explode(',', $id_api);
 
-		// Map id_api_new dari t_tabel_match
-		$match_rows = $this->db->table('t_tabel_match')
-			->select('id_api_new')
-			->whereIn('id_api_new', $ids)
-			->get()
-			->getResultArray();
-		$valid_ids = array_map(fn($m) => (string)$m['id_api_new'], $match_rows);
+		// Map id_api_new dari t_tabel_match hanya jika ID berupa UUID lama
+		$cleaned_ids = [];
+		foreach ($ids as $id_val) {
+			$id_val = trim($id_val);
+			if (empty($id_val)) continue;
 
-		// Filter hanya id yang valid dari t_tabel_match
-		$filtered_ids = array_filter($ids, fn($id) => in_array(trim($id), $valid_ids));
-		if (empty($filtered_ids)) {
-			$filtered_ids = $valid_ids;
+			if (!is_numeric($id_val)) {
+				$match = $this->db->table('t_tabel_match')
+					->select('id_api_new')
+					->where('id_api', $id_val)
+					->get()
+					->getRowArray();
+				$cleaned_ids[] = (!empty($match['id_api_new'])) ? (string)$match['id_api_new'] : $id_val;
+			} else {
+				$cleaned_ids[] = $id_val;
+			}
 		}
-		$new_ids_str = implode(',', $filtered_ids);
+		$new_ids_str = implode(',', $cleaned_ids);
 
-		// Redirect jika ID perlu dikoreksi
-		if ($new_ids_str !== trim($id_api)) {
-			return redirect()->to("admin/view_portal_tabel?id=" . $new_ids_str);
+		// Redirect jika ada ID UUID lama yang dikonversi
+		if ($new_ids_str !== trim($id_api) && !empty($new_ids_str)) {
+			$redir = "admin/view_portal_tabel?id=" . $new_ids_str;
+			if ($table_id > 0) $redir .= "&table_id=" . $table_id;
+			return redirect()->to($redir);
 		}
 
 		// Sekarang $ids sudah berisi id_api_new, langsung proses
@@ -2635,13 +2642,25 @@ class Admin extends BaseController
 			} while ($page <= 200);
 
 			if (!empty($all_rows)) {
-				$dda_info = $this->db->query("
-					SELECT t.id, t.no_tabel, t.periode_id, t.periode_en, m.judul_ind, m.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en
-                    FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id 
-                    LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-                    WHERE t.link_tabel REGEXP ?
-                    LIMIT 1
-                ", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
+				$dda_info = null;
+				if ($table_id > 0) {
+					$dda_info = $this->db->query("
+						SELECT t.id, t.no_tabel, t.periode_id, t.periode_en, m.judul_ind, m.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en
+						FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id 
+						LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+						WHERE t.id = ?
+						LIMIT 1
+					", [$table_id])->getRow();
+				}
+				if (!$dda_info) {
+					$dda_info = $this->db->query("
+						SELECT t.id, t.no_tabel, t.periode_id, t.periode_en, m.judul_ind, m.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en
+						FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id 
+						LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+						WHERE t.link_tabel REGEXP ?
+						LIMIT 1
+					", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
+				}
 
 				$final_res = $meta_info;
 				$final_res['data']           = $all_rows;
@@ -2828,6 +2847,72 @@ class Admin extends BaseController
 			$update = $this->db->table('t_tahun_tabel')->where('id', $id)->update(['config_tabel' => $config]);
 
 			if ($update) {
+				// Sinkronkan ke m_konfigurasi_api jika tabel ada
+				if ($this->db->tableExists('m_konfigurasi_api')) {
+					$ttRow = $this->db->table('t_tahun_tabel')->select('id_tabel')->where('id', $id)->get()->getRowArray();
+					if ($ttRow && !empty($ttRow['id_tabel'])) {
+						$this->db->table('m_konfigurasi_api')->where('id_tabel', $ttRow['id_tabel'])->update(['config_tabel' => $config]);
+					}
+				}
+
+				// Sinkronkan ke dda_db_{ta}.json jika ada
+				$ta_row = $this->db->table('t_tahun_tabel')->select('tahun, no_tabel')->where('id', $id)->get()->getRowArray();
+				if ($ta_row && !empty($ta_row['tahun'])) {
+					$ta = (string)$ta_row['tahun'];
+					$uploadPath = WRITEPATH . 'uploads/';
+					$dbJson = $uploadPath . "dda_db_{$ta}.json";
+					if (file_exists($dbJson)) {
+						$dbList = json_decode(@file_get_contents($dbJson), true);
+						if (is_array($dbList)) {
+							$changed = false;
+							foreach ($dbList as &$row) {
+								if ((int)($row['id_db'] ?? 0) === (int)$id) {
+									$row['config_tabel'] = $config;
+									$row['has_config'] = 1;
+									$changed = true;
+									break;
+								}
+							}
+							unset($row);
+							if ($changed) {
+								@file_put_contents($dbJson, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+							}
+						}
+					}
+					// Sinkronkan juga ke dda_matched_{ta}.json has_config
+					$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+					if (file_exists($matchedJson)) {
+						$matchedData = json_decode(@file_get_contents($matchedJson), true);
+						if (is_array($matchedData)) {
+							$listKey = isset($matchedData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+							if (isset($matchedData[$listKey]) && is_array($matchedData[$listKey])) {
+								$mChanged = false;
+								foreach ($matchedData[$listKey] as &$mRow) {
+									if ((int)($mRow['id_db'] ?? 0) === (int)$id) {
+										$mRow['has_config'] = 1;
+										$mRow['config_tabel'] = $config;
+										$mChanged = true;
+										break;
+									}
+								}
+								unset($mRow);
+								if ($mChanged) {
+									@file_put_contents($matchedJson, json_encode($matchedData, JSON_UNESCAPED_UNICODE));
+								}
+							}
+						}
+					}
+					// Invalidate state cache untuk tabel ini agar bisa divalidasi ulang dengan config terbaru
+					$stateJson = $uploadPath . "dda_state_{$ta}.json";
+					if (file_exists($stateJson) && !empty($ta_row['no_tabel'])) {
+						$stateData = json_decode(@file_get_contents($stateJson), true);
+						if (is_array($stateData) && isset($stateData[$ta_row['no_tabel']])) {
+							unset($stateData[$ta_row['no_tabel']]);
+							@file_put_contents($stateJson, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+						}
+					}
+				}
+
 				return $this->response->setJSON(['status' => 'success', 'message' => 'Konfigurasi berhasil disimpan']);
 			}
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal simpan database']);
@@ -3151,7 +3236,8 @@ class Admin extends BaseController
 					m.judul_ind as raw_judul, 
 					t.periode_id,
 					t.link_tabel,
-					COALESCE(t.is_dynamic, 0) as is_dynamic
+					COALESCE(t.is_dynamic, 0) as is_dynamic,
+					t.config_tabel
 				FROM t_tahun_tabel t
 				JOIN m_list_tabel m ON t.id_tabel = m.id
 				WHERE t.tahun = ?
@@ -3184,6 +3270,7 @@ class Admin extends BaseController
 					'link_tabel'    => $r['link_tabel'],
 					'is_dynamic'    => $isDyn,
 					'source_type'   => $sourceType,
+					'config_tabel'  => $r['config_tabel'] ?? null,
 					'dynamic_empty' => $dynInfo ? (bool)$dynInfo['dynamic_empty'] : ($isDyn === 1),
 					'dynamic_grid'  => $dynInfo ? ($dynInfo['dynamic_grid'] ?? []) : [],
 					'template_grid' => $dynInfo ? ($dynInfo['template_grid'] ?? []) : [],
@@ -3229,10 +3316,11 @@ class Admin extends BaseController
 			       GROUP_CONCAT(t.id ORDER BY t.id SEPARATOR ',') as dyn_ids,
 			       (SELECT COUNT(*) FROM m_indikator_tabel) as ind_cnt,
 			       (SELECT MAX(updated_at) FROM m_indikator_tabel) as ind_max_upd,
-			       (SELECT COUNT(*) FROM t_nilai_dinamis) as nilai_cnt
+			       (SELECT COUNT(*) FROM t_nilai_dinamis) as nilai_cnt,
+			       (SELECT MD5(GROUP_CONCAT(COALESCE(config_tabel, '') SEPARATOR '|')) FROM t_tahun_tabel WHERE tahun = ?) as config_sig
 			FROM t_tahun_tabel t
 			WHERE t.tahun = ? AND (t.is_dynamic = 1 OR EXISTS (SELECT 1 FROM m_indikator_tabel i WHERE i.id_tahun_tabel = t.id))
-		", [$ta])->getRowArray();
+		", [$ta, $ta])->getRowArray();
 		return md5(json_encode($sigRow));
 	}
 
@@ -3347,6 +3435,31 @@ class Admin extends BaseController
 				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
 				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
 			}
+		}
+
+		// 1b. Populasikan has_config pada setiap tabel matched API
+		if ($masterData && (isset($masterData['matched_in_pdf']) || isset($masterData['matched_tables']))) {
+			$dbMapConfig = [];
+			if (file_exists($dbJson)) {
+				$dbArr = json_decode(@file_get_contents($dbJson), true) ?? [];
+				foreach ($dbArr as $dbItem) {
+					$dId = (int)($dbItem['id_db'] ?? 0);
+					if ($dId > 0) {
+						$hasCfg = (!empty($dbItem['config_tabel']) && trim((string)$dbItem['config_tabel']) !== '' && trim((string)$dbItem['config_tabel']) !== '{}' && trim((string)$dbItem['config_tabel']) !== 'null') ? 1 : 0;
+						$dbMapConfig[$dId] = $hasCfg;
+					}
+				}
+			}
+			$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+			foreach ($masterData[$listKey] as &$mItem) {
+				$mId = (int)($mItem['id_db'] ?? 0);
+				if (isset($dbMapConfig[$mId])) {
+					$mItem['has_config'] = $dbMapConfig[$mId];
+				} elseif (!isset($mItem['has_config'])) {
+					$mItem['has_config'] = (!empty($mItem['config_tabel']) && trim((string)$mItem['config_tabel']) !== '' && trim((string)$mItem['config_tabel']) !== '{}' && trim((string)$mItem['config_tabel']) !== 'null') ? 1 : 0;
+				}
+			}
+			unset($mItem);
 		}
 
 		// 2. Muat status validasi terakhir dari file state JSON
@@ -3796,6 +3909,331 @@ class Admin extends BaseController
 	 * Mencocokkan atau membuat Master Dimensi (Baris, Karakteristik Kolom, Periode) secara cerdas,
 	 * merakit m_indikator_tabel, mengaktifkan is_dynamic = 1, dan opsional langsung mengisi nilai sel dari PDF.
 	 */
+	/**
+	 * Menghasilkan konfigurasi layout otomatis untuk tabel API Satudata berdasarkan standar layout PDF.
+	 * Menyembunyikan kolom metadata (tahun, kode wilayah), memformat kolom wilayah (Kabupaten/Kota),
+	 * mengubah kolom metrik menjadi Title Case yang rapi, dan menyusun pivot jika berdimensi waktu.
+	 */
+	public function get_auto_layout_config()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$idDb = (int)$this->request->getPost('id_db');
+		$nomorTabel = trim((string)$this->request->getPost('nomor_tabel'));
+		$ta = (string)($this->request->getPost('ta') ?: ($this->session->get('admin_ta') ?: '2026'));
+
+		$row = null;
+		if ($idDb > 0) {
+			$row = $this->db->query("
+				SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
+				FROM t_tahun_tabel t
+				JOIN m_list_tabel m ON t.id_tabel = m.id
+				WHERE t.id = ?
+				LIMIT 1
+			", [$idDb])->getRowArray();
+		}
+		if (!$row && $nomorTabel !== '') {
+			$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
+			$row = $this->db->query("
+				SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
+				FROM t_tahun_tabel t
+				JOIN m_list_tabel m ON t.id_tabel = m.id
+				WHERE t.tahun = ? AND (TRIM(t.no_tabel) = ? OR TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?)
+				LIMIT 1
+			", [$ta, $cleanNo, $cleanNo])->getRowArray();
+		}
+
+		if (!$row) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Data tabel tidak ditemukan di database.']);
+		}
+
+		$linkTabel = (string)($row['link_tabel'] ?? '');
+		if (empty($linkTabel) || (strpos($linkTabel, 'view_portal_tabel') === false && strpos($linkTabel, 'satudata') === false)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Tabel ini bukan merupakan tabel sumber API Satudata.']);
+		}
+
+		// Extract API ID
+		preg_match('/id=([^&]+)/i', $linkTabel, $matches);
+		$idApi = isset($matches[1]) ? trim($matches[1]) : '';
+		if (empty($idApi)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'ID API tidak ditemukan pada link tabel.']);
+		}
+
+		// Call live API
+		$apiIds = explode(',', $idApi);
+		$firstId = trim($apiIds[0]);
+		if (strpos($firstId, '?') !== false) $firstId = explode('?', $firstId)[0];
+		if (strpos($firstId, 'data/') !== false) $firstId = explode('data/', $firstId)[1];
+		$firstId = trim($firstId, '/ ');
+
+		$url = "https://satudata.jatengprov.go.id/api/v1/data/{$firstId}?peruntukan=DDA";
+		$apiRes = $this->callApi2($url);
+
+		$rows = [];
+		if (isset($apiRes['data']) && is_array($apiRes['data'])) {
+			$rows = $apiRes['data'];
+		} elseif (is_array($apiRes) && isset($apiRes[0])) {
+			$rows = $apiRes;
+		}
+
+		if (empty($rows)) {
+			return $this->response->setJSON([
+				'status'      => 'empty',
+				'nomor_tabel' => $row['no_tabel'],
+				'judul_tabel' => $row['judul_ind'],
+				'id_db'       => (int)$row['id'],
+				'id_api'      => $idApi,
+				'message'     => 'API Satu Data mengembalikan 0 baris data dari server provinsi (data masih kosong).'
+			]);
+		}
+
+		$firstRow = $rows[0];
+		$baseKeys = array_keys($firstRow);
+
+		// Build smart config
+		$ignoreCols = ['id', 'tahun', 'tahun_data', 'year', 'periode', 'kode_wilayah', 'kode_kabupatenkota', 'kode_bps', 'kode_kemendagri', 'urutan'];
+		$lowerKeys = array_map('strtolower', $baseKeys);
+		$hasIndicator = in_array('indikator', $lowerKeys) || in_array('jenis_koperasi', $lowerKeys) || in_array('jenis_usaha', $lowerKeys);
+		$hasNilai = in_array('nilai', $lowerKeys) || in_array('jumlah', $lowerKeys) || in_array('jmlh', $lowerKeys);
+		$hasWilayah = in_array('nama_wilayah', $lowerKeys) || in_array('nama_kabupatenkota', $lowerKeys) || in_array('kabupaten_kota', $lowerKeys);
+
+		$columns = [];
+		$pivot = [
+			'enabled' => false,
+			'row' => [],
+			'col' => [],
+			'val' => [],
+			'total_row' => true,
+			'only_total' => false,
+			'total_col' => false,
+			'metric_first' => false,
+			'metrics_as_row' => false,
+			'prefix' => '',
+			'prefix_en' => '',
+			'mappings' => new \stdClass(),
+			'mapping_order' => []
+		];
+
+		$groupByRegion = $hasWilayah;
+
+		if ($hasIndicator && $hasNilai && !$hasWilayah) {
+			$valCandidates = ['nilai', 'jumlah', 'jmlh', 'total', 'volume_usaha', 'modal_sendiri', 'modal_luar'];
+			$valCols = array_values(array_filter($baseKeys, function($k) use ($valCandidates) {
+				return in_array(strtolower($k), $valCandidates);
+			}));
+			if (empty($valCols)) $valCols = [end($baseKeys)];
+
+			$catCandidates = array_values(array_filter($baseKeys, function($k) use ($ignoreCols, $valCols) {
+				return !in_array(strtolower($k), $ignoreCols) && !in_array($k, $valCols);
+			}));
+
+			$rowCol = $catCandidates[0] ?? $baseKeys[0];
+			$colCol = in_array('tahun_data', $baseKeys) ? 'tahun_data' : ($catCandidates[1] ?? 'tahun_data');
+
+			$pivot['enabled'] = true;
+			$pivot['row'] = [$rowCol];
+			$pivot['col'] = [$colCol];
+			$pivot['val'] = $valCols;
+
+			foreach ($baseKeys as $k) {
+				$columns[] = [
+					'key' => $k,
+					'label_id' => $this->formatTitleLabel($k),
+					'label_en' => '',
+					'visible' => true,
+					'format' => in_array($k, $valCols) ? 'number' : 'text'
+				];
+			}
+		} else {
+			// Cek apakah tabel ini memiliki mapping otomatis dari PDF buku DDA
+			$matchedJsonPath = WRITEPATH . "uploads/dda_matched_{$ta}.json";
+			$pdfPath = WRITEPATH . "uploads/dda_master_{$ta}.pdf";
+			$matchedPages = [];
+			$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $row['no_tabel'] ?? ''));
+
+			if (file_exists($matchedJsonPath)) {
+				$mJson = @file_get_contents($matchedJsonPath);
+				$mData = json_decode($mJson, true);
+				$matchedList = $mData['matched_in_pdf'] ?? $mData['matched_tables'] ?? [];
+				foreach ($matchedList as $mItem) {
+					if (trim($mItem['nomor_tabel'] ?? '') === $cleanNo) {
+						$matchedPages = $mItem['pages'] ?? [];
+						break;
+					}
+				}
+			}
+
+			$pdfMappedColumns = null;
+			if (!empty($matchedPages) && file_exists($pdfPath)) {
+				$pythonScript = FCPATH . '../python_engine/auto_config_pdf.py';
+				$b64Pages = base64_encode(json_encode(array_values($matchedPages)));
+				$b64Keys  = base64_encode(json_encode(array_values($baseKeys)));
+				$targetYearArg = escapeshellarg($ta);
+				$cmd = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($b64Pages) . " " . escapeshellarg($b64Keys) . " " . $targetYearArg . " 2>&1";
+				$rawOut = (string)@shell_exec($cmd);
+				if (preg_match('/===JSON_START===(.*?)===JSON_END===/s', $rawOut, $mJson)) {
+					$decoded = json_decode($mJson[1], true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$pdfMappedColumns = $decoded;
+					}
+				}
+			}
+
+			if (!empty($pdfMappedColumns)) {
+				$columns = $pdfMappedColumns;
+			} else {
+				foreach ($baseKeys as $k) {
+					$kLower = strtolower($k);
+					if (in_array($kLower, $ignoreCols)) {
+						$columns[] = [
+							'key' => $k,
+							'label_id' => $k,
+							'label_en' => '',
+							'visible' => false,
+							'format' => 'number'
+						];
+					} elseif (in_array($kLower, ['nama_wilayah', 'nama_kabupatenkota', 'kabupaten_kota', 'wilayah'])) {
+						$columns[] = [
+							'key' => $k,
+							'label_id' => 'Kabupaten/Kota',
+							'label_en' => 'Regency/Municipality',
+							'visible' => true,
+						'format' => 'text'
+						];
+					} else {
+						$fmtTitle = $this->formatTitleLabel($k);
+						$columns[] = [
+							'key' => $k,
+							'label_id' => $fmtTitle,
+							'label_en' => $this->translateLabelEn($fmtTitle),
+							'visible' => true,
+							'format' => 'number'
+						];
+					}
+				}
+			}
+		}
+
+		$smartConfig = [
+			'columns' => $columns,
+			'pivot' => $pivot,
+			'merge_datasets' => false,
+			'show_total_col' => false,
+			'show_group_total' => false,
+			'group_by_region' => $groupByRegion
+		];
+
+		// Take first 6 rows for preview
+		$previewRows = array_slice($rows, 0, 6);
+
+		return $this->response->setJSON([
+			'status'         => 'success',
+			'nomor_tabel'    => $row['no_tabel'],
+			'judul_tabel'    => $row['judul_ind'],
+			'id_db'          => (int)$row['id'],
+			'id_api'         => $idApi,
+			'total_api_rows' => count($rows),
+			'config'         => $smartConfig,
+			'preview_rows'   => $previewRows
+		]);
+	}
+
+	private function translateLabelEn(string $labelId): string
+	{
+		if (strpos($labelId, ' || ') !== false) {
+			$parts = explode(' || ', $labelId);
+			$enParts = array_map([$this, 'translateLabelEn'], $parts);
+			return implode(' || ', $enParts);
+		}
+
+		$dict = [
+			'Kabupaten/Kota' => 'Regency/Municipality',
+			'Tenaga Medis' => 'Medical Personnel',
+			'Psikologi Klinis' => 'Clinical Psychologists',
+			'Tenaga Keperawatan' => 'Nursing Personnel',
+			'Tenaga Kebidanan' => 'Midwifery Personnel',
+			'Tenaga Kefarmasian' => 'Pharmaceutical Personnel',
+			'Tenaga Kesehatan Masyarakat' => 'Public Health Personnel',
+			'Tenaga Kesehatan Lingkungan' => 'Environmental Health Personnel',
+			'Tenaga Gizi' => 'Nutritionists',
+			'Tenaga Keterapisan Fisik' => 'Physical Therapists',
+			'Tenaga Keteknisian Medis' => 'Medical Technicians',
+			'Tenaga Teknik Biomedika' => 'Biomedical Engineering Personnel',
+			'Tenaga Kesehatan Tradisional' => 'Traditional Health Personnel',
+			'Jumlah Rusak Berat' => 'Number of Heavily Damaged',
+			'Jumlah Rusak Sedang' => 'Number of Moderately Damaged',
+			'Jumlah Rusak Ringan' => 'Number of Lightly Damaged',
+			'Milik Pemerintah' => 'Government Owned',
+			'Kementerian Kesehatan' => 'Ministry of Health',
+			'Pemerintah Provinsi' => 'Provincial Government',
+			'Provinsi' => 'Province',
+			'Pemerintah Kabupaten/Kota' => 'Regency/Municipality Government',
+			'Polri' => 'Indonesian Police',
+			'Kementerian Lain' => 'Other Ministry',
+			'Kementrian Lain' => 'Other Ministry',
+			'Swasta' => 'Non Government / Private',
+			'Bukan Milik Pemerintah' => 'Non Government',
+			'Tempat Tidur' => 'Beds',
+			'Rumah Sakit' => 'Hospital',
+			'Puskesmas' => 'Public Health Center',
+			'Klinik' => 'Clinic',
+			'Dokter' => 'Doctor',
+			'Perawat' => 'Nurse',
+			'Bidan' => 'Midwife',
+			'Jumlah' => 'Total',
+			'Sub Jumlah' => 'Sub Total',
+			'Total' => 'Total',
+			'Laki-Laki' => 'Male',
+			'Perempuan' => 'Female',
+			'Luas Panen' => 'Harvested Area',
+			'Produksi' => 'Production',
+			'Produktivitas' => 'Productivity',
+			'Nilai' => 'Value',
+			'Volume Usaha' => 'Business Volume',
+			'Modal Sendiri' => 'Own Capital',
+			'Modal Luar' => 'External Capital',
+			'Persentase' => 'Percentage',
+			'Panti Asuhan' => 'Orphanage',
+			'Anak Yang Diasuh' => 'Children Under Care',
+			'Jumlah Panti Asuhan' => 'Number of Orphanages',
+			'Jumlah Anak Yang Diasuh' => 'Number of Children Under Care'
+		];
+
+		$trimmed = trim($labelId);
+		if (isset($dict[$trimmed])) return $dict[$trimmed];
+
+		// Case-insensitive lookup
+		foreach ($dict as $k => $v) {
+			if (strcasecmp($trimmed, $k) === 0) return $v;
+		}
+
+		// Pattern heuristics
+		if (preg_match('/^Tenaga\s+(.*)$/i', $trimmed, $m)) {
+			return trim($m[1]) . ' Personnel';
+		}
+		if (preg_match('/^Jumlah\s+(.*)$/i', $trimmed, $m)) {
+			return 'Number of ' . trim($m[1]);
+		}
+
+		return '';
+	}
+
+	private function formatTitleLabel(string $key): string
+	{
+		$k = str_replace('_', ' ', $key);
+		$k = preg_replace('/\bribu rupiah\b/i', '(Ribu Rupiah)', $k);
+		$k = preg_replace('/\bjuta rupiah\b/i', '(Juta Rupiah)', $k);
+		$k = preg_replace('/\brs\b/i', 'Rumah Sakit', $k);
+		$words = explode(' ', $k);
+		$titleWords = array_map(function($w) {
+			if (preg_match('/^\(.*\)$/', $w)) return $w;
+			return ucfirst(strtolower($w));
+		}, $words);
+		return implode(' ', $titleWords);
+	}
+
 	public function auto_config_tabel_pdf()
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {

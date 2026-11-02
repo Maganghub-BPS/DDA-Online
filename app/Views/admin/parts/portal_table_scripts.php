@@ -485,7 +485,10 @@
         headerRows.forEach((row, rIdx) => {
             html += '<tr>';
             if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid #fff; width:40px;">No.</th>`;
-            row.forEach(cell => { html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid #fff; padding:8px; text-align:center;">${cell.label}${cell.label_en ? `<br><i>${cell.label_en}</i>` : ''}</th>`; });
+            row.forEach(cell => {
+                const isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || '').trim().toLowerCase();
+                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid #fff; padding:8px; text-align:center;">${cell.label}${isEnDiff ? `<br><i>${cell.label_en}</i>` : ''}</th>`;
+            });
             if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid #fff; ${config.pivot.only_total ? 'background:#FF6D1F;' : ''}">Jumlah<br><i>Total</i></th>`;
             html += '</tr>';
         });

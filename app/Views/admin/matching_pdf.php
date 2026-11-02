@@ -310,12 +310,18 @@
                                         <button type="button" id="btnFilterUnverified" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('unverified', this)">
                                             <i class="bi bi-clock me-1"></i>Belum Cek (<span id="cntUnverified">0</span>)
                                         </button>
+                                        <button type="button" id="btnFilterUnconfigured" class="btn btn-xs btn-outline-warning fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" onclick="filterMatchedStatus('unconfigured', this)" title="Tampilkan hanya tabel API Satudata yang belum dikonfigurasi">
+                                            <i class="bi bi-magic me-1"></i>Belum Konfigurasi (<span id="cntUnconfigured">0</span>)
+                                        </button>
                                     </div>
 
                                     <!-- Action & Search -->
                                     <div class="d-flex align-items-center gap-1 flex-wrap">
                                         <button id="btnBatchVerifyDinamis" onclick="startBatchValidation('dinamis')" class="btn btn-sm btn-outline-success fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Cepat (~5 detik): Hanya memvalidasi semua Tabel Dinamis">
                                             <i class="bi bi-grid-3x3-gap-fill me-1"></i> Scan Dinamis
+                                        </button>
+                                        <button id="btnBatchVerifyApi" onclick="startBatchValidation('api')" class="btn btn-sm btn-outline-info fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Khusus API: Hanya memvalidasi seluruh tabel dari API Satu Data lewat konfigurasi layout terbaru">
+                                            <i class="bi bi-hdd-network-fill me-1"></i> Scan API
                                         </button>
                                         <button id="btnBatchVerify" onclick="startBatchValidation('all')" class="btn btn-sm btn-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem; background: linear-gradient(135deg, #10b981, #059669); border:none;" title="Validasi seluruh tabel (Tabel Dinamis & API Satu Data)">
                                             <i class="bi bi-lightning-charge-fill me-1"></i> Validasi Semua
@@ -407,6 +413,40 @@
       </div>
       <div class="modal-footer border-top bg-light">
         <button type="button" class="btn btn-secondary btn-sm rounded-3 fw-bold px-4 py-2" data-bs-dismiss="modal">Tutup Laporan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Auto-Layout API Satudata (Review & Cek Manual) -->
+<div class="modal fade" id="modalAutoLayoutApi" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 92%;">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+      <div class="modal-header bg-light pb-3 border-bottom">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary text-white px-2 py-1 rounded-pill fw-bold" id="autoLayoutTableNum">Tabel -</span>
+                <span class="badge bg-info-subtle text-primary border border-info-subtle rounded-pill font-monospace" style="font-size:0.72rem;"><i class="bi bi-hdd-network-fill me-1"></i>API Satudata</span>
+                <span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill fw-bold" style="font-size:0.72rem;" id="autoLayoutTypeBadge">Format Wilayah</span>
+            </div>
+            <h5 class="modal-title fw-bold text-dark mb-0" id="autoLayoutTableTitle">Konfigurasi & Layout API Satudata</h5>
+            <p class="text-muted small mb-0 mt-1" id="autoLayoutTableSubtitle">Periksa dan sesuaikan nama kolom cetakan sebelum disimpan ke database.</p>
+        </div>
+        <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 bg-white" id="autoLayoutModalBody">
+        <!-- Injected dynamically -->
+      </div>
+      <div class="modal-footer border-top bg-light d-flex justify-content-between align-items-center">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-semibold" data-bs-dismiss="modal">Batal</button>
+        <div class="d-flex gap-2 align-items-center">
+            <button type="button" id="btnPreviewAutoLayout" onclick="refreshAutoLayoutPreview()" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 fw-bold">
+                <i class="bi bi-eye me-1"></i> Refresh Preview
+            </button>
+            <button type="button" id="btnSaveAutoLayout" onclick="saveAutoLayoutConfig()" class="btn btn-success btn-sm rounded-pill px-4 py-2 fw-bold shadow-sm" style="background: linear-gradient(135deg, #10b981, #059669); border:none;">
+                <i class="bi bi-cloud-check-fill me-1"></i> Simpan & Terapkan Layout
+            </button>
+        </div>
       </div>
     </div>
   </div>
@@ -555,12 +595,25 @@
                 ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: Tabel Dinamis"><i class="bi bi-grid-3x3-gap-fill me-1"></i>Tabel Dinamis</span>`
                 : `<span class="badge bg-info-subtle text-primary border border-info-subtle rounded-pill font-monospace shadow-xs" style="font-size:0.68rem;" title="Sumber Data: API Satudata"><i class="bi bi-hdd-network-fill me-1"></i>API Satudata</span>`;
 
+            let hasCfg = parseInt(item.has_config || 0);
+            let unconfWithData = ['2.4.3', '4.2.4', '4.2.20', '4.2.33', '4.3.12', '4.3.13', '4.3.14', '4.5.11', '4.6.9', '5.1.6', '10.3.21'];
+            let isUnconfWithData = (srcType === 'api' && hasCfg === 0 && unconfWithData.includes(item.nomor_tabel));
+            let cfgBadge = '';
+            if (srcType === 'api') {
+                if (hasCfg === 1) {
+                    cfgBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace shadow-xs cfg-status-badge" style="font-size:0.68rem;" title="Layout Tabel Sudah Dikonfigurasi"><i class="bi bi-check-circle-fill me-1"></i>Terkonfigurasi</span>`;
+                } else if (isUnconfWithData) {
+                    cfgBadge = `<span class="badge bg-warning text-dark border border-warning rounded-pill font-monospace shadow-xs fw-bold cfg-status-badge" style="font-size:0.68rem;" title="Ada Data di API, tapi Layout Belum Dikonfigurasi"><i class="bi bi-magic me-1"></i>Belum Konfigurasi</span>`;
+                }
+            }
+
             let html = `
-                <li class="list-group-item matched py-3 d-flex justify-content-between align-items-center" data-status="${info.status}" data-source="${srcType}" data-tnum="${item.nomor_tabel}" id="matched_row_${cleanId}">
+                <li class="list-group-item matched py-3 d-flex justify-content-between align-items-center" data-status="${info.status}" data-source="${srcType}" data-has-config="${hasCfg}" data-unconf-data="${isUnconfWithData ? 1 : 0}" data-tnum="${item.nomor_tabel}" id="matched_row_${cleanId}">
                     <div class="pe-3">
                         <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                             <span class="badge bg-secondary mb-0 fw-bold">Tabel ${item.nomor_tabel}</span>
                             ${srcBadge}
+                            ${cfgBadge}
                             <div id="badge_${cleanId}" class="d-inline-block badge-container"></div>
                         </div>
                         <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.9rem;">${item.judul_db}</h6>
@@ -583,14 +636,38 @@
         let badgeHtml = '';
         let btnHtml = '';
         let isDyn = (item.source_type === 'dinamis' || parseInt(item.is_dynamic || 0) === 1);
+        let hasCfg = parseInt(item.has_config || 0);
         let dynLinkBtn = (isDyn && item.id_db)
             ? `<a href="<?= base_url('admin/view_tabel_dinamis') ?>/${item.id_db}" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 shadow-xs" title="Buka & Edit Isi Tabel Dinamis" style="font-size:0.75rem;"><i class="bi bi-pencil-square"></i></a>`
             : '';
+
+        let apiBtns = '';
+        if (!isDyn) {
+            let portalLink = (item.link_tabel || '').trim();
+            let base = '<?= rtrim(base_url(), '/') ?>';
+            let cleanLink = portalLink.replace(/^\/+/, '').replace(/^index\.php\//, '');
+            let portalUrl = portalLink.startsWith('http') ? portalLink : (base + '/admin/' + cleanLink.replace(/^admin\//, ''));
+            if (item.id_db) {
+                portalUrl += (portalUrl.includes('?') ? '&' : '?') + 'table_id=' + item.id_db;
+            }
+            let safeTnum = (item.nomor_tabel || '').replace(/'/g, "\\'");
+            let unconfWithData = ['2.4.3', '4.2.4', '4.2.20', '4.2.33', '4.3.12', '4.3.13', '4.3.14', '4.5.11', '4.6.9', '5.1.6', '10.3.21'];
+            let isUnconfWithData = (hasCfg === 0 && unconfWithData.includes(item.nomor_tabel));
+            let autoLayoutBtn = '';
+            if (hasCfg === 1) {
+                autoLayoutBtn = `<button onclick="openAutoLayoutModal('${safeTnum}', ${item.id_db || 0})" class="btn btn-xs btn-outline-info rounded-pill px-2 py-1 shadow-xs" title="Lihat / Sesuaikan Layout Kolom API" style="font-size:0.75rem;"><i class="bi bi-sliders me-1"></i>Layout</button>`;
+            } else if (isUnconfWithData) {
+                autoLayoutBtn = `<button onclick="openAutoLayoutModal('${safeTnum}', ${item.id_db || 0})" class="btn btn-xs btn-warning text-dark fw-bold rounded-pill px-2 py-1 shadow-xs" title="⚡ Auto-Layout: Format kolom & pivot otomatis sesuai standar PDF" style="font-size:0.75rem;"><i class="bi bi-magic me-1"></i>Auto-Layout</button>`;
+            }
+            let openPortalBtn = `<a href="${portalUrl}" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 shadow-xs" title="Buka Halaman View Portal Tabel" style="font-size:0.75rem;"><i class="bi bi-box-arrow-up-right"></i></a>`;
+            apiBtns = `${autoLayoutBtn} ${openPortalBtn}`;
+        }
 
         if (status === 'match') {
             badgeHtml = `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-check-circle-fill me-1"></i>Cocok 100% (${info.match_count ? info.match_count + ' Data' : 'OK'})</span>`;
             btnHtml = `
                 ${dynLinkBtn}
+                ${apiBtns}
                 <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 shadow-xs" title="Unduh Laporan Validasi Data Excel (.xlsx)" style="font-size:0.75rem;">
                     <i class="bi bi-file-earmark-excel"></i>
                 </a>
@@ -604,6 +681,7 @@
             badgeHtml = `<span class="badge bg-danger text-white px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-exclamation-octagon-fill me-1"></i>${diffLabel}${matchText}</span>`;
             btnHtml = `
                 ${dynLinkBtn}
+                ${apiBtns}
                 <a href="<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(item.nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=0.0" target="_blank" class="btn btn-xs btn-outline-danger rounded-pill px-2 py-1 shadow-xs" title="Unduh Laporan Validasi Data Excel (.xlsx)" style="font-size:0.75rem;">
                     <i class="bi bi-file-earmark-excel"></i>
                 </a>
@@ -614,6 +692,7 @@
             badgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-database-slash me-1"></i>Data Kosong</span>`;
             btnHtml = `
                 ${dynLinkBtn}
+                ${apiBtns}
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm ${isDyn ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary fw-semibold'} px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="${isDyn ? 'Klik untuk tarik nilai otomatis dari PDF atau scan ulang tabel ini' : 'Klik untuk cek ulang tabel ini'}">
                     <i class="bi ${isDyn ? 'bi-magic' : 'bi-search'} me-1"></i> ${isDyn ? 'Isi / Detail' : 'Detail'}
                 </button>`;
@@ -660,9 +739,9 @@
         let srcFilter = window.currentSourceFilter || 'all';
 
         let stats = {
-            all: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0 },
-            dinamis: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0 },
-            api: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0 }
+            all: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0, unconfigured: 0 },
+            dinamis: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0, unconfigured: 0 },
+            api: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0, unconfigured: 0 }
         };
 
         window.currentMatchedTables.forEach(item => {
@@ -675,6 +754,13 @@
             let status = info ? info.status : 'unverified';
             if (status !== 'diff' && status !== 'match' && status !== 'api_empty' && status !== 'pdf_only') {
                 status = 'unverified';
+            }
+
+            let hasCfg = parseInt(item.has_config || 0);
+            let unconfWithData = ['2.4.3', '4.2.4', '4.2.20', '4.2.33', '4.3.12', '4.3.13', '4.3.14', '4.5.11', '4.6.9', '5.1.6', '10.3.21'];
+            if (srcType === 'api' && hasCfg === 0 && unconfWithData.includes(item.nomor_tabel)) {
+                stats.all.unconfigured++;
+                stats.api.unconfigured++;
             }
 
             stats.all.all++;
@@ -699,6 +785,12 @@
         $('#cntEmpty').text(activeStats.api_empty);
         $('#cntPdfOnly').text(activeStats.pdf_only || 0);
         $('#cntUnverified').text(activeStats.unverified);
+        $('#cntUnconfigured').text(activeStats.unconfigured || 0);
+        if (srcFilter === 'dinamis') {
+            $('#btnFilterUnconfigured').addClass('d-none');
+        } else {
+            $('#btnFilterUnconfigured').removeClass('d-none');
+        }
 
         // 3. Update Top Interactive KPI Cards
         $('#kpiTotalCard').text(activeStats.all);
@@ -867,6 +959,7 @@
         else if (type === 'diff') $(btn).removeClass('btn-outline-secondary').addClass('active btn-danger text-white');
         else if (type === 'match') $(btn).removeClass('btn-outline-secondary').addClass('active btn-success text-white');
         else if (type === 'api_empty') $(btn).removeClass('btn-outline-secondary').addClass('active btn-warning text-dark');
+        else if (type === 'unconfigured') $(btn).removeClass('btn-outline-secondary').addClass('active btn-warning text-dark');
         else if (type === 'pdf_only') $(btn).removeClass('btn-outline-secondary').addClass('active btn-dark text-white');
         else if (type === 'unverified') $(btn).removeClass('btn-outline-secondary').addClass('active btn-secondary text-white');
 
@@ -908,6 +1001,10 @@
             if (!matchesStatus) {
                 if (statusFilter === 'unverified') {
                     matchesStatus = (rowStatus !== 'match' && rowStatus !== 'diff' && rowStatus !== 'api_empty' && rowStatus !== 'pdf_only');
+                } else if (statusFilter === 'unconfigured') {
+                    let isUnconfData = parseInt($(this).attr('data-unconf-data') || 0);
+                    let rowSrc = $(this).attr('data-source') || '';
+                    matchesStatus = (rowSrc === 'api' && isUnconfData === 1);
                 } else {
                     matchesStatus = (rowStatus === statusFilter);
                 }
@@ -938,12 +1035,12 @@
 
         window.isBatchRunning = true;
         consecutiveStopCount = 0;
-        $('#btnBatchVerify, #btnBatchVerifyDinamis').prop('disabled', true).addClass('opacity-50');
+        $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi').prop('disabled', true).addClass('opacity-50');
         $('#btnStopBatch').removeClass('d-none');
         $('#batchProgressBox').removeClass('d-none');
         $('#batchProgressPercent').text('0%');
         $('#batchProgressBar').css('width', '0%');
-        let labelMode = sourceFilter === 'dinamis' ? 'Tabel Dinamis' : 'Semua Tabel';
+        let labelMode = sourceFilter === 'dinamis' ? 'Tabel Dinamis' : (sourceFilter === 'api' ? 'API Satudata' : 'Semua Tabel');
         $('#batchProgressLabel').html(`<i class="bi bi-cpu-fill text-primary me-1"></i> Memulai validasi (${labelMode})...`);
 
         $.ajax({
@@ -1050,7 +1147,7 @@
     function finishBatch(isSuccess = true, completed = 0, total = 0) {
         window.isBatchRunning = false;
         if (batchPollTimer) clearTimeout(batchPollTimer);
-        $('#btnBatchVerify, #btnBatchVerifyDinamis').prop('disabled', false).removeClass('opacity-50');
+        $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi').prop('disabled', false).removeClass('opacity-50');
         $('#btnStopBatch').addClass('d-none');
 
         renderAllMatchedRows();
@@ -1109,7 +1206,7 @@
             let rowSec = ($(this).data('section') || '').toLowerCase();
 
             let matchType = (activeType === 'all') || (rowType === activeType);
-            let matchKw = !kw || rowWilayah.includes(kw) || rowMetric.includes(kw);
+            let matchKw = !kw || rowWilayah.includes(kw) || rowMetric.includes(kw) || rowSec.includes(kw);
             let matchSec = (sec === 'all') || (rowSec === sec);
 
             if (matchType && matchKw && matchSec) {
@@ -1464,11 +1561,12 @@
                         });
                     }
 
-                    // Collect categories / sections if any
+                    // Collect categories / sections if any (exclude page numbers like "Halaman 778")
+                    let cleanSecFn = s => (s || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').replace(/^(?:Tahun\s+)?(?:19|20)\d{2}(?:\s*[-–—]\s*(?:19|20)\d{2})?$/i, '').trim();
                     let sectionSet = new Set();
-                    if (res.diffs) res.diffs.forEach(d => { if (d.section) sectionSet.add(d.section); });
-                    if (res.matches) res.matches.forEach(m => { if (m.section) sectionSet.add(m.section); });
-                    if (res.pdf_only) res.pdf_only.forEach(p => { if (p.section) sectionSet.add(p.section); });
+                    if (res.diffs) res.diffs.forEach(d => { let cs = cleanSecFn(d.section); if (cs) sectionSet.add(cs); });
+                    if (res.matches) res.matches.forEach(m => { let cs = cleanSecFn(m.section); if (cs) sectionSet.add(cs); });
+                    if (res.pdf_only) res.pdf_only.forEach(p => { let cs = cleanSecFn(p.section); if (cs) sectionSet.add(cs); });
 
                     window.lastVerifyResult = res;
                     let firstPage = (res.pages && res.pages.length > 0) ? res.pages[0] : 1;
@@ -1610,13 +1708,21 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         </div>
                     `;
 
-                    // Info Alert if Multi-Year / Satudata / Google Sheets
+                    // Info Alert if Multi-Year / Karakteristik Ekstra di PDF
                     if (totalPdfOnly > 0) {
+                        let hasYearInPdfOnly = (res.pdf_only || []).some(p => /\b(19\d{2}|20\d{2})\b/.test(p.metric || ''));
+                        let extraColNames = Array.from(new Set((res.pdf_only || []).map(p => p.pdf_header || p.metric))).filter(Boolean).slice(0, 3).join(', ');
+
+                        let alertTitle = hasYearInPdfOnly ? 'Penyelarasan Multi-Tahun' : 'Pemisahan Karakteristik Ekstra PDF';
+                        let alertDesc = hasYearInPdfOnly
+                            ? `Sumber data (${res.source_type}) memuat data tahun terbaru (<strong>${res.target_year || '2025'}</strong>). Kolom tahun-tahun sebelumnya yang tercetak di buku PDF dipisahkan ke tab <em>'Cuma di PDF'</em> agar perbandingan tetap presisi dan tidak dianggap selisih data.`
+                            : `Cetakan buku PDF memuat kolom rincian tambahan ${extraColNames ? `(<strong>${extraColNames}</strong>)` : ''} yang tidak tersedia di endpoint database sumber (${res.source_type}). Kolom-kolom ini dipisahkan ke tab <em>'Cuma di PDF'</em> agar perbandingan kolom utama tetap presisi.`;
+
                         html += `
                             <div class="alert alert-info border-info-subtle py-2 px-3 mb-3 rounded-3 d-flex align-items-center shadow-xs" style="font-size: 0.82rem;">
                                 <i class="bi bi-info-circle-fill text-info fs-5 me-2 flex-shrink-0"></i>
                                 <div>
-                                    <strong>Penyelarasan Multi-Tahun:</strong> Sumber data (${res.source_type}) memuat data tahun terbaru (<strong>2025</strong>). Kolom tahun-tahun sebelumnya yang tercetak di buku PDF dipisahkan ke tab <em>'Khusus Cetakan PDF'</em> agar perbandingan tetap presisi dan tidak dianggap selisih data.
+                                    <strong>${alertTitle}:</strong> ${alertDesc}
                                 </div>
                             </div>
                         `;
@@ -1665,38 +1771,101 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         // 3. Card Comparison Container
                         html += `<div id="comparisonList" class="mb-3">`;
 
+                        // Helper Pembuat Jalur Kolom & Kolom Tingkat (Hierarki Bersih & Rapi)
+                        function buildColHierarchyHtml(item, targetYear) {
+                            let rawSec = (item.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').replace(/^(?:Tahun\s+)?(?:19|20)\d{2}(?:\s*[-–—]\s*(?:19|20)\d{2})?$/i, '').trim();
+                            let rawMetric = item.metric || '';
+                            let rawPdf = item.pdf_header || '';
+                            let rawSrc = item.src_header || '';
+
+                            // Deteksi tahun dari kolom / metrik
+                            let yearMatch = (rawMetric + ' ' + rawSrc + ' ' + rawPdf).match(/\b(19\d{2}|20\d{2})\b/);
+                            let year = yearMatch ? yearMatch[1] : (targetYear || '');
+
+                            // Bersihkan tahun dari nama kolom agar tidak dobel dengan baris TAHUN
+                            let stripYear = str => {
+                                if (!str) return '';
+                                let s = str.replace(/\s*\(\s*(?:19\d{2}|20\d{2})\s*\)\s*/g, ' ');
+                                s = s.replace(/^(?:19\d{2}|20\d{2})\s*[-–—:]*\s*/g, ' ');
+                                s = s.replace(/\s*[-–—:]*\s*(?:19\d{2}|20\d{2})$/g, ' ');
+                                return s.replace(/\s+/g, ' ').trim();
+                            };
+
+                            let cleanMetric = stripYear(rawMetric);
+                            let cleanPdf = stripYear(rawPdf);
+                            let cleanSrc = stripYear(rawSrc);
+
+                            // Filter kebocoran baris angka pada tabel multi-kolom
+                            let isRowDataLeak = str => (str && (str.match(/\d+[\.,]\d+/g) || []).length >= 2);
+                            if (isRowDataLeak(cleanPdf)) cleanPdf = '';
+                            if (isRowDataLeak(cleanMetric)) cleanMetric = '';
+
+                            let segments = [];
+                            if (rawSec) {
+                                let secParts = rawSec.split(/\s*(?:>|\/|\s[-–—]\s)\s*/).filter(Boolean);
+                                segments.push(...secParts);
+                            }
+
+                            // Pilih teks yang memuat struktur tingkat terbaik (misal 'Jenis Kelamin - Laki-Laki')
+                            let colText = '';
+                            if (cleanSrc && (cleanSrc.includes(' - ') || cleanSrc.includes(' > ') || cleanSrc.includes(' / '))) {
+                                colText = cleanSrc;
+                            } else if (cleanPdf && (cleanPdf.includes(' - ') || cleanPdf.includes(' > ') || cleanPdf.includes(' / '))) {
+                                colText = cleanPdf;
+                            } else if (cleanMetric && (cleanMetric.includes(' - ') || cleanMetric.includes(' > ') || cleanMetric.includes(' / '))) {
+                                colText = cleanMetric;
+                            } else {
+                                colText = cleanPdf || cleanMetric || cleanSrc || '-';
+                            }
+
+                            // Pecah hierarki tingkat berdasarkan separator resmi (' - ', ' > ', ' / ')
+                            // Catatan: '\s[-–—]\s' menjaga kata ulang seperti 'Laki-Laki' tetap utuh
+                            let colParts = colText.split(/\s*(?:>|\/|\s[-–—]\s)\s*/).map(p => p.trim()).filter(Boolean);
+                            if (colParts.length > 0) {
+                                if (segments.length > 0 && segments[segments.length - 1].toLowerCase() === colParts[0].toLowerCase()) {
+                                    colParts.shift();
+                                }
+                                segments.push(...colParts);
+                            }
+
+                            if (segments.length === 0) {
+                                segments = [stripYear(rawSrc) || rawSrc || 'Metrik'];
+                            }
+
+                            let leaf = segments.pop() || '';
+                            if (!leaf || leaf.toLowerCase() === 'tahun') {
+                                leaf = year ? year : (cleanMetric || rawSrc || 'Data');
+                            }
+
+                            let parentLevels = segments;
+                            if (parentLevels.length > 0) {
+                                return `<span class="text-secondary">${parentLevels.join(' <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i> ')} <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">${leaf}</strong>`;
+                            } else {
+                                return `<strong class="text-dark">${leaf}</strong>`;
+                            }
+                        }
+
                         // Render Diffs (Default Active)
                         if (res.diffs && res.diffs.length > 0) {
                             res.diffs.forEach(d => {
                                 let absDiff = formatAngkaDisplay(Math.abs((d.pdf_val || 0) - (d.src_val || 0)));
 
                                 // 1. Ekstraksi Tahun
-                                let yearMatch = (d.metric || '').match(/\b(20\d{2})\b/);
+                                let yearMatch = (d.metric || '').match(/\b(19\d{2}|20\d{2})\b/) ||
+                                                (d.src_header || '').match(/\b(19\d{2}|20\d{2})\b/) ||
+                                                (d.pdf_header || '').match(/\b(19\d{2}|20\d{2})\b/);
                                 let yearText = yearMatch ? yearMatch[1] : (res.target_year || '-');
 
-                                // 2. Ekstraksi Nama Metrik Bersih (tanpa tahun)
-                                let cleanMetric = (d.metric || '').replace(/\s*\(\s*20\d{2}\s*\)\s*/g, '').trim();
-                                if (!cleanMetric) cleanMetric = d.metric || '-';
+                                // 2. Bangun Kolom & Kolom Tingkat Bersih
+                                let colHierarchyHtml = buildColHierarchyHtml(d, res.target_year);
+                                let cleanSection = (d.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').trim();
 
-                                // 3. Bangun Jalur Kolom Bertingkat (Support 1, 2, 3, 4 Tingkat)
-                                let colHierarchyHtml = '';
-                                if (d.section) {
-                                    let parts = d.section.split(/\s*(?:>|\/)\s*/).filter(p => p.trim());
-                                    if (parts.length > 1) {
-                                        colHierarchyHtml = `<span class="text-secondary">${parts.join(' <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i> ')} <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">${cleanMetric}</strong>`;
-                                    } else {
-                                        colHierarchyHtml = `<span class="text-secondary">${d.section} <i class="bi bi-chevron-right text-muted mx-1" style="font-size:0.75rem;"></i></span><strong class="text-dark">${cleanMetric}</strong>`;
-                                    }
-                                } else {
-                                    colHierarchyHtml = `<strong class="text-dark">${cleanMetric}</strong>`;
-                                }
-
-                                // 4. Halaman PDF Info
+                                // 3. Halaman PDF Info
                                 let pageInfo = d.pages ? (Array.isArray(d.pages) ? d.pages.join(', ') : d.pages) : (d.page || (res.target_pages ? (Array.isArray(res.target_pages) ? res.target_pages.join(', ') : res.target_pages) : ''));
                                 let pageBadge = pageInfo ? `<span class="text-muted small" style="font-size:0.75rem;"><i class="bi bi-book me-1"></i>Hal. ${pageInfo}</span>` : '';
 
                                 html += `
-                                    <div class="card mb-3 border border-danger-subtle shadow-xs item-row diff-card" data-type="diff" style="border-left: 4px solid #ef4444 !important;" data-wilayah="${d.wilayah.toLowerCase()}" data-metric="${d.metric.toLowerCase()}" data-section="${(d.section || '').toLowerCase()}">
+                                    <div class="card mb-3 border border-danger-subtle shadow-xs item-row diff-card" data-type="diff" style="border-left: 4px solid #ef4444 !important;" data-wilayah="${d.wilayah.toLowerCase()}" data-metric="${(d.metric + ' ' + (d.src_header || '') + ' ' + (d.pdf_header || '') + ' ' + yearText).toLowerCase()}" data-section="${cleanSection.toLowerCase()}">
                                         <div class="card-body p-0">
                                             <!-- 1. FULL WIDTH MODE (Opsi 2: Matrix Coordinates - Lega, Elegan & On-Point) -->
                                             <div class="diff-full-layout">
@@ -1798,7 +1967,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                                                             <i class="bi bi-geo-alt-fill me-1"></i>${d.wilayah}
                                                         </span>
                                                         <span class="text-secondary fw-semibold small">${colHierarchyHtml}</span>
-                                                        ${yearText !== '-' ? `<span class="badge bg-light text-primary border fw-bold">${yearText}</span>` : ''}
+                                                        ${yearText !== '-' && !colHierarchyHtml.includes(yearText) ? `<span class="badge bg-light text-primary border fw-bold">${yearText}</span>` : ''}
                                                     </div>
                                                     <span class="badge bg-danger text-white px-3 py-1 rounded-pill fw-bold shadow-xs">
                                                         <i class="bi bi-exclamation-octagon-fill me-1"></i> Selisih: ${absDiff}
@@ -1855,16 +2024,23 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         if (res.matches && res.matches.length > 0) {
                             let defaultDisplay = totalDiffs > 0 ? 'display: none;' : '';
                             res.matches.forEach(m => {
+                                let colHierarchyHtml = buildColHierarchyHtml(m, res.target_year);
+                                let yearMatch = (m.metric || '').match(/\b(19\d{2}|20\d{2})\b/) ||
+                                                (m.pdf_header || '').match(/\b(19\d{2}|20\d{2})\b/) ||
+                                                (m.src_header || '').match(/\b(19\d{2}|20\d{2})\b/);
+                                let yearText = yearMatch ? yearMatch[1] : (res.target_year || '-');
+                                let cleanSection = (m.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').trim();
+
                                 html += `
-                                    <div class="card mb-2 border border-success-subtle shadow-xs item-row" data-type="match" style="${defaultDisplay} border-left: 4px solid #10b981 !important;" data-wilayah="${m.wilayah.toLowerCase()}" data-metric="${m.metric.toLowerCase()}" data-section="${(m.section || '').toLowerCase()}">
+                                    <div class="card mb-2 border border-success-subtle shadow-xs item-row" data-type="match" style="${defaultDisplay} border-left: 4px solid #10b981 !important;" data-wilayah="${m.wilayah.toLowerCase()}" data-metric="${(m.metric + ' ' + (m.src_header || '') + ' ' + (m.pdf_header || '') + ' ' + yearText).toLowerCase()}" data-section="${cleanSection.toLowerCase()}">
                                         <div class="card-body p-2-5 px-3">
                                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                                                 <div class="d-flex align-items-center flex-wrap gap-1">
                                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold">
                                                         <i class="bi bi-geo-alt me-1"></i>${m.wilayah}
                                                     </span>
-                                                    ${m.section ? `<span class="badge rounded-pill small fw-semibold" style="background:#f3e8ff; color:#7e22ce; border:1px solid #d8b4fe;"><i class="bi bi-tag me-1"></i>${m.section}</span>` : ''}
-                                                    <span class="fw-bold text-dark ms-1 small">${m.metric}</span>
+                                                    <span class="text-secondary small fw-medium ms-1">${colHierarchyHtml}</span>
+                                                    ${yearText !== '-' && !colHierarchyHtml.includes(yearText) ? `<span class="badge bg-light text-secondary border small">${yearText}</span>` : ''}
                                                 </div>
                                                 <span class="badge ${m.is_tolerance_match ? 'bg-info text-white' : 'bg-success text-white'} px-3 py-1 rounded-pill fw-bold shadow-xs">
                                                     <i class="bi ${m.is_tolerance_match ? 'bi-sliders' : 'bi-check-circle-fill'} me-1"></i> ${m.is_tolerance_match ? 'Cocok (Toleransi ' + (m.tolerance_diff > 0 ? '+' : '') + m.tolerance_diff + ')' : 'Sama Persis (Cocok)'}
@@ -1890,16 +2066,23 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         // Render PDF Only (Hidden by default)
                         if (res.pdf_only && res.pdf_only.length > 0) {
                             res.pdf_only.forEach(p => {
+                                let colHierarchyHtml = buildColHierarchyHtml(p, res.target_year);
+                                let yearMatch = (p.metric || '').match(/\b(19\d{2}|20\d{2})\b/) ||
+                                                (p.pdf_header || '').match(/\b(19\d{2}|20\d{2})\b/);
+                                let yearText = yearMatch ? yearMatch[1] : (res.target_year || '-');
+                                let cleanSection = (p.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').trim();
+
+                                let valList = ((p.values && p.values.length > 0) ? p.values : [p.val || 0]);
                                 html += `
-                                    <div class="card mb-2 border border-warning-subtle shadow-xs item-row" data-type="pdf_only" style="display: none; border-left: 4px solid #f59e0b !important;" data-wilayah="${p.wilayah.toLowerCase()}" data-metric="${p.metric.toLowerCase()}" data-section="${(p.section || '').toLowerCase()}">
+                                    <div class="card mb-2 border border-warning-subtle shadow-xs item-row" data-type="pdf_only" style="display: none; border-left: 4px solid #f59e0b !important;" data-wilayah="${p.wilayah.toLowerCase()}" data-metric="${(p.metric + ' ' + (p.pdf_header || '') + ' ' + yearText).toLowerCase()}" data-section="${cleanSection.toLowerCase()}">
                                         <div class="card-body p-2-5 px-3">
                                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                                                 <div class="d-flex align-items-center flex-wrap gap-1">
                                                     <span class="badge bg-secondary-subtle text-dark border px-2 py-1 fw-bold">
                                                         <i class="bi bi-geo-alt me-1"></i>${p.wilayah}
                                                     </span>
-                                                    ${p.section ? `<span class="badge rounded-pill small bg-light text-secondary border">${p.section}</span>` : ''}
-                                                    <span class="fw-bold text-dark ms-1 small">${p.metric}</span>
+                                                    <span class="text-secondary small fw-medium ms-1">${colHierarchyHtml}</span>
+                                                    ${yearText !== '-' && !colHierarchyHtml.includes(yearText) ? `<span class="badge bg-light text-secondary border small">${yearText}</span>` : ''}
                                                 </div>
                                                 <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-1 rounded-pill small fw-bold">
                                                     <i class="bi bi-journal-bookmark me-1"></i> Cuma Ada di Cetakan PDF
@@ -1907,7 +2090,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                                             </div>
                                             <div class="p-2 rounded-2 bg-warning-subtle border border-warning-subtle text-center">
                                                 <span class="small text-warning-emphasis fw-bold me-2"><i class="bi bi-journal-bookmark me-1"></i>Nilai di Buku PDF:</span>
-                                                <span class="font-monospace fw-bold text-dark fs-6">${p.values.map(v => formatAngkaDisplay(v)).join(' | ')}</span>
+                                                <span class="font-monospace fw-bold text-dark fs-6">${valList.map(v => formatAngkaDisplay(v)).join(' | ')}</span>
                                             </div>
                                             ${p.note ? `<div class="text-muted small mt-1" style="font-size:0.78rem;">${p.note}</div>` : ''}
                                         </div>
@@ -2099,4 +2282,351 @@ ${getPdfSplitPaneHtml(pagesLabel)}
             }
         }
     });
+
+
+    // =========================================================================
+    // MODAL AUTO-LAYOUT API SATUDATA (CEK MANUAL & AUTO-CONFIG DARI PDF)
+    // =========================================================================
+    let currentAutoLayoutData = null;
+
+    function openAutoLayoutModal(nomor_tabel, id_db) {
+        let modalEl = document.getElementById('modalAutoLayoutApi');
+        let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+
+        $('#autoLayoutTableNum').text('Tabel ' + nomor_tabel);
+        $('#autoLayoutTableTitle').text('Memuat Konfigurasi...');
+        $('#autoLayoutTableSubtitle').text('Sedang memindai struktur API dari Satu Data Jawa Tengah...');
+        $('#btnSaveAutoLayout').prop('disabled', true);
+        $('#btnPreviewAutoLayout').prop('disabled', true);
+
+        $('#autoLayoutModalBody').html(`
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" style="width:2.5rem; height:2.5rem;" role="status"></div>
+                <h6 class="text-dark fw-bold mb-1">Menganalisa Struktur API Tabel ${nomor_tabel}...</h6>
+                <p class="text-muted small">Menghubungi server Satu Data Jateng dan merakit layout standar cetakan PDF.</p>
+            </div>
+        `);
+
+        modal.show();
+
+        $.ajax({
+            url: "<?= base_url('admin/get_auto_layout_config') ?>",
+            type: "POST",
+            data: {
+                nomor_tabel: nomor_tabel,
+                id_db: id_db || 0,
+                ta: activeYear
+            },
+            dataType: "json",
+            success: function(res) {
+                if (res.status === 'success') {
+                    currentAutoLayoutData = res;
+                    $('#autoLayoutTableTitle').text(res.judul_tabel);
+                    $('#autoLayoutTableSubtitle').html(`Total <strong>${res.total_api_rows} baris data</strong> ditemukan di API. Kolom metadata otomatis disembunyikan dan kolom wilayah/metrik siap ditata.`);
+                    let isPivot = res.config && res.config.pivot && res.config.pivot.enabled;
+                    $('#autoLayoutTypeBadge').text(isPivot ? 'Format Pivot Waktu' : 'Format Wilayah (35 Kab/Kota)');
+                    $('#btnSaveAutoLayout').prop('disabled', false);
+                    $('#btnPreviewAutoLayout').prop('disabled', false);
+                    renderAutoLayoutForm(res);
+                } else if (res.status === 'empty') {
+                    $('#autoLayoutTableTitle').text(res.judul_tabel || ('Tabel ' + nomor_tabel));
+                    $('#autoLayoutTableSubtitle').text('Status API: Data Kosong');
+                    $('#autoLayoutTypeBadge').text('API Kosong');
+                    $('#btnSaveAutoLayout').prop('disabled', true);
+                    $('#btnPreviewAutoLayout').prop('disabled', true);
+                    $('#autoLayoutModalBody').html(`
+                        <div class="text-center py-4">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-warning-subtle text-warning rounded-circle mb-3 shadow-xs" style="width: 64px; height: 64px;">
+                                <i class="bi bi-database-slash" style="font-size: 2rem;"></i>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1">Data Kosong dari Server API</h5>
+                            <p class="text-muted small mx-auto mb-3" style="max-width: 480px;">
+                                ${res.message || 'API Satu Data mengembalikan 0 baris data dari dinas terkait. Konfigurasi belum dapat dirakit karena kolom dan datanya belum tersedia di server provinsi.'}
+                            </p>
+                            <a href="<?= base_url('admin/view_portal_tabel') ?>?id=${res.id_api || ''}&table_id=${res.id_db || ''}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Buka Endpoint Portal
+                            </a>
+                        </div>
+                    `);
+                } else {
+                    alert("Gagal memuat layout: " + (res.message || 'Terjadi kesalahan'));
+                    modal.hide();
+                }
+            },
+            error: function() {
+                alert("Gagal menghubungi server saat mengambil konfigurasi otomatis.");
+                modal.hide();
+            }
+        });
+    }
+
+    function renderAutoLayoutForm(res) {
+        let cols = res.config.columns || [];
+        let rowsHtml = '';
+        cols.forEach(c => {
+            let isHide = !c.visible;
+            rowsHtml += `
+                <tr class="align-middle ${isHide ? 'opacity-75 bg-light' : ''}" id="col_row_${c.key}">
+                    <td class="text-center" style="width: 45px;">
+                        <input type="checkbox" class="form-check-input col-vis-toggle" data-key="${c.key}" ${c.visible ? 'checked' : ''} onchange="toggleColVis('${c.key}', this)">
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-1 mb-1">
+                            <span class="font-monospace text-primary fw-bold" style="font-size: 0.75rem;">${c.key}</span>
+                            ${isHide ? '<span class="badge bg-secondary-subtle text-secondary py-0 px-1 font-monospace" style="font-size:0.62rem;">Hidden</span>' : ''}
+                        </div>
+                        <input type="text" class="form-control form-control-sm py-1 px-2 col-label-input shadow-none mb-1" data-key="${c.key}" value="${escapeHtml(c.label_id || c.key)}" placeholder="Label ID (Gunakan || utk bertingkat)" style="font-size: 0.78rem;" oninput="refreshAutoLayoutPreview()">
+                        <input type="text" class="form-control form-control-sm py-1 px-2 col-label-en-input shadow-none" data-key="${c.key}" value="${escapeHtml(c.label_en || '')}" placeholder="Label EN (Gunakan || utk bertingkat)" style="font-size: 0.75rem; font-style: italic;" oninput="refreshAutoLayoutPreview()">
+                    </td>
+                    <td style="width: 95px;">
+                        <select class="form-select form-select-sm py-1 px-2 col-format-select" data-key="${c.key}" style="font-size: 0.75rem;">
+                            <option value="number" ${c.format === 'number' ? 'selected' : ''}>Angka</option>
+                            <option value="text" ${c.format === 'text' ? 'selected' : ''}>Teks</option>
+                        </select>
+                    </td>
+                </tr>
+            `;
+        });
+
+        let bodyHtml = `
+            <div class="row g-3">
+                <div class="col-lg-5">
+                    <div class="card border bg-light bg-opacity-50 rounded-4 p-3 shadow-xs h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-layout-three-columns me-1 text-primary"></i> Penataan Kolom & Hierarki</h6>
+                            <span class="badge bg-white text-secondary border rounded-pill small">${cols.length} Kolom</span>
+                        </div>
+                        <p class="text-muted small mb-2" style="font-size: 0.73rem;">
+                            Centang kolom untuk ditampilkan. Gunakan <code class="text-danger fw-bold">||</code> untuk membuat kolom bertingkat (contoh: <em>Milik Pemerintah || Kemenkes || Jumlah</em>).
+                        </p>
+                        <div class="table-responsive border bg-white rounded-3 flex-grow-1" style="max-height: 420px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width: 45px;" class="text-center">Tampil</th>
+                                        <th>Label ID & EN (Grup || Kolom)</th>
+                                        <th style="width: 95px;">Format</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="card border rounded-4 p-3 shadow-xs h-100 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-table me-1 text-success"></i> Live Preview Tabel Bertingkat</h6>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace" style="font-size: 0.72rem;"><i class="bi bi-check2-circle me-1"></i>Sesuai Layout Cetak</span>
+                        </div>
+                        <div class="table-responsive bg-white rounded-3 border flex-grow-1" style="max-height: 420px; overflow: auto;" id="autoLayoutPreviewContainer">
+                            <!-- Preview injected -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        $('#autoLayoutModalBody').html(bodyHtml);
+        refreshAutoLayoutPreview();
+    }
+
+    function toggleColVis(key, checkbox) {
+        let isChecked = $(checkbox).is(':checked');
+        let $row = $(`#col_row_${key}`);
+        if (isChecked) {
+            $row.removeClass('opacity-75 bg-light');
+        } else {
+            $row.addClass('opacity-75 bg-light');
+        }
+        refreshAutoLayoutPreview();
+    }
+
+    function getActiveAutoLayoutConfig() {
+        if (!currentAutoLayoutData || !currentAutoLayoutData.config) return null;
+        let config = JSON.parse(JSON.stringify(currentAutoLayoutData.config));
+        
+        // Read form inputs
+        config.columns.forEach(c => {
+            let $vis = $(`.col-vis-toggle[data-key="${c.key}"]`);
+            let $lbl = $(`.col-label-input[data-key="${c.key}"]`);
+            let $lblEn = $(`.col-label-en-input[data-key="${c.key}"]`);
+            let $fmt = $(`.col-format-select[data-key="${c.key}"]`);
+            if ($vis.length) c.visible = $vis.is(':checked');
+            if ($lbl.length) c.label_id = $lbl.val().trim() || c.key;
+            if ($lblEn.length) c.label_en = $lblEn.val().trim();
+            if ($fmt.length) c.format = $fmt.val();
+        });
+        return config;
+    }
+
+    function refreshAutoLayoutPreview() {
+        let config = getActiveAutoLayoutConfig();
+        if (!config || !currentAutoLayoutData) return;
+
+        let visibleCols = (config.columns || []).filter(c => c.visible);
+        let previewRows = currentAutoLayoutData.preview_rows || [];
+
+        if (visibleCols.length === 0) {
+            $('#autoLayoutPreviewContainer').html('<div class="p-4 text-center text-muted small">Semua kolom disembunyikan. Silakan centang minimal 1 kolom di sebelah kiri.</div>');
+            return;
+        }
+
+        // Multi-level Header Tree parser
+        const tree = [];
+        visibleCols.forEach(col => {
+            const idParts = (col.label_id || col.key).split(' || ');
+            const enParts = (col.label_en || '').split(' || ');
+            let currentNode = tree;
+            idParts.forEach((part, depth) => {
+                let node = currentNode.find(n => n.label === part);
+                if (!node) {
+                    node = {
+                        label: part,
+                        label_en: enParts[depth] || '',
+                        children: [],
+                        depth: depth,
+                        key: col.key
+                    };
+                    currentNode.push(node);
+                }
+                currentNode = node.children;
+            });
+        });
+
+        const getMaxDepth = (nodes) => Math.max(0, ...nodes.map(n => n.children.length > 0 ? 1 + getMaxDepth(n.children) : 1));
+        const maxHeaderRows = getMaxDepth(tree) || 1;
+
+        const calculateColspan = (node) => {
+            if (node.children.length === 0) return 1;
+            node.colspan = node.children.reduce((sum, child) => sum + calculateColspan(child), 0);
+            return node.colspan;
+        };
+        tree.forEach(calculateColspan);
+
+        const headerRows = Array.from({ length: maxHeaderRows }, () => []);
+        const fillHeaderRows = (nodes, currentRow) => {
+            nodes.forEach(node => {
+                if (node.children.length > 0) {
+                    headerRows[currentRow].push({
+                        label: node.label,
+                        label_en: node.label_en,
+                        colspan: node.colspan,
+                        rowspan: 1
+                    });
+                    fillHeaderRows(node.children, currentRow + 1);
+                } else {
+                    headerRows[currentRow].push({
+                        label: node.label,
+                        label_en: node.label_en,
+                        colspan: 1,
+                        rowspan: maxHeaderRows - currentRow
+                    });
+                }
+            });
+        };
+        fillHeaderRows(tree, 0);
+
+        let theadHtml = '';
+        headerRows.forEach((rowCells) => {
+            let trTh = rowCells.map(cell => {
+                let isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || '').trim().toLowerCase();
+                let enHtml = isEnDiff ? `<br><i class="fw-normal text-light opacity-75" style="font-size:0.75rem;">${escapeHtml(cell.label_en)}</i>` : '';
+                return `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" class="bg-primary text-white text-center py-2 px-3 fw-semibold small text-nowrap" style="border: 1px solid rgba(255,255,255,0.25); vertical-align:middle;">${escapeHtml(cell.label)}${enHtml}</th>`;
+            }).join('');
+            theadHtml += `<tr>${trTh}</tr>`;
+        });
+
+        let trHtml = '';
+        if (previewRows.length === 0) {
+            trHtml = `<tr><td colspan="${visibleCols.length}" class="text-center text-muted py-4">Data API kosong</td></tr>`;
+        } else {
+            previewRows.forEach((r, idx) => {
+                let tds = visibleCols.map(c => {
+                    let rawVal = r[c.key];
+                    let displayVal = rawVal !== null && rawVal !== undefined ? rawVal : '-';
+                    if (c.format === 'number' && typeof rawVal === 'number') {
+                        displayVal = rawVal.toLocaleString('id-ID');
+                    }
+                    let isRegion = c.key.toLowerCase().includes('wilayah') || c.key.toLowerCase().includes('kabupaten');
+                    return `<td class="${isRegion ? 'fw-bold text-dark' : 'text-end font-monospace'} text-nowrap px-3 py-2 small">${escapeHtml(String(displayVal))}</td>`;
+                }).join('');
+                trHtml += `<tr class="${idx % 2 === 1 ? 'bg-light bg-opacity-25' : ''}">${tds}</tr>`;
+            });
+        }
+
+        let tableHtml = `
+            <table class="table table-sm table-bordered table-hover mb-0" style="font-size: 0.8rem;">
+                <thead class="sticky-top">
+                    ${theadHtml}
+                </thead>
+                <tbody>
+                    ${trHtml}
+                </tbody>
+            </table>
+        `;
+        $('#autoLayoutPreviewContainer').html(tableHtml);
+    }
+
+    function saveAutoLayoutConfig() {
+        let config = getActiveAutoLayoutConfig();
+        if (!config || !currentAutoLayoutData) return;
+
+        let $btn = $('#btnSaveAutoLayout');
+        let origHtml = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
+
+        $.ajax({
+            url: "<?= base_url('admin/simpan_config_tabel') ?>",
+            type: "POST",
+            data: {
+                id: currentAutoLayoutData.id_db,
+                config: JSON.stringify(config)
+            },
+            dataType: "json",
+            success: function(res) {
+                $btn.prop('disabled', false).html(origHtml);
+                if (res.status === 'success') {
+                    // Update current item in window.currentMatchedTables
+                    let tItem = window.currentMatchedTables ? window.currentMatchedTables.find(t => t.nomor_tabel === currentAutoLayoutData.nomor_tabel) : null;
+                    if (tItem) {
+                        tItem.has_config = 1;
+                        tItem.config_tabel = JSON.stringify(config);
+                        
+                        let cleanId = getSafeId(tItem.nomor_tabel);
+                        let $row = $(`#matched_row_${cleanId}`);
+                        $row.attr('data-has-config', '1');
+                        
+                        // Update badge directly in DOM
+                        $row.find('.cfg-status-badge').replaceWith(`
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill font-monospace shadow-xs cfg-status-badge" style="font-size:0.68rem;" title="Layout Tabel Sudah Dikonfigurasi"><i class="bi bi-check-circle-fill me-1"></i>Terkonfigurasi</span>
+                        `);
+                        
+                        renderRowBadge(tItem, window.batchStatusMap[tItem.nomor_tabel]);
+                        updateBatchCounters();
+                        applyMatchedFilters();
+                    }
+
+                    // Hide modal
+                    let modal = bootstrap.Modal.getInstance(document.getElementById('modalAutoLayoutApi'));
+                    if (modal) modal.hide();
+
+                    // Trigger instant verify to update accuracy and match status
+                    verify_tabel(currentAutoLayoutData.nomor_tabel);
+                } else {
+                    alert("Gagal menyimpan konfigurasi: " + (res.message || "Terjadi kesalahan"));
+                }
+            },
+            error: function() {
+                $btn.prop('disabled', false).html(origHtml);
+                alert("Gagal menghubungi server saat menyimpan konfigurasi.");
+            }
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
 </script>

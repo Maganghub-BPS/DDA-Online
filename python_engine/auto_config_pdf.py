@@ -519,9 +519,166 @@ def extract_table_structure_from_pdf(pdf_path, pages):
         "desimal": max_detected_decimals,
     }
 
+def _clean_token_set(text):
+    text = text.lower().replace('-', ' ').replace('_', ' ').replace('||', ' ').replace('/', ' ')
+    text = text.replace('kabupatenkota', 'kabupaten kota')
+    text = text.replace('kabkota', 'kabupaten kota')
+    text = text.replace('lakilaki', 'laki laki')
+    text = text.replace('pria', 'laki laki')
+    text = text.replace('wanita', 'perempuan')
+    text = text.replace('rs', 'rumah sakit')
+    text = text.replace('kementrian', 'kementerian')
+    return set(re.findall(r'\b[a-z0-9]+\b', text))
+
+def map_api_columns_to_pdf(pdf_path, pages, api_columns, target_year=None):
+    pdf_res = extract_table_structure_from_pdf(pdf_path, pages)
+    if not pdf_res or pdf_res.get("status") != "success" or not pdf_res.get("karakteristik"):
+        return None
+
+    kar = pdf_res["karakteristik"]
+    row_hdr = pdf_res.get("row_header", {"ind": "Kabupaten/Kota", "en": "Regency/Municipality"})
+
+    ignore_keys = ["id", "tahun", "tahun_data", "year", "periode", "kode_wilayah", "kode_kabupatenkota", "kode_bps", "kode_kemendagri", "urutan"]
+    
+    row_hdr_ind = row_hdr.get("ind", "Kabupaten/Kota")
+    row_hdr_en = row_hdr.get("en", "Regency/Municipality")
+    row_hdr_tokens = _clean_token_set(row_hdr_ind) | _clean_token_set(row_hdr_en)
+
+    mapped = []
+    metric_cols = []
+    row_col_assigned = False
+
+    for ac in api_columns:
+        low = ac.lower()
+        if low in ignore_keys:
+            mapped.append({
+                "key": ac,
+                "label_id": ac,
+                "label_en": "",
+                "visible": False,
+                "format": "number"
+            })
+            continue
+
+        ac_tokens = _clean_token_set(ac)
+        is_region = any(rw in ac_tokens for rw in ["wilayah", "kabupaten", "kota", "kabkota"])
+        is_row_header_match = bool(ac_tokens.intersection(row_hdr_tokens))
+        is_metric_prefix = any(low.startswith(pfx) for pfx in ["jumlah", "nilai", "total", "banyak", "luas", "produksi", "persen", "angka", "kasus"])
+
+        # Identifikasi kolom dimensi baris (kategori pertama / row header)
+        if not row_col_assigned and (is_region or is_row_header_match or not is_metric_prefix):
+            mapped.append({
+                "key": ac,
+                "label_id": row_hdr_ind,
+                "label_en": row_hdr_en,
+                "visible": True,
+                "format": "text"
+            })
+            row_col_assigned = True
+        else:
+            metric_cols.append(ac)
+
+    # Filter tahun pada karakteristik jika di PDF terdapat banyak tahun (contoh 2024 & 2025 di halaman terpisah)
+    years_in_kar = sorted(list(set(re.findall(r'\b(20\d\d)\b', " ".join(k["item_ind"] for k in kar)))))
+    if len(years_in_kar) > 1 and len(metric_cols) <= len(kar) // len(years_in_kar) + 1:
+        chosen_year = target_year if target_year in years_in_kar else years_in_kar[-1]
+        filtered_kar = [k for k in kar if chosen_year in k["item_ind"]]
+        if len(filtered_kar) >= len(metric_cols):
+            kar = filtered_kar
+
+    used_k_indices = set()
+    for m_idx, ac in enumerate(metric_cols):
+        ac_tokens = _clean_token_set(ac)
+        has_tt_ac = "tempat tidur" in " ".join(ac_tokens) or "tidur" in ac_tokens
+
+        best_k = None
+        best_score = -999
+        best_k_idx = -1
+
+        for k_idx, k in enumerate(kar):
+            if k_idx in used_k_indices:
+                continue
+            k_ind = k["item_ind"].replace("kementrian", "kementerian").lower()
+            k_tokens = _clean_token_set(k_ind)
+            has_tt_k = "tempat tidur" in k_ind
+            if has_tt_ac != has_tt_k:
+                continue
+
+            overlap = len(ac_tokens.intersection(k_tokens)) * 5
+
+            # Keyword specific weighting
+            if "laki" in ac_tokens and "laki" in k_tokens:
+                overlap += 12
+            if "perempuan" in ac_tokens and "perempuan" in k_tokens:
+                overlap += 12
+            if "jumlah" in ac_tokens and "jumlah" in k_tokens and "laki" not in ac_tokens and "perempuan" not in ac_tokens:
+                overlap += 12
+
+            for kw in ["swasta", "provinsi", "polri", "kabupaten", "lain"]:
+                if (kw in ac_tokens) != (kw in k_tokens):
+                    overlap -= 15
+
+            if ("total" in ac_tokens) != ("total" in k_tokens or "jumlah" in k_ind):
+                overlap -= 5
+
+            if "sub" not in ac_tokens and "sub" in k_tokens:
+                overlap -= 15
+
+            if len(metric_cols) > 0 and len(kar) > 0:
+                rel_pos_diff = abs((m_idx / len(metric_cols)) - (k_idx / len(kar)))
+                overlap -= rel_pos_diff * 3
+
+            if overlap > best_score:
+                best_score = overlap
+                best_k = k
+                best_k_idx = k_idx
+
+        if best_k and best_score > -50:
+            used_k_indices.add(best_k_idx)
+            mapped.append({
+                "key": ac,
+                "label_id": best_k["item_ind"],
+                "label_en": best_k["item_en"],
+                "visible": True,
+                "format": "number"
+            })
+        else:
+            mapped.append({
+                "key": ac,
+                "label_id": ac.replace("_", " ").title(),
+                "label_en": "",
+                "visible": True,
+                "format": "number"
+            })
+
+    return mapped
+
+def safe_load_json_arg(arg_str):
+    if not arg_str:
+        return None
+    try:
+        return json.loads(arg_str)
+    except Exception:
+        pass
+    try:
+        import base64
+        return json.loads(base64.b64decode(arg_str.encode('ascii')).decode('utf-8'))
+    except Exception:
+        return None
+
 if __name__ == "__main__":
-    if len(sys.argv) >= 3:
+    if len(sys.argv) >= 4:
         pdf_p = sys.argv[1]
-        pages_arg = json.loads(sys.argv[2])
+        pages_arg = safe_load_json_arg(sys.argv[2]) or []
+        api_cols_arg = safe_load_json_arg(sys.argv[3]) or []
+        target_year_arg = sys.argv[4].strip() if len(sys.argv) >= 5 and sys.argv[4].strip() else None
+        mapped_cols = map_api_columns_to_pdf(pdf_p, pages_arg, api_cols_arg, target_year=target_year_arg)
+        if mapped_cols is not None:
+            print("===JSON_START===" + json.dumps(mapped_cols, ensure_ascii=False) + "===JSON_END===")
+        else:
+            print("===JSON_START===null===JSON_END===")
+    elif len(sys.argv) >= 3:
+        pdf_p = sys.argv[1]
+        pages_arg = safe_load_json_arg(sys.argv[2]) or []
         res = extract_table_structure_from_pdf(pdf_p, pages_arg)
         print("===JSON_START===" + json.dumps(res, ensure_ascii=False) + "===JSON_END===")

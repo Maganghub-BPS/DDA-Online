@@ -299,7 +299,7 @@ def is_interval_label(s):
     if not s: return False
     s_clean = clean_pdf_watermark_text(str(s))
     s_clean = re.sub(r'[\s\*]', '', s_clean)
-    return bool(re.match(r'^(?:\d+[\-–—\ufffd]\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]\s*\d+)$', s_clean))
+    return bool(re.match(r'^(?:\d+(?:[\-–—\ufffd]|s/?d|s\.d\.?)\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]=?\s*\d+)$', s_clean, re.IGNORECASE))
 
 def parse_num(val_str, is_pdf=False):
     if val_str is None: return None
@@ -435,8 +435,17 @@ def parse_num(val_str, is_pdf=False):
 
 def clean_header_text(c):
     if not c: return ""
-    lines = [line.strip() for line in str(c).split('\n') if line.strip()]
-    s = lines[0] if lines else ""
+    raw_lines = [line.strip() for line in str(c).split('\n') if line.strip()]
+    if not raw_lines: return ""
+    
+    # Rekonstruksi baris bahasa Indonesia yang terpotong baris baru (misal: 'Pembenihan (ribu' + 'ekor)')
+    indo_lines = []
+    for line in raw_lines:
+        indo_lines.append(line)
+        full = ' '.join(indo_lines)
+        if full.count('(') == full.count(')'):
+            break
+    s = ' '.join(indo_lines).strip()
     s = s.rstrip('*').strip()
     if '/' in s and not re.search(r'\d/\d', s):
         p = s.split('/')
