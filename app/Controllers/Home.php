@@ -26,8 +26,8 @@ class Home extends BaseController
             'title' => 'Portal Data Statistik',
             'recent_tables' => $recent_tables,
             'opd_list' => $opd_list,
-            'total_tabel' => $stats['total_tabel'],
-            'total_opd' => $stats['total_opd'],
+            'total_tabel' => is_object($stats) ? ($stats->total_tabel ?? 0) : ($stats['total_tabel'] ?? 0),
+            'total_opd' => is_object($stats) ? ($stats->total_opd ?? 0) : ($stats['total_opd'] ?? 0),
             'page' => 'frontend/home'
         ];
 
