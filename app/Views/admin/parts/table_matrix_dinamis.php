@@ -988,9 +988,10 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
             if ($portraitMode):
                 // ==================== TBODY PORTRAIT MODE (TERMASUK MACRO TIME-SERIES) ====================
                 foreach ($itemsBaris as $bIdx => $baris):
-                    $tipeBaris  = strtolower(trim($baris->tipe_baris ?? 'data'));
-                    $namaBaris  = $baris->nama_baris_ind ?? '';
-                    $lowerBaris = strtolower($namaBaris);
+                    $tipeBaris   = strtolower(trim($baris->tipe_baris ?? 'data'));
+                    $namaBaris   = $baris->nama_baris_ind ?? '';
+                    $namaBarisEn = $baris->nama_baris_en ?? '';
+                    $lowerBaris  = strtolower($namaBaris);
 
                     if ($tipeBaris === 'total' || $lowerBaris === 'jawa tengah' || $lowerBaris === 'jumlah') {
                         $dbTotalRowObj = $baris;
@@ -999,10 +1000,18 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
 
                     // Cek pembatas wilayah (Kabupaten / Kota)
                     if (!$isMacroTimeSeries && ($tipeBaris === 'kategori' || $lowerBaris === 'kabupaten' || $lowerBaris === 'kota')) {
-                        if ($groupByRegion): ?>
-                            <tr class="category-row" style="background: #eef2f7; font-weight: bold;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($portraitSplitCol ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 6px 12px; border: 1px solid #cbd5e1;">
-                                    <?= esc($namaBaris); ?>
+                        if ($groupByRegion): 
+                            $catLabel = $namaBaris;
+                            $catEn    = trim($namaBarisEn);
+                            if (empty($catEn)) {
+                                if ($lowerBaris === 'kabupaten') $catEn = 'Regency';
+                                elseif ($lowerBaris === 'kota') $catEn = 'Municipality';
+                            }
+                            $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
+                        ?>
+                            <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($portraitSplitCol ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; font-size: 12px;">
+                                    <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>
                         <?php endif;
@@ -1207,10 +1216,18 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
 
                     // Baris Kategori Pembatas Wilayah
                     if ($tipeBaris === 'kategori' || $lowerBaris === 'kabupaten' || $lowerBaris === 'kota') {
-                        if ($groupByRegion): ?>
+                        if ($groupByRegion): 
+                            $catLabel = $namaBaris;
+                            $catEn    = trim($namaBarisEn);
+                            if (empty($catEn)) {
+                                if ($lowerBaris === 'kabupaten') $catEn = 'Regency';
+                                elseif ($lowerBaris === 'kota') $catEn = 'Municipality';
+                            }
+                            $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
+                        ?>
                             <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
                                 <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; font-size: 12px;">
-                                    <?= esc($namaBaris); ?>
+                                    <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>
                         <?php endif;
