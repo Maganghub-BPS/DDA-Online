@@ -3176,92 +3176,108 @@ class Admin extends BaseController
 				return $this->response->setJSON(['status' => 'error', 'message' => 'Data tidak lengkap']);
 			}
 
-			$existKa = $this->db->table('m_konfigurasi_api')->where('id_tabel', $id)->get()->getRow();
-			if ($existKa) {
-				$update = $this->db->table('m_konfigurasi_api')->where('id', $existKa->id)->update([
-					'config_tabel' => $config,
-					'updated_at'   => date('Y-m-d H:i:s'),
-				]);
-			} else {
-				$update = $this->db->table('m_konfigurasi_api')->insert([
-					'id_tabel'     => $id,
-					'config_tabel' => $config,
-					'created_at'   => date('Y-m-d H:i:s'),
-					'updated_at'   => date('Y-m-d H:i:s'),
-				]);
+			// Simpan ke m_konfigurasi_api jika tabel ada
+			if ($this->db->tableExists('m_konfigurasi_api')) {
+				$existKa = $this->db->table('m_konfigurasi_api')->where('id_tabel', $id)->get()->getRow();
+				if ($existKa) {
+					$this->db->table('m_konfigurasi_api')->where('id', $existKa->id)->update([
+						'config_tabel' => $config,
+						'updated_at'   => date('Y-m-d H:i:s'),
+					]);
+				} else {
+					$this->db->table('m_konfigurasi_api')->insert([
+						'id_tabel'     => $id,
+						'config_tabel' => $config,
+						'created_at'   => date('Y-m-d H:i:s'),
+						'updated_at'   => date('Y-m-d H:i:s'),
+					]);
+				}
 			}
 
-			if ($update) {
-				// Sinkronkan ke m_konfigurasi_api jika tabel ada
-				if ($this->db->tableExists('m_konfigurasi_api')) {
-					$ttRow = $this->db->table('t_tahun_tabel')->select('id_tabel')->where('id', $id)->get()->getRowArray();
-					if ($ttRow && !empty($ttRow['id_tabel'])) {
+			// Simpan ke t_tahun_tabel jika tabel ada
+			if ($this->db->tableExists('t_tahun_tabel')) {
+				$this->db->table('t_tahun_tabel')->where('id', $id)->update(['config_tabel' => $config]);
+			}
+
+			// Dapatkan nomor tabel dan tahun aktif
+			$ta = (string)($this->session->get('admin_ta') ?: '2026');
+			$no_tabel = '';
+
+			if ($this->db->tableExists('t_tahun_tabel')) {
+				$ttRow = $this->db->table('t_tahun_tabel')->select('id_tabel, tahun, no_tabel')->where('id', $id)->get()->getRowArray();
+				if ($ttRow) {
+					if (!empty($ttRow['tahun'])) $ta = (string)$ttRow['tahun'];
+					if (!empty($ttRow['no_tabel'])) $no_tabel = (string)$ttRow['no_tabel'];
+					if ($this->db->tableExists('m_konfigurasi_api') && !empty($ttRow['id_tabel'])) {
 						$this->db->table('m_konfigurasi_api')->where('id_tabel', $ttRow['id_tabel'])->update(['config_tabel' => $config]);
 					}
 				}
+			} elseif ($this->db->tableExists('m_list_tabel')) {
+				$mRow = $this->db->table('m_list_tabel')->select('no_tabel')->where('id', $id)->get()->getRowArray();
+				if ($mRow && !empty($mRow['no_tabel'])) {
+					$no_tabel = (string)$mRow['no_tabel'];
+				}
+			}
 
-				// Sinkronkan ke dda_db_{ta}.json jika ada
-				$ta_row = $this->db->table('t_tahun_tabel')->select('tahun, no_tabel')->where('id', $id)->get()->getRowArray();
-				if ($ta_row && !empty($ta_row['tahun'])) {
-					$ta = (string)$ta_row['tahun'];
-					$uploadPath = WRITEPATH . 'uploads/';
-					$dbJson = $uploadPath . "dda_db_{$ta}.json";
-					if (file_exists($dbJson)) {
-						$dbList = json_decode(@file_get_contents($dbJson), true);
-						if (is_array($dbList)) {
-							$changed = false;
-							foreach ($dbList as &$row) {
-								if ((int)($row['id_db'] ?? 0) === (int)$id) {
-									$row['config_tabel'] = $config;
-									$row['has_config'] = 1;
-									$changed = true;
-									break;
-								}
-							}
-							unset($row);
-							if ($changed) {
-								@file_put_contents($dbJson, json_encode($dbList, JSON_UNESCAPED_UNICODE));
-							}
+			// Sinkronkan ke dda_db_{ta}.json jika ada
+			$uploadPath = WRITEPATH . 'uploads/';
+			$dbJson = $uploadPath . "dda_db_{$ta}.json";
+			if (file_exists($dbJson)) {
+				$dbList = json_decode(@file_get_contents($dbJson), true);
+				if (is_array($dbList)) {
+					$changed = false;
+					foreach ($dbList as &$row) {
+						if ((int)($row['id_db'] ?? 0) === (int)$id) {
+							$row['config_tabel'] = $config;
+							$row['has_config'] = 1;
+							$changed = true;
+							break;
 						}
 					}
-					// Sinkronkan juga ke dda_matched_{ta}.json has_config
-					$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
-					if (file_exists($matchedJson)) {
-						$matchedData = json_decode(@file_get_contents($matchedJson), true);
-						if (is_array($matchedData)) {
-							$listKey = isset($matchedData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
-							if (isset($matchedData[$listKey]) && is_array($matchedData[$listKey])) {
-								$mChanged = false;
-								foreach ($matchedData[$listKey] as &$mRow) {
-									if ((int)($mRow['id_db'] ?? 0) === (int)$id) {
-										$mRow['has_config'] = 1;
-										$mRow['config_tabel'] = $config;
-										$mChanged = true;
-										break;
-									}
-								}
-								unset($mRow);
-								if ($mChanged) {
-									@file_put_contents($matchedJson, json_encode($matchedData, JSON_UNESCAPED_UNICODE));
-								}
+					unset($row);
+					if ($changed) {
+						@file_put_contents($dbJson, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+					}
+				}
+			}
+
+			// Sinkronkan juga ke dda_matched_{ta}.json has_config
+			$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+			if (file_exists($matchedJson)) {
+				$matchedData = json_decode(@file_get_contents($matchedJson), true);
+				if (is_array($matchedData)) {
+					$listKey = isset($matchedData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+					if (isset($matchedData[$listKey]) && is_array($matchedData[$listKey])) {
+						$mChanged = false;
+						foreach ($matchedData[$listKey] as &$mRow) {
+							if ((int)($mRow['id_db'] ?? 0) === (int)$id) {
+								$mRow['has_config'] = 1;
+								$mRow['config_tabel'] = $config;
+								$mChanged = true;
+								break;
 							}
 						}
-					}
-					// Invalidate state cache untuk tabel ini agar bisa divalidasi ulang dengan config terbaru
-					$stateJson = $uploadPath . "dda_state_{$ta}.json";
-					if (file_exists($stateJson) && !empty($ta_row['no_tabel'])) {
-						$stateData = json_decode(@file_get_contents($stateJson), true);
-						if (is_array($stateData) && isset($stateData[$ta_row['no_tabel']])) {
-							unset($stateData[$ta_row['no_tabel']]);
-							@file_put_contents($stateJson, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+						unset($mRow);
+						if ($mChanged) {
+							@file_put_contents($matchedJson, json_encode($matchedData, JSON_UNESCAPED_UNICODE));
 						}
 					}
 				}
-
-				return $this->response->setJSON(['status' => 'success', 'message' => 'Konfigurasi berhasil disimpan']);
 			}
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal simpan database']);
+
+			// Invalidate state cache untuk tabel ini agar bisa divalidasi ulang dengan config terbaru
+			$stateJson = $uploadPath . "dda_state_{$ta}.json";
+			if (file_exists($stateJson) && !empty($no_tabel)) {
+				$stateData = json_decode(@file_get_contents($stateJson), true);
+				if (is_array($stateData) && isset($stateData[$no_tabel])) {
+					unset($stateData[$no_tabel]);
+					@file_put_contents($stateJson, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+				}
+			}
+
+			return $this->response->setJSON(['status' => 'success', 'message' => 'Konfigurasi berhasil disimpan']);
 		}
+		return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'Invalid request']);
 	}
 
 	// =========================================================================
@@ -3684,7 +3700,30 @@ class Admin extends BaseController
 			JOIN m_indikator_tabel i ON i.id_tabel = m.id
 			WHERE m.is_active = 1
 		")->getRowArray();
-		return md5(json_encode($sigRow) . '_' . $ta);
+
+		$kaSig = '';
+		if ($this->db->tableExists('m_konfigurasi_api')) {
+			$kaRow = $this->db->query("
+				SELECT COUNT(*) as cnt,
+				       MAX(updated_at) as max_upd,
+				       MD5(GROUP_CONCAT(CONCAT(id_tabel, ':', COALESCE(link_api,''), ':', MD5(COALESCE(config_tabel,''))) ORDER BY id_tabel SEPARATOR '|')) as ka_hash
+				FROM m_konfigurasi_api
+			")->getRowArray();
+			$kaSig = json_encode($kaRow);
+		}
+
+		$mlSig = '';
+		if ($this->db->tableExists('m_list_tabel')) {
+			$mlRow = $this->db->query("
+				SELECT COUNT(*) as cnt,
+				       MD5(GROUP_CONCAT(CONCAT(id, ':', COALESCE(no_tabel,'')) ORDER BY id SEPARATOR '|')) as ml_hash
+				FROM m_list_tabel
+				WHERE is_active = 1
+			")->getRowArray();
+			$mlSig = json_encode($mlRow);
+		}
+
+		return md5(json_encode($sigRow) . '_' . $kaSig . '_' . $mlSig . '_' . $ta);
 	}
 
 	private function syncMasterMatchingFiles(string $ta, string $pdfMaster, string $dbJson, string $matchedJson, bool $forceRebuild = false): ?array
@@ -4294,24 +4333,48 @@ class Admin extends BaseController
 		$ta = (string)($this->request->getPost('ta') ?: ($this->session->get('admin_ta') ?: '2026'));
 
 		$row = null;
-		if ($idDb > 0) {
-			$row = $this->db->query("
-				SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
-				FROM t_tahun_tabel t
-				JOIN m_list_tabel m ON t.id_tabel = m.id
-				WHERE t.id = ?
-				LIMIT 1
-			", [$idDb])->getRowArray();
+		if ($this->db->tableExists('t_tahun_tabel') && $this->db->tableExists('m_list_tabel')) {
+			if ($idDb > 0) {
+				$row = $this->db->query("
+					SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
+					FROM t_tahun_tabel t
+					JOIN m_list_tabel m ON t.id_tabel = m.id
+					WHERE t.id = ?
+					LIMIT 1
+				", [$idDb])->getRowArray();
+			}
+			if (!$row && $nomorTabel !== '') {
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
+				$row = $this->db->query("
+					SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
+					FROM t_tahun_tabel t
+					JOIN m_list_tabel m ON t.id_tabel = m.id
+					WHERE t.tahun = ? AND (TRIM(t.no_tabel) = ? OR TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?)
+					LIMIT 1
+				", [$ta, $cleanNo, $cleanNo])->getRowArray();
+			}
 		}
-		if (!$row && $nomorTabel !== '') {
-			$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
-			$row = $this->db->query("
-				SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
-				FROM t_tahun_tabel t
-				JOIN m_list_tabel m ON t.id_tabel = m.id
-				WHERE t.tahun = ? AND (TRIM(t.no_tabel) = ? OR TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?)
-				LIMIT 1
-			", [$ta, $cleanNo, $cleanNo])->getRowArray();
+
+		if (!$row && $this->db->tableExists('m_list_tabel')) {
+			if ($idDb > 0) {
+				$row = $this->db->query("
+					SELECT m.id, m.id as id_tabel, m.no_tabel, ka.link_api as link_tabel, ka.config_tabel, m.judul_ind, m.judul_en
+					FROM m_list_tabel m
+					LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+					WHERE m.id = ?
+					LIMIT 1
+				", [$idDb])->getRowArray();
+			}
+			if (!$row && $nomorTabel !== '') {
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
+				$row = $this->db->query("
+					SELECT m.id, m.id as id_tabel, m.no_tabel, ka.link_api as link_tabel, ka.config_tabel, m.judul_ind, m.judul_en
+					FROM m_list_tabel m
+					LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+					WHERE TRIM(m.no_tabel) = ? OR TRIM(REPLACE(m.no_tabel, 'Tabel ', '')) = ?
+					LIMIT 1
+				", [$cleanNo, $cleanNo])->getRowArray();
+			}
 		}
 
 		if (!$row) {
