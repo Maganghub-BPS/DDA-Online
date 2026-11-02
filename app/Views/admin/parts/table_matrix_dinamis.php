@@ -45,6 +45,7 @@ if ($isRuntunWaktuTotal) {
 $tipePeriode            = $indikator->tipe_periode ?? 'tahunan';
 $isTahunan              = in_array($tipePeriode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahunan_jumlah_rata', 'tahun_ajaran'], true);
 $isAkademik             = ($tipePeriode === 'tahun_ajaran');
+$isTablePreview         = !empty($isPreview);
 
 // Pastikan selected_years terisi minimal 1 tahun
 if (empty($selected_years)) {
@@ -676,8 +677,8 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
 ?>
 
 <div class="table-responsive-dda" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow-x: auto; background: #ffffff;">
-    <table class="main-table dda-table-item w-100" id="<?= esc($matrix_dom_id ?? 'table-dinamis-matrix'); ?>" style="border-collapse: collapse; margin-bottom: 0;">
-        <thead style="background: #154679; color: #ffffff;">
+    <table class="<?= $isTablePreview ? 'table table-bordered table-sm w-100' : 'main-table dda-table-item w-100'; ?>" id="<?= esc($matrix_dom_id ?? 'table-dinamis-matrix'); ?>" style="border-collapse: collapse; margin-bottom: 0;">
+        <thead <?= $isTablePreview ? 'class="bg-white text-dark"' : 'style="background: #154679; color: #ffffff;"'; ?>>
             <?php if ($portraitMode): 
                 $totalPortraitHeaderRows = $onlyTotalHorizontal ? 1 : count($kHeaderRowsPortrait);
             ?>

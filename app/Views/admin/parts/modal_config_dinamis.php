@@ -43,18 +43,95 @@
         border-color: #FF6D1F;
     }
 
-    #preview-container-dinamis table {
+    /* Preview Cepat Tabel Dinamis - 100% Identik dengan Preview Tabel API */
+    #preview-container-dinamis {
+        background: #ffffff !important;
+    }
+
+    #preview-container-dinamis table,
+    #preview-container-dinamis .main-table,
+    #preview-container-dinamis .table {
         font-size: 10px !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        background: #ffffff !important;
         margin-bottom: 0 !important;
+        border: 1px solid #dee2e6 !important;
     }
-    #preview-container-dinamis th, #preview-container-dinamis td {
-        padding: 4px 6px !important;
+
+    #preview-container-dinamis th,
+    #preview-container-dinamis td {
+        padding: 4px 8px !important;
         font-size: 10px !important;
+        border: 1px solid #dee2e6 !important;
+        vertical-align: middle !important;
     }
+
+    #preview-container-dinamis thead {
+        background: #ffffff !important;
+    }
+
+    #preview-container-dinamis thead th {
+        background: #ffffff !important;
+        color: #212529 !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+
+    #preview-container-dinamis thead th div {
+        color: #212529 !important;
+        font-weight: 700 !important;
+    }
+
+    #preview-container-dinamis thead th i,
+    #preview-container-dinamis thead th small {
+        color: #6c757d !important;
+        font-size: 9px !important;
+        font-weight: normal !important;
+        font-style: italic !important;
+    }
+
+    #preview-container-dinamis thead tr.num-row th {
+        background: #ffffff !important;
+        color: #6c757d !important;
+        font-weight: normal !important;
+        border: 1px solid #dee2e6 !important;
+        font-size: 9px !important;
+    }
+
+    #preview-container-dinamis tbody tr {
+        background: #ffffff !important;
+    }
+
+    #preview-container-dinamis tbody td {
+        background: #ffffff !important;
+        color: #212529 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+
+    #preview-container-dinamis .category-row td {
+        background: #f8fafc !important;
+        color: #334155 !important;
+        font-weight: bold !important;
+        border: 1px solid #dee2e6 !important;
+        padding: 6px 10px !important;
+    }
+
+    #preview-container-dinamis .grand-total-row td,
+    #preview-container-dinamis tr.total-row td {
+        background: #f8fafc !important;
+        color: #212529 !important;
+        font-weight: bold !important;
+        border: 1px solid #dee2e6 !important;
+    }
+
     #preview-container-dinamis .table-responsive-dda {
         border: none !important;
         border-radius: 0 !important;
         margin-bottom: 0 !important;
+        background: #ffffff !important;
     }
 </style>
 
