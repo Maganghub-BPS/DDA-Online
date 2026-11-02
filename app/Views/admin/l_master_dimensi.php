@@ -1270,6 +1270,7 @@
                             </label>
                             <span class="badge bg-primary-soft text-primary border" id="add_baris_count">0 Baris</span>
                         </div>
+
                         <div class="tree-builder-card">
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
                             <div class="auto-prefix-toolbar mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
@@ -1313,6 +1314,9 @@
                                         </button>
                                         <button type="button" class="btn btn-prefix-clean" id="btn_add_clean_prefix" title="Bersihkan nomor / huruf">
                                             <i class="bi bi-eraser"></i> Bersihkan
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary fw-bold" id="btn_add_split_satuan" title="Pisahkan otomatis teks satuan (||) menjadi Sub-Baris">
+                                            <i class="bi bi-diagram-3-fill"></i> Pisah Satuan
                                         </button>
                                     </div>
                                 </div>
@@ -1438,6 +1442,17 @@
                             </label>
                             <span class="badge bg-primary-soft text-primary border" id="manage_baris_count">0 Baris</span>
                         </div>
+                        <!-- Smart Alert Deteksi Satuan || -->
+                        <div id="manage_baris_satuan_alert" class="alert alert-warning py-2 px-3 mb-2 rounded-3 small d-none align-items-center justify-content-between border border-warning shadow-xs">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-lightning-charge-fill text-warning fs-5"></i>
+                                <span>Terdeteksi <strong><span id="manage_baris_satuan_count">0</span> item</strong> baris memiliki format satuan (<code>||</code>). Ingin dipisahkan otomatis ke Sub-Baris?</span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-primary fw-bold" id="btn_alert_split_satuan" style="background: #FF6D1F; border: none;">
+                                <i class="bi bi-magic me-1"></i> Pisahkan Sekarang
+                            </button>
+                        </div>
+
                         <div class="tree-builder-card">
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
                             <div class="auto-prefix-toolbar mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
@@ -1481,6 +1496,9 @@
                                         </button>
                                         <button type="button" class="btn btn-prefix-clean" id="btn_manage_clean_prefix" title="Bersihkan nomor / huruf">
                                             <i class="bi bi-eraser"></i> Bersihkan
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary fw-bold" id="btn_manage_split_satuan" title="Pisahkan otomatis teks satuan (||) menjadi Sub-Baris">
+                                            <i class="bi bi-diagram-3-fill"></i> Pisah Satuan
                                         </button>
                                     </div>
                                 </div>
@@ -2422,6 +2440,91 @@ $(document).ready(function() {
         cleanAllPrefix() {
             this.applyAutoPrefix({ bab: 'none', subbab: 'none', subsub: 'none' });
         }
+
+        splitSatuanToSub() {
+            let splitCount = 0;
+            const newItems = [];
+            const self = this;
+            let lastParent = null;
+
+            for (let i = 0; i < this.items.length; i++) {
+                const item = this.items[i];
+                let indText = (item.ind || '').trim();
+                let enText  = (item.en || '').trim();
+
+                // Cek apakah item ini root level 0 dan mengandung pemisah ||
+                if (item.level === 0 && indText.includes('||')) {
+                    const pInd = indText.split('||').map(s => s.trim());
+                    let parentInd = pInd[0] || '';
+                    let subInd = pInd.slice(1).join('||').trim();
+
+                    let parentEn = enText;
+                    let subEn = '';
+                    if (enText.includes('||')) {
+                        const pEn = enText.split('||').map(s => s.trim());
+                        parentEn = pEn[0] || '';
+                        subEn = pEn.slice(1).join('||').trim();
+                    }
+
+                    // Bersihkan jika subInd memiliki format dwibahasa slash "m3/m3", "stapel meter (sm)/ staple meter", atau "batang/trunk"
+                    if (subInd.includes('/')) {
+                        const slashParts = subInd.split('/').map(s => s.trim());
+                        if (slashParts.length === 2 && slashParts[0] && slashParts[1]) {
+                            subInd = slashParts[0];
+                            subEn = slashParts[1];
+                        }
+                    } else if (subEn.includes('/')) {
+                        const slashParts = subEn.split('/').map(s => s.trim());
+                        if (slashParts.length === 2 && slashParts[1]) {
+                            subEn = slashParts[1];
+                        }
+                    }
+                    if (!subEn) {
+                        subEn = subInd;
+                    }
+
+                    // Cek apakah sama dengan parent sebelumnya (Grouping otomatis jika komoditas berulang)
+                    let parentNode = null;
+                    if (lastParent && lastParent.ind.trim().toLowerCase() === parentInd.trim().toLowerCase()) {
+                        parentNode = lastParent;
+                    } else {
+                        item.ind = parentInd;
+                        if (parentEn) {
+                            item.en = parentEn;
+                        }
+                        newItems.push(item);
+                        parentNode = item;
+                        lastParent = item;
+                    }
+
+                    // Buat item anak (Sub-baris)
+                    const childNode = {
+                        id: 'node_' + (++self.idSeq),
+                        db_id: null,
+                        parentId: parentNode.id,
+                        level: 1,
+                        ind: subInd,
+                        en: subEn,
+                        tipe_baris: 'data',
+                        isTotal: false,
+                        isUserToggled: false
+                    };
+                    newItems.push(childNode);
+                    splitCount++;
+                } else {
+                    lastParent = (item.level === 0) ? item : null;
+                    newItems.push(item);
+                }
+            }
+
+            if (splitCount > 0) {
+                this.items = newItems;
+                this.render();
+                this.notify();
+            }
+
+            return splitCount;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -2927,6 +3030,22 @@ $(document).ready(function() {
         manageBarisBuilder.cleanAllPrefix();
     });
 
+    $('#btn_add_split_satuan').on('click', function() {
+        const count = addBarisBuilder.splitSatuanToSub();
+        if (count === 0) {
+            alert('Tidak ditemukan item baris dengan pemisah satuan (||) untuk dipisahkan.');
+        }
+    });
+
+    $('#btn_manage_split_satuan, #btn_alert_split_satuan').on('click', function() {
+        const count = manageBarisBuilder.splitSatuanToSub();
+        if (count > 0) {
+            $('#manage_baris_satuan_alert').addClass('d-none').removeClass('d-flex');
+        } else {
+            alert('Tidak ditemukan item baris dengan pemisah satuan (||) untuk dipisahkan.');
+        }
+    });
+
     // Auto-fill Judul Header Baris dari Nama Pilihan Master (Add Modal)
     let isAddJudulIndTouched = false;
     let isAddJudulEnTouched = false;
@@ -3004,6 +3123,21 @@ $(document).ready(function() {
                 });
 
                 manageBarisBuilder.setItems(treeItems);
+
+                let satuanCount = 0;
+                res.items.forEach(function(it) {
+                    if ((it.nama_baris_ind || '').includes('||')) {
+                        satuanCount++;
+                    }
+                });
+
+                if (satuanCount > 0) {
+                    $('#manage_baris_satuan_count').text(satuanCount);
+                    $('#manage_baris_satuan_alert').removeClass('d-none').addClass('d-flex');
+                } else {
+                    $('#manage_baris_satuan_alert').addClass('d-none').removeClass('d-flex');
+                }
+
                 $('#modalManageBaris').modal('show');
             }
         });

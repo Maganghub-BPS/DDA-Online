@@ -991,6 +991,7 @@ class M_tabeldinamis extends Model
     {
         $items = [];
         $no = 1;
+        $hasSub = false;
 
         foreach ($treeItems as $it) {
             $nama_ind = trim($it['ind'] ?? ($it['nama_baris_ind'] ?? ''));
@@ -1000,6 +1001,9 @@ class M_tabeldinamis extends Model
             }
 
             $lvl = (int)($it['level'] ?? ($it['level_indentasi'] ?? 0));
+            if ($lvl > 0) {
+                $hasSub = true;
+            }
             $is_total = !empty($it['is_total']) || (($it['tipe_baris'] ?? '') === 'total');
 
             $items[] = [
@@ -1013,7 +1017,27 @@ class M_tabeldinamis extends Model
             ];
         }
 
-        return $this->syncBarisItems($id_kelompok, $items);
+        $res = $this->syncBarisItems($id_kelompok, $items);
+
+        // Jika memiliki sub-baris (hierarki level > 0), pastikan judul_sub_baris_ind terisi dan tabel terkonfigurasi 2_kolom
+        if ($res && $hasSub) {
+            $kelompok = $this->db->table('m_baris_kelompok')->where('id', $id_kelompok)->get()->getRow();
+            if ($kelompok && empty(trim((string)$kelompok->judul_sub_baris_ind))) {
+                $this->db->table('m_baris_kelompok')->where('id', $id_kelompok)->update([
+                    'judul_sub_baris_ind' => 'Satuan',
+                    'judul_sub_baris_en'  => 'Unit',
+                    'updated_at'          => date('Y-m-d H:i:s')
+                ]);
+            }
+
+            // Pastikan tabel-tabel dinamis yang memakai kelompok ini menampilkan mode 2_kolom
+            $this->db->table('m_indikator_tabel')
+                ->where('id_baris_kelompok', $id_kelompok)
+                ->where('tampilan_baris !=', '2_kolom')
+                ->update(['tampilan_baris' => '2_kolom']);
+        }
+
+        return $res;
     }
 
     public function parseBarisFromText(int $id_kelompok, string $text, string $text_en = ''): bool

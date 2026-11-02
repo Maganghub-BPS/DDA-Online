@@ -1193,6 +1193,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $currentParentInd        = '';
                 $currentParentEn         = '';
                 $currentParentRowspan    = 1;
+                $currentParentId         = null;
                 $isFirstChildOfParent    = false;
                 $isJustRenderedFirstChild = false;
 
@@ -1261,9 +1262,16 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $currentParentInd        = $displayBarisLabel;
                             $currentParentEn         = $namaBarisEn;
                             $currentParentRowspan    = $childCountMap[$bIdx];
+                            $currentParentId         = (int)$baris->id;
                             $isFirstChildOfParent    = true;
                             $isJustRenderedFirstChild = false;
                             continue;
+                        } elseif ($indentLevel === 0) {
+                            $currentParentId = null;
+                        }
+                    } else {
+                        if ($indentLevel === 0) {
+                            $currentParentId = null;
                         }
                     }
 
@@ -1280,6 +1288,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                         $gKey = $lCol['group_key'];
 
                         $cellData = $nilaiMap[$yr][$baris->id][$kId][$pId] ?? null;
+                        if (($cellData === null || ($cellData['nilai'] === null && empty($cellData['simbol']))) && !empty($currentParentId) && $indentLevel > 0) {
+                            $cellData = $nilaiMap[$yr][$currentParentId][$kId][$pId] ?? null;
+                        }
                         $val      = $cellData['nilai'] ?? null;
 
                         if ($val !== null && $val !== '') {
@@ -1410,6 +1421,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 $pId = (int)$lCol['periode_id'];
 
                                 $cellData = $nilaiMap[$yr][$baris->id][$kId][$pId] ?? null;
+                                if (($cellData === null || ($cellData['nilai'] === null && empty($cellData['simbol']))) && !empty($currentParentId) && $indentLevel > 0) {
+                                    $cellData = $nilaiMap[$yr][$currentParentId][$kId][$pId] ?? null;
+                                }
                                 $val      = $cellData['nilai'] ?? null;
                                 $simb     = $cellData['simbol'] ?? null;
                                 $dec      = $cellData['jumlah_desimal'] ?? null;
