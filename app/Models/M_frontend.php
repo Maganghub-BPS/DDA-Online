@@ -154,22 +154,58 @@ class M_frontend extends Model
                        ->getResult();
     }
 
-    public function searchTables($keyword = '', $tahun = '', $opd = '', $bab = '')
+    /**
+     * Pencarian tabel dengan filter keyword, unit/instansi, OPD, dan tahun beserta paginasi
+     * Mendukung pemanggilan via array filter (Home::search) maupun parameter skalar
+     */
+    public function searchTables($filters = [], int $page = 1, int $perPage = 12): array
     {
+        // Normalisasi parameter jika dipanggil dengan parameter skalar (legacy / direct call)
+        if (!is_array($filters)) {
+            $filters = [
+                'q'     => (string)$filters,
+                'tahun' => is_numeric($page) && $page > 1900 ? (string)$page : '',
+                'opd'   => is_string($perPage) ? $perPage : '',
+                'bab'   => func_num_args() > 3 ? func_get_arg(3) : ''
+            ];
+            $page = 1;
+            $perPage = 12;
+        }
+
+        $q          = $filters['q'] ?? ($filters['keyword'] ?? '');
+        $unit       = $filters['unit'] ?? ($filters['id_unitkerja'] ?? '');
+        $opd_search = $filters['opd_search'] ?? ($filters['opd'] ?? '');
+        $tahun      = $filters['tahun'] ?? '';
+        $bab        = $filters['bab'] ?? '';
+
         $builder = $this->db->table('m_list_tabel')->select($this->getBaseTableSelect());
         $this->applyPublishedStatusJoin($builder, $tahun);
 
-        if (!empty($keyword)) {
-            $builder->groupStart()
-                    ->like('m_list_tabel.judul_ind', $keyword)
-                    ->orLike('m_list_tabel.judul_en', $keyword)
-                    ->orLike('m_list_tabel.no_tabel', $keyword)
-                    ->orLike('m_unitkerja.unitkerja_ind', $keyword)
-                    ->groupEnd();
+        if (!empty($q)) {
+            $q_clean = trim(preg_replace('/\s+/', ' ', (string)$q));
+            $q_normalized = preg_replace('/^(nomor|no\.?|tabel)\s+/i', '', $q_clean);
+            $tokens = array_filter(explode(' ', $q_normalized), fn($t) => trim($t) !== '');
+
+            if (!empty($tokens)) {
+                $builder->groupStart();
+                foreach ($tokens as $token) {
+                    $builder->groupStart();
+                    $builder->like('m_list_tabel.judul_ind', $token);
+                    $builder->orLike('m_list_tabel.judul_en', $token);
+                    $builder->orLike('m_list_tabel.no_tabel', $token);
+                    $builder->orLike('m_unitkerja.unitkerja_ind', $token);
+                    $builder->groupEnd();
+                }
+                $builder->groupEnd();
+            }
         }
 
-        if (!empty($opd)) {
-            $builder->where('m_unitkerja.unitkerja_ind', $opd);
+        if (!empty($unit)) {
+            $builder->where('m_list_tabel.id_unitkerja', $unit);
+        }
+
+        if (!empty($opd_search)) {
+            $builder->like('m_unitkerja.unitkerja_ind', $opd_search);
         }
 
         if (!empty($bab)) {
@@ -179,12 +215,22 @@ class M_frontend extends Model
                     ->groupEnd();
         }
 
-        return $builder->orderBy('s.tahun', 'DESC')
-                       ->orderBy('CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, ".", 1) AS UNSIGNED)', 'ASC', false)
-                       ->orderBy('CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m_list_tabel.no_tabel, ".", 2), ".", -1) AS UNSIGNED)', 'ASC', false)
-                       ->orderBy('CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, ".", -1) AS UNSIGNED)', 'ASC', false)
-                       ->get()
-                       ->getResult();
+        $builder->orderBy('s.tahun', 'DESC')
+               ->orderBy("CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, '.', 1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m_list_tabel.no_tabel, '.', 2), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, '.', -1) AS UNSIGNED)", 'ASC', false);
+
+        // Hitung total data sebelum limit untuk paginasi
+        $total = $builder->countAllResults(false);
+
+        // Terapkan limit dan offset
+        $builder->limit($perPage, ($page - 1) * $perPage);
+        $results = $builder->get()->getResult();
+
+        return [
+            'results' => $results ?: [],
+            'total'   => (int)$total
+        ];
     }
 
     public function getInstansiList($tahun = null)

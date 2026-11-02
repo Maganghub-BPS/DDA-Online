@@ -999,9 +999,11 @@
                             <?php 
                             $years_list = !empty($available_years) ? $available_years : [2026, 2025];
                             foreach ($years_list as $y): 
+                                $yr = is_object($y) ? ($y->tahun ?? '') : (is_array($y) ? ($y['tahun'] ?? '') : (string)$y);
+                                if (empty($yr)) continue;
                             ?>
-                                <option value="<?= htmlspecialchars($y) ?>" <?= ((isset($tahun) && (string)$tahun === (string)$y) || (!empty($_GET['tahun']) && (string)$_GET['tahun'] === (string)$y)) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($y) ?>
+                                <option value="<?= htmlspecialchars((string)$yr) ?>" <?= ((isset($tahun) && (string)$tahun === (string)$yr) || (!empty($_GET['tahun']) && (string)$_GET['tahun'] === (string)$yr)) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars((string)$yr) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

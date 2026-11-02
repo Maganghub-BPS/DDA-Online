@@ -61,11 +61,11 @@ class Home extends BaseController
             'tahun' => $tahun,
             'unique_units' => $unique_units,
             'available_years' => $available_years,
-            'results' => $searchData['results'],
+            'results' => $searchData['results'] ?? [],
             'pager' => \Config\Services::pager(),
             'page_num' => $page,
             'per_page' => $perPage,
-            'total_rows' => $searchData['total'],
+            'total_rows' => $searchData['total'] ?? 0,
             'page' => 'frontend/search'
         ];
         return view('frontend/layout', $data);
@@ -435,7 +435,7 @@ class Home extends BaseController
                 $rawReqList = is_array($reqYears) ? $reqYears : explode(',', (string)$reqYears);
             }
 
-            $selected_years = $mTabelDinamis->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
+            $selected_years = $this->tabelDinamisModel->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
             sort($selected_years);
 
             // Ambil seluruh sel nilai
