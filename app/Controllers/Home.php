@@ -305,18 +305,30 @@ class Home extends BaseController
             return redirect()->to("home/view_tabel?id=" . urlencode($portal_id) . "&table_id=" . $parsed_table_id);
         }
 
-        // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
-        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
-        if ((int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
-            return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
-        }
-
         $ta = (int)(session()->get('admin_ta') ?: (session()->get('tahun') ?: date('Y')));
         $context = $this->tabelDinamisModel->resolveTableContext($parsed_table_id, $ta, true);
         $dda_info = $context['tabel'] ?: $dda_info;
         $indikator = $context['indikator'];
         $tahunTabel = $context['tahun_tabel'];
         $dda_info->id_tahun_tabel = $tahunTabel ? (int)$tahunTabel->id : (int)$dda_info->id;
+
+        // Ambil riwayat publikasi resmi dari t_status_tahunan (harus sudah diisi, terverifikasi BPS, dan dipublish)
+        $db = \Config\Database::connect();
+        $pubRows = $db->table('t_status_tahunan')
+            ->select('tahun')
+            ->where('id_tabel', (int)$dda_info->id)
+            ->where('is_publish', 1)
+            ->where('is_periksa', 1)
+            ->where('is_confirm', '1')
+            ->orderBy('tahun', 'DESC')
+            ->get()
+            ->getResultArray();
+
+        // Proteksi: Jika seluruh edisi tabel berstatus Draft, tolak akses publik (kecuali admin login)
+        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
+        if (empty($pubRows) && !$is_admin) {
+            return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
+        }
 
         $structureKolom  = null;
         $itemsKolom      = [];
@@ -395,23 +407,13 @@ class Home extends BaseController
 
             $available_years = $this->tabelDinamisModel->getAvailableYears((int)$indikator->id);
 
-            // Filter tahun data untuk pengunjung publik: hanya tampilkan tahun yang sudah diisi, diverifikasi BPS, dan dipublish
+            // Filter tahun data untuk pengunjung publik: hanya tampilkan tahun dari edisi DDA yang sah dipublish
             $isAdminPreview = (bool)(session()->get('admin_valid') && !empty(session()->get('admin_id')));
             if (!$isAdminPreview && !empty($available_years)) {
-                $db = \Config\Database::connect();
-                $pubRows = $db->table('t_status_tahunan')
-                    ->select('tahun')
-                    ->where('id_tabel', (int)$dda_info->id)
-                    ->where('is_publish', 1)
-                    ->where('is_periksa', 1)
-                    ->where('is_confirm', '1')
-                    ->orderBy('tahun', 'DESC')
-                    ->get()
-                    ->getResultArray();
-
                 if (!empty($pubRows)) {
+                    $isAnggaranPagu = (bool)preg_match('/(pagu|dipa|apbd|anggaran)/i', $dda_info->judul_ind ?? '');
                     $maxPublishedDdaYear = max(array_map(static fn($r) => (int)$r['tahun'], $pubRows));
-                    $maxAllowedDataYear = $maxPublishedDdaYear;
+                    $maxAllowedDataYear = $isAnggaranPagu ? $maxPublishedDdaYear : ($maxPublishedDdaYear - 1);
                     $available_years = array_values(array_filter($available_years, static function ($yr) use ($maxAllowedDataYear) {
                         return (int)$yr <= $maxAllowedDataYear;
                     }));
@@ -457,22 +459,18 @@ class Home extends BaseController
             $selected_years = [$ta];
         }
 
-        if ($isAdminPreview) {
-            $selectable_years = !empty($available_years) ? $available_years : [$ta];
-            if (!in_array($ta, $selectable_years, true)) {
-                $selectable_years[] = $ta;
-            }
-        } else {
-            $selectable_years = !empty($available_years) ? $available_years : [];
-        }
+        // Hanya gunakan tahun data yang benar-benar memiliki data fisik (jangan suntikkan tahun kosong tanpa data)
+        $selectable_years = !empty($available_years) ? $available_years : [];
         rsort($selectable_years);
 
-        // Batasi $selected_years bagi pengunjung publik agar hanya berisi tahun yang sah dipilih
+        // Batasi $selected_years bagi pengunjung publik agar hanya berisi tahun yang sah dipublikasikan
         if (!$isAdminPreview && !empty($selectable_years)) {
             $selected_years = array_values(array_intersect($selected_years, $selectable_years));
             if (empty($selected_years)) {
                 $selected_years = [max($selectable_years)];
             }
+        } elseif (empty($selected_years) && !empty($selectable_years)) {
+            $selected_years = [max($selectable_years)];
         }
 
         $tipePeriodeTabel = $indikator->tipe_periode ?? 'tahunan';

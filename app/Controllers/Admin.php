@@ -628,6 +628,7 @@ class Admin extends BaseController
 					m.id as id_tahun_tabel,
 					COALESCE(t.tahun, ?) as tahun,
 					COALESCE(t.is_confirm, '0') as is_confirm,
+					COALESCE(t.is_publish, 0) as is_publish,
 					CASE 
 						WHEN t.is_periksa = 1 THEN 1
 						WHEN nd.id_indikator IS NOT NULL THEN 1
@@ -663,6 +664,7 @@ class Admin extends BaseController
 					m.id as id_tahun_tabel,
 					COALESCE(t.tahun, ?) as tahun,
 					COALESCE(t.is_confirm, '0') as is_confirm,
+					COALESCE(t.is_publish, 0) as is_publish,
 					CASE 
 						WHEN t.is_periksa = 1 THEN 1
 						WHEN nd.id_indikator IS NOT NULL THEN 1
@@ -740,6 +742,7 @@ class Admin extends BaseController
 						m.id as id_tahun_tabel,
 						COALESCE(t.tahun, ?) as tahun,
 						COALESCE(t.is_confirm, '0') as is_confirm,
+						COALESCE(t.is_publish, 0) as is_publish,
 						CASE 
 							WHEN t.is_periksa = 1 THEN 1
 							WHEN nd.id_indikator IS NOT NULL THEN 1
