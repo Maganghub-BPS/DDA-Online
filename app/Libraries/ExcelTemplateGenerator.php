@@ -34,30 +34,34 @@ class ExcelTemplateGenerator
      * @return Spreadsheet
      * @throws \Exception
      */
-    public function generate(int $id_tahun_tabel): Spreadsheet
+    public function generate(int $id_param, ?string $customFilename = null, ?int $tahunInput = null): Spreadsheet
     {
-        // 1. Ambil data master tabel & tahun tabel
-        $tabel = $this->db->table('t_tahun_tabel')
-            ->select('t_tahun_tabel.id as id_tahun_tabel, t_tahun_tabel.tahun, t_tahun_tabel.no_tabel, 
-                      t_tahun_tabel.periode_id, t_tahun_tabel.periode_en, t_tahun_tabel.is_dynamic, 
-                      m_list_tabel.id as id_master_tabel, m_list_tabel.judul_ind, m_list_tabel.judul_en, 
-                      m_list_tabel.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en')
-            ->join('m_list_tabel', 't_tahun_tabel.id_tabel = m_list_tabel.id', 'left')
-            ->join('m_unitkerja', 'm_list_tabel.id_unitkerja = m_unitkerja.id_unitkerja', 'left')
-            ->where('t_tahun_tabel.id', $id_tahun_tabel)
-            ->get()->getRow();
+        // 1. Resolusi konteks tabel (m_list_tabel.id)
+        $context = $this->mTabelDinamis->resolveTableContext($id_param, $tahunInput, true);
+        $tabel = $context['tabel'];
+        $indikator = $context['indikator'];
+        $tahunTabel = $context['tahun_tabel'];
+        // Gunakan m_list_tabel.id secara konsisten sebagai ID tunggal di seluruh template Excel
+        $id_tahun_tabel = (int)($tabel->id ?? $id_param);
 
         if (!$tabel) {
-            throw new \Exception("Tabel dengan ID {$id_tahun_tabel} tidak ditemukan.");
+            throw new \Exception("Tabel dengan ID {$id_param} tidak ditemukan.");
         }
-
-        // 2. Ambil konfigurasi indikator tabel dinamis
-        $indikator = $this->db->table('m_indikator_tabel')
-            ->where('id_tahun_tabel', $id_tahun_tabel)
-            ->get()->getRow();
 
         if (!$indikator) {
             throw new \Exception("Tabel ini belum memiliki konfigurasi dimensi matriks. Silakan rakit tabel dinamis terlebih dahulu di menu Generator Tabel.");
+        }
+
+        if ($tahunInput === null || $tahunInput <= 0) {
+            $activeTa = (int)($tahunTabel->tahun ?? session()->get('admin_ta') ?? session()->get('tahun') ?? date('Y'));
+            $tahunInput = $activeTa - 1;
+        }
+
+        // Lengkapi objek tabel dengan data unit kerja jika belum ada
+        if (!isset($tabel->unitkerja_ind) && !empty($tabel->id_unitkerja)) {
+            $uk = $this->db->table('m_unitkerja')->where('id_unitkerja', $tabel->id_unitkerja)->get()->getRow();
+            $tabel->unitkerja_ind = $uk->unitkerja_ind ?? 'BPS Provinsi Jawa Tengah';
+            $tabel->unitkerja_en  = $uk->unitkerja_en ?? 'BPS-Statistics of Jawa Tengah Province';
         }
 
         $id_karakteristik = (int)($indikator->id_karakteristik_kelompok ?? 0);
@@ -78,8 +82,32 @@ class ExcelTemplateGenerator
         
         $kelompokBaris  = $id_baris > 0 ? $this->mTabelDinamis->getBarisKelompok($id_baris) : null;
         $itemsBaris     = $id_baris > 0 ? $this->mTabelDinamis->getBarisItems($id_baris) : [];
-        $kelompokPeriode = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeKelompok($id_periode) : null;
-        $itemsPeriode   = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeItems($id_periode) : [];
+        // Resolusi Item Periode untuk Template Excel 1-Tahun Input
+        $tipePeriode = $indikator->tipe_periode ?? 'tahunan';
+        if (in_array($tipePeriode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahunan_jumlah_rata', 'tahun_ajaran'], true)) {
+            $labelPeriode = ($tipePeriode === 'tahun_ajaran') ? "{$tahunInput}/" . ($tahunInput + 1) : (string)$tahunInput;
+            $itemsPeriode = [
+                (object)[
+                    'id'               => 0,
+                    'id_kelompok'      => 0,
+                    'nama_periode_ind' => $labelPeriode,
+                    'nama_periode_en'  => $labelPeriode,
+                    'tipe_item'        => 'periode',
+                    'no_urut'          => 1
+                ]
+            ];
+            $kelompokPeriode = (object)[
+                'id'                => 0,
+                'nama_kelompok_ind' => 'Tahun',
+                'nama_kelompok_en'  => 'Year',
+                'judul_periode_ind' => 'Tahun',
+                'judul_periode_en'  => 'Year'
+            ];
+            $id_periode = 0;
+        } else {
+            $kelompokPeriode = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeKelompok($id_periode) : null;
+            $itemsPeriode   = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeItems($id_periode) : [];
+        }
 
         $dimCount = (!empty($itemsBaris) ? 1 : 0) + (!empty($itemsKolom) ? 1 : 0) + (!empty($itemsPeriode) ? 1 : 0);
         if ($dimCount < 2) {
@@ -430,36 +458,34 @@ class ExcelTemplateGenerator
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(10)->setName('Arial');
         $row++;
 
-        // Judul Bahasa Indonesia
-        $judulIndText = $tabel->judul_ind;
-        if (!empty($tabel->periode_id)) {
-            $judulIndText .= ', ' . $tabel->periode_id;
-        } elseif (!empty($tabel->tahun)) {
-            $judulIndText .= ', ' . $tabel->tahun;
-        }
+        // Judul Bahasa Indonesia (Dirakit otomatis lintas tahun)
+        $tipePeriodeTabel = $indikator->tipe_periode ?? 'tahunan';
+        $judulIndText = function_exists('formatDynamicTableTitle') 
+            ? formatDynamicTableTitle($tabel->judul_ind, [$tahunInput], 'id', $tipePeriodeTabel)
+            : $tabel->judul_ind . ', ' . $tahunInput;
         $sheet->setCellValue("A{$row}", $judulIndText);
         $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(11)->setName('Arial');
         $row++;
 
         // Judul Bahasa Inggris (Italic)
         if (!empty($tabel->judul_en)) {
-            $judulEnText = $tabel->judul_en;
-            if (!empty($tabel->periode_en)) {
-                $judulEnText .= ', ' . $tabel->periode_en;
-            } elseif (!empty($tabel->tahun)) {
-                $judulEnText .= ', ' . $tabel->tahun;
-            }
+            $judulEnText = function_exists('formatDynamicTableTitle')
+                ? formatDynamicTableTitle($tabel->judul_en, [$tahunInput], 'en', $tipePeriodeTabel)
+                : $tabel->judul_en . ', ' . $tahunInput;
             $sheet->setCellValue("A{$row}", $judulEnText);
             $sheet->getStyle("A{$row}")->getFont()->setItalic(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('475569'))->setName('Arial');
             $row++;
         }
 
-        // Satuan Data jika ada
-        if (!empty($satuan)) {
-            $sheet->setCellValue("A{$row}", "(" . $satuan . ")");
-            $sheet->getStyle("A{$row}")->getFont()->setSize(9)->setItalic(true)->setName('Arial');
-            $row++;
+        // Keterangan Tahun Data & Satuan Data
+        $satuanText = $indikator->satuan ?? '';
+        $metaHeaderInfo = "Tahun Data: " . $tahunInput;
+        if (!empty($satuanText)) {
+            $metaHeaderInfo .= " | Satuan / Unit: " . $satuanText;
         }
+        $sheet->setCellValue("A{$row}", $metaHeaderInfo);
+        $sheet->getStyle("A{$row}")->getFont()->setSize(9)->setItalic(true)->setName('Arial');
+        $row++;
 
         // Jarak kosong sebelum grid header
         $row++;
@@ -1162,8 +1188,20 @@ class ExcelTemplateGenerator
         $dataStartRow = $numRow + 1;
         $curRow = $dataStartRow;
 
-        // Tentukan format angka Excel fleksibel (tidak memaksakan trailing nol pada angka bulat)
-        $numFormat = '#,##0.####';
+        // Tentukan format angka Excel sesuai presisi desimal indikator
+        $satuan = $indikator->satuan ?? '';
+        $desimalSetting = (int)($indikator->desimal ?? -1);
+        if ($desimalSetting === 0) {
+            $numFormat = '#,##0';
+        } elseif ($desimalSetting === 1) {
+            $numFormat = '#,##0.0';
+        } elseif ($desimalSetting === 2) {
+            $numFormat = '#,##0.00';
+        } elseif ($desimalSetting === 3) {
+            $numFormat = '#,##0.000';
+        } else {
+            $numFormat = 'General';
+        }
 
         $rowItemsMeta = [];
 
@@ -1679,7 +1717,7 @@ class ExcelTemplateGenerator
                                     ]
                                 ]);
                             }
-                            $sheet->getStyle("A{$curRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::LEFT);
+                            $sheet->getStyle("A{$curRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_LEFT);
                             $sheet->getStyle("A{$curRow}")->getFont()->setBold(true)->setSize(9.5)->setName('Arial');
                             $isFirstChildOfParent = false;
                         }
@@ -1994,6 +2032,51 @@ class ExcelTemplateGenerator
 
         $dataEndRow = $curRow - 1;
 
+        // Prefill data yang sudah tersimpan di database untuk tahun data ini (jika ada)
+        $existingCells = $this->db->table('t_nilai_dinamis')
+            ->select('id_baris_item, id_karakteristik_item, id_periode_item, nilai, simbol')
+            ->where('id_indikator', (int)$indikator->id)
+            ->where('tahun_data', (int)$tahunInput)
+            ->get()
+            ->getResult();
+
+        if (!empty($existingCells)) {
+            $existingMap = [];
+            foreach ($existingCells as $ec) {
+                $bId = (int)$ec->id_baris_item;
+                $kId = (int)$ec->id_karakteristik_item;
+                $pId = (int)$ec->id_periode_item;
+                $existingMap[$bId][$kId][$pId] = [
+                    'nilai'  => $ec->nilai,
+                    'simbol' => $ec->simbol
+                ];
+            }
+
+            foreach ($rowItemsMeta as $rMeta) {
+                $rExcel = (int)$rMeta['excel_row'];
+                $rIdBaris = (int)($rMeta['id_baris'] ?? 0);
+                $rIdPeriode = (int)($rMeta['id_periode'] ?? 0);
+                $rTipe = $rMeta['tipe'] ?? 'data';
+
+                if ($rTipe !== 'kategori') {
+                    foreach ($leafColumns as $colOffset => $colMeta) {
+                        $cLetter = $colMeta['excel_col'] ?? Coordinate::stringFromColumnIndex($startDataColIndex + $colOffset);
+                        $cIdKarakteristik = (int)($colMeta['item_id'] ?? 0);
+                        $cIdPeriode = (int)($colMeta['periode_id'] ?? $rIdPeriode);
+
+                        if (isset($existingMap[$rIdBaris][$cIdKarakteristik][$cIdPeriode])) {
+                            $exVal = $existingMap[$rIdBaris][$cIdKarakteristik][$cIdPeriode];
+                            if (!empty($exVal['simbol'])) {
+                                $sheet->setCellValue("{$cLetter}{$rExcel}", $exVal['simbol']);
+                            } elseif ($exVal['nilai'] !== null && $exVal['nilai'] !== '') {
+                                $sheet->setCellValue("{$cLetter}{$rExcel}", (float)$exVal['nilai']);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // =====================================================================
         // 10. RENDER FOOTNOTE (SUMBER DATA DARI INSTANSI, TANPA CATATAN)
         // =====================================================================
@@ -2062,7 +2145,10 @@ class ExcelTemplateGenerator
         $metaSheet->setCellValue('B5', $tabel->no_tabel);
 
         $metaSheet->setCellValue('A6', 'TAHUN');
-        $metaSheet->setCellValue('B6', $tabel->tahun);
+        $metaSheet->setCellValue('B6', $tahunInput);
+
+        $metaSheet->setCellValue('A16', 'TAHUN_DATA');
+        $metaSheet->setCellValue('B16', $tahunInput);
 
         $metaSheet->setCellValue('A7', 'ID_KARAKTERISTIK_KELOMPOK');
         $metaSheet->setCellValue('B7', $id_karakteristik);
@@ -2105,8 +2191,10 @@ class ExcelTemplateGenerator
         // JSON payload terstruktur untuk pembacaan instan di Sprint 5
         $metaPayload = [
             'id_tahun_tabel' => $id_tahun_tabel,
+            'id_master_tabel'=> (int)($context['id_tabel'] ?? ($tabel->id_master_tabel ?? 0)),
             'id_indikator'   => (int)$indikator->id,
-            'tahun'          => (int)$tabel->tahun,
+            'tahun'          => (int)$tahunInput,
+            'tahun_data'     => (int)$tahunInput,
             'no_tabel'       => $tabel->no_tabel,
             'judul_ind'      => $tabel->judul_ind,
             'posisi_hirarki' => $posisi_hirarki,
@@ -2146,24 +2234,22 @@ class ExcelTemplateGenerator
      * @param int $id_tahun_tabel
      * @return void
      */
-    public function download(int $id_tahun_tabel)
+    public function download(int $id_param, ?int $tahunInput = null)
     {
-        $spreadsheet = $this->generate($id_tahun_tabel);
+        if ($tahunInput === null || $tahunInput <= 0) {
+            $tahunInput = (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
+        }
 
-        // Ambil info nama berkas
-        $tabel = $this->db->table('t_tahun_tabel')
-            ->select('t_tahun_tabel.tahun, t_tahun_tabel.no_tabel, m_list_tabel.judul_ind')
-            ->join('m_list_tabel', 't_tahun_tabel.id_tabel = m_list_tabel.id', 'left')
-            ->where('t_tahun_tabel.id', $id_tahun_tabel)
-            ->get()->getRow();
+        $spreadsheet = $this->generate($id_param, null, $tahunInput);
 
-        $rawTitle = ($tabel->no_tabel ? $tabel->no_tabel . ' ' : '') . ($tabel->judul_ind ?? 'Tabel_DDA');
+        $context = $this->mTabelDinamis->resolveTableContext($id_param, $tahunInput, true);
+        $tabel = $context['tabel'];
+
+        $rawTitle = ($tabel && !empty($tabel->no_tabel) ? $tabel->no_tabel . ' ' : '') . ($tabel->judul_ind ?? 'Tabel_DDA');
         // Bersihkan karakter ilegal untuk nama file Windows/Linux
-        $cleanTitle = preg_replace('/[\\\\\\/\\:\\*\\?\\"\\<\\>\\|\\r\\n]/', '_', $rawTitle);
-        $cleanTitle = preg_replace('/\\s+/', '_', trim($cleanTitle));
-        $filename   = 'Template_DDA_' . substr($cleanTitle, 0, 80) . '_' . ($tabel->tahun ?? date('Y')) . '.xlsx';
-
-        // Set response header untuk streaming download .xlsx
+        $cleanTitle = preg_replace('/[\\\\\\/:*?"<>|\r\n]/', '_', $rawTitle);
+        $cleanTitle = preg_replace('/\s+/', '_', trim($cleanTitle));
+        $filename   = 'Template_DDA_' . substr($cleanTitle, 0, 80) . '_' . $tahunInput . '.xlsx';
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $filename . '"');
         header('Cache-Control: max-age=0');

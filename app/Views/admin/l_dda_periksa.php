@@ -152,7 +152,8 @@
                     } else {
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
-                            $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, $b->periode_id ?? $b->periode ?? ""));
+                            $thPeriodeDda = $b->periode_id ?? $b->periode ?? (!empty($b->tahun) ? (int)$b->tahun - 1 : ((int)$ta - 1));
+                            $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, (string)$thPeriodeDda));
                             $is_dynamic = !empty($b->is_dynamic);
                             $is_portal = (stripos($b->link_tabel, 'portal') !== false || 
                                           stripos($b->link_tabel, 'satudata') !== false || 

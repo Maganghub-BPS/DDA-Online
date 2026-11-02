@@ -114,3 +114,119 @@ function segment_safe($n) {
 function _print_pdf($file, $data) {
     // mock
 }
+
+/**
+ * Merakit judul tabel dinamis secara cerdas dengan akhiran tahun/periode
+ * 
+ * @param string $baseTitle
+ * @param array $selectedYears
+ * @param string $lang 'id' atau 'en'
+ * @param string $tipePeriode 'tahunan', 'tahun_ajaran', dll.
+ * @return string
+ */
+function formatDynamicTableTitle(string $baseTitle, array $selectedYears, string $lang = 'id', string $tipePeriode = 'tahunan'): string
+{
+    // 1. Bersihkan akhiran tahun lama jika ada
+    $title = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', $baseTitle);
+    $title = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $title);
+    $title = trim(rtrim($title, ','));
+
+    // 2. Normalisasi dan urutkan tahun
+    $years = [];
+    foreach ($selectedYears as $y) {
+        $yi = (int)$y;
+        if ($yi > 1900 && $yi < 2100) {
+            $years[] = $yi;
+        }
+    }
+    $years = array_values(array_unique($years));
+    sort($years);
+
+    if (empty($years)) {
+        return $title;
+    }
+
+    $isEn = (strtolower($lang) === 'en');
+    $conj = $isEn ? ' and ' : ' dan ';
+    $count = count($years);
+
+    // Format per item (misal YYYY atau YYYY/YYYY+1)
+    $isAkademik = ($tipePeriode === 'tahun_ajaran');
+    $formatYearItem = function (int $y) use ($isAkademik): string {
+        return $isAkademik ? "{$y}/" . ($y + 1) : (string)$y;
+    };
+
+    if ($count === 1) {
+        $yearStr = $formatYearItem($years[0]);
+    } elseif ($count === 2) {
+        $yearStr = $formatYearItem($years[0]) . $conj . $formatYearItem($years[1]);
+    } else {
+        // Cek apakah tahun berurutan penuh tanpa loncat
+        $isConsecutive = true;
+        for ($i = 1; $i < $count; $i++) {
+            if ($years[$i] !== $years[$i - 1] + 1) {
+                $isConsecutive = false;
+                break;
+            }
+        }
+
+        if ($isConsecutive) {
+            $yearStr = $formatYearItem($years[0]) . '–' . $formatYearItem(end($years));
+        } else {
+            // Loncat-loncat: list dipisah koma dengan konjungsi di ujung
+            $lastYear = array_pop($years);
+            $formattedList = array_map($formatYearItem, $years);
+            $oxfordConj = $isEn ? ', and ' : ', dan ';
+            $yearStr = implode(', ', $formattedList) . $oxfordConj . $formatYearItem($lastYear);
+        }
+    }
+
+    // Jika judul mengandung placeholder [PERIODE] / [periode]
+    if (stripos($title, '[PERIODE]') !== false) {
+        return str_ireplace('[PERIODE]', $yearStr, $title);
+    }
+
+    return $title . ', ' . $yearStr;
+}
+
+/**
+ * Format nilai sel tabel dinamis sesuai presisi desimal & simbol statistik BPS
+ * 
+ * @param mixed $nilai
+ * @param mixed $simbol
+ * @param int $settingDesimal Konfigurasi indikator: -1 (otomatis), 0, 1, 2, 3
+ * @param int|null $cellDesimal Presisi desimal asli sel Excel jika ada
+ * @return string
+ */
+function formatDynamicCellValue($nilai, $simbol = null, int $settingDesimal = -1, ?int $cellDesimal = null): string
+{
+    if ($simbol !== null && $simbol !== '') {
+        return (string)$simbol;
+    }
+
+    if ($nilai === null || $nilai === '') {
+        return '-';
+    }
+
+    $num = (float)$nilai;
+
+    // Presisi ditentukan eksplisit (0, 1, 2, 3)
+    if ($settingDesimal >= 0) {
+        return number_format($num, $settingDesimal, ',', '.');
+    }
+
+    // Otomatis: gunakan desimal dari file Excel jika tersedia
+    if ($cellDesimal !== null && $cellDesimal >= 0) {
+        return number_format($num, $cellDesimal, ',', '.');
+    }
+
+    // Deteksi desimal signifikan dari nilai numerik
+    $valStr = (string)$nilai;
+    if (strpos($valStr, '.') !== false) {
+        $parts = explode('.', $valStr);
+        $decimals = strlen(rtrim($parts[1], '0'));
+        return number_format($num, $decimals, ',', '.');
+    }
+
+    return number_format($num, 0, ',', '.');
+}

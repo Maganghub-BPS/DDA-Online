@@ -31,10 +31,10 @@ if (!function_exists('format_judul_tabel')) {
             return '';
         }
         if ($periode === '') {
-            return trim(preg_replace('/\s+/', ' ', str_replace('[PERIODE]', '', $judul)));
+            return trim(preg_replace('/\s+/', ' ', str_ireplace('[PERIODE]', '', $judul)));
         }
-        if (strpos($judul, '[PERIODE]') !== false) {
-            return str_replace('[PERIODE]', $periode, $judul);
+        if (stripos($judul, '[PERIODE]') !== false) {
+            return str_ireplace('[PERIODE]', $periode, $judul);
         }
 
         return rtrim($judul, " ,") . ', ' . $periode;

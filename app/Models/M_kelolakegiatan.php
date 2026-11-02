@@ -165,57 +165,236 @@ class m_kelolakegiatan extends Model{
         return $row ? $row->id : null;
 	}
 
-    function get_statistik_dashboard($th){
-        $sql = "SELECT 
-                    SUM(CASE WHEN is_periksa = 1 OR link_tabel LIKE '%portal%' OR link_tabel LIKE '%satudata%' OR is_confirm = 1 THEN 1 ELSE 0 END) as diisi,
-                    SUM(CASE WHEN (is_periksa = 0 AND link_tabel NOT LIKE '%portal%' AND link_tabel NOT LIKE '%satudata%') AND is_confirm != 1 THEN 1 ELSE 0 END) as belum_diisi,
-                    SUM(CASE WHEN is_confirm = 1 THEN 1 ELSE 0 END) as sudah_acc,
-                    SUM(CASE WHEN is_confirm != 1 THEN 1 ELSE 0 END) as belum_acc
-                FROM t_tahun_tabel 
-                WHERE tahun = '$th'"; 
+    public function get_statistik_dashboard($th)
+    {
+        $thDda = (string)$th;
+        $thData = ((int)$th) - 1;
+        $thDataStr = (string)$thData;
+        $sql = "
+            SELECT 
+                COUNT(mt.id) as total_tabel,
+                SUM(CASE 
+                    WHEN tt.is_confirm = '1' THEN 1 
+                    ELSE 0 
+                END) as sudah_acc,
+                SUM(CASE 
+                    WHEN (tt.is_confirm = '1') OR (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 1 
+                    ELSE 0 
+                END) as diisi,
+                SUM(CASE 
+                    WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 1 
+                    ELSE 0 
+                END) as diisi_waiting,
+                SUM(CASE 
+                    WHEN (tt.is_confirm = '1') OR (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 0 
+                    ELSE 1 
+                END) as belum_diisi,
+                SUM(CASE 
+                    WHEN tt.is_confirm IS NULL OR tt.is_confirm != '1' THEN 1 
+                    ELSE 0 
+                END) as belum_acc
+            FROM m_list_tabel mt
+            LEFT JOIN t_status_tahunan tt ON tt.id_tabel = mt.id AND tt.tahun = ?
+            LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+            LEFT JOIN (
+                SELECT DISTINCT id_indikator 
+                FROM t_nilai_dinamis 
+                WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+            ) nd ON nd.id_indikator = mi.id
+            LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+            WHERE mt.is_active = 1
+        ";
 
-        return $this->db->query($sql)->getRow();
+        $params = [
+            "%$thDataStr%", "%portal%", "%satudata%",
+            "%$thDataStr%", "%portal%", "%satudata%",
+            "%$thDataStr%", "%portal%", "%satudata%",
+            $thDda, $thData
+        ];
+
+        return $this->db->query($sql, $params)->getRow();
     }
 
-    
-    function get_statistik_per_opd($th){
-        $sql = "SELECT 
-                    m.id_unitkerja as nama_opd, 
-                    
-                    -- HIJAU: Diverifikasi
-                    SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as total_acc,
-                    -- KUNING: Sudah Diisi (Menunggu Verifikasi)
-                    SUM(CASE WHEN (t.is_periksa = 1 OR t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_menunggu,
-                    -- MERAH: Belum Diisi
-                    SUM(CASE WHEN (t.is_periksa = 0 AND t.link_tabel NOT LIKE '%portal%' AND t.link_tabel NOT LIKE '%satudata%') AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_belum
-                    
-                FROM t_tahun_tabel t  
-                JOIN m_list_tabel mt ON t.id_tabel = mt.id
-                JOIN m_unitkerja m ON mt.id_unitkerja = m.id_unitkerja 
-                WHERE t.tahun = '$th' 
-                GROUP BY m.id_unitkerja
-                ORDER BY m.id_unitkerja ASC"; 
-        
-        return $this->db->query($sql)->getResult();
+    public function get_statistik_per_opd($th)
+    {
+        $thDda = (string)$th;
+        $thData = ((int)$th) - 1;
+        $thDataStr = (string)$thData;
+        $sql = "
+            SELECT 
+                m.id_unitkerja as nama_opd,
+                COUNT(mt.id) as total_tabel,
+                SUM(CASE 
+                    WHEN tt.is_confirm = '1' THEN 1 
+                    ELSE 0 
+                END) as total_acc,
+                SUM(CASE 
+                    WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 1 
+                    ELSE 0 
+                END) as total_menunggu,
+                SUM(CASE 
+                    WHEN (tt.is_confirm = '1') OR (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 0 
+                    ELSE 1 
+                END) as total_belum
+            FROM m_list_tabel mt
+            JOIN m_unitkerja m ON mt.id_unitkerja = m.id_unitkerja
+            LEFT JOIN t_status_tahunan tt ON tt.id_tabel = mt.id AND tt.tahun = ?
+            LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+            LEFT JOIN (
+                SELECT DISTINCT id_indikator 
+                FROM t_nilai_dinamis 
+                WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+            ) nd ON nd.id_indikator = mi.id
+            LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+            WHERE mt.is_active = 1
+            GROUP BY m.id_unitkerja
+            ORDER BY m.id_unitkerja ASC
+        ";
+
+        $params = [
+            "%$thDataStr%", "%portal%", "%satudata%",
+            "%$thDataStr%", "%portal%", "%satudata%",
+            $thDda, $thData
+        ];
+
+        return $this->db->query($sql, $params)->getResult();
     }
 
-    function get_statistik_per_tim($th){
-        $sql = "SELECT 
-                    m.user_wali as nama_tim,
-                    -- 1. HIJAU: Diverifikasi
-                    SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as total_acc,
-                    -- 2. KUNING: Sudah Diisi (Menunggu Verifikasi)
-                    SUM(CASE WHEN (t.is_periksa = 1 OR t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') AND t.is_confirm != 1 THEN 1 ELSE 0 END) as total_menunggu,
-                    -- 3. MERAH: Belum Diisi
-                    SUM(CASE WHEN (t.is_periksa = 0 AND t.link_tabel NOT LIKE '%portal%' AND t.link_tabel NOT LIKE '%satudata%') AND t.is_confirm != 1 AND t.id IS NOT NULL THEN 1 ELSE 0 END) as total_belum
-                    
-                FROM m_unitkerja m
-                LEFT JOIN m_list_tabel mt ON m.id_unitkerja = mt.id_unitkerja
-                LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = '$th'
-                WHERE m.user_wali IS NOT NULL AND m.user_wali != '' AND m.user_wali != '-'
-                GROUP BY m.user_wali
-                ORDER BY m.user_wali ASC";
-        
-        return $this->db->query($sql)->getResult();
+    public function get_statistik_per_tim($th)
+    {
+        $thDda = (string)$th;
+        $thData = ((int)$th) - 1;
+        $thDataStr = (string)$thData;
+        $sql = "
+            SELECT 
+                m.user_wali as nama_tim,
+                COUNT(mt.id) as total_tabel,
+                SUM(CASE 
+                    WHEN tt.is_confirm = '1' THEN 1 
+                    ELSE 0 
+                END) as total_acc,
+                SUM(CASE 
+                    WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 1 
+                    ELSE 0 
+                END) as total_menunggu,
+                SUM(CASE 
+                    WHEN (tt.is_confirm = '1') OR (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 0 
+                    ELSE 1 
+                END) as total_belum
+            FROM m_unitkerja m
+            JOIN m_list_tabel mt ON m.id_unitkerja = mt.id_unitkerja
+            LEFT JOIN t_status_tahunan tt ON tt.id_tabel = mt.id AND tt.tahun = ?
+            LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+            LEFT JOIN (
+                SELECT DISTINCT id_indikator 
+                FROM t_nilai_dinamis 
+                WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+            ) nd ON nd.id_indikator = mi.id
+            LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+            WHERE mt.is_active = 1
+              AND m.user_wali IS NOT NULL AND m.user_wali != '' AND m.user_wali != '-'
+            GROUP BY m.user_wali
+            ORDER BY m.user_wali ASC
+        ";
+
+        $params = [
+            "%$thDataStr%", "%portal%", "%satudata%",
+            "%$thDataStr%", "%portal%", "%satudata%",
+            $thDda, $thData
+        ];
+
+        return $this->db->query($sql, $params)->getResult();
+    }
+
+    public function get_progress($ta, $id_unitkerja = null)
+    {
+        $thDda = (string)$ta;
+        $thData = ((int)$ta) - 1;
+        $thDataStr = (string)$thData;
+        $whereOpd = '';
+        $params = [
+            "%$thDataStr%", "%portal%", "%satudata%",
+            "%$thDataStr%", "%portal%", "%satudata%",
+            "%$thDataStr%", "%portal%", "%satudata%",
+            $thDda, $thData
+        ];
+        if (!empty($id_unitkerja)) {
+            $whereOpd = " AND mt.id_unitkerja = ? ";
+            $params[] = $id_unitkerja;
+        }
+
+        $sql = "
+            SELECT 
+                COUNT(mt.id) as total_tabel,
+                SUM(CASE 
+                    WHEN tt.is_confirm = '1' THEN 1 
+                    ELSE 0 
+                END) as sudah_acc,
+                SUM(CASE 
+                    WHEN (tt.is_confirm = '1') OR (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 1 
+                    ELSE 0 
+                END) as diisi,
+                SUM(CASE 
+                    WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 1 
+                    ELSE 0 
+                END) as diisi_waiting,
+                SUM(CASE 
+                    WHEN (tt.is_confirm = '1') OR (
+                        tt.is_periksa = 1 
+                        OR nd.id_indikator IS NOT NULL 
+                        OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    ) THEN 0 
+                    ELSE 1 
+                END) as belum_diisi
+            FROM m_list_tabel mt
+            LEFT JOIN t_status_tahunan tt ON tt.id_tabel = mt.id AND tt.tahun = ?
+            LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+            LEFT JOIN (
+                SELECT DISTINCT id_indikator 
+                FROM t_nilai_dinamis 
+                WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+            ) nd ON nd.id_indikator = mi.id
+            LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+            WHERE mt.is_active = 1
+            $whereOpd
+        ";
+
+        return $this->db->query($sql, $params)->getRow();
     }
 }
