@@ -935,6 +935,14 @@
                     </div>
                 </div>
 
+                <!-- Info Banner Dimensi Waktu Multi-Tahun -->
+                <div class="alert alert-info border-0 rounded-3 shadow-xs d-flex align-items-center gap-3 py-2 px-3 mb-3" style="background-color: #E8F4FD; color: #0C5460;">
+                    <i class="bi bi-info-circle-fill fs-4 text-info"></i>
+                    <div class="small">
+                        <strong>Informasi Dimensi Waktu:</strong> Periode <strong>Tahunan (2020..2026+)</strong> dan <strong>Tahun Ajaran (YYYY/YYYY+1)</strong> dikelola otomatis oleh sistem secara multi-tahun. Tab ini khusus untuk melihat <strong>Periode Standar BPS</strong> (Bulanan, Triwulanan, Semesteran, dll.) serta mengelola <strong>Periode Kustom Sub-Tahunan</strong>.
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-dimensi" id="table_dimensi_periode">
                         <thead>
@@ -960,6 +968,15 @@
                                         <td>
                                             <div class="item-title"><?= esc($p->nama_kelompok_ind); ?></div>
                                             <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
+                                                <?php if (($p->kategori_periode ?? '') === 'standar'): ?>
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary small px-2 py-0" style="font-size: 0.75rem;" title="Periode Standar BPS Bawaan Sistem">
+                                                        <i class="bi bi-star-fill me-1 text-warning"></i>Standar BPS
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary-subtle text-secondary border small px-2 py-0" style="font-size: 0.75rem;" title="Periode Kustom">
+                                                        <i class="bi bi-gear-fill me-1"></i>Periode Kustom
+                                                    </span>
+                                                <?php endif; ?>
                                                 <span class="badge bg-light text-dark border small px-2 py-0" style="font-size: 0.75rem;" title="Judul Header jika periode dijadikan baris pada tabel">
                                                     <i class="bi bi-table me-1 text-success"></i>Header: <strong><?= esc($p->judul_periode_ind ?: 'Tahun'); ?></strong>
                                                     <?php if (!empty($p->judul_periode_en)): ?>
@@ -991,12 +1008,19 @@
                                                         title="Edit Nama Kelompok">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-                                                <a href="<?= base_url('admin/master_dimensi/del_periode/' . $p->id); ?>"
+                                                <?php if (($p->kategori_periode ?? '') === 'standar'): ?>
+                                                    <button type="button" class="btn btn-sm btn-light border rounded-3 btn-action-dimensi text-muted opacity-50"
+                                                            disabled title="Periode Standar BPS tidak dapat dihapus">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                <?php else: ?>
+                                                    <a href="<?= base_url('admin/master_dimensi/del_periode/' . $p->id); ?>"
                                                    class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi"
                                                    onclick="return confirm('Apakah Anda yakin ingin menghapus kelompok periode ini beserta seluruh itemnya?');"
                                                    title="Hapus Kelompok">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>

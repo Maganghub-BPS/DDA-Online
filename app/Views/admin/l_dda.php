@@ -5,6 +5,7 @@
         $tab = segment_safe(3);
     }
     $username = session()->get('admin_user');
+    $ta = session()->get('admin_ta') ?: date('Y');
 ?>
 
 <style>
@@ -138,7 +139,8 @@ if (empty($data)) {
 } else {
     $no = 1;
     foreach ($data as $b) {
-        $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, $b->periode_id ?? $b->periode ?? ""));
+        $thPeriodeDda = $b->periode_id ?? $b->periode ?? (!empty($b->tahun) ? (int)$b->tahun - 1 : ((int)$ta - 1));
+        $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, (string)$thPeriodeDda));
 ?>
 <tr class="tabel-row">
     <td class="text-center tabel-row-number fw-semi-bold text-muted"><?php echo $no++; ?></td>
@@ -151,7 +153,8 @@ if (empty($data)) {
                        (isset($b->id_api) && !empty($b->id_api)));
 
         if ($is_dynamic) {
-            $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id);
+            $thDataDda = (int)$ta - 1;
+            $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id . '?tahun=' . $thDataDda);
             $target = '';
         } elseif ($is_portal) {
             $tabel_url = $b->link_tabel;
@@ -186,7 +189,7 @@ if (empty($data)) {
                       stripos($b->link_tabel, 'satudata') !== false || 
                       (isset($b->id_api) && !empty($b->id_api)));
         $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
-        $is_sudah_diisi = ($is_portal) || ($is_dynamic ? ($b->is_periksa == '1' && $is_dynamic_uploaded) : ($b->is_periksa == '1'));
+        $is_sudah_diisi = ($is_portal) || ($b->is_periksa == '1');
 
         if ($is_sudah_diisi) { ?>
             <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Sudah Diisi</span>
@@ -252,7 +255,14 @@ if (empty($data)) {
                     <a href="<?php echo $tabel_url; ?>"
                        class="btn btn-sm btn-primary shadow-sm align-self-start border-0 text-white"
                        title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
-                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Isi Data
+                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Isi Data (<?= esc($thDataDda ?? ((int)$ta - 1)); ?>)
+                    </a>
+                    <?php $thDataDda = (int)$ta - 1; ?>
+                    <a href="<?= base_url('admin/download_template_tabel/' . $b->id . '/' . $thDataDda); ?>"
+                       class="btn btn-xs btn-outline-success shadow-xs align-self-start mt-1 fw-semibold"
+                       style="font-size: 11px;"
+                       title="Unduh Template Excel Data Tahun <?= esc($thDataDda); ?>">
+                        <i class="bi bi-download me-1"></i>Template (<?= esc($thDataDda); ?>)
                     </a>
                 <?php else: ?>
                     <a href="javascript:;"

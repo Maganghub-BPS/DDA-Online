@@ -30,7 +30,7 @@ class ExcelDataParser
      * @return array Hasil parsing terstruktur
      * @throws \Exception
      */
-    public function parse(string $filePath, int $expectedIdTahunTabel): array
+    public function parse(string $filePath, int $expectedIdTahunTabel, ?int $tahunInputOverride = null): array
     {
         if (!file_exists($filePath)) {
             throw new \Exception("Berkas Excel tidak ditemukan di server.");
@@ -65,6 +65,7 @@ class ExcelDataParser
             $metaPayload = [
                 'id_tahun_tabel' => (int)$metaSheet->getCell('B3')->getValue(),
                 'id_indikator'   => (int)$metaSheet->getCell('B4')->getValue(),
+                'tahun'          => (int)$metaSheet->getCell('B6')->getValue(),
                 'data_start_row' => (int)$metaSheet->getCell('B10')->getValue(),
                 'data_end_row'   => (int)$metaSheet->getCell('B11')->getValue(),
                 'checksum'       => (string)$metaSheet->getCell('B14')->getValue(),
@@ -73,32 +74,55 @@ class ExcelDataParser
 
         $idTahunTabelExcel = (int)($metaPayload['id_tahun_tabel'] ?? 0);
         $idIndikatorExcel  = (int)($metaPayload['id_indikator'] ?? 0);
+        $idMasterExcel     = (int)($metaPayload['id_master_tabel'] ?? 0);
+        $tahunExcel        = (int)($metaPayload['tahun_data'] ?? ($metaPayload['tahun'] ?? $metaSheet->getCell('B6')->getValue()));
 
-        // 4. Validasi Kesesuaian Target Tabel
-        if ($idTahunTabelExcel !== $expectedIdTahunTabel) {
-            // Ambil info nama tabel yang salah diunggah untuk pesan error yang ramah pengguna
-            $infoSalah = $this->db->table('t_tahun_tabel')
-                ->select('t_tahun_tabel.no_tabel, m_list_tabel.judul_ind')
-                ->join('m_list_tabel', 't_tahun_tabel.id_tabel = m_list_tabel.id', 'left')
-                ->where('t_tahun_tabel.id', $idTahunTabelExcel)
-                ->get()->getRow();
-
-            $namaTabelSalah = $infoSalah ? ($infoSalah->no_tabel ? 'Tabel ' . $infoSalah->no_tabel . ' ' : '') . $infoSalah->judul_ind : "ID {$idTahunTabelExcel}";
-
-            throw new \Exception("Berkas Excel yang diunggah tidak cocok! Berkas ini merupakan template untuk: [{$namaTabelSalah}]. Mohon unggah berkas template yang sesuai.");
+        // Tentukan tahun data: prioritaskan override dari form upload, lalu metadata Excel, lalu active session
+        if ($tahunInputOverride !== null && (int)$tahunInputOverride > 0) {
+            $tahunData = (int)$tahunInputOverride;
+        } elseif ($tahunExcel > 0) {
+            $tahunData = $tahunExcel;
+        } else {
+            $tahunData = (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
         }
 
-        // 5. Validasi Konfigurasi Indikator di Database
-        $indikator = $this->db->table('m_indikator_tabel')
-            ->where('id_tahun_tabel', $expectedIdTahunTabel)
-            ->get()->getRow();
+        // 4. Resolusi Konteks Tabel Target
+        $context = $this->mTabelDinamis->resolveTableContext($expectedIdTahunTabel, $tahunData, true);
+        $tabel = $context['tabel'];
+        $indikator = $context['indikator'];
+        $tahunTabel = $context['tahun_tabel'];
+
+        if (!$indikator) {
+            $indikator = $this->db->table('m_indikator_tabel')
+                ->where('id_tabel', (int)$expectedIdTahunTabel)
+                ->get()->getRow();
+        }
 
         if (!$indikator) {
             throw new \Exception("Konfigurasi dimensi tabel ini tidak ditemukan di sistem.");
         }
 
-        if ((int)$indikator->id !== $idIndikatorExcel) {
-            throw new \Exception("Konfigurasi indikator pada berkas Excel sudah kedaluwarsa karena struktur dimensi tabel telah diperbarui ulang oleh Admin BPS. Silakan unduh template Excel terbaru.");
+        // 5. Validasi Kesesuaian Target Tabel (Resilien terhadap Master ID maupun Tahun Tabel ID)
+        $isMatch = false;
+        if ($idIndikatorExcel > 0 && (int)$indikator->id === $idIndikatorExcel) {
+            $isMatch = true;
+        } elseif ($idMasterExcel > 0 && $tabel && (int)$tabel->id === $idMasterExcel) {
+            $isMatch = true;
+        } elseif ($idTahunTabelExcel === (int)$expectedIdTahunTabel || ($tabel && $idTahunTabelExcel === (int)$tabel->id)) {
+            $isMatch = true;
+        }
+
+        if (!$isMatch && $idIndikatorExcel > 0) {
+            // Ambil info nama tabel yang salah diunggah untuk pesan error yang ramah pengguna
+            $lookupId = $idMasterExcel > 0 ? $idMasterExcel : $idTahunTabelExcel;
+            $infoSalah = $this->db->table('m_list_tabel')
+                ->select('no_tabel, judul_ind')
+                ->where('id', $lookupId)
+                ->get()->getRow();
+
+            $namaTabelSalah = $infoSalah ? ($infoSalah->no_tabel ? 'Tabel ' . $infoSalah->no_tabel . ' ' : '') . $infoSalah->judul_ind : "ID {$lookupId}";
+
+            throw new \Exception("Berkas Excel yang diunggah tidak cocok! Berkas ini merupakan template untuk: [{$namaTabelSalah}]. Mohon unggah berkas template yang sesuai.");
         }
 
         // 6. Ambil Lembar Data Utama ('Data')
@@ -121,7 +145,14 @@ class ExcelDataParser
             $itemsKolom     = $id_karakteristik > 0 ? $this->mTabelDinamis->getKarakteristikItems($id_karakteristik) : [];
             $kolomStructure = $this->mTabelDinamis->buildColumnStructure($itemsKolom);
             $itemsBaris     = $id_baris > 0 ? $this->mTabelDinamis->getBarisItems($id_baris) : [];
-            $itemsPeriode   = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeItems($id_periode) : [];
+            $tipePeriode    = $indikator->tipe_periode ?? 'tahunan';
+            if (in_array($tipePeriode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahunan_jumlah_rata', 'tahun_ajaran'], true)) {
+                $labelPeriode = ($tipePeriode === 'tahun_ajaran') ? "{$tahunData}/" . ($tahunData + 1) : (string)$tahunData;
+                $itemsPeriode = [(object)['id' => 0, 'id_kelompok' => 0, 'nama_periode_ind' => $labelPeriode, 'nama_periode_en' => $labelPeriode, 'tipe_item' => 'periode', 'no_urut' => 1]];
+                $id_periode = 0;
+            } else {
+                $itemsPeriode = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeItems($id_periode) : [];
+            }
 
             $rawHasGroups   = !empty($kolomStructure['has_groups']);
             $maxDepth       = !empty($kolomStructure['max_depth']) ? (int)$kolomStructure['max_depth'] : (!empty($kolomStructure['has_groups']) ? 2 : 1);
@@ -463,8 +494,7 @@ class ExcelDataParser
                 $hasRenderedTotalFallback = false;
                 $idPeriodeAktif = 0;
                 if (!empty($itemsPeriode)) {
-                    $tabelInfo = $this->db->table('t_tahun_tabel')->where('id', $expectedIdTahunTabel)->get()->getRow();
-                    $tahunAktif = $tabelInfo->tahun ?? '';
+                    $tahunAktif = !empty($tahunData) ? (string)$tahunData : '';
                     foreach ($itemsPeriode as $p) {
                         if (!empty($tahunAktif) && trim((string)$p->nama_periode_ind) === trim((string)$tahunAktif)) {
                             $idPeriodeAktif = (int)$p->id;
@@ -618,14 +648,38 @@ class ExcelDataParser
                 $cell = $dataSheet->getCell($cellCoord);
 
                 // Dapatkan nilai sel (jika berupa formula, ambil nilai hasil perhitungannya)
-                try {
-                    $rawVal = $cell ? $cell->getCalculatedValue() : null;
-                } catch (\Throwable $e) {
-                    $rawVal = $cell ? $cell->getValue() : null;
+                $rawVal = null;
+                $formattedVal = '';
+                if ($cell) {
+                    try {
+                        $rawVal = $cell->getCalculatedValue();
+                    } catch (\Throwable $e) {
+                        $rawVal = $cell->getValue();
+                    }
+                    try {
+                        $formattedVal = (string)$cell->getFormattedValue();
+                    } catch (\Throwable $e) {
+                        $formattedVal = '';
+                    }
                 }
 
                 $sanitized = $this->sanitizeValue($rawVal, $expectedDecimals);
                 $totalCells++;
+
+                // Ekstraksi jumlah desimal asli sel Excel jika bernilai numerik
+                $numDecimals = null;
+                if ($sanitized['nilai'] !== null) {
+                    if (preg_match('/[.,](\d+)/', $formattedVal, $mDec)) {
+                        $numDecimals = strlen($mDec[1]);
+                    } else {
+                        $valStr = (string)$rawVal;
+                        if (preg_match('/[.,](\d+)/', $valStr, $mDec)) {
+                            $numDecimals = strlen(rtrim($mDec[1], '0'));
+                        } else {
+                            $numDecimals = 0;
+                        }
+                    }
+                }
 
                 if ($sanitized['nilai'] !== null || $sanitized['simbol'] !== null) {
                     $filledCells++;
@@ -642,6 +696,8 @@ class ExcelDataParser
                     'id_periode_item'       => $idPeriode,
                     'nilai'                 => $sanitized['nilai'],
                     'simbol'                => $sanitized['simbol'],
+                    'tahun_data'            => (int)$tahunData,
+                    'jumlah_desimal'        => $numDecimals,
                 ];
             }
         }
@@ -650,6 +706,7 @@ class ExcelDataParser
             'status'            => 'success',
             'id_tahun_tabel'    => $expectedIdTahunTabel,
             'id_indikator'      => (int)$indikator->id,
+            'tahun_data'        => (int)$tahunData,
             'total_cells'       => $totalCells,
             'filled_cells'      => $filledCells,
             'empty_cells'       => $emptyCells,

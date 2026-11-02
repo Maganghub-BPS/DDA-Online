@@ -5,21 +5,50 @@ $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0'
 if ($jenis_rekap == '0') {
     $ta = session()->get('admin_ta');
     if (empty($ta)) $ta = date('Y');
+    $thDda = (string)$ta;
+    $thData = ((int)$ta) - 1;
+    $thDataStr = (string)$thData;
 
-    // Ambil data progres pengisian tabel berdasarkan instansi (JOIN m_list_tabel dan t_tahun_tabel)
+    // Ambil data progres pengisian tabel berdasarkan instansi (m_list_tabel, m_unitkerja, t_status_tahunan, t_nilai_dinamis, m_konfigurasi_api)
     $data = \Config\Database::connect()->query("
         SELECT 
             m.unitkerja_ind,
-            COUNT(t.id) as jumlah_tabel,
-            SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
-            SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
-            SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
-        FROM m_unitkerja m 
-        LEFT JOIN m_list_tabel mt ON m.id_unitkerja = mt.id_unitkerja 
-        LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
+            COUNT(mt.id) as jumlah_tabel,
+            SUM(CASE 
+                WHEN (tt.is_confirm = '1') OR (
+                    tt.is_periksa = 1 
+                    OR nd.id_indikator IS NOT NULL 
+                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                ) THEN 0 
+                ELSE 1 
+            END) as belum_isi,
+            SUM(CASE 
+                WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                    tt.is_periksa = 1 
+                    OR nd.id_indikator IS NOT NULL 
+                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                ) THEN 1 
+                ELSE 0 
+            END) as menunggu_validasi,
+            SUM(CASE 
+                WHEN tt.is_confirm = '1' THEN 1 
+                ELSE 0 
+            END) as sudah_validasi
+        FROM m_list_tabel mt
+        JOIN m_unitkerja m ON mt.id_unitkerja = m.id_unitkerja 
+        LEFT JOIN (
+            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa, MAX(link_tabel) as link_tabel 
+            FROM t_status_tahunan WHERE tahun = ? GROUP BY id_tabel
+        ) tt ON tt.id_tabel = mt.id
+        LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+        LEFT JOIN (
+            SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+        ) nd ON nd.id_indikator = mi.id
+        LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+        WHERE mt.is_active = 1
         GROUP BY m.id_unitkerja 
         ORDER BY m.unitkerja_ind ASC
-    ", [$ta])->getResult();
+    ", ["%$thDataStr%", "%portal%", "%satudata%", "%$thDataStr%", "%portal%", "%satudata%", $thDda, $thData])->getResult();
 ?>
     <div class="row align-items-center mb-4">
         <div class="col">
@@ -113,22 +142,51 @@ if ($jenis_rekap == '0') {
 if ($jenis_rekap == '1') {
     $ta = session()->get('admin_ta');
     if (empty($ta)) $ta = date('Y');
+    $thDda = (string)$ta;
+    $thData = ((int)$ta) - 1;
+    $thDataStr = (string)$thData;
 
-    // Ambil data progres pengisian tabel berdasarkan tim (JOIN m_list_tabel dan t_tahun_tabel)
+    // Ambil data progres pengisian tabel berdasarkan tim
     $data = \Config\Database::connect()->query("
         SELECT 
             u.user_wali,
-            COUNT(t.id) as jumlah_tabel,
-            SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
-            SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
-            SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
+            COUNT(mt.id) as jumlah_tabel,
+            SUM(CASE 
+                WHEN (tt.is_confirm = '1') OR (
+                    tt.is_periksa = 1 
+                    OR nd.id_indikator IS NOT NULL 
+                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                ) THEN 0 
+                ELSE 1 
+            END) as belum_isi,
+            SUM(CASE 
+                WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                    tt.is_periksa = 1 
+                    OR nd.id_indikator IS NOT NULL 
+                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                ) THEN 1 
+                ELSE 0 
+            END) as menunggu_validasi,
+            SUM(CASE 
+                WHEN tt.is_confirm = '1' THEN 1 
+                ELSE 0 
+            END) as sudah_validasi
         FROM m_unitkerja u
-        LEFT JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja 
-        LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
-        WHERE u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
+        JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja 
+        LEFT JOIN (
+            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa, MAX(link_tabel) as link_tabel 
+            FROM t_status_tahunan WHERE tahun = ? GROUP BY id_tabel
+        ) tt ON tt.id_tabel = mt.id
+        LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+        LEFT JOIN (
+            SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+        ) nd ON nd.id_indikator = mi.id
+        LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+        WHERE mt.is_active = 1
+          AND u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
         GROUP BY u.user_wali 
         ORDER BY u.user_wali ASC
-    ", [$ta])->getResult();
+    ", ["%$thDataStr%", "%portal%", "%satudata%", "%$thDataStr%", "%portal%", "%satudata%", $thDda, $thData])->getResult();
 ?>
     <div class="row align-items-center mb-4">
         <div class="col">
@@ -242,16 +300,30 @@ if ($jenis_rekap == '2') {
             </thead>
             <tbody class="divide-y divide-gray-100">
                 <?php
+                $ta = session()->get('admin_ta');
+                if (empty($ta)) $ta = date('Y');
+                $thData = ((int)$ta) - 1;
                 $data = \Config\Database::connect()->query("
-                    select satker, judul_dda, judul_portal, tahun_data from t_tabel_match m left join t_dataportal p on m.id_api=p.id_portal order by satker")->getResult();
+                    SELECT 
+                        COALESCE(u.unitkerja_ind, mt.id_unitkerja) as satker, 
+                        mt.judul_ind as judul_dda, 
+                        COALESCE(ka.id_api, mt.judul_ind) as judul_portal, 
+                        ka.tahun_tersedia
+                    FROM m_list_tabel mt
+                    JOIN m_konfigurasi_api ka ON mt.id = ka.id_tabel
+                    LEFT JOIN m_unitkerja u ON mt.id_unitkerja = u.id_unitkerja
+                    WHERE mt.is_active = 1
+                    ORDER BY satker ASC, mt.no_tabel ASC
+                ")->getResult();
 
                 if (empty($data)) {
                     echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'>-- Belum Ada Data --</td></tr>";
                 } else {
                     foreach ($data as $b) {
-                        $is_filled = ($b->tahun_data == '2025');
-                        $status_label = $is_filled ? 'Sinkron' : 'Belum Sinkron';
+                        $is_filled = (stripos($b->tahun_tersedia ?? '', (string)$thData) !== false);
+                        $status_label = $is_filled ? 'Sinkron (' . $thData . ')' : 'Belum Sinkron (' . $thData . ')';
                         $status_class = $is_filled ? 'bg-success-soft text-success border-success' : 'bg-light text-secondary border-secondary';
+                        $tahun_display = !empty($b->tahun_tersedia) ? $b->tahun_tersedia : '-';
                 ?>
                         <tr class="hover:bg-gray-50 transition-colors">
                             <td class="text-xs font-weight-bold ps-4 text-uppercase text-secondary"><?php echo $b->satker ?></td>
@@ -263,7 +335,7 @@ if ($jenis_rekap == '2') {
                                 <span class="text-secondary"><?php echo $b->judul_portal ?></span>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-light text-dark font-weight-bold text-xs px-2"><?php echo $b->tahun_data ?></span>
+                                <span class="badge bg-light text-dark font-weight-bold text-xs px-2"><?php echo $tahun_display ?></span>
                             </td>
                             <td class="text-center">
                                 <span class="badge border <?php echo $status_class; ?> text-uppercase font-weight-bold" style="font-size: 9px; padding: 4px 8px;">

@@ -12,26 +12,69 @@ class M_tabeldinamis extends Model
     protected $useAutoIncrement = true;
     protected $returnType       = 'object';
     protected $allowedFields    = [
-        'id_tahun_tabel',
+        'id_tabel',
         'no_tabel',
         'judul_ind',
         'judul_en',
         'id_unitkerja',
         'id_karakteristik_kelompok',
         'id_baris_kelompok',
+        'tipe_periode',
         'id_periode_kelompok',
+        'tahun_tampil',
         'posisi_hirarki',
         'tingkat_kolom',
         'konfigurasi_total',
         'label_total_kustom',
+        'format_nomor_baris',
         'tampilan_baris',
         'kolom_nomor',
+        'satuan',
         'desimal',
+        'config_tampilan',
         'catatan',
         'created_at',
         'updated_at'
     ];
     protected $useTimestamps    = true;
+
+    /**
+     * Upsert status operasional tahunan ke t_status_tahunan berdasarkan (id_tabel, tahun).
+     */
+    public function upsertStatusTahunan(int $idTabel, int $tahun, array $data): bool
+    {
+        if ($idTabel <= 0 || $tahun <= 0) {
+            return false;
+        }
+
+        $existing = $this->db->table('t_status_tahunan')
+            ->where('id_tabel', $idTabel)
+            ->where('tahun', $tahun)
+            ->get()
+            ->getRowArray();
+
+        $now = date('Y-m-d H:i:s');
+        if ($existing) {
+            $data['updated_at'] = $now;
+            return (bool)$this->db->table('t_status_tahunan')
+                ->where('id', $existing['id'])
+                ->update($data);
+        }
+
+        $insertData = array_merge([
+            'id_tabel'        => $idTabel,
+            'tahun'           => $tahun,
+            'is_periksa'      => 0,
+            'catatan_periksa' => null,
+            'is_confirm'      => '0',
+            'catatan'         => '-',
+            'is_publish'      => 0,
+            'published_at'    => null,
+            'updated_at'      => $now,
+        ], $data);
+
+        return (bool)$this->db->table('t_status_tahunan')->insert($insertData);
+    }
 
     // =========================================================================
     // 1. DIMENSI KARAKTERISTIK (KOLOM & SUB-KOLOM ASIMETRIS)
@@ -225,12 +268,26 @@ class M_tabeldinamis extends Model
             ->getResultArray();
 
         $existingById = [];
-        $existingByComp = [];
         foreach ($existingRows as $row) {
             $existingById[(int)$row['id']] = $row;
-            $compKey = mb_strtolower(trim($row['grup_induk_ind'] ?? '')) . '|' . mb_strtolower(trim($row['grup_sub_ind'] ?? '')) . '|' . mb_strtolower(trim($row['item_ind']));
-            if (!isset($existingByComp[$compKey])) {
-                $existingByComp[$compKey] = (int)$row['id'];
+        }
+
+        // Kumpulkan ID existing yang sudah diklaim secara eksplisit oleh item yang memiliki db_id / id
+        $explicitClaimedIds = [];
+        foreach ($items as $item) {
+            $candId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
+            if ($candId > 0 && isset($existingById[$candId])) {
+                $explicitClaimedIds[$candId] = true;
+            }
+        }
+
+        // Siapkan pool ID existing yang BELUM diklaim untuk pencocokan fallback compKey
+        $availableByComp = [];
+        foreach ($existingRows as $row) {
+            $rowId = (int)$row['id'];
+            if (!isset($explicitClaimedIds[$rowId])) {
+                $compKey = mb_strtolower(trim($row['grup_induk_ind'] ?? '')) . '|' . mb_strtolower(trim($row['grup_sub_ind'] ?? '')) . '|' . mb_strtolower(trim($row['item_ind']));
+                $availableByComp[$compKey][] = $rowId;
             }
         }
 
@@ -328,13 +385,12 @@ class M_tabeldinamis extends Model
             // Matching item existing
             $matchedId = null;
             $candidateId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
-            if ($candidateId > 0 && isset($existingById[$candidateId])) {
+            if ($candidateId > 0 && isset($existingById[$candidateId]) && !in_array($candidateId, $keptIds, true)) {
                 $matchedId = $candidateId;
             } else {
                 $compKey = mb_strtolower(trim($grup_induk_ind ?? '')) . '|' . mb_strtolower(trim($grup_sub_ind ?? '')) . '|' . mb_strtolower(trim($item_ind));
-                if (isset($existingByComp[$compKey])) {
-                    $matchedId = $existingByComp[$compKey];
-                    unset($existingByComp[$compKey]);
+                if (!empty($availableByComp[$compKey])) {
+                    $matchedId = array_shift($availableByComp[$compKey]);
                 }
             }
 
@@ -538,6 +594,8 @@ class M_tabeldinamis extends Model
         $collectCells = function($node) use (&$collectCells, &$headerRows) {
             if (isset($node['row_start'])) {
                 $headerRows[$node['row_start']][] = [
+                    'ind'       => $node['title_ind'],
+                    'en'        => $node['title_en'],
                     'title_ind' => $node['title_ind'],
                     'title_en'  => $node['title_en'],
                     'row'       => $node['row_start'],
@@ -545,6 +603,7 @@ class M_tabeldinamis extends Model
                     'colspan'   => $node['colspan'],
                     'is_leaf'   => $node['is_leaf'],
                     'item_id'   => $node['item'] ? (int)$node['item']->id : null,
+                    'is_sub'    => false,
                 ];
             }
             foreach ($node['children'] as $child) {
@@ -730,12 +789,26 @@ class M_tabeldinamis extends Model
             ->getResultArray();
 
         $existingById = [];
-        $existingByName = [];
         foreach ($existingRows as $row) {
             $existingById[(int)$row['id']] = $row;
-            $norm = mb_strtolower(trim($row['nama_baris_ind']));
-            if (!isset($existingByName[$norm])) {
-                $existingByName[$norm] = (int)$row['id'];
+        }
+
+        // Kumpulkan ID existing yang sudah diklaim secara eksplisit oleh item yang membawa db_id / id
+        $explicitClaimedIds = [];
+        foreach ($items as $item) {
+            $candId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
+            if ($candId > 0 && isset($existingById[$candId])) {
+                $explicitClaimedIds[$candId] = true;
+            }
+        }
+
+        // Siapkan pool ID existing yang BELUM diklaim untuk pencocokan fallback nama
+        $availableByName = [];
+        foreach ($existingRows as $row) {
+            $rowId = (int)$row['id'];
+            if (!isset($explicitClaimedIds[$rowId])) {
+                $norm = mb_strtolower(trim($row['nama_baris_ind']));
+                $availableByName[$norm][] = $rowId;
             }
         }
 
@@ -794,17 +867,16 @@ class M_tabeldinamis extends Model
             $noUrut  = (int)($item['no_urut'] ?? $no);
 
             // Deteksi pencocokan item existing agar ID baris TIDAK BERUBAH:
-            // Prioritas 1: Kecocokan eksplisit db_id / id dari client
-            // Prioritas 2: Kecocokan nama_baris_ind
+            // Prioritas 1: Kecocokan eksplisit db_id / id dari client (dan belum digunakan di batch ini)
+            // Prioritas 2: Kecocokan nama_baris_ind dari pool ID yang belum terpakai
             $matchedId = null;
             $candidateId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
-            if ($candidateId > 0 && isset($existingById[$candidateId])) {
+            if ($candidateId > 0 && isset($existingById[$candidateId]) && !in_array($candidateId, $keptIds, true)) {
                 $matchedId = $candidateId;
             } else {
                 $norm = mb_strtolower($nama_ind);
-                if (isset($existingByName[$norm])) {
-                    $matchedId = $existingByName[$norm];
-                    unset($existingByName[$norm]); // Hindari pencocokan ganda
+                if (!empty($availableByName[$norm])) {
+                    $matchedId = array_shift($availableByName[$norm]);
                 }
             }
 
@@ -1009,10 +1081,21 @@ class M_tabeldinamis extends Model
         return $this->db->table('m_periode_kelompok k')
             ->select('k.*, COUNT(i.id) AS total_items')
             ->join('m_periode_item i', 'k.id = i.id_kelompok', 'left')
+            ->whereIn('k.kategori_periode', ['standar', 'kustom'])
             ->groupBy('k.id')
-            ->orderBy('k.id', 'DESC')
+            ->orderBy("FIELD(k.kategori_periode, 'standar', 'kustom')", '', false)
+            ->orderBy('k.id', 'ASC')
             ->get()
             ->getResult();
+    }
+
+    public function getPeriodeKelompokWithItems(): array
+    {
+        $kelompoks = $this->getPeriodeKelompokAll();
+        foreach ($kelompoks as $k) {
+            $k->items = $this->getPeriodeItems((int)$k->id);
+        }
+        return $kelompoks;
     }
 
     public function getPeriodeKelompok(int $id): ?object
@@ -1042,6 +1125,11 @@ class M_tabeldinamis extends Model
 
     public function deletePeriodeKelompok(int $id): bool
     {
+        $row = $this->getPeriodeKelompok($id);
+        if ($row && isset($row->kategori_periode) && $row->kategori_periode === 'standar') {
+            return false;
+        }
+
         $this->db->transStart();
         $this->db->table('m_periode_item')->where('id_kelompok', $id)->delete();
         $this->db->table('m_periode_kelompok')->where('id', $id)->delete();
@@ -1111,12 +1199,26 @@ class M_tabeldinamis extends Model
             ->getResultArray();
 
         $existingById = [];
-        $existingByName = [];
         foreach ($existingRows as $row) {
             $existingById[(int)$row['id']] = $row;
-            $norm = mb_strtolower(trim($row['nama_periode_ind']));
-            if (!isset($existingByName[$norm])) {
-                $existingByName[$norm] = (int)$row['id'];
+        }
+
+        // Kumpulkan ID existing yang sudah diklaim secara eksplisit oleh item yang memiliki db_id / id
+        $explicitClaimedIds = [];
+        foreach ($items as $item) {
+            $candId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
+            if ($candId > 0 && isset($existingById[$candId])) {
+                $explicitClaimedIds[$candId] = true;
+            }
+        }
+
+        // Siapkan pool ID existing yang BELUM diklaim untuk pencocokan fallback nama
+        $availableByName = [];
+        foreach ($existingRows as $row) {
+            $rowId = (int)$row['id'];
+            if (!isset($explicitClaimedIds[$rowId])) {
+                $norm = mb_strtolower(trim($row['nama_periode_ind']));
+                $availableByName[$norm][] = $rowId;
             }
         }
 
@@ -1154,13 +1256,12 @@ class M_tabeldinamis extends Model
 
             $matchedId = null;
             $candidateId = (int)($item['db_id'] ?? ($item['id'] ?? 0));
-            if ($candidateId > 0 && isset($existingById[$candidateId])) {
+            if ($candidateId > 0 && isset($existingById[$candidateId]) && !in_array($candidateId, $keptIds, true)) {
                 $matchedId = $candidateId;
             } else {
                 $norm = mb_strtolower($nama_ind);
-                if (isset($existingByName[$norm])) {
-                    $matchedId = $existingByName[$norm];
-                    unset($existingByName[$norm]);
+                if (!empty($availableByName[$norm])) {
+                    $matchedId = array_shift($availableByName[$norm]);
                 }
             }
 
@@ -1300,11 +1401,11 @@ class M_tabeldinamis extends Model
         $indikator->periode_kelompok = $this->getPeriodeKelompok((int)$indikator->id_periode_kelompok);
         $indikator->periode_items = $this->getPeriodeItems((int)$indikator->id_periode_kelompok);
 
-        // 4. Detail relasi tabel DDA (t_tahun_tabel)
+        // 4. Detail relasi tabel DDA (m_list_tabel)
         $indikator->tahun_tabel = null;
-        if (!empty($indikator->id_tahun_tabel)) {
-            $indikator->tahun_tabel = $this->db->table('t_tahun_tabel')
-                ->where('id', $indikator->id_tahun_tabel)
+        if (!empty($indikator->id_tabel)) {
+            $indikator->tahun_tabel = $this->db->table('m_list_tabel')
+                ->where('id', $indikator->id_tabel)
                 ->get()
                 ->getRow();
         }
@@ -1312,21 +1413,22 @@ class M_tabeldinamis extends Model
         return $indikator;
     }
 
-    public function getByTahunTabel(int $id_tahun_tabel): ?object
+    public function getByTahunTabel(int $id_tabel): ?object
     {
-        $indikator = $this->where('id_tahun_tabel', $id_tahun_tabel)->first();
+        $indikator = $this->where('id_tabel', $id_tabel)->first();
         if ($indikator) {
             return $this->getTableFullConfig((int)$indikator->id);
         }
         return null;
     }
 
-    public function linkToTahunTabel(int $id_indikator, int $id_tahun_tabel): bool
+    public function linkToTahunTabel(int $id_indikator, int $id_tabel): bool
     {
-        $this->update($id_indikator, ['id_tahun_tabel' => $id_tahun_tabel]);
-        $this->db->table('t_tahun_tabel')
-            ->where('id', $id_tahun_tabel)
-            ->update(['is_dynamic' => 1]);
+        $id_tabel = (int)$id_tabel;
+        $this->update($id_indikator, ['id_tabel' => $id_tabel]);
+        $this->db->table('m_list_tabel')
+            ->where('id', $id_tabel)
+            ->update(['jenis_sumber' => 'dinamis']);
 
         return true;
     }
@@ -1339,28 +1441,44 @@ class M_tabeldinamis extends Model
     {
         $rows = $this->db->table('t_nilai_dinamis')
             ->where('id_indikator', $id_indikator)
+            ->orderBy('tahun_data', 'ASC')
+            ->orderBy('id', 'ASC')
             ->get()
             ->getResult();
 
         $lookup = [];
         foreach ($rows as $row) {
-            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$row->id_periode_item}";
-            $lookup[$key] = [
-                'id'     => $row->id,
-                'nilai'  => $row->nilai !== null ? (float)$row->nilai : null,
-                'simbol' => $row->simbol,
+            $pItem = (int)$row->id_periode_item;
+            $thData = (int)$row->tahun_data;
+            $cellData = [
+                'id'         => $row->id,
+                'tahun_data' => $thData,
+                'nilai'      => $row->nilai !== null ? (float)$row->nilai : null,
+                'simbol'     => $row->simbol,
             ];
+            $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$pItem}";
+            $lookup[$key] = $cellData;
+
+            if ($pItem === 0 && $thData > 0) {
+                $keyYear = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$thData}";
+                $lookup[$keyYear] = $cellData;
+            } elseif ($pItem > 0 && $thData > 0) {
+                $compP = ($thData * 100000) + $pItem;
+                $keyComp = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$compP}";
+                $lookup[$keyComp] = $cellData;
+            }
         }
 
         return $lookup;
     }
 
-    public function batchUpsertNilai(int $id_indikator, array $cells): int
+    public function batchUpsertNilai(int $id_indikator, array $cells, ?int $tahun_data = null): int
     {
         if (empty($cells)) {
             return 0;
         }
 
+        $defaultTahun = $tahun_data ?: (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
         $now = date('Y-m-d H:i:s');
         $chunks = array_chunk($cells, 500);
         $totalAffected = 0;
@@ -1372,30 +1490,35 @@ class M_tabeldinamis extends Model
             $params = [];
 
             foreach ($chunk as $c) {
-                $idBaris = (int)$c['id_baris_item'];
-                $idKarakteristik = (int)$c['id_karakteristik_item'];
-                $idPeriode = (int)$c['id_periode_item'];
+                $tahunCell = isset($c['tahun_data']) && (int)$c['tahun_data'] > 0 ? (int)$c['tahun_data'] : $defaultTahun;
+                $idBaris = (int)($c['id_baris_item'] ?? 0);
+                $idKarakteristik = (int)($c['id_karakteristik_item'] ?? 0);
+                $idPeriode = (int)($c['id_periode_item'] ?? 0);
 
                 $nilai = isset($c['nilai']) && $c['nilai'] !== '' && $c['nilai'] !== null ? (float)$c['nilai'] : null;
                 $simbol = !empty($c['simbol']) ? trim($c['simbol']) : null;
+                $desimal = isset($c['jumlah_desimal']) && $c['jumlah_desimal'] !== null ? (int)$c['jumlah_desimal'] : null;
 
-                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?)";
+                $values[] = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $params[] = $id_indikator;
+                $params[] = $tahunCell;
                 $params[] = $idBaris;
                 $params[] = $idKarakteristik;
                 $params[] = $idPeriode;
                 $params[] = $nilai;
                 $params[] = $simbol;
+                $params[] = $desimal;
                 $params[] = $now;
                 $params[] = $now;
             }
 
             $sql = "INSERT INTO t_nilai_dinamis 
-                    (id_indikator, id_baris_item, id_karakteristik_item, id_periode_item, nilai, simbol, created_at, updated_at)
+                    (id_indikator, tahun_data, id_baris_item, id_karakteristik_item, id_periode_item, nilai, simbol, jumlah_desimal, created_at, updated_at)
                     VALUES " . implode(', ', $values) . "
                     ON DUPLICATE KEY UPDATE 
                         nilai = VALUES(nilai),
                         simbol = VALUES(simbol),
+                        jumlah_desimal = VALUES(jumlah_desimal),
                         updated_at = VALUES(updated_at)";
 
             $this->db->query($sql, $params);
@@ -1409,6 +1532,79 @@ class M_tabeldinamis extends Model
         }
 
         return $totalAffected;
+    }
+
+    /**
+     * Simpan data nilai per tahun input secara aman:
+     * 1. Hanya menghapus/menimpa data pada (id_indikator, tahun_data) tertentu
+     * 2. Menjaga data tahun historis tetap 100% utuh
+     * 3. Otomatis memperbarui tahun_tampil di m_indikator_tabel
+     * 4. Otomatis upsert t_status_tahunan dengan status is_periksa = 1
+     */
+    public function saveNilaiBatch(int $id_indikator, array $cells, ?int $tahun_data = null): int
+    {
+        if (empty($cells)) {
+            return 0;
+        }
+
+        if ($tahun_data === null || $tahun_data <= 0) {
+            $tahun_data = isset($cells[0]['tahun_data']) ? (int)$cells[0]['tahun_data'] : (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
+        }
+
+        $this->db->transStart();
+
+        // 1. Hapus hanya data sel untuk tahun_data ini saja
+        $this->db->table('t_nilai_dinamis')
+            ->where('id_indikator', $id_indikator)
+            ->where('tahun_data', $tahun_data)
+            ->delete();
+
+        // 2. Insert sel baru
+        $affected = $this->batchUpsertNilai($id_indikator, $cells, $tahun_data);
+
+        // 3. Mutakhirkan tahun_tampil pada m_indikator_tabel
+        $indRow = $this->db->table('m_indikator_tabel')
+            ->select('id, id_tabel, tahun_tampil')
+            ->where('id', $id_indikator)
+            ->get()->getRow();
+
+        if ($indRow) {
+            $curTahunList = [];
+            if (!empty($indRow->tahun_tampil)) {
+                $curTahunList = array_filter(array_map('intval', explode(',', $indRow->tahun_tampil)));
+            }
+            if (!in_array($tahun_data, $curTahunList, true)) {
+                $curTahunList[] = $tahun_data;
+                sort($curTahunList);
+                $this->db->table('m_indikator_tabel')
+                    ->where('id', $id_indikator)
+                    ->update(['tahun_tampil' => implode(',', $curTahunList)]);
+            }
+
+            // 4. Upsert ke t_status_tahunan untuk (id_tabel, tahun DDA)
+            if (!empty($indRow->id_tabel)) {
+                $uploaderName = (PHP_SAPI !== 'cli' && function_exists('session')) 
+                    ? (session()->get('admin_nama') ?: (session()->get('admin_user') ?: 'Walidata'))
+                    : 'Walidata';
+                $catatan = "Diunggah via Excel oleh {$uploaderName} pada " . date('d/m/Y H:i:s');
+
+                $activeTa = (PHP_SAPI !== 'cli' && function_exists('session')) ? (int)(session()->get('admin_ta') ?: 0) : 0;
+                $tahunDda = ($activeTa > 0 && $activeTa === ((int)$tahun_data + 1)) ? $activeTa : ((int)$tahun_data + 1);
+
+                $this->upsertStatusTahunan((int)$indRow->id_tabel, $tahunDda, [
+                    'is_periksa'      => 1,
+                    'catatan_periksa' => $catatan,
+                ]);
+            }
+        }
+
+        $this->db->transComplete();
+
+        if ($this->db->transStatus() === false) {
+            throw new \RuntimeException("Gagal menyimpan data nilai batch ke database. Transaksi dibatalkan (rollback).");
+        }
+
+        return $affected;
     }
 
     public function clearNilai(int $id_indikator): bool
@@ -1428,29 +1624,29 @@ class M_tabeldinamis extends Model
      */
     public function exportSingleDynamicTable(int $id_tahun_tabel): ?array
     {
-        $indikator = $this->db->table('m_indikator_tabel i')
-            ->select('i.*, t.tahun, t.no_tabel')
-            ->join('t_tahun_tabel t', 't.id = i.id_tahun_tabel', 'left')
-            ->where('i.id_tahun_tabel', $id_tahun_tabel)
-            ->get()
-            ->getRow();
-
+        $ctx = $this->resolveTableContext($id_tahun_tabel);
+        $indikator = $ctx['indikator'] ?? null;
         if (!$indikator) {
             return null;
+        }
+        if (!empty($ctx['tahun_tabel'])) {
+            $indikator->tahun = $ctx['tahun_tabel']->tahun;
+            $indikator->no_tabel = $ctx['tahun_tabel']->no_tabel ?: $indikator->no_tabel;
         }
 
         return $this->buildDynamicTableExport($indikator);
     }
 
     /**
-     * Mengekspor seluruh tabel dinamis pada tahun tertentu sekaligus (keyed by id_tahun_tabel).
+     * Mengekspor seluruh tabel dinamis pada tahun tertentu sekaligus (keyed by id_tabel & id_tahun_tabel).
      */
     public function exportDynamicTablesForMatching(int $tahun): array
     {
         $indikators = $this->db->table('m_indikator_tabel i')
-            ->select('i.*, t.tahun, t.no_tabel')
-            ->join('t_tahun_tabel t', 't.id = i.id_tahun_tabel', 'inner')
-            ->where('t.tahun', $tahun)
+            ->select('i.*, m.id as id_tahun_tabel_resolved, COALESCE(t.tahun, ' . (int)$tahun . ') as tahun, m.no_tabel as no_tabel, m.id as master_tabel_id', false)
+            ->join('m_list_tabel m', 'm.id = i.id_tabel', 'inner')
+            ->join('t_status_tahunan t', 't.id_tabel = m.id AND t.tahun = ' . (int)$tahun, 'left')
+            ->where('(m.is_active = 1 OR m.is_active IS NULL)')
             ->get()
             ->getResult();
 
@@ -1474,12 +1670,13 @@ class M_tabeldinamis extends Model
         $perIds = array_values(array_unique($perIds));
 
         $cache = [
-            'kar_items' => [],
-            'bar_kel'   => [],
-            'bar_items' => [],
-            'per_kel'   => [],
-            'per_items' => [],
-            'nilai'     => [],
+            'kar_items'  => [],
+            'bar_kel'    => [],
+            'bar_items'  => [],
+            'per_kel'    => [],
+            'per_items'  => [],
+            'nilai'      => [],
+            'data_years' => [],
         ];
 
         if (!empty($karIds)) {
@@ -1509,23 +1706,50 @@ class M_tabeldinamis extends Model
             }
         }
         if (!empty($indIds)) {
-            $rows = $this->db->table('t_nilai_dinamis')->whereIn('id_indikator', $indIds)->get()->getResult();
+            $rows = $this->db->table('t_nilai_dinamis')
+                ->whereIn('id_indikator', $indIds)
+                ->orderBy('tahun_data', 'ASC')
+                ->orderBy('id', 'ASC')
+                ->get()->getResult();
             foreach ($rows as $row) {
-                $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$row->id_periode_item}";
-                $cache['nilai'][(int)$row->id_indikator][$key] = [
-                    'id'     => $row->id,
-                    'nilai'  => $row->nilai !== null ? (float)$row->nilai : null,
-                    'simbol' => $row->simbol,
+                $idInd = (int)$row->id_indikator;
+                $pItem = (int)$row->id_periode_item;
+                $thData = (int)$row->tahun_data;
+                if ($thData > 0 && ($row->nilai !== null || (!empty($row->simbol) && trim((string)$row->simbol) !== ''))) {
+                    $cache['data_years'][$idInd][$thData] = true;
+                }
+                $cellData = [
+                    'id'         => $row->id,
+                    'tahun_data' => $thData,
+                    'nilai'      => $row->nilai !== null ? (float)$row->nilai : null,
+                    'simbol'     => $row->simbol,
                 ];
+                $key = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$pItem}";
+                $cache['nilai'][$idInd][$key] = $cellData;
+
+                if ($pItem === 0 && $thData > 0) {
+                    $keyYear = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$thData}";
+                    $cache['nilai'][$idInd][$keyYear] = $cellData;
+                } elseif ($pItem > 0 && $thData > 0) {
+                    $compP = ($thData * 100000) + $pItem;
+                    $keyComp = "{$row->id_baris_item}_{$row->id_karakteristik_item}_{$compP}";
+                    $cache['nilai'][$idInd][$keyComp] = $cellData;
+                }
             }
         }
 
         $exports = [];
         foreach ($indikators as $ind) {
-            $idTahunTabel = (int)$ind->id_tahun_tabel;
+            $idTabel = (int)($ind->master_tabel_id ?: $ind->id_tabel);
+            $idTahunTabel = (int)($ind->id_tahun_tabel_resolved ?: $ind->id_tahun_tabel);
             $built = $this->buildDynamicTableExport($ind, $cache);
             if ($built) {
-                $exports[$idTahunTabel] = $built;
+                if ($idTabel > 0) {
+                    $exports[$idTabel] = $built;
+                }
+                if ($idTahunTabel > 0) {
+                    $exports[$idTahunTabel] = $built;
+                }
             }
         }
 
@@ -1552,12 +1776,66 @@ class M_tabeldinamis extends Model
             $itemsBaris      = $idBaris > 0 ? ($cache['bar_items'][$idBaris] ?? []) : [];
             $kelompokPeriode = $idPeriode > 0 ? ($cache['per_kel'][$idPeriode] ?? null) : null;
             $itemsPeriode    = $idPeriode > 0 ? ($cache['per_items'][$idPeriode] ?? []) : [];
+            $dataYears       = array_keys($cache['data_years'][$idIndikator] ?? []);
         } else {
             $itemsKolom      = $idKarakteristik > 0 ? $this->getKarakteristikItems($idKarakteristik) : [];
             $kelompokBaris   = $idBaris > 0 ? $this->getBarisKelompok($idBaris) : null;
             $itemsBaris      = $idBaris > 0 ? $this->getBarisItems($idBaris) : [];
             $kelompokPeriode = $idPeriode > 0 ? $this->getPeriodeKelompok($idPeriode) : null;
             $itemsPeriode    = $idPeriode > 0 ? $this->getPeriodeItems($idPeriode) : [];
+            $dataYears       = $this->getAvailableYears($idIndikator);
+        }
+
+        // Resolusi tahun aktif untuk tabel tahunan/multi-tahun
+        $tahunTampil = [];
+        if (!empty($indikator->tahun_tampil)) {
+            foreach (explode(',', (string)$indikator->tahun_tampil) as $ty) {
+                $tyInt = (int)trim($ty);
+                if ($tyInt >= 1900 && $tyInt <= 2100) {
+                    $tahunTampil[] = $tyInt;
+                }
+            }
+        }
+        $activeYears = !empty($dataYears) ? $dataYears : (!empty($tahunTampil) ? $tahunTampil : [(int)($indikator->tahun ?? date('Y'))]);
+        sort($activeYears);
+
+        $tipePeriode = strtolower(trim($indikator->tipe_periode ?? 'tahunan'));
+        if (empty($itemsPeriode)) {
+            foreach ($activeYears as $idx => $yr) {
+                $yrInt = (int)$yr;
+                $lbl = ($tipePeriode === 'tahun_ajaran') ? ($yrInt . '/' . ($yrInt + 1)) : (string)$yrInt;
+                $itemsPeriode[] = (object)[
+                    'id'               => $yrInt,
+                    'nama_periode_ind' => $lbl,
+                    'nama_periode_en'  => $lbl,
+                    'tipe_item'        => 'periode',
+                    'no_urut'          => $idx + 1,
+                ];
+            }
+            if (!$kelompokPeriode) {
+                $kelompokPeriode = (object)[
+                    'id'                => 0,
+                    'nama_kelompok_ind' => 'Tahunan',
+                    'judul_periode_ind' => ($tipePeriode === 'tahun_ajaran') ? 'Tahun Ajaran' : 'Tahun',
+                    'judul_periode_en'  => ($tipePeriode === 'tahun_ajaran') ? 'Academic Year' : 'Year',
+                ];
+            }
+        } elseif (count($activeYears) > 1) {
+            $expandedPeriode = [];
+            $u = 1;
+            foreach ($activeYears as $yr) {
+                $yrInt = (int)$yr;
+                foreach ($itemsPeriode as $pOrig) {
+                    $expandedPeriode[] = (object)[
+                        'id'               => ($yrInt * 100000) + (int)$pOrig->id,
+                        'nama_periode_ind' => $yrInt . ' ' . trim((string)$pOrig->nama_periode_ind),
+                        'nama_periode_en'  => $yrInt . ' ' . trim((string)($pOrig->nama_periode_en ?? $pOrig->nama_periode_ind)),
+                        'tipe_item'        => $pOrig->tipe_item ?? 'periode',
+                        'no_urut'          => $u++,
+                    ];
+                }
+            }
+            $itemsPeriode = $expandedPeriode;
         }
         $kolomStructure = $this->buildColumnStructure($itemsKolom);
 
@@ -1690,6 +1968,12 @@ class M_tabeldinamis extends Model
                     'label'      => trim((string)$label),
                 ];
             }
+        } elseif (!$hasKolom && !$hasPeriode) {
+            $leafColumns[] = [
+                'item_id'    => 0,
+                'periode_id' => 0,
+                'label'      => (string)($indikator->tahun ?? date('Y')),
+            ];
         } elseif ($hasKolom && $hasPeriode) {
             if ($isRuntunWaktu || $posisiHirarki === 'periode_baris') {
                 foreach ($flatKolom as $child) {
@@ -1707,7 +1991,7 @@ class M_tabeldinamis extends Model
                         $leafColumns[] = [
                             'item_id'    => (int)$child->id,
                             'periode_id' => (int)$p->id,
-                            'label'      => trim($p->nama_periode_ind . ' ' . $colName),
+                            'label'      => (count($itemsPeriode) > 1) ? trim($p->nama_periode_ind . ' ' . $colName) : trim((string)$colName),
                         ];
                     }
                 }
@@ -1728,9 +2012,17 @@ class M_tabeldinamis extends Model
         // Ambil nilai sel dari t_nilai_dinamis
         $lookup = ($cache !== null) ? ($cache['nilai'][$idIndikator] ?? []) : $this->getMatrixLookup($idIndikator);
         $filledCellCount = 0;
+        $countedIds = [];
         foreach ($lookup as $cell) {
+            $cIdRow = $cell['id'] ?? null;
+            if ($cIdRow !== null && isset($countedIds[$cIdRow])) {
+                continue;
+            }
             if ($cell['nilai'] !== null || (!empty($cell['simbol']) && trim((string)$cell['simbol']) !== '')) {
                 $filledCellCount++;
+                if ($cIdRow !== null) {
+                    $countedIds[$cIdRow] = true;
+                }
             }
         }
 
@@ -1941,5 +2233,233 @@ class M_tabeldinamis extends Model
             'template_grid' => $templateGrid,
             'cell_coords'   => $cellCoords,
         ];
+    }
+
+    /**
+     * Resolusi daftar tahun yang ditampilkan untuk tabel dinamis berdasarkan tahun aktif DDA:
+     * - Tabel 1 Tahun (<= 1 tahun terdaftar di konfigurasi): Otomatis menampilkan tahun data aktif ($ta - 1)
+     * - Tabel Runtun Waktu (> 1 tahun terdaftar): Pilihan B (Expanding Window: pertahankan tahun lama + tambahkan tahun data aktif di kanan)
+     *
+     * @param string|array|null $tahunTampilConfig String tahun_tampil dari m_indikator_tabel (misal '2025' atau '2021,2022,2023,2024,2025')
+     * @param int $tahunAktifDda Tahun aktif sesi DDA (misal 2027)
+     * @param array $requestedYears Pilihan tahun manual dari user via URL/checkbox jika ada
+     * @return array Daftar tahun terurut (misal [2026] atau [2021, 2022, 2023, 2024, 2025, 2026])
+     */
+    public function resolveDisplayYears($tahunTampilConfig, int $tahunAktifDda, array $requestedYears = [], $indikatorContext = null): array
+    {
+        $thDataDefault = $tahunAktifDda - 1;
+
+        // 1. Jika pengguna secara eksplisit memilih tahun via URL/Filter:
+        if (!empty($requestedYears)) {
+            $parsed = array_values(array_filter(array_map('intval', $requestedYears)));
+            if (!empty($parsed)) {
+                // Jika URL mengirimkan tahun publikasi ($ta) saja, arahkan ke tahun data aktif ($thDataDefault)
+                if (count($parsed) === 1 && $parsed[0] === $tahunAktifDda) {
+                    return [$thDataDefault];
+                }
+                sort($parsed);
+                return $parsed;
+            }
+        }
+
+        // 2. Tentukan apakah tabel ini adalah Tabel Runtun Waktu (Time Series) atau Tabel 1 Tahun (Single Year)
+        $isRuntunWaktu = null;
+        if (is_bool($indikatorContext)) {
+            $isRuntunWaktu = $indikatorContext;
+        } elseif (is_object($indikatorContext) || is_array($indikatorContext)) {
+            $cfgTotal = is_object($indikatorContext) ? ($indikatorContext->konfigurasi_total ?? '') : ($indikatorContext['konfigurasi_total'] ?? '');
+            $cfgTampilanRaw = is_object($indikatorContext) ? ($indikatorContext->config_tampilan ?? '') : ($indikatorContext['config_tampilan'] ?? '');
+            $cfgTampilan = is_string($cfgTampilanRaw) ? json_decode($cfgTampilanRaw, true) : (is_array($cfgTampilanRaw) ? $cfgTampilanRaw : []);
+            $idKar = (int)(is_object($indikatorContext) ? ($indikatorContext->id_karakteristik_kelompok ?? 0) : ($indikatorContext['id_karakteristik_kelompok'] ?? 0));
+            $idPer = (int)(is_object($indikatorContext) ? ($indikatorContext->id_periode_kelompok ?? 0) : ($indikatorContext['id_periode_kelompok'] ?? 0));
+
+            if ($cfgTotal === 'runtun_waktu' || !empty($cfgTampilan['tahun_runtun_waktu']) || (empty($idKar) && empty($idPer))) {
+                $isRuntunWaktu = true;
+            } else {
+                $isRuntunWaktu = false;
+            }
+        }
+
+        // 3. Parse tahun yang tersimpan di konfigurasi tabel
+        $savedYears = [];
+        if (is_array($tahunTampilConfig)) {
+            $savedYears = array_values(array_filter(array_map('intval', $tahunTampilConfig)));
+        } elseif (!empty($tahunTampilConfig)) {
+            $savedYears = array_values(array_filter(array_map('intval', explode(',', (string)$tahunTampilConfig))));
+        }
+
+        // 4. Evaluasi tipe tabel:
+        // Jika diketahui sebagai Tabel 1 Tahun (bukan runtun waktu), atau jika savedYears <= 1:
+        if ($isRuntunWaktu === false || ($isRuntunWaktu === null && count($savedYears) <= 1)) {
+            // Tabel 1 Tahun (Single Year):
+            // Otomatis langsung membuka Tahun Data Aktif ($ta - 1, misal DDA 2027 -> 2026 saja)
+            $result = [$thDataDefault];
+        } else {
+            // Tabel Runtun Waktu (Multi-Tahun):
+            // Pilihan B (Expanding Window): Pertahankan tahun lama dan tambahkan tahun data aktif di kanan jika belum ada
+            $result = $savedYears;
+            if (!in_array($thDataDefault, $result, true)) {
+                $result[] = $thDataDefault;
+            }
+        }
+
+        if (empty($result)) {
+            $result = [$thDataDefault];
+        }
+
+        sort($result);
+        return $result;
+    }
+
+    /**
+     * Menyelesaikan konteks tabel dinamis secara terpusat berdasarkan ID Master Tabel (m_list_tabel.id).
+     * Mengembalikan array:
+     * - id_tabel: int ID master tabel
+     * - tabel: object baris m_list_tabel (+ unitkerja_ind, unitkerja_en)
+     * - tahun_tabel / tahunTabel: object kompatibilitas (id = m_list_tabel.id, status dari t_status_tahunan, link dari m_konfigurasi_api)
+     * - indikator: object baris m_indikator_tabel (jika sudah dikonfigurasi)
+     */
+    public function resolveTableContext($idParam, $tahunAktif = null, bool $preferMaster = false): array
+    {
+        $idParam = (int)$idParam;
+        if ($idParam <= 0) {
+            return ['id_tabel' => 0, 'tabel' => null, 'tahun_tabel' => null, 'tahunTabel' => null, 'indikator' => null];
+        }
+
+        if (!$tahunAktif) {
+            $tahunAktif = (PHP_SAPI !== 'cli' && function_exists('session'))
+                ? (session()->get('admin_ta') ?: (session()->get('tahun') ?: date('Y')))
+                : date('Y');
+        }
+        $tahunAktifInt = (int)$tahunAktif;
+
+        // 1. Cari di m_list_tabel berdasarkan Primary Key m_list_tabel.id
+        $tabel = $this->db->table('m_list_tabel m')
+            ->select('m.*, u.unitkerja_ind, u.unitkerja_en')
+            ->join('m_unitkerja u', 'u.id_unitkerja = m.id_unitkerja', 'left')
+            ->where('m.id', $idParam)
+            ->get()
+            ->getRow();
+
+        // Fallback aman: jika $idParam kebetulan adalah m_indikator_tabel.id
+        if (!$tabel) {
+            $indByPk = $this->where('id', $idParam)->first();
+            if ($indByPk && !empty($indByPk->id_tabel)) {
+                $tabel = $this->db->table('m_list_tabel m')
+                    ->select('m.*, u.unitkerja_ind, u.unitkerja_en')
+                    ->join('m_unitkerja u', 'u.id_unitkerja = m.id_unitkerja', 'left')
+                    ->where('m.id', (int)$indByPk->id_tabel)
+                    ->get()
+                    ->getRow();
+            }
+        }
+
+        if (!$tabel) {
+            return ['id_tabel' => 0, 'tabel' => null, 'tahun_tabel' => null, 'tahunTabel' => null, 'indikator' => null];
+        }
+
+        $idMaster = (int)$tabel->id;
+
+        // 2. Ambil konfigurasi m_indikator_tabel (1:1 dengan m_list_tabel.id)
+        $indikator = $this->where('id_tabel', $idMaster)->first();
+
+        // 3. Ambil status tahunan dari t_status_tahunan untuk tahun aktif (atau fallback tahun terbaru)
+        $statusRow = null;
+        if ($this->db->tableExists('t_status_tahunan')) {
+            $statusRow = $this->db->table('t_status_tahunan')
+                ->where('id_tabel', $idMaster)
+                ->where('tahun', $tahunAktifInt)
+                ->get()
+                ->getRow();
+
+            if (!$statusRow) {
+                $statusRow = $this->db->table('t_status_tahunan')
+                    ->where('id_tabel', $idMaster)
+                    ->orderBy('tahun', 'DESC')
+                    ->get()
+                    ->getRow();
+            }
+        }
+
+        // 4. Ambil konfigurasi API/Spreadsheet dari m_konfigurasi_api
+        $apiRow = null;
+        if ($this->db->tableExists('m_konfigurasi_api')) {
+            $apiRow = $this->db->table('m_konfigurasi_api')
+                ->where('id_tabel', $idMaster)
+                ->get()
+                ->getRow();
+        }
+
+        // Resolusi periode_id dinamis berdasarkan tahun aktif DDA (Tabel 1 Tahun -> $ta - 1, Runtun Waktu -> Expanding)
+        $resolvedDisplayYears = $this->resolveDisplayYears($indikator->tahun_tampil ?? null, $tahunAktifInt, [], $indikator);
+        $resolvedPeriodeId    = !empty($resolvedDisplayYears) ? implode(',', $resolvedDisplayYears) : ($apiRow->tahun_tersedia ?? (string)($tahunAktifInt - 1));
+
+        // 5. Bentuk objek kompatibilitas $tahunTabel dengan id = m_list_tabel.id
+        $tahunTabel = (object)[
+            'id'              => $idMaster,
+            'id_tabel'        => $idMaster,
+            'tahun'           => $statusRow ? (string)$statusRow->tahun : (string)$tahunAktifInt,
+            'periode_id'      => $resolvedPeriodeId,
+            'no_tabel'        => $tabel->no_tabel,
+            'link_tabel'      => $apiRow->link_api ?? '',
+            'id_api'          => $apiRow->id_api ?? null,
+            'config_tabel'    => $apiRow->config_tabel ?? null,
+            'is_dynamic'      => (($tabel->jenis_sumber ?? '') === 'dinamis' || $indikator !== null) ? 1 : 0,
+            'is_periksa'      => $statusRow ? (int)$statusRow->is_periksa : 0,
+            'catatan_periksa' => $statusRow ? $statusRow->catatan_periksa : null,
+            'is_confirm'      => $statusRow ? (string)$statusRow->is_confirm : '0',
+            'catatan'         => $statusRow ? ($statusRow->catatan ?? '-') : '-',
+            'is_publish'      => $statusRow ? (int)$statusRow->is_publish : 0,
+            'published_at'    => $statusRow ? $statusRow->published_at : null,
+        ];
+
+        // Lengkapi properti di $tabel agar view yang mengakses $tabel->catatan_periksa atau $tabel->tahun tetap berjalan mulus
+        $tabel->tahun           = $tahunTabel->tahun;
+        $tabel->periode_id      = $tahunTabel->periode_id;
+        $tabel->link_tabel      = $tahunTabel->link_tabel;
+        $tabel->is_dynamic      = $tahunTabel->is_dynamic;
+        $tabel->is_periksa      = $tahunTabel->is_periksa;
+        $tabel->catatan_periksa = $tahunTabel->catatan_periksa;
+        $tabel->is_confirm      = $tahunTabel->is_confirm;
+        $tabel->catatan         = $tahunTabel->catatan;
+        $tabel->is_publish      = $tahunTabel->is_publish;
+        $tabel->published_at    = $tahunTabel->published_at;
+
+        return [
+            'id_tabel'    => $idMaster,
+            'tabel'       => $tabel,
+            'indikator'   => $indikator,
+            'tahun_tabel' => $tahunTabel,
+            'tahunTabel'  => $tahunTabel,
+        ];
+    }
+
+    /**
+     * Mengambil daftar tahun yang tersedia di t_nilai_dinamis untuk suatu indikator
+     * Terurut ASC (misal [2021, 2022, 2023, 2024, 2025])
+     */
+    public function getAvailableYears(int $id_indikator): array
+    {
+        $rows = $this->db->table('t_nilai_dinamis')
+            ->select('DISTINCT(tahun_data) AS tahun_data')
+            ->where('id_indikator', $id_indikator)
+            ->orderBy('tahun_data', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        return array_values(array_map(function ($r) {
+            return (int)$r['tahun_data'];
+        }, $rows));
+    }
+
+    /**
+     * Menghapus nilai t_nilai_dinamis untuk 1 tahun_data tertentu
+     */
+    public function deleteNilaiByTahun(int $id_indikator, int $tahun_data): bool
+    {
+        return (bool)$this->db->table('t_nilai_dinamis')
+            ->where('id_indikator', $id_indikator)
+            ->where('tahun_data', $tahun_data)
+            ->delete();
     }
 }

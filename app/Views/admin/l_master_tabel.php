@@ -43,20 +43,8 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                             <span>Pengelolaan Tahun</span>
                         </button>
                         <ul class="dropdown-menu shadow border border-light border-radius-lg p-2 mt-1" aria-labelledby="dropdownPengelolaanTahun" style="min-width: 260px; z-index: 1050;">
-                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-secondary px-2 py-1">Operasi Tahunan</h6></li>
-                            <!-- Opsi 1: Duplikasi Seluruh Tabel dari Tahun Lalu -->
-                            <li>
-                                <a class="dropdown-item border-radius-md py-2 d-flex align-items-center" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalCloneTahunan">
-                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: #f1f5f9; border: 1px solid #e2e8f0;">
-                                        <i class="bi bi-files text-secondary"></i>
-                                    </div>
-                                    <div>
-                                        <span class="d-block text-xs font-weight-bold text-dark">Duplikasi Tahun</span>
-                                        <span class="text-xxs text-secondary">Salin daftar tabel tahun lalu</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <!-- Opsi 2: Rapikan Penomoran Tabel yang Melompat pada Bab Tertentu -->
+                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-secondary px-2 py-1">Operasi Penomoran</h6></li>
+                            <!-- Rapikan Penomoran Tabel yang Melompat pada Bab Tertentu -->
                             <li>
                                 <a class="dropdown-item border-radius-md py-2 d-flex align-items-center" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalResequence">
                                     <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: #f1f5f9; border: 1px solid #e2e8f0;">
@@ -65,20 +53,6 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                                     <div>
                                         <span class="d-block text-xs font-weight-bold text-dark">Rapikan Urutan</span>
                                         <span class="text-xxs text-secondary">Resequence nomor urut tabel</span>
-                                    </div>
-                                </a>
-                            </li>
-                            <li><hr class="dropdown-divider my-2"></li>
-                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-secondary px-2 py-1">Zona Bahaya</h6></li>
-                            <!-- Opsi 3: Kosongkan Seluruh Tabel di Tahun Tertentu -->
-                            <li>
-                                <a class="dropdown-item border-radius-md py-2 d-flex align-items-center text-danger" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalResetTahun">
-                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: #fef2f2; border: 1px solid #fee2e2;">
-                                        <i class="bi bi-trash3 text-danger"></i>
-                                    </div>
-                                    <div>
-                                        <span class="d-block text-xs font-weight-bold text-danger">Kosongkan Tahun</span>
-                                        <span class="text-xxs text-secondary">Hapus semua data di tahun tertentu</span>
                                     </div>
                                 </a>
                             </li>
@@ -192,40 +166,49 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                                     <span class="badge badge-sm bg-gray-100 text-dark font-weight-bold"><?php echo $b->tahun; ?></span>
                                 </td>
                                 <td class="py-3">
-                                    <h6 class="mb-0 text-sm font-weight-bold text-dark text-wrap" style="max-width:350px; line-height: 1.5;"><?php echo (!empty($b->no_tabel) ? $b->no_tabel . ' ' : '') . format_judul_tabel($b->judul_ind, $b->periode_id ?? $b->periode ?? ''); ?></h6>
-                                    <p class="text-xxs text-secondary mb-0 font-italic text-wrap mt-1" style="max-width:350px; line-height: 1.2;"><?php echo (!empty($b->no_tabel) ? $b->no_tabel . ' ' : '') . format_judul_tabel($b->judul_en, $b->periode_en ?? $b->periode_id ?? $b->periode ?? ''); ?></p>
+                                    <?php
+                                    $thDataRow = !empty($b->tahun_tampil) ? $b->tahun_tampil : (!empty($b->tahun_tersedia) ? $b->tahun_tersedia : (!empty($b->tahun) ? (int)$b->tahun - 1 : (!empty($ta) ? (int)$ta - 1 : date('Y') - 1)));
+                                    $rowJudulInd = stripos($b->judul_ind ?? '', '[PERIODE]') !== false ? str_ireplace('[PERIODE]', (string)$thDataRow, $b->judul_ind) : $b->judul_ind;
+                                    $rowJudulEnRaw = $b->judul_en ?: $b->judul_ind;
+                                    $rowJudulEn = stripos($rowJudulEnRaw ?? '', '[PERIODE]') !== false ? str_ireplace('[PERIODE]', (string)$thDataRow, $rowJudulEnRaw) : $rowJudulEnRaw;
+                                    ?>
+                                    <h6 class="mb-0 text-sm font-weight-bold text-dark text-wrap" style="max-width:350px; line-height: 1.5;"><?php echo (!empty($b->no_tabel) ? esc($b->no_tabel) . ' ' : '') . esc($rowJudulInd); ?></h6>
+                                    <p class="text-xxs text-secondary mb-0 font-italic text-wrap mt-1" style="max-width:350px; line-height: 1.2;"><?php echo (!empty($b->no_tabel) ? esc($b->no_tabel) . ' ' : '') . esc($rowJudulEn); ?></p>
                                 </td>
                                 <td>
                                     <div class="d-flex flex-column gap-1">
                                         <?php 
-                                        $link_val = trim((string)($b->link_tabel ?? ''));
-                                        if (!empty($b->is_dynamic)): 
+                                        $is_dyn = (($b->jenis_sumber ?? '') === 'dinamis') || !empty($b->is_dynamic);
+                                        $id_gen_url = (int)$b->id;
+                                        $api_uuid = trim((string)($b->id_api ?? ''));
+                                        $api_link = trim((string)($b->link_api ?? ($b->link_tabel ?? '')));
+                                        if ($is_dyn): 
                                         ?>
-                                            <a href="<?php echo base_url('admin/generator_tabel/' . $b->id); ?>" class="badge badge-sm text-white border-0 align-self-start fw-bold shadow-xs text-decoration-none" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px;" title="Klik untuk mengelola matriks dinamis">
-                                                <i class="bi bi-boxes me-1"></i>TABEL DINAMIS
+                                            <a href="<?php echo base_url('admin/generator_tabel/' . $id_gen_url); ?>" class="badge badge-sm text-white border-0 align-self-start fw-bold shadow-xs text-decoration-none" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px;" title="Klik untuk mengelola matriks dinamis">
+                                                <i class="bi bi-boxes me-1"></i>🧩 TABEL DINAMIS
                                             </a>
-                                        <?php elseif (empty($link_val)): ?>
-                                            <span class="badge badge-sm bg-light text-secondary border align-self-start fw-semibold" style="font-size: 10px;">
-                                                <i class="bi bi-dash-circle me-1"></i>BELUM ADA LINK
+                                            <?php if (!empty($b->id_indikator)): ?>
+                                                <span class="text-xxs text-success fw-semibold mt-0.5"><i class="bi bi-check-circle-fill me-1"></i>Matriks Siap</span>
+                                            <?php else: ?>
+                                                <span class="text-xxs text-warning fw-semibold mt-0.5"><i class="bi bi-exclamation-circle me-1"></i>Belum Dirakit</span>
+                                            <?php endif; ?>
+                                        <?php elseif (!empty($api_uuid) || !empty($api_link)): ?>
+                                            <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold" style="font-size: 10px;">
+                                                <i class="bi bi-cloud-check me-1"></i>🔗 API KOMINFO
                                             </span>
-                                            <span class="text-xxs text-muted fst-italic mt-1">-</span>
-                                        <?php elseif (strpos($link_val, 'view_portal_tabel') !== false): ?>
-                                            <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold">
-                                                <i class="bi bi-cloud-check me-1"></i>PORTAL DATA
-                                            </span>
-                                            <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo esc(str_replace('index.php/admin/', '', $link_val)); ?></code>
+                                            <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 190px;" title="<?php echo esc($api_uuid ?: $api_link); ?>"><?php echo esc($api_uuid ?: str_replace('index.php/admin/', '', $api_link)); ?></code>
                                         <?php else: ?>
-                                            <span class="badge badge-sm bg-success-soft text-success border-success-soft align-self-start fw-bold">
-                                                <i class="bi bi-file-earmark-spreadsheet me-1"></i>SPREADSHEET
+                                            <span class="badge badge-sm bg-light text-secondary border align-self-start fw-semibold" style="font-size: 10px;">
+                                                <i class="bi bi-dash-circle me-1"></i>🔗 API (BELUM DIISI)
                                             </span>
-                                            <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 180px;"><?php echo esc(str_replace('index.php/admin/', '', $link_val)); ?></code>
+                                            <span class="text-xxs text-muted fst-italic mt-1">Belum ada UUID API</span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="d-flex flex-column">
-                                        <span class="text-xs font-weight-bold text-dark lh-sm"><?php echo $b->unitkerja_ind; ?></span>
-                                        <span class="text-xxs text-secondary opacity-7 mt-1 text-uppercase fw-bold"><?php echo $b->user_wali ?: 'NASIONAL'; ?></span>
+                                        <span class="text-xs font-weight-bold text-dark lh-sm"><?php echo esc($b->unitkerja_ind); ?></span>
+                                        <span class="text-xxs text-secondary opacity-7 mt-1 text-uppercase fw-bold"><?php echo esc($b->user_wali ?: 'NASIONAL'); ?></span>
                                     </div>
                                 </td>
                                 <td class="text-center">
@@ -236,9 +219,27 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 border-radius-lg p-2">
                                             <li>
                                                 <a href="<?php echo base_URL() ?>index.php/admin/master_tabel/edt/<?php echo $b->id; ?>/1" class="dropdown-item border-radius-md py-2 text-sm">
-                                                    <i class="bi bi-pencil me-2 text-secondary"></i> Edit Detail
+                                                    <i class="bi bi-pencil me-2 text-secondary"></i> Edit Master
                                                 </a>
                                             </li>
+                                            <?php if ($is_dyn): ?>
+                                            <li>
+                                                <a href="<?php echo base_url('admin/generator_tabel/' . $id_gen_url); ?>" class="dropdown-item border-radius-md py-2 text-sm text-primary fw-semibold">
+                                                    <i class="bi bi-boxes me-2"></i> Generator Matriks
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a href="<?php echo base_url('admin/view_tabel_dinamis/' . $id_gen_url); ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold">
+                                                    <i class="bi bi-table me-2"></i> Lihat Tabel
+                                                </a>
+                                            </li>
+                                            <?php elseif (!empty($api_uuid)): ?>
+                                            <li>
+                                                <a href="<?php echo base_url('index.php/admin/view_portal_tabel/' . $api_uuid); ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold">
+                                                    <i class="bi bi-table me-2"></i> Lihat Tabel API
+                                                </a>
+                                            </li>
+                                            <?php endif; ?>
                                             <li>
                                                 <hr class="dropdown-divider opacity-5 mt-1">
                                             </li>
@@ -508,107 +509,6 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 
 <?php if ($is_super_admin): ?>
 <!-- ========================================================================= -->
-<!-- MODAL: DUPLIKASI MASTER TABEL ANTAR-TAHUN (CLONE TAHUNAN)                -->
-<!-- Fitur ini menyalin seluruh struktur master tabel dari satu tahun rujukan   -->
-<!-- ke tahun publikasi target baru (misal menyalin dari 2026 ke 2027).       -->
-<!-- Link tabel tahun berjalan pada tahun baru akan dikosongkan untuk diisi,   -->
-<!-- sedangkan link tahun lalu otomatis diambil dari link tahun sumber.         -->
-<!-- Endpoint: admin/clone_tahunan                                             -->
-<!-- ========================================================================= -->
-<!-- Modal Clone Tahunan (Duplikasi Master Tabel) -->
-<div class="modal fade" id="ModalCloneTahunan" tabindex="-1" aria-labelledby="ModalCloneTahunanLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <!-- Header dengan badge icon modern -->
-            <div class="modal-header border-0 pb-0 pt-4 px-4">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="d-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary" style="width: 48px; height: 48px; font-size: 22px;">
-                        <i class="bi bi-copy"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" id="ModalCloneTahunanLabel">Duplikasi Master Tabel</h5>
-                        <p class="text-muted small mb-0" style="font-size: 12px;">Salin seluruh kerangka tabel antar-tahun publikasi DDA</p>
-                    </div>
-                </div>
-                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <!-- Form eksekusi duplikasi tahunan -->
-            <form action="<?= base_url() ?>index.php/admin/clone_tahunan" method="POST" id="formCloneTahun">
-                <div class="modal-body p-4">
-                    <!-- Info Alert Card penjelasan cara kerja clone -->
-                    <div class="alert alert-info border-0 rounded-3 p-3 mb-4 d-flex align-items-start gap-2 shadow-none" style="background: #f0f7ff; border-left: 4px solid #0284c7 !important;">
-                        <i class="bi bi-info-circle-fill fs-5 text-primary mt-0 flex-shrink-0"></i>
-                        <div class="text-dark small" style="font-size: 12px; line-height: 1.5;">
-                            Fitur ini menyalin <b>seluruh daftar tabel, nomor urut, judul, dan instansi</b> dari tahun acuan ke tahun target baru. Link tahun berjalan pada tahun baru akan dikosongkan, sedangkan link tahun sebelumnya otomatis terisi dari link tahun sumber.
-                        </div>
-                    </div>
-
-                    <!-- Visual Flow Container: Tahun Sumber -> Panah -> Tahun Tujuan -->
-                    <div class="bg-light-subtle rounded-3 p-3 border mb-3">
-                        <div class="row g-3 align-items-center">
-                            <!-- Dropdown Tahun Sumber yang sudah memiliki data master tabel -->
-                            <div class="col-md-5">
-                                <label class="form-label text-uppercase text-dark fw-bold mb-1" style="font-size: 11px;">
-                                    <i class="bi bi-calendar3 me-1 text-primary"></i> Salin Dari Tahun
-                                </label>
-                                <select name="tahun_sumber" id="select_tahun_sumber" class="form-select fw-semibold" style="border-radius: 8px;" required>
-                                    <?php 
-                                    $active_ta = $ta ?? session()->get('admin_ta') ?? date('Y');
-                                    if (!empty($tahun_counts)): 
-                                        foreach ($tahun_counts as $tc): 
-                                    ?>
-                                        <option value="<?= $tc->tahun ?>" <?= ($tc->tahun == $active_ta) ? 'selected' : '' ?>>
-                                            Tahun <?= $tc->tahun ?> (<?= $tc->cnt ?> tabel)
-                                        </option>
-                                    <?php 
-                                        endforeach; 
-                                    else:
-                                    ?>
-                                        <option value="<?= $active_ta ?>">Tahun <?= $active_ta ?></option>
-                                    <?php endif; ?>
-                                </select>
-                            </div>
-
-                            <!-- Indikator Panah Alur -->
-                            <div class="col-md-2 text-center py-1">
-                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-white shadow-sm border text-primary" style="width: 36px; height: 36px;">
-                                    <i class="bi bi-arrow-right fs-5 d-none d-md-inline"></i>
-                                    <i class="bi bi-arrow-down fs-5 d-inline d-md-none"></i>
-                                </div>
-                            </div>
-
-                            <!-- Input Tahun Target / Tujuan -->
-                            <div class="col-md-5">
-                                <label class="form-label text-uppercase text-dark fw-bold mb-1" style="font-size: 11px;">
-                                    <i class="bi bi-calendar-plus me-1 text-success"></i> Salin Ke Tahun
-                                </label>
-                                <input type="number" class="form-control fw-bold text-primary" name="tahun_tujuan" id="input_tahun_tujuan" required placeholder="Contoh: 2027" value="<?= intval($active_ta) + 1 ?>" style="border-radius: 8px;">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="text-muted small ps-1" style="font-size: 11px;">
-                        <i class="bi bi-shield-check text-success me-1"></i> Data tabel pada tahun sumber tidak akan diubah atau dihapus.
-                    </div>
-                </div>
-
-                <!-- Tombol Aksi Batal dan Submit Clone -->
-                <div class="modal-footer bg-light-subtle border-top py-3 px-4 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-light px-4 border" style="border-radius: 8px;" data-bs-dismiss="modal">
-                        Batal
-                    </button>
-                    <button type="submit" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
-                        <i class="bi bi-copy"></i>
-                        <span>Proses Duplikasi</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ========================================================================= -->
 <!-- MODAL: RAPAIKAN PENOMORAN TABEL (RESEQUENCE TABEL)                        -->
 <!-- Fitur ini merapikan nomor urut tabel yang bolong/melompat pada subbab     -->
 <!-- tertentu (misal setelah ada tabel yang dihapus atau disisipkan).           -->
@@ -663,76 +563,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 </div>
 
 <!-- ========================================================================= -->
-<!-- MODAL: KOSONGKAN / RESET MASTER TABEL TAHUN TERTENTU (ZONA BAHAYA)         -->
-<!-- Fitur ini menghapus seluruh keterhubungan tabel pada tahun anggaran tertentu-->
-<!-- dari tabel pivot t_tahun_tabel. Kamus induk m_list_tabel tetap aman.      -->
-<!-- Dilengkapi proteksi type-to-confirm (mengetik "HAPUS [TAHUN]") sebelum    -->
-<!-- tombol submit merah dapat diklik, untuk mencegah klik tidak sengaja.       -->
-<!-- Endpoint: admin/reset_tahun                                               -->
-<!-- ========================================================================= -->
-<!-- Modal Reset / Kosongkan Tabel Tahunan (Danger Zone) -->
-<div class="modal fade" id="ModalResetTahun" tabindex="-1" aria-labelledby="ModalResetTahunLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-header bg-danger text-white py-3 px-4 border-0">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-                    <h5 class="modal-title text-white fw-bold mb-0" id="ModalResetTahunLabel">
-                        Kosongkan Master Tabel Tahunan
-                    </h5>
-                </div>
-                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="<?php echo base_url('index.php/admin/reset_tahun'); ?>" method="post" id="formResetTahun">
-                <div class="modal-body p-4">
-                    <div class="alert bg-danger-soft text-danger border-danger border-1 border-opacity-25 rounded-3 mb-4 p-3 d-flex align-items-start gap-2 shadow-none">
-                        <i class="bi bi-shield-slash-fill fs-5 mt-1 flex-shrink-0"></i>
-                        <div class="small" style="line-height: 1.5;">
-                            <strong>ZONA BAHAYA / PERINGATAN KERAS:</strong><br>
-                            Tindakan ini akan <u>menghapus seluruh tabel</u> yang terdaftar pada tahun yang Anda pilih dari DDA (termasuk status konfirmasi, catatan, dan link portal). Kamus induk master tabel tidak akan terhapus. Tindakan ini <strong>permanen dan tidak dapat dibatalkan</strong>.
-                        </div>
-                    </div>
 
-                    <!-- Pilihan tahun target yang ingin dikosongkan -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark text-sm">Pilih Tahun yang Ingin Dikosongkan:</label>
-                        <select name="target_tahun" id="target_tahun_reset" class="form-select border-danger p-2" style="border-radius: 8px;" required>
-                            <?php 
-                            $active_ta = $ta ?? session()->get('admin_ta') ?? date('Y');
-                            if (!empty($tahun_counts)): 
-                                foreach ($tahun_counts as $tc): 
-                            ?>
-                                <option value="<?php echo $tc->tahun; ?>" data-count="<?php echo $tc->cnt; ?>" <?php echo ($tc->tahun == $active_ta) ? 'selected' : ''; ?>>
-                                    Tahun <?php echo $tc->tahun; ?> (<?php echo $tc->cnt; ?> tabel terdaftar)
-                                </option>
-                            <?php 
-                                endforeach; 
-                            endif; 
-                            ?>
-                        </select>
-                    </div>
-
-                    <!-- Input type-to-confirm untuk keamanan ekstra -->
-                    <div class="mb-3">
-                        <label class="form-label text-xs font-weight-bold text-uppercase text-secondary mb-1">
-                            Ketik <span class="badge bg-danger text-white px-2 py-1 font-monospace" id="textPromptConfirm">HAPUS <?php echo $active_ta; ?></span> untuk membuka tombol:
-                        </label>
-                        <input type="text" class="form-control p-2 border-danger font-monospace" id="inputConfirmReset" name="confirm_text" placeholder="Ketik teks konfirmasi di sini..." autocomplete="off" required style="border-radius: 8px;">
-                        <small class="text-muted" style="font-size: 11px;">Huruf besar/kecil tidak berpengaruh, namun teks harus persis.</small>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light-subtle border-top py-3 px-4 d-flex justify-content-between">
-                    <button type="button" class="btn btn-light px-4 border" style="border-radius: 8px;" data-bs-dismiss="modal">Batal</button>
-                    <!-- Tombol disabled secara default, baru aktif bila ketikan persis -->
-                    <button type="submit" id="btnExecuteReset" class="btn btn-danger px-4 shadow-sm d-inline-flex align-items-center gap-2" style="border-radius: 8px;" disabled>
-                        <i class="bi bi-trash3-fill"></i>
-                        <span>Hapus Permanen <span id="labelJumlahTabel"></span></span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <script>
 // =========================================================================

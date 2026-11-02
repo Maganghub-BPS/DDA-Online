@@ -28,13 +28,13 @@ if ($mode == "edt" || $mode == "act_edt") {
     $id_unitkerja = $datpil->id_unitkerja;
     $file_tabel = $datpil->file_tabel;
 
-    // Ambil data t_tahun_tabel jika usulan ini sudah pernah di-ACC / didaftarkan sebelumnya
-    $no_tabel        = $linked_t->no_tabel ?? '';
-    $periode_id      = !empty($linked_t->periode_id) ? $linked_t->periode_id : $default_periode;
-    $periode_en      = !empty($linked_t->periode_en) ? $linked_t->periode_en : $periode_id;
-    $link_tabel      = $linked_t->link_tabel ?? '';
-    $link_sebelumnya = $linked_t->link_sebelumnya ?? '';
-    $exclude_id      = $linked_t->id ?? '';
+    // Ambil data jika usulan ini sudah pernah di-ACC / didaftarkan sebelumnya
+    $no_tabel        = $linked_m->no_tabel ?? '';
+    $periode_id      = $default_periode;
+    $periode_en      = $periode_id;
+    $link_tabel      = '';
+    $link_sebelumnya = '';
+    $exclude_id      = $linked_m->id ?? '';
     $exclude_id_tabel= $linked_m->id ?? '';
 } else {
     // Mode Tambah Usulan Baru
