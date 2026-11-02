@@ -219,9 +219,8 @@ class Home extends BaseController
             $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
             $dda_info = $this->frontendModel->getTableMetadata($parsed_table_id, $id_p);
 
-            // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
-            $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
-            if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
+            // Proteksi: Jika tabel berstatus Draft, tolak akses publik
+            if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1) {
                 return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
             }
 
@@ -260,9 +259,8 @@ class Home extends BaseController
         $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
         $dda_info = $this->frontendModel->getSheetMetadata($parsed_table_id, $url);
 
-        // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
-        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
-        if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
+        // Proteksi: Jika tabel berstatus Draft, tolak akses publik
+        if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1) {
             return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
         }
 
@@ -324,9 +322,8 @@ class Home extends BaseController
             ->get()
             ->getResultArray();
 
-        // Proteksi: Jika seluruh edisi tabel berstatus Draft, tolak akses publik (kecuali admin login)
-        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
-        if (empty($pubRows) && !$is_admin) {
+        // Proteksi: Jika seluruh edisi tabel berstatus Draft, tolak akses publik
+        if (empty($pubRows)) {
             return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
         }
 
@@ -407,9 +404,8 @@ class Home extends BaseController
 
             $available_years = $this->tabelDinamisModel->getAvailableYears((int)$indikator->id);
 
-            // Filter tahun data untuk pengunjung publik: hanya tampilkan tahun dari edisi DDA yang sah dipublish
-            $isAdminPreview = (bool)(session()->get('admin_valid') && !empty(session()->get('admin_id')));
-            if (!$isAdminPreview && !empty($available_years)) {
+            // Filter tahun data: hanya tampilkan tahun dari edisi DDA yang sah dipublish
+            if (!empty($available_years)) {
                 if (!empty($pubRows)) {
                     $isAnggaranPagu = (bool)preg_match('/(pagu|dipa|apbd|anggaran)/i', $dda_info->judul_ind ?? '');
                     $maxPublishedDdaYear = max(array_map(static fn($r) => (int)$r['tahun'], $pubRows));
@@ -420,6 +416,10 @@ class Home extends BaseController
                 } else {
                     $available_years = [];
                 }
+            }
+
+            if (empty($available_years)) {
+                return redirect()->to('/home/search')->with('error', 'Data untuk tabel ini belum dipublikasikan.');
             }
 
             // Resolusi tahun terpilih:
@@ -463,8 +463,8 @@ class Home extends BaseController
         $selectable_years = !empty($available_years) ? $available_years : [];
         rsort($selectable_years);
 
-        // Batasi $selected_years bagi pengunjung publik agar hanya berisi tahun yang sah dipublikasikan
-        if (!$isAdminPreview && !empty($selectable_years)) {
+        // Batasi $selected_years agar hanya berisi tahun yang sah dipublikasikan
+        if (!empty($selectable_years)) {
             $selected_years = array_values(array_intersect($selected_years, $selectable_years));
             if (empty($selected_years)) {
                 $selected_years = [max($selectable_years)];

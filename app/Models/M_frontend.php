@@ -301,7 +301,7 @@ class M_frontend extends Model
                         ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
                         ->join('m_indikator_tabel mi', 'mi.id_tabel = m_list_tabel.id', 'left')
                         ->join(
-                            '(SELECT s1.* FROM t_status_tahunan s1 INNER JOIN (SELECT id_tabel, MAX(tahun) as max_tahun FROM t_status_tahunan GROUP BY id_tabel) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun) s',
+                            '(SELECT s1.* FROM t_status_tahunan s1 INNER JOIN (SELECT id_tabel, MAX(tahun) as max_tahun FROM t_status_tahunan WHERE is_publish = 1 AND is_periksa = 1 AND is_confirm = \'1\' GROUP BY id_tabel) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun WHERE s1.is_publish = 1 AND s1.is_periksa = 1 AND s1.is_confirm = \'1\') s',
                             's.id_tabel = m_list_tabel.id',
                             'left'
                         )

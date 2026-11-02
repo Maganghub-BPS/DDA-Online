@@ -644,12 +644,12 @@ class Admin extends BaseController
 				LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
 				LEFT JOIN (
-					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE (tahun_data = ? OR tahun_data = ?) AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
 				) nd ON nd.id_indikator = mi.id
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				WHERE m.id_unitkerja = ? AND m.is_active = 1
 				ORDER BY m.no_tabel ASC, m.id ASC
-			", [$thDda, "%$thDataStr%", $thDda, $thData, $id_unitkerja])->getResult();
+			", [$thDda, "%$thDataStr%", $thDda, $thData, (int)$thDda, $id_unitkerja])->getResult();
 			$a['page'] = "l_dda";
 		} else if ($mau_ke == "periksa_tabel") {
 			$id_unitkerja = $this->input->get('id');
@@ -680,14 +680,14 @@ class Admin extends BaseController
 				LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
 				LEFT JOIN (
-					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE (tahun_data = ? OR tahun_data = ?) AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
 				) nd ON nd.id_indikator = mi.id
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				WHERE m.id_unitkerja = ? AND m.is_active = 1
 				$whereConfirm
 				ORDER BY m.no_tabel ASC, m.id ASC
 				LIMIT ?, ?
-			", [$thDda, "%$thDataStr%", $thDda, $thData, $id_unitkerja, (int)$awal, (int)$akhir])->getResult();
+			", [$thDda, "%$thDataStr%", $thDda, $thData, (int)$thDda, $id_unitkerja, (int)$awal, (int)$akhir])->getResult();
 			$a['page'] = "l_dda_periksa";
 		} else {
 			$unitkerjalogin = $this->session->get('admin_unitkerja');
@@ -758,12 +758,12 @@ class Admin extends BaseController
 					LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
 					LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
 					LEFT JOIN (
-						SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+						SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE (tahun_data = ? OR tahun_data = ?) AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
 					) nd ON nd.id_indikator = mi.id
 					LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 					WHERE m.id_unitkerja = ? AND m.is_active = 1
 					ORDER BY m.no_tabel ASC, m.id ASC
-				", [$thDda, "%$thDataStr%", $thDda, $thData, $unitkerjalogin])->getResult();
+				", [$thDda, "%$thDataStr%", $thDda, $thData, (int)$thDda, $unitkerjalogin])->getResult();
 				$a['page'] = "l_dda";
 			}
 		}
@@ -2199,14 +2199,20 @@ class Admin extends BaseController
 			$is_portal = (stripos($statusTahunan->link_tabel ?? '', 'portal') !== false || 
 			              stripos($statusTahunan->link_tabel ?? '', 'satudata') !== false);
 			if ($is_dynamic) {
-				$is_filled = ($statusTahunan->is_periksa == 1 && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh/iu', $statusTahunan->catatan_periksa ?? ''));
-				if (!$is_filled && $statusTahunan->is_periksa == 1) {
-					// Fallback: periksa keberadaan data sel di t_nilai_dinamis
-					if ($ctx['indikator']) {
-						$has_nilai = ($this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$ctx['indikator']->id)->countAllResults() > 0);
-						if ($has_nilai) {
-							$is_filled = true;
-						}
+				$is_filled = false;
+				if ($statusTahunan->is_periksa == 1) {
+					$is_filled = true;
+				} elseif ($ctx['indikator']) {
+					$thDataCheck = (int)$ta - 1;
+					$has_nilai = ($this->db->table('t_nilai_dinamis')
+						->where('id_indikator', (int)$ctx['indikator']->id)
+						->groupStart()
+							->where('tahun_data', $thDataCheck)
+							->orWhere('tahun_data', (int)$ta)
+						->groupEnd()
+						->countAllResults() > 0);
+					if ($has_nilai) {
+						$is_filled = true;
 					}
 				}
 			} else {
@@ -2229,10 +2235,14 @@ class Admin extends BaseController
 		}
 
 		$now = date('Y-m-d H:i:s');
-		$mTabelDinamis->upsertStatusTahunan($id_master, $ta, [
+		$updatePayload = [
 			'is_publish'   => $is_publish,
 			'published_at' => ($is_publish === 1) ? $now : null
-		]);
+		];
+		if ($is_publish === 1 && !empty($is_filled)) {
+			$updatePayload['is_periksa'] = 1;
+		}
+		$mTabelDinamis->upsertStatusTahunan($id_master, $ta, $updatePayload);
 
 		$judul_singkat = !empty($tabel->no_tabel) ? 'Tabel ' . trim($tabel->no_tabel) : mb_strimwidth($tabel->judul_ind, 0, 30, '...');
 
