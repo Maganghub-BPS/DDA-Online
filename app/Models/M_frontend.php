@@ -39,8 +39,8 @@ class M_frontend extends Model
 
     /**
      * Subquery status publikasi per tabel:
-     * Jika $tahun diberikan, ambil status pada tahun tersebut.
-     * Jika $tahun kosong, ambil baris status publikasi dari tahun DDA terbaru yang is_publish = 1.
+     * Jika $tahun diberikan, ambil status sah pada tahun tersebut.
+     * Jika $tahun kosong, ambil baris status publikasi dari tahun DDA sah terbaru (is_publish=1, is_periksa=1, is_confirm='1').
      */
     private function applyPublishedStatusJoin($builder, $tahun = null)
     {
@@ -48,7 +48,7 @@ class M_frontend extends Model
             $tahunEsc = $this->db->escape((int)$tahun);
             $builder->join(
                 "t_status_tahunan s",
-                "s.id_tabel = m_list_tabel.id AND s.tahun = {$tahunEsc} AND s.is_publish = 1",
+                "s.id_tabel = m_list_tabel.id AND s.tahun = {$tahunEsc} AND s.is_publish = 1 AND s.is_periksa = 1 AND s.is_confirm = '1'",
                 "inner"
             );
         } else {
@@ -57,9 +57,13 @@ class M_frontend extends Model
                             SELECT id_tabel, MAX(tahun) AS max_tahun
                             FROM t_status_tahunan
                             WHERE is_publish = 1
+                              AND is_periksa = 1
+                              AND is_confirm = '1'
                             GROUP BY id_tabel
                         ) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun
-                        WHERE s1.is_publish = 1) s";
+                        WHERE s1.is_publish = 1
+                          AND s1.is_periksa = 1
+                          AND s1.is_confirm = '1') s";
             $builder->join($subSql, 's.id_tabel = m_list_tabel.id', 'inner');
         }
 
@@ -129,6 +133,8 @@ class M_frontend extends Model
         $tahunRow = $db->table('t_status_tahunan')
                        ->select('MAX(tahun) as max_tahun, MIN(tahun) as min_tahun')
                        ->where('is_publish', 1)
+                       ->where('is_periksa', 1)
+                       ->where('is_confirm', '1')
                        ->get()
                        ->getRow();
 
@@ -145,6 +151,8 @@ class M_frontend extends Model
         return $this->db->table('t_status_tahunan')
                         ->select('DISTINCT(tahun) as tahun')
                         ->where('is_publish', 1)
+                        ->where('is_periksa', 1)
+                        ->where('is_confirm', '1')
                         ->orderBy('tahun', 'DESC')
                         ->get()
                         ->getResult();
