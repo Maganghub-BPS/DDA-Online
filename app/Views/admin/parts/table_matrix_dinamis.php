@@ -869,11 +869,11 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 <?php endif; ?>
 
             <?php else: 
-                $totalSubLeftRowSpan = 2 + ($onlyTotalHorizontal ? 0 : count($kHeaderRowsPerPeriod));
-                $kColsPerSubPeriode = count($flatKolom) + ($addYearGroupSubtotal ? 1 : 0);
+                $totalSubLeftRowSpan = ($onlyTotalHorizontal ? 1 : 2) + (($onlyTotalHorizontal || !$hasRealKolom) ? 0 : count($kHeaderRowsPerPeriod));
+                $kColsPerSubPeriode = ($hasRealKolom ? count($flatKolom) : 1) + ($addYearGroupSubtotal ? 1 : 0);
                 $colsPerYear = count($subPeriodeList) * $kColsPerSubPeriode;
             ?>
-                <!-- ==================== HEADER SUB-TAHUNAN (TAHUN Â» SUB-PERIODE Â» KARAKTERISTIK) ==================== -->
+                <!-- ==================== HEADER SUB-TAHUNAN (TAHUN » SUB-PERIODE » KARAKTERISTIK) ==================== -->
                 <tr>
                     <?php if ($hasNoCol): ?>
                         <th rowspan="<?= $totalSubLeftRowSpan; ?>" class="col-nomor text-center" style="width: 45px; border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 6px;">
@@ -913,7 +913,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php endif; ?>
                 </tr>
 
-                <?php if (!$onlyTotalHorizontal && $hasRealKolom && !empty($kHeaderRowsPerPeriod)): ?>
+                <?php if (!$onlyTotalHorizontal && !empty($subPeriodeList)): ?>
                     <!-- Baris Header 2: Sub-Periode -->
                     <tr>
                         <?php foreach ($selected_years as $yr): ?>
@@ -929,22 +929,24 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     </tr>
 
                     <!-- Baris Header 3+: Karakteristik -->
-                    <?php foreach ($kHeaderRowsPerPeriod as $kRowCells): ?>
-                        <tr>
-                            <?php foreach ($selected_years as $yr): ?>
-                                <?php foreach ($subPeriodeList as $sp): ?>
-                                    <?php foreach ($kRowCells as $hCell): ?>
-                                        <th colspan="<?= $hCell['colspan']; ?>" rowspan="<?= $hCell['rowspan']; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 6px 8px; font-size: 11.5px; min-width: 90px; <?= (!empty($hCell['is_sub']) ? 'background: #0f355c;' : ''); ?>">
-                                            <div><?= esc($hCell['ind']); ?></div>
-                                            <?php if (!empty($hCell['en'])): ?>
-                                                <div class="header-subtitle" style="font-size: 10px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($hCell['en']); ?></div>
-                                            <?php endif; ?>
-                                        </th>
+                    <?php if ($hasRealKolom && !empty($kHeaderRowsPerPeriod)): ?>
+                        <?php foreach ($kHeaderRowsPerPeriod as $kRowCells): ?>
+                            <tr>
+                                <?php foreach ($selected_years as $yr): ?>
+                                    <?php foreach ($subPeriodeList as $sp): ?>
+                                        <?php foreach ($kRowCells as $hCell): ?>
+                                            <th colspan="<?= $hCell['colspan']; ?>" rowspan="<?= $hCell['rowspan']; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 6px 8px; font-size: 11.5px; min-width: 90px; <?= (!empty($hCell['is_sub']) ? 'background: #0f355c;' : ''); ?>">
+                                                <div><?= esc($hCell['ind']); ?></div>
+                                                <?php if (!empty($hCell['en'])): ?>
+                                                    <div class="header-subtitle" style="font-size: 10px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($hCell['en']); ?></div>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php endforeach; ?>
                                     <?php endforeach; ?>
                                 <?php endforeach; ?>
-                            <?php endforeach; ?>
-                        </tr>
-                    <?php endforeach; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 <?php endif; ?>
             <?php endif; ?>
 
