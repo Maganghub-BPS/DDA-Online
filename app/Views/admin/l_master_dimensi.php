@@ -807,7 +807,19 @@
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Judul Baris (Dimensi Baris)</h5>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <!-- Filter Cepat Satuan || -->
+                        <div class="filter-pipe-wrapper">
+                            <select id="filter_satuan_baris" class="form-select form-select-sm shadow-xs fw-semibold border"
+                                    style="border-radius: 10px; height: 38px; min-width: 195px; font-size: 0.82rem; cursor: pointer; background-color: #fff9f5; border-color: #fed7aa !important;">
+                                <option value="all">Semua Kelompok (<?= count($list_baris); ?>)</option>
+                                <option value="pipe" style="color: #c2410c; font-weight: bold;">
+                                    ⚡ Ada Satuan (||) (<?= $total_baris_with_pipe ?? 0; ?>)
+                                </option>
+                                <option value="no_pipe">Bersih / Tanpa (||)</option>
+                            </select>
+                        </div>
+
                         <!-- Kotak Pencarian Realtime Judul Baris -->
                         <div class="search-dimensi-wrapper">
                             <div class="search-dimensi-box shadow-xs">
@@ -846,11 +858,23 @@
                                     </td>
                                 </tr>
                             <?php else: ?>
-                                <?php $no = 1; foreach ($list_baris as $b): ?>
-                                    <tr class="dimensi-item-row" data-search="<?= esc(strtolower($b->nama_kelompok_ind . ' ' . ($b->nama_kelompok_en ?? '') . ' ' . ($b->judul_baris_ind ?? '') . ' ' . ($b->judul_baris_en ?? '') . ' ' . $b->total_items . ' baris')); ?>">
+                                <?php $no = 1; foreach ($list_baris as $b): 
+                                    $hasPipe = ($b->total_pipe ?? 0) > 0;
+                                    $pipeSearchTag = $hasPipe ? ' ada satuan || butuh split' : '';
+                                ?>
+                                    <tr class="dimensi-item-row" 
+                                        data-has-pipe="<?= $hasPipe ? '1' : '0'; ?>"
+                                        data-search="<?= esc(strtolower($b->nama_kelompok_ind . ' ' . ($b->nama_kelompok_en ?? '') . ' ' . ($b->judul_baris_ind ?? '') . ' ' . ($b->judul_baris_en ?? '') . ' ' . $b->total_items . ' baris' . $pipeSearchTag)); ?>">
                                         <td class="text-center fw-semibold text-muted row-number"><?= $no++; ?></td>
                                         <td>
-                                            <div class="item-title"><?= esc($b->nama_kelompok_ind); ?></div>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <span class="item-title"><?= esc($b->nama_kelompok_ind); ?></span>
+                                                <?php if ($hasPipe): ?>
+                                                    <span class="badge bg-warning text-dark border border-warning shadow-xs px-2 py-1 fw-bold d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; border-radius: 6px;" title="Terdapat <?= $b->total_pipe; ?> item dengan format satuan ||">
+                                                        <i class="bi bi-lightning-charge-fill text-danger"></i> <?= $b->total_pipe; ?> Satuan (||)
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                             <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
                                                 <span class="badge bg-light text-dark border small px-2 py-0" style="font-size: 0.75rem;" title="Judul Header Baris yang akan muncul di tabel publikasi & Excel">
                                                     <i class="bi bi-table me-1 text-primary"></i>Header: <strong><?= esc($b->judul_baris_ind ?: $b->nama_kelompok_ind); ?></strong>
@@ -3458,24 +3482,26 @@ $(document).ready(function() {
     // =========================================================================
     // FITUR PENCARIAN REALTIME MASTER DIMENSI (BARIS, KARAKTERISTIK, PERIODE)
     // =========================================================================
-    function initDimensiLiveSearch(inputId, tableId, clearBtnId, countBadgeId, itemType) {
+    function initDimensiLiveSearch(inputId, tableId, clearBtnId, countBadgeId, itemType, filterPipeSelectId = null) {
         const $input = $(inputId);
         const $table = $(tableId);
         const $clearBtn = $(clearBtnId);
         const $countBadge = $(countBadgeId);
+        const $filterPipe = filterPipeSelectId ? $(filterPipeSelectId) : null;
 
         if ($input.length === 0 || $table.length === 0) return;
 
         function doSearch() {
             const rawQuery = $input.val();
             const query = $.trim(rawQuery).toLowerCase();
+            const filterPipeVal = $filterPipe && $filterPipe.length ? ($filterPipe.val() || 'all') : 'all';
             const $rows = $table.find('tbody tr.dimensi-item-row');
             const totalRows = $rows.length;
 
             // Hapus baris 'no results' sebelumnya jika ada
             $table.find('tbody tr.no-search-results').remove();
 
-            if (query === '') {
+            if (query === '' && filterPipeVal === 'all') {
                 $rows.show();
                 $clearBtn.addClass('d-none');
                 $countBadge.addClass('d-none').empty().removeClass('has-zero');
@@ -3488,17 +3514,32 @@ $(document).ready(function() {
                 return;
             }
 
-            // Tampilkan tombol pembersih (x)
-            $clearBtn.removeClass('d-none');
+            // Tampilkan tombol pembersih (x) jika query terisi
+            if (query !== '') {
+                $clearBtn.removeClass('d-none');
+            } else {
+                $clearBtn.addClass('d-none');
+            }
 
             let matchedCount = 0;
             $rows.each(function() {
                 const $row = $(this);
                 const searchData = ($row.attr('data-search') || '').toLowerCase();
                 const textContent = $row.text().toLowerCase();
+                const hasPipe = $row.attr('data-has-pipe') === '1';
 
-                // Pencarian multi-field (nama ind, nama en, header, total item)
-                if (searchData.indexOf(query) !== -1 || textContent.indexOf(query) !== -1) {
+                // Evaluasi filter satuan ||
+                let matchesFilter = true;
+                if (filterPipeVal === 'pipe') {
+                    matchesFilter = hasPipe;
+                } else if (filterPipeVal === 'no_pipe') {
+                    matchesFilter = !hasPipe;
+                }
+
+                // Evaluasi teks pencarian
+                const matchesQuery = (query === '') || (searchData.indexOf(query) !== -1 || textContent.indexOf(query) !== -1);
+
+                if (matchesFilter && matchesQuery) {
                     $row.show();
                     matchedCount++;
                     $row.find('.row-number').text(matchedCount);
@@ -3507,7 +3548,7 @@ $(document).ready(function() {
                 }
             });
 
-            // Tampilkan counter info hasil pencarian minimalis (e.g. 78/260) di dalam search box
+            // Tampilkan counter info hasil pencarian / filter di dalam search box
             if ($countBadge.length) {
                 $countBadge.removeClass('d-none');
                 if (matchedCount === 0) {
@@ -3519,14 +3560,21 @@ $(document).ready(function() {
 
             // Jika tidak ada data yang cocok
             if (matchedCount === 0 && totalRows > 0) {
+                let msg = `Tidak ada kelompok ${itemType} yang sesuai dengan kriteria yang dipilih.`;
+                if (query !== '') {
+                    msg = `Tidak ada kelompok ${itemType} yang sesuai dengan pencarian "<strong>${escapeHtml(rawQuery)}</strong>".`;
+                } else if (filterPipeVal === 'pipe') {
+                    msg = `Semua kelompok ${itemType} sudah bersih dari format satuan (<code>||</code>).`;
+                }
+
                 const noResultHtml = `
                     <tr class="no-search-results">
                         <td colspan="4" class="text-center py-5 text-muted">
                             <i class="bi bi-search fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                            <div>Tidak ada kelompok ${itemType} yang sesuai dengan pencarian "<strong>${escapeHtml(rawQuery)}</strong>".</div>
+                            <div>${msg}</div>
                             <div class="mt-2">
                                 <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill btn-reset-search-custom">
-                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Bersihkan Pencarian
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filter & Pencarian
                                 </button>
                             </div>
                         </td>
@@ -3546,8 +3594,15 @@ $(document).ready(function() {
 
         // Listener klik tombol reset di baris 'no results'
         $table.on('click', '.btn-reset-search-custom', function() {
+            if ($filterPipe && $filterPipe.length) {
+                $filterPipe.val('all');
+            }
             $input.val('').trigger('input').focus();
         });
+
+        if ($filterPipe && $filterPipe.length) {
+            $filterPipe.on('change', doSearch);
+        }
 
         // Keyboard shortcut: Escape untuk membatalkan search
         $input.on('keydown', function(e) {
@@ -3562,7 +3617,7 @@ $(document).ready(function() {
 
     // Aktifkan pencarian di ketiga tab Master Dimensi
     initDimensiLiveSearch('#search_master_karakteristik', '#table_dimensi_karakteristik', '#clear_search_karakteristik', '#count_search_karakteristik', 'karakteristik');
-    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris');
+    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris', '#filter_satuan_baris');
     initDimensiLiveSearch('#search_master_periode', '#table_dimensi_periode', '#clear_search_periode', '#count_search_periode', 'periode');
 
     // Global keyboard shortcut '/' atau 'Ctrl+K' untuk langsung fokus ke input pencarian dimensi

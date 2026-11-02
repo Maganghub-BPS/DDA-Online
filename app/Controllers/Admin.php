@@ -6136,9 +6136,16 @@ class Admin extends BaseController
 		// Data Baris (Optimasi Single Aggregation Query)
 		$a['list_baris'] = $mTabelDinamis->getBarisKelompokAll();
 		$bCounts = $mTabelDinamis->getBarisCounts();
+		$bPipeCounts = $mTabelDinamis->getBarisPipeCounts();
+		$totalGroupsWithPipe = 0;
 		foreach ($a['list_baris'] as $b) {
 			$b->total_items = $bCounts[(int)$b->id] ?? 0;
+			$b->total_pipe  = $bPipeCounts[(int)$b->id] ?? 0;
+			if ($b->total_pipe > 0) {
+				$totalGroupsWithPipe++;
+			}
 		}
+		$a['total_baris_with_pipe'] = $totalGroupsWithPipe;
 
 		// Data Periode (Optimasi Single Aggregation Query)
 		$a['list_periode'] = $mTabelDinamis->getPeriodeKelompokAll();

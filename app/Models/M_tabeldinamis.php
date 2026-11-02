@@ -770,6 +770,21 @@ class M_tabeldinamis extends Model
         return $map;
     }
 
+    public function getBarisPipeCounts(): array
+    {
+        $rows = $this->db->table('m_baris_item')
+            ->select('id_kelompok, COUNT(*) as total_pipe')
+            ->like('nama_baris_ind', '||')
+            ->groupBy('id_kelompok')
+            ->get()
+            ->getResult();
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r->id_kelompok] = (int)$r->total_pipe;
+        }
+        return $map;
+    }
+
     public function getBarisTree(int $id_kelompok): array
     {
         return $this->getBarisItems($id_kelompok);
