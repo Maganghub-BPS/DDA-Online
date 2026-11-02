@@ -1547,6 +1547,16 @@ class M_tabeldinamis extends Model
             return 0;
         }
 
+        // Filter sel yang benar-benar memiliki nilai numerik atau simbol statistik BPS
+        $filledCells = array_filter($cells, function ($c) {
+            return (isset($c['nilai']) && $c['nilai'] !== '' && $c['nilai'] !== null) || (!empty($c['simbol']));
+        });
+
+        // Jika seluruh sel kosong (0 data), batalkan penyimpanan agar tidak menghapus data lama dan tidak menyimpan null
+        if (empty($filledCells)) {
+            return 0;
+        }
+
         if ($tahun_data === null || $tahun_data <= 0) {
             $tahun_data = isset($cells[0]['tahun_data']) ? (int)$cells[0]['tahun_data'] : (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
         }

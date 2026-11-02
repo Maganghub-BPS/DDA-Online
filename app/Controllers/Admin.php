@@ -6488,6 +6488,20 @@ class Admin extends BaseController
 			$parser = new \App\Libraries\ExcelDataParser();
 			$parseResult = $parser->parse($file->getTempName(), $id_tahun_tabel, $tahun_data_post);
 
+			// Validasi Opsi A: Tolak jika berkas template 100% kosong (0 sel terisi)
+			if ((int)($parseResult['filled_cells'] ?? 0) === 0) {
+				$this->db->transRollback();
+				$errMsg = 'Berkas Excel yang diunggah masih kosong (0 sel terisi). Harap lengkapi nilai atau simbol statistik BPS (misal: "-" atau "...") sebelum mengunggah.';
+				if ($this->request->isAJAX()) {
+					return $this->response->setStatusCode(422)->setJSON([
+						'status'  => 'error',
+						'message' => $errMsg
+					]);
+				}
+				$this->session->setFlashdata("k", "<div class=\"alert alert-warning d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill fs-5\"></i><div>{$errMsg}</div></div>");
+				return redirect()->back();
+			}
+
 			$mTabelDinamis = new \App\Models\M_tabeldinamis();
 			$tahunDataTarget = (int)($parseResult['tahun_data'] ?? $defaultTahunData);
 			$affected = $mTabelDinamis->saveNilaiBatch((int)$parseResult['id_indikator'], $parseResult['cells_data'], $tahunDataTarget);
