@@ -420,7 +420,6 @@ $isConfigured  = ($indikator && $dimCount >= 2);
         color: #000000 !important;
         font-weight: bold !important;
         border: 1px solid #ffffff !important;
-        border-left: 4px solid #FF6D1F !important;
         padding: 10px 15px !important;
     }
 
@@ -576,14 +575,9 @@ $isConfigured  = ($indikator && $dimCount >= 2);
 
             <?php $thDataOtomatis = (int)$ta - 1; ?>
             <!-- Tombol Unduh Template Excel Otomatis Sesuai Tahun Publikasi ($ta - 1) -->
-            <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id . '/' . $thDataOtomatis); ?>" class="btn-rounded-modern btn-back-modern shadow-sm" title="Unduh Template Excel Resmi Data Tahun <?= $thDataOtomatis; ?>">
-                <i class="bi bi-file-earmark-arrow-down"></i> <span class="d-none d-sm-inline">UNDUH TEMPLATE</span><span class="d-inline d-sm-none">UNDUH</span>
+            <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id . '/' . $thDataOtomatis); ?>" class="btn-rounded-modern export-btn-modern shadow-primary" title="Unduh Template Excel Resmi Data Tahun <?= $thDataOtomatis; ?>">
+                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">UNDUH TEMPLATE</span><span class="d-inline d-sm-none">UNDUH</span>
             </a>
-
-            <!-- Tombol Export Excel Resmi (Sama Seperti View Portal Tabel) -->
-            <button onclick="exportTableToExcel('dda-container-all', 'tabel-dinamis-<?= $tabel->id; ?>')" class="btn-rounded-modern export-btn-modern shadow-primary">
-                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">EXPORT EXCEL</span><span class="d-inline d-sm-none">EXPORT</span>
-            </button>
         </div>
     </div>
 
@@ -610,9 +604,6 @@ $isConfigured  = ($indikator && $dimCount >= 2);
             <?php endif; ?>
         </div>
     <?php else: ?>
-        <!-- Helper Export Excel DDA -->
-        <?= view('admin/parts/js_export_excel'); ?>
-
         <!-- ===== TAMPILAN RESMI 100% PERSIS VIEW API (v_portal_tabel.php) ===== -->
         <div id="dda-container-all" style="padding: 20px;">
             <div class="table-wrapper">

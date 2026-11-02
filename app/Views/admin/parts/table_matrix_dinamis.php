@@ -1209,7 +1209,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     if ($tipeBaris === 'kategori' || $lowerBaris === 'kabupaten' || $lowerBaris === 'kota') {
                         if ($groupByRegion): ?>
                             <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; border-left: 4px solid #FF6D1F; font-size: 12px;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; font-size: 12px;">
                                     <?= esc($namaBaris); ?>
                                 </td>
                             </tr>
