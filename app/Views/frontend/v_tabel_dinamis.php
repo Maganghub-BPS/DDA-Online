@@ -13,61 +13,52 @@
  * 4. Sumber Resmi di bagian bawah tabel.
  */
 
-// Ekstraksi Nomor Tabel & Pembersihan Judul
-$display_title = $tabel->judul_ind ?? 'Tabel Data';
-$display_title = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $display_title);
+// Ekstraksi Nomor Tabel & Pembersihan Judul Dasar
+$tipePeriodeTabel = $indikator->tipe_periode ?? 'tahunan';
+
+// 1. Judul Bahasa Indonesia
+$rawJudulInd = $tabel->judul_ind ?? 'Tabel Data';
+$rawJudulInd = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $rawJudulInd);
 
 $no_tabel = $tabel->no_tabel ?? '';
-$cleanJudulInd = $display_title;
-
-// Jika no_tabel kosong atau judul diawali "Tabel X.X.X"
-if (preg_match('/^Tabel\s+([\d\.\w]+)\s+(.*?)(?:,\s*(\d{4}(?:-\d{4})?))?$/is', trim($display_title), $m)) {
+if (preg_match('/^Tabel\s+([\d\.\w]+)\s+(.*?)$/is', trim($rawJudulInd), $m)) {
     if (empty($no_tabel)) {
         $no_tabel = $m[1];
     }
-    $cleanJudulInd = trim($m[2]);
-    if (isset($m[3]) && $m[3]) {
-        $cleanJudulInd .= ', ' . $m[3];
-    }
+    $rawJudulInd = trim($m[2]);
 } else {
-    $cleanJudulInd = preg_replace('/^Tabel\s+([\d\.\w]+)?\s*/i', '', $cleanJudulInd);
+    $rawJudulInd = preg_replace('/^Tabel\s+([\d\.\w]+)?\s*/i', '', $rawJudulInd);
 }
 
 if (!empty($no_tabel)) {
-    $cleanJudulInd = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/i', '', $cleanJudulInd);
+    $rawJudulInd = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/i', '', $rawJudulInd);
 }
 
-// Tambahkan atau gantikan placeholder periode waktu
-$periode_str = trim((string)($tabel->periode_id ?? $tabel->periode ?? ''));
-if (stripos($cleanJudulInd, '[PERIODE]') !== false) {
-    $cleanJudulInd = str_ireplace('[PERIODE]', $periode_str, $cleanJudulInd);
-} elseif (!empty($periode_str) && stripos($cleanJudulInd, $periode_str) === false) {
-    $cleanJudulInd = rtrim($cleanJudulInd, " ,") . ', ' . $periode_str;
-}
+// Bersihkan akhiran tahun lama / koma mentah jika ada di master judul
+$cleanJudulInd = preg_replace('/,\s*(?:[0-9]{4}(?:\s*[\–\-\/]\s*[0-9]{4})?)(?:,\s*[0-9]{4})*\s*$/u', '', trim($rawJudulInd));
+$cleanJudulInd = trim(rtrim($cleanJudulInd, " ,"));
 
-// Judul Bahasa Inggris
-$eng_title_raw = $tabel->judul_en ?: ($tabel->judul_ind ?? '');
-$eng_title_raw = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $eng_title_raw);
-$cleanJudulEn = $eng_title_raw;
+// 2. Judul Bahasa Inggris
+$rawJudulEn = $tabel->judul_en ?: ($tabel->judul_ind ?? '');
+$rawJudulEn = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $rawJudulEn);
 
-if (preg_match('/^Table\s+([\d\.\w]+)\s+(.*?)(?:,\s*(\d{4}(?:-\d{4})?))?$/is', trim($eng_title_raw), $m)) {
-    $cleanJudulEn = trim($m[2]);
-    if (isset($m[3]) && $m[3]) {
-        $cleanJudulEn .= ', ' . $m[3];
-    }
+if (preg_match('/^Table\s+([\d\.\w]+)\s+(.*?)$/is', trim($rawJudulEn), $m)) {
+    $rawJudulEn = trim($m[2]);
 } else {
-    $cleanJudulEn = preg_replace('/^Table\s+([\d\.\w]+)?\s*/i', '', $cleanJudulEn);
+    $rawJudulEn = preg_replace('/^Table\s+([\d\.\w]+)?\s*/i', '', $rawJudulEn);
 }
 
 if (!empty($no_tabel)) {
-    $cleanJudulEn = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/i', '', $cleanJudulEn);
+    $rawJudulEn = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/i', '', $rawJudulEn);
 }
 
-$periode_en_str = trim((string)($tabel->periode_en ?? $tabel->periode_id ?? $tabel->periode ?? ''));
-if (stripos($cleanJudulEn, '[PERIODE]') !== false) {
-    $cleanJudulEn = str_ireplace('[PERIODE]', $periode_en_str, $cleanJudulEn);
-} elseif (!empty($periode_en_str) && stripos($cleanJudulEn, $periode_en_str) === false) {
-    $cleanJudulEn = rtrim($cleanJudulEn, " ,") . ', ' . $periode_en_str;
+$cleanJudulEn = preg_replace('/,\s*(?:[0-9]{4}(?:\s*[\–\-\/]\s*[0-9]{4})?)(?:,\s*[0-9]{4})*\s*$/u', '', trim($rawJudulEn));
+$cleanJudulEn = trim(rtrim($cleanJudulEn, " ,"));
+
+// 3. Format Judul Dinamis Rapi Standar BPS (Opsi A) Berdasarkan Tahun yang Dipilih Pengguna
+if (function_exists('formatDynamicTableTitle')) {
+    $cleanJudulInd = formatDynamicTableTitle($cleanJudulInd, $selected_years ?? [], 'id', $tipePeriodeTabel);
+    $cleanJudulEn  = formatDynamicTableTitle($cleanJudulEn, $selected_years ?? [], 'en', $tipePeriodeTabel);
 }
 
 // Format judul ringkas untuk breadcrumb
@@ -535,6 +526,9 @@ $isConfigured  = ($indikator && $dimCount >= 2);
     }
 
     /* Baris Kategori Wilayah / Master Divider */
+    .main-table tr.category-row,
+    .main-table tr.category-row td,
+    .main-table tr.row-category,
     .main-table tr.row-category td {
         background-color: #f1f6fc !important;
         font-weight: bold !important;
@@ -718,9 +712,6 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                                         <input class="form-check-input year-filter-check" type="checkbox" value="<?= $yr; ?>" id="yr-<?= $yr; ?>" <?= in_array($yr, $selected_years ?? [], true) ? 'checked' : ''; ?> onchange="applyYearFilter()">
                                         <label class="form-check-label small fw-bold" for="yr-<?= $yr; ?>">
                                             Tahun <?= $yr; ?>
-                                            <?php if ($yr == (($ta ?? 0) - 1)): ?>
-                                                <span class="badge bg-warning text-dark ms-1" style="font-size: 9px;">Aktif</span>
-                                            <?php endif; ?>
                                         </label>
                                     </div>
                                 <?php endforeach; ?>
@@ -949,7 +940,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // 2. Deteksi Banner Pembatas Kategori (Kabupaten / Kota)
-            if (trClasses.includes('row-category') || tdClasses.includes('row-category')) {
+            if (trClasses.includes('row-category') || trClasses.includes('category-row') || tdClasses.includes('row-category') || tdClasses.includes('category-row')) {
                 return 'category';
             }
 

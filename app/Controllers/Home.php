@@ -395,7 +395,7 @@ class Home extends BaseController
 
             $available_years = $this->tabelDinamisModel->getAvailableYears((int)$indikator->id);
 
-            // Filter tahun data untuk pengunjung publik berdasarkan tahun DDA yang sudah dipublish di t_status_tahunan
+            // Filter tahun data untuk pengunjung publik: hanya tampilkan tahun yang sudah diisi, diverifikasi BPS, dan dipublish
             $isAdminPreview = (bool)(session()->get('admin_valid') && !empty(session()->get('admin_id')));
             if (!$isAdminPreview && !empty($available_years)) {
                 $db = \Config\Database::connect();
@@ -403,6 +403,8 @@ class Home extends BaseController
                     ->select('tahun')
                     ->where('id_tabel', (int)$dda_info->id)
                     ->where('is_publish', 1)
+                    ->where('is_periksa', 1)
+                    ->where('is_confirm', '1')
                     ->orderBy('tahun', 'DESC')
                     ->get()
                     ->getResultArray();
@@ -413,6 +415,8 @@ class Home extends BaseController
                     $available_years = array_values(array_filter($available_years, static function ($yr) use ($maxAllowedDataYear) {
                         return (int)$yr <= $maxAllowedDataYear;
                     }));
+                } else {
+                    $available_years = [];
                 }
             }
 
@@ -453,20 +457,36 @@ class Home extends BaseController
             $selected_years = [$ta];
         }
 
-        $selectable_years = !empty($available_years) ? $available_years : [$ta];
-        if (!in_array($ta, $selectable_years, true)) {
-            $selectable_years[] = $ta;
+        if ($isAdminPreview) {
+            $selectable_years = !empty($available_years) ? $available_years : [$ta];
+            if (!in_array($ta, $selectable_years, true)) {
+                $selectable_years[] = $ta;
+            }
+        } else {
+            $selectable_years = !empty($available_years) ? $available_years : [];
         }
         rsort($selectable_years);
+
+        // Batasi $selected_years bagi pengunjung publik agar hanya berisi tahun yang sah dipilih
+        if (!$isAdminPreview && !empty($selectable_years)) {
+            $selected_years = array_values(array_intersect($selected_years, $selectable_years));
+            if (empty($selected_years)) {
+                $selected_years = [max($selectable_years)];
+            }
+        }
 
         $tipePeriodeTabel = $indikator->tipe_periode ?? 'tahunan';
         $display_title = function_exists('formatDynamicTableTitle')
             ? formatDynamicTableTitle($dda_info->judul_ind, $selected_years, 'id', $tipePeriodeTabel)
             : ($dda_info->judul_ind ?? 'Tabel Dinamis');
+        $display_title_en = function_exists('formatDynamicTableTitle')
+            ? formatDynamicTableTitle($dda_info->judul_en ?: ($dda_info->judul_ind ?? ''), $selected_years, 'en', $tipePeriodeTabel)
+            : ($dda_info->judul_en ?? '');
 
         $data = [
             'title'            => $display_title,
             'display_title'    => $display_title,
+            'display_title_en' => $display_title_en,
             'tabel'            => $dda_info,
             'dda_info'         => $dda_info,
             'indikator'        => $indikator,

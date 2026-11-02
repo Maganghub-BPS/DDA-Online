@@ -46,6 +46,10 @@ $tipePeriode            = $indikator->tipe_periode ?? 'tahunan';
 $isTahunan              = in_array($tipePeriode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahunan_jumlah_rata', 'tahun_ajaran'], true);
 $isAkademik             = ($tipePeriode === 'tahun_ajaran');
 $isTablePreview         = !empty($isPreview);
+$isFrontendView         = (isset($is_admin) && $is_admin === false);
+$catRowBg               = $isFrontendView ? '#f1f6fc' : '#fde5ce';
+$catRowColor            = $isFrontendView ? '#0f2d59' : '#000000';
+$catRowBorder           = $isFrontendView ? '#e2e8f0' : '#ffffff';
 
 // Pastikan selected_years terisi minimal 1 tahun
 if (empty($selected_years)) {
@@ -1011,8 +1015,8 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             }
                             $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
                         ?>
-                            <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($portraitSplitCol ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; font-size: 12px;">
+                            <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($portraitSplitCol ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
                                     <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>
@@ -1227,8 +1231,8 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             }
                             $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
                         ?>
-                            <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; font-size: 12px;">
+                            <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
                                     <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>
