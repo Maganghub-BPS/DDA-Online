@@ -3687,8 +3687,7 @@ class Admin extends BaseController
 		return md5(json_encode($sigRow) . '_' . $ta);
 	}
 
-	/**
-	 * private function syncMasterMatchingFiles(string $ta, string $pdfMaster, string $dbJson, string $matchedJson, bool $forceRebuild = false): ?array
+	private function syncMasterMatchingFiles(string $ta, string $pdfMaster, string $dbJson, string $matchedJson, bool $forceRebuild = false): ?array
 	{
 		if (!file_exists($matchedJson)) {
 			return null;
