@@ -6783,4 +6783,172 @@ class Admin extends BaseController
 		]);
 	}
 
+	/**
+	 * Endpoint AJAX: Preview Cepat 5 Baris Matriks Tabel Dinamis
+	 * Menghasilkan cuplikan HTML 5 baris table_matrix_dinamis tanpa menyimpan ke database.
+	 */
+	public function ajax_preview_matrix_dinamis()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Sesi berakhir']);
+		}
+
+		$id_tabel = (int)$this->request->getPost('id_tabel');
+		$id_indikator = (int)$this->request->getPost('id_indikator');
+		if (!$id_tabel && !$id_indikator) {
+			return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'ID Tabel atau Indikator tidak valid']);
+		}
+
+		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$context = $mTabelDinamis->resolveTableContext($id_tabel ?: $id_indikator, $ta);
+		$tabel = $context['tabel'] ?? null;
+		$indikator = $context['indikator'] ?? null;
+
+		if (!$tabel) {
+			return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Data tabel tidak ditemukan']);
+		}
+
+		// Lengkapi objek tabel
+		$tabel->id_tahun_tabel = (int)$tabel->id;
+		$tabel->id_master_tabel = (int)$tabel->id;
+
+		$structureKolom  = null;
+		$itemsKolom      = [];
+		$itemsBaris      = [];
+		$kelompokBaris   = null;
+		$itemsPeriode    = [];
+		$kelompokPeriode = null;
+		$nilaiMap        = [];
+		$available_years = [];
+		$selected_years  = [];
+		$configTampilan  = [
+			'total_horizontal'        => false,
+			'jenis_total_horizontal'  => 'sum',
+			'only_total_horizontal'   => false,
+			'group_total_horizontal'  => false,
+			'total_vertikal'          => true,
+			'jenis_total_vertikal'    => 'default',
+			'label_total_kustom'      => '',
+			'group_by_region'         => true,
+			'prioritas_karakteristik' => false,
+			'portrait_mode'           => false,
+			'portrait_split_col'      => false,
+		];
+
+		if ($indikator) {
+			if (!empty($indikator->config_tampilan)) {
+				$decodedCfg = json_decode($indikator->config_tampilan, true);
+				if (is_array($decodedCfg)) {
+					$configTampilan = array_merge($configTampilan, $decodedCfg);
+				}
+			}
+
+			// Timpa konfigurasi dari payload preview
+			$configRaw = $this->request->getPost('config_json');
+			if (!empty($configRaw)) {
+				$prevCfg = is_array($configRaw) ? $configRaw : json_decode($configRaw, true);
+				if (is_array($prevCfg)) {
+					$configTampilan = array_merge($configTampilan, $prevCfg);
+					if (isset($prevCfg['satuan'])) $indikator->satuan = $prevCfg['satuan'];
+					if (isset($prevCfg['desimal'])) $indikator->desimal = (int)$prevCfg['desimal'];
+					if (isset($prevCfg['tampilan_baris'])) $indikator->tampilan_baris = $prevCfg['tampilan_baris'];
+					if (isset($prevCfg['kolom_nomor'])) $indikator->kolom_nomor = $prevCfg['kolom_nomor'];
+					if (isset($prevCfg['tingkat_kolom'])) $indikator->tingkat_kolom = $prevCfg['tingkat_kolom'];
+				}
+			}
+
+			if (!empty($indikator->id_karakteristik_kelompok)) {
+				$itemsKolom     = $mTabelDinamis->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
+				$structureKolom = $mTabelDinamis->buildColumnStructure($itemsKolom);
+			}
+
+			if (!empty($indikator->id_baris_kelompok)) {
+				$kelompokBaris = $mTabelDinamis->getBarisKelompok((int)$indikator->id_baris_kelompok);
+				$itemsBaris    = $mTabelDinamis->getBarisItems((int)$indikator->id_baris_kelompok);
+			}
+
+			if (!empty($indikator->id_periode_kelompok)) {
+				$kelompokPeriode = $mTabelDinamis->getPeriodeKelompok((int)$indikator->id_periode_kelompok);
+				$itemsPeriode    = $mTabelDinamis->getPeriodeItems((int)$indikator->id_periode_kelompok);
+			}
+
+			$available_years = $mTabelDinamis->getAvailableYears((int)$indikator->id);
+
+			$reqYears = $this->request->getPost('tahun') ?: $this->request->getPost('years') ?: $this->request->getGet('tahun');
+			$rawReqList = [];
+			if (!empty($reqYears)) {
+				$rawReqList = is_array($reqYears) ? $reqYears : explode(',', (string)$reqYears);
+			}
+
+			$selected_years = $mTabelDinamis->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
+			sort($selected_years);
+
+			// Ambil nilai dari t_nilai_dinamis
+			$nilaiRows = $this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id)
+				->get()
+				->getResult();
+
+			foreach ($nilaiRows as $nr) {
+				$th = (int)$nr->tahun_data;
+				$bId = (int)$nr->id_baris_item;
+				$kId = (int)$nr->id_karakteristik_item;
+				$pId = (int)($nr->id_periode_item ?? 0);
+
+				$nilaiMap[$th][$bId][$kId][$pId] = [
+					'nilai'          => $nr->nilai !== null ? (float)$nr->nilai : null,
+					'simbol'         => $nr->simbol ?: null,
+					'jumlah_desimal' => $nr->jumlah_desimal !== null ? (int)$nr->jumlah_desimal : null,
+				];
+			}
+		} else {
+			$available_years = [$ta];
+			$selected_years = [$ta];
+		}
+
+		// Batasi hanya 5 baris data pertama untuk preview cepat (dengan menyertakan header kategori jika ada)
+		$previewItemsBaris = [];
+		$dataRowCount = 0;
+		foreach ($itemsBaris as $b) {
+			$previewItemsBaris[] = $b;
+			$tipeBaris = strtolower(trim($b->tipe_baris ?? 'data'));
+			$lowerBaris = strtolower(trim($b->nama_baris_ind ?? ''));
+			$isHeader = ($tipeBaris === 'kategori' || $lowerBaris === 'kabupaten' || $lowerBaris === 'kota');
+			if (!$isHeader) {
+				$dataRowCount++;
+				if ($dataRowCount >= 5) {
+					break;
+				}
+			}
+		}
+		if (empty($previewItemsBaris)) {
+			$previewItemsBaris = array_slice($itemsBaris, 0, 5);
+		}
+
+		$viewData = [
+			'tabel'            => $tabel,
+			'indikator'        => $indikator,
+			'structureKolom'   => $structureKolom,
+			'itemsKolom'       => $itemsKolom,
+			'itemsBaris'       => $previewItemsBaris,
+			'kelompokBaris'    => $kelompokBaris,
+			'itemsPeriode'     => $itemsPeriode,
+			'kelompokPeriode'  => $kelompokPeriode,
+			'nilaiMap'         => $nilaiMap,
+			'available_years'  => $available_years,
+			'selected_years'   => $selected_years,
+			'config_tampilan'  => $configTampilan,
+			'matrix_dom_id'    => 'table-dinamis-matrix-preview',
+			'isPreview'        => true,
+		];
+
+		$html = view('admin/parts/table_matrix_dinamis', $viewData);
+
+		return $this->response->setJSON([
+			'status' => 'success',
+			'html'   => $html,
+		]);
+	}
+
 }

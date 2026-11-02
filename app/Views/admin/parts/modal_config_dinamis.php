@@ -42,6 +42,20 @@
         background-color: #FF6D1F;
         border-color: #FF6D1F;
     }
+
+    #preview-container-dinamis table {
+        font-size: 10px !important;
+        margin-bottom: 0 !important;
+    }
+    #preview-container-dinamis th, #preview-container-dinamis td {
+        padding: 4px 6px !important;
+        font-size: 10px !important;
+    }
+    #preview-container-dinamis .table-responsive-dda {
+        border: none !important;
+        border-radius: 0 !important;
+        margin-bottom: 0 !important;
+    }
 </style>
 
 <div class="modal fade" id="configModalDinamis" tabindex="-1" aria-hidden="true">
@@ -246,6 +260,19 @@
                         </div>
                     </div>
                 </form>
+
+                <!-- PREVIEW AREA (Outside Tabs for visibility) -->
+                <div id="preview-area-dinamis" class="mt-4 border-top pt-3" style="display:none">
+                    <h6 class="fw-bold small text-muted mb-2 ps-1">
+                        <i class="bi bi-eye me-1"></i> Preview Cepat (5 Baris)
+                    </h6>
+                    <div id="preview-container-dinamis" class="bg-white border rounded-4 overflow-auto" style="max-height: 220px; font-size: 10px;"></div>
+                    <div class="text-center mt-2">
+                        <button type="button" onclick="document.getElementById('preview-area-dinamis').style.display='none'" class="btn btn-sm btn-link text-muted text-decoration-none" style="font-size: 11px;">
+                            Sembunyikan Preview
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer border-0 p-4 pt-2 d-flex justify-content-between">
@@ -323,10 +350,45 @@ function buildConfigDinamisPayload() {
 }
 
 function previewConfigDinamis() {
+    var form = document.getElementById('formConfigDinamis');
+    var formData = new FormData(form);
     var payload = buildConfigDinamisPayload();
-    var url = new URL(window.location.href);
-    url.searchParams.set('preview_config', JSON.stringify(payload));
-    window.location.href = url.toString();
+    formData.set('config_json', JSON.stringify(payload));
+
+    // Sertakan pilihan tahun aktif jika ada di URL
+    var currentUrl = new URL(window.location.href);
+    var urlYears = currentUrl.searchParams.get('tahun') || currentUrl.searchParams.get('years');
+    if (urlYears) {
+        formData.set('tahun', urlYears);
+    }
+
+    var area = document.getElementById('preview-area-dinamis');
+    var container = document.getElementById('preview-container-dinamis');
+    if (!area || !container) return;
+
+    area.style.display = 'block';
+    container.innerHTML = '<div class="text-center p-4 text-muted small"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Menyiapkan preview...</div>';
+
+    // Smooth scroll ke area preview di dalam modal
+    setTimeout(function() {
+        area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+
+    fetch('<?= base_url("admin/ajax_preview_matrix_dinamis"); ?>', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (data.status === 'success' && data.html) {
+            container.innerHTML = data.html;
+        } else {
+            container.innerHTML = '<div class="alert alert-warning m-2 p-2 small"><i class="bi bi-exclamation-triangle me-1"></i> Gagal memuat preview: ' + (data.message || 'Respons tidak valid') + '</div>';
+        }
+    })
+    .catch(function(err) {
+        container.innerHTML = '<div class="alert alert-danger m-2 p-2 small"><i class="bi bi-x-circle me-1"></i> Terjadi kesalahan koneksi server: ' + err + '</div>';
+    });
 }
 
 function submitConfigDinamis(btn) {

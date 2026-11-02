@@ -23,4 +23,5 @@ $routes->post('admin/ajax_reset_nilai_tabel', 'Admin::ajax_reset_nilai_tabel');
 $routes->post('admin/ajax_hapus_nilai_tahun', 'Admin::ajax_hapus_nilai_tahun');
 $routes->post('admin/ajax_save_konfigurasi_tampilan_dinamis', 'Admin::ajax_save_konfigurasi_tampilan_dinamis');
 $routes->post('admin/ajax_save_default_tahun_tampil', 'Admin::ajax_save_default_tahun_tampil');
+$routes->post('admin/ajax_preview_matrix_dinamis', 'Admin::ajax_preview_matrix_dinamis');
 $routes->get('home/view_dinamis/(:num)', 'Home::view_dinamis/$1');
