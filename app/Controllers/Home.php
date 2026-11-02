@@ -39,18 +39,15 @@ class Home extends BaseController
         $q = $this->request->getGet('q');
         $unit = $this->request->getGet('unit');
         $opd_search = $this->request->getGet('opd_search');
-        $tahun = $this->request->getGet('tahun');
         $page = max(1, (int)($this->request->getVar('page') ?? 1));
         $perPage = 12;
 
         $unique_units = $this->frontendModel->getUniqueUnits();
-        $available_years = $this->frontendModel->getAvailableYears();
 
         $searchData = $this->frontendModel->searchTables([
             'q' => $q,
             'unit' => $unit,
             'opd_search' => $opd_search,
-            'tahun' => $tahun
         ], $page, $perPage);
 
         $data = [
@@ -58,9 +55,7 @@ class Home extends BaseController
             'q' => $q,
             'unit' => $unit,
             'opd_search' => $opd_search,
-            'tahun' => $tahun,
             'unique_units' => $unique_units,
-            'available_years' => $available_years,
             'results' => $searchData['results'] ?? [],
             'pager' => \Config\Services::pager(),
             'page_num' => $page,
@@ -301,16 +296,13 @@ class Home extends BaseController
             return redirect()->to('/home/search')->with('error', 'Tabel data tidak ditemukan.');
         }
 
-        // Jika bukan tabel dinamis, arahkan ke endpoint yang sesuai
-        if (empty($dda_info->is_dynamic)) {
-            if (strpos($dda_info->link_tabel ?? '', 'view_portal_tabel') !== false) {
-                $portal_id = $dda_info->link_tabel;
-                if (preg_match('/[?&]id=([^&]+)/', $dda_info->link_tabel, $m_id)) {
-                    $portal_id = $m_id[1];
-                }
-                return redirect()->to("home/view_tabel?id=" . urlencode($portal_id) . "&table_id=" . $parsed_table_id);
+        // Jika tabel merupakan API Kominfo (view_portal_tabel), arahkan ke view_tabel
+        if (strpos($dda_info->link_tabel ?? '', 'view_portal_tabel') !== false) {
+            $portal_id = $dda_info->link_tabel;
+            if (preg_match('/[?&]id=([^&]+)/', $dda_info->link_tabel, $m_id)) {
+                $portal_id = $m_id[1];
             }
-            return redirect()->to("home/view_sheet?url=" . urlencode($dda_info->link_tabel ?? '') . "&table_id=" . $parsed_table_id);
+            return redirect()->to("home/view_tabel?id=" . urlencode($portal_id) . "&table_id=" . $parsed_table_id);
         }
 
         // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)

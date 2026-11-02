@@ -31,14 +31,8 @@ class M_frontend extends Model
                 m_list_tabel.id_unitkerja,
                 m_list_tabel.kondef,
                 m_list_tabel.jenis_sumber,
-                (CASE 
-                    WHEN m_list_tabel.judul_ind LIKE '%20%' THEN m_list_tabel.judul_ind
-                    ELSE CONCAT(m_list_tabel.judul_ind, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((s.tahun - 1) AS CHAR)))
-                END) as judul_ind,
-                (CASE 
-                    WHEN m_list_tabel.judul_en LIKE '%20%' THEN m_list_tabel.judul_en
-                    ELSE CONCAT(m_list_tabel.judul_en, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((s.tahun - 1) AS CHAR)))
-                END) as judul_en,
+                m_list_tabel.judul_ind,
+                m_list_tabel.judul_en,
                 m_unitkerja.unitkerja_ind,
                 m_unitkerja.unitkerja_en";
     }
@@ -72,7 +66,8 @@ class M_frontend extends Model
         $builder->join('m_unitkerja', 'm_list_tabel.id_unitkerja = m_unitkerja.id_unitkerja', 'left')
                 ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
                 ->join('m_indikator_tabel mi', 'mi.id_tabel = m_list_tabel.id', 'left')
-                ->where('m_list_tabel.is_active', 1);
+                ->where('m_list_tabel.is_active', 1)
+                ->where("(m_list_tabel.jenis_sumber = 'dinamis' OR (m_list_tabel.jenis_sumber = 'api_kominfo' AND ka.link_api LIKE '%view_portal_tabel%'))");
 
         return $builder;
     }
@@ -82,12 +77,25 @@ class M_frontend extends Model
         $builder = $this->db->table('m_list_tabel')->select($this->getBaseTableSelect());
         $this->applyPublishedStatusJoin($builder, $tahun);
 
-        return $builder->orderBy('s.published_at', 'DESC')
+        $results = $builder->orderBy('s.published_at', 'DESC')
                        ->orderBy('s.tahun', 'DESC')
                        ->orderBy('m_list_tabel.id', 'DESC')
                        ->limit($limit)
                        ->get()
                        ->getResult();
+
+        if (!empty($results)) {
+            foreach ($results as $r) {
+                if (!empty($r->judul_ind)) {
+                    $r->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_ind);
+                }
+                if (!empty($r->judul_en)) {
+                    $r->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_en);
+                }
+            }
+        }
+
+        return $results;
     }
 
     public function getTopOpdList($limit = 8, $tahun = null)
@@ -227,6 +235,17 @@ class M_frontend extends Model
         $builder->limit($perPage, ($page - 1) * $perPage);
         $results = $builder->get()->getResult();
 
+        if (!empty($results)) {
+            foreach ($results as $r) {
+                if (!empty($r->judul_ind)) {
+                    $r->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_ind);
+                }
+                if (!empty($r->judul_en)) {
+                    $r->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_en);
+                }
+            }
+        }
+
         return [
             'results' => $results ?: [],
             'total'   => (int)$total
@@ -249,7 +268,7 @@ class M_frontend extends Model
     private function buildMetadataRow($table_id)
     {
         $table_id = (int)$table_id;
-        return $this->db->table('m_list_tabel')
+        $row = $this->db->table('m_list_tabel')
                         ->select("
                             m_list_tabel.id,
                             m_list_tabel.id as id_tabel,
@@ -265,14 +284,8 @@ class M_frontend extends Model
                             m_list_tabel.id_unitkerja,
                             m_list_tabel.kondef,
                             m_list_tabel.jenis_sumber,
-                            (CASE 
-                                WHEN m_list_tabel.judul_ind LIKE '%20%' THEN m_list_tabel.judul_ind
-                                ELSE CONCAT(m_list_tabel.judul_ind, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((COALESCE(s.tahun, " . (int)date('Y') . ") - 1) AS CHAR)))
-                            END) as judul_ind,
-                            (CASE 
-                                WHEN m_list_tabel.judul_en LIKE '%20%' THEN m_list_tabel.judul_en
-                                ELSE CONCAT(m_list_tabel.judul_en, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((COALESCE(s.tahun, " . (int)date('Y') . ") - 1) AS CHAR)))
-                            END) as judul_en,
+                            m_list_tabel.judul_ind,
+                            m_list_tabel.judul_en,
                             m_unitkerja.unitkerja_ind,
                             m_unitkerja.unitkerja_en
                         ")
@@ -287,6 +300,17 @@ class M_frontend extends Model
                         ->where('m_list_tabel.id', $table_id)
                         ->get()
                         ->getRow();
+
+        if ($row) {
+            if (!empty($row->judul_ind)) {
+                $row->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $row->judul_ind);
+            }
+            if (!empty($row->judul_en)) {
+                $row->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $row->judul_en);
+            }
+        }
+
+        return $row;
     }
 
     public function getTableMetadata($table_id)
@@ -313,7 +337,7 @@ class M_frontend extends Model
         if (!$row) {
             return null;
         }
-        if ((int)$row->is_dynamic === 1 || ($row->jenis_sumber ?? '') === 'dinamis') {
+        if ((int)$row->is_dynamic === 1 || ($row->jenis_sumber ?? '') === 'dinamis' || strpos($row->link_tabel ?? '', 'view_portal_tabel') === false) {
             return $row;
         }
         return null;

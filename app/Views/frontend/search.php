@@ -218,19 +218,13 @@
     }
 
     .fb-group.fb-keyword {
-        flex: 1.4;
-        min-width: 210px;
+        flex: 1.5;
+        min-width: 260px;
     }
 
     .fb-group.fb-opd {
-        flex: 1.8;
-        min-width: 240px;
-    }
-
-    .fb-group.fb-year {
-        flex: 0.9;
-        min-width: 155px;
-        max-width: 190px;
+        flex: 1.5;
+        min-width: 260px;
     }
 
     .fb-group i {
@@ -990,24 +984,7 @@
                         </select>
                     </div>
 
-                    <div class="fb-divider d-none d-lg-block"></div>
 
-                    <div class="fb-group select-group fb-year">
-                        <i class="fa-regular fa-calendar-days"></i>
-                        <select name="tahun" id="select-tahun">
-                            <option value="">Semua Tahun</option>
-                            <?php 
-                            $years_list = !empty($available_years) ? $available_years : [2026, 2025];
-                            foreach ($years_list as $y): 
-                                $yr = is_object($y) ? ($y->tahun ?? '') : (is_array($y) ? ($y['tahun'] ?? '') : (string)$y);
-                                if (empty($yr)) continue;
-                            ?>
-                                <option value="<?= htmlspecialchars((string)$yr) ?>" <?= ((isset($tahun) && (string)$tahun === (string)$yr) || (!empty($_GET['tahun']) && (string)$_GET['tahun'] === (string)$yr)) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars((string)$yr) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
 
                     <button type="submit" class="btn-search-bar" id="btn-submit-search">
                         <i class="fa-solid fa-magnifying-glass search-btn-icon"></i>
@@ -1064,10 +1041,7 @@
                 <div id="view-grid" class="row g-4 d-none mb-4">
                     <?php foreach ($results as $idx => $row): ?>
                         <?php 
-                            if (!empty($row->is_dynamic)) {
-                                $href = base_url('home/view_dinamis/' . $row->id);
-                                $source_type = 'dinamis';
-                            } elseif (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
+                            if (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
                                 $portal_id = $row->link_tabel;
                                 if (preg_match('/[?&]id=([^&]+)/', $row->link_tabel, $m_id)) {
                                     $portal_id = $m_id[1];
@@ -1075,8 +1049,8 @@
                                 $href = base_url('home/view_tabel?id=' . urlencode($portal_id) . '&table_id=' . $row->id);
                                 $source_type = 'portal';
                             } else {
-                                $href = base_url('home/view_sheet?url=' . urlencode($row->link_tabel ?? '') . '&table_id=' . $row->id);
-                                $source_type = 'sheet';
+                                $href = base_url('home/view_dinamis/' . $row->id);
+                                $source_type = 'dinamis';
                             }
                             $target = '';
                         ?>
@@ -1095,12 +1069,8 @@
                                     <?= htmlspecialchars($row->judul_ind) ?>
                                 </a>
 
-                                <!-- 3. Tahun & 4. Button Buka -->
-                                <div class="tcc-footer">
-                                    <span class="tcc-year">
-                                        <i class="fa-regular fa-calendar-days"></i>
-                                        <span>Tahun <?= htmlspecialchars($row->tahun ?? date('Y')) ?></span>
-                                    </span>
+                                <!-- Button Buka -->
+                                <div class="tcc-footer justify-content-end">
                                     <a href="<?= $href ?>" class="tcc-btn">
                                         <span>Buka</span>
                                         <i class="fa-solid fa-arrow-right"></i>
@@ -1117,10 +1087,7 @@
                     // Calculate starting number for pagination
                     $start_no = (($page_num - 1) * $per_page) + 1;
                     foreach ($results as $idx => $row): 
-                        if (!empty($row->is_dynamic)) {
-                            $href = base_url('home/view_dinamis/' . $row->id);
-                            $source_type = 'dinamis';
-                        } elseif (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
+                        if (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
                             $portal_id = $row->link_tabel;
                             if (preg_match('/[?&]id=([^&]+)/', $row->link_tabel, $m_id)) {
                                 $portal_id = $m_id[1];
@@ -1128,8 +1095,8 @@
                             $href = base_url('home/view_tabel?id=' . urlencode($portal_id) . '&table_id=' . $row->id);
                             $source_type = 'portal';
                         } else {
-                            $href = base_url('home/view_sheet?url=' . urlencode($row->link_tabel ?? '') . '&table_id=' . $row->id);
-                            $source_type = 'sheet';
+                            $href = base_url('home/view_dinamis/' . $row->id);
+                            $source_type = 'dinamis';
                         }
                         $target = '';
                     ?>
@@ -1147,10 +1114,6 @@
                                     <span class="rc-badge rc-badge-opd">
                                         <i class="fa-solid fa-building"></i> 
                                         <?= htmlspecialchars($row->unitkerja_ind ?? '-') ?>
-                                    </span>
-                                    <span class="rc-badge rc-badge-tahun">
-                                        <i class="fa-regular fa-calendar"></i>
-                                        <?= htmlspecialchars($row->tahun ?? '-') ?>
                                     </span>
                                 </div>
                             </div>
@@ -1313,20 +1276,15 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 $(document).ready(function() {
     const $opdSelect = $('select[name="opd_search"]');
-    const $tahunSelect = $('select[name="tahun"]');
     const $qInput = $('input[name="q"]');
     const $form = $('#search-form');
 
     $opdSelect.select2({
         width: '100%'
     });
-    $tahunSelect.select2({
-        width: '100%',
-        minimumResultsForSearch: Infinity // Hides the search box for the year dropdown
-    });
 
     // Select2 open/close state handling without jumping or shaking
-    $('select[name="opd_search"], select[name="tahun"]').on('select2:opening select2:open', function() {
+    $('select[name="opd_search"]').on('select2:opening select2:open', function() {
         $('.filter-bar-horizontal').addClass('is-focused');
         $(this).closest('.fb-group').addClass('is-active');
     }).on('select2:closing select2:close', function() {
@@ -1380,12 +1338,10 @@ $(document).ready(function() {
             const baseUrl = $form.attr('action') || window.location.pathname;
             const qVal = $qInput.val().trim();
             const opdVal = $opdSelect.val();
-            const tahunVal = $tahunSelect.val();
             
             const params = new URLSearchParams();
             if (qVal) params.set('q', qVal);
             if (opdVal) params.set('opd_search', opdVal);
-            if (tahunVal) params.set('tahun', tahunVal);
             
             const qs = params.toString();
             targetUrl = baseUrl + (qs ? '?' + qs : '');
@@ -1475,12 +1431,7 @@ $(document).ready(function() {
         executeLiveSearch(null, false);
     });
 
-    // 3. Live filter immediately when Tahun dropdown changes (Select2 select, clear, and change)
-    $tahunSelect.on('select2:select select2:clear change', function() {
-        executeLiveSearch(null, false);
-    });
-
-    // 4. Form submission (pressing Enter or clicking Cari Data button)
+    // 3. Form submission (pressing Enter or clicking Cari Data button)
     $form.on('submit', function(e) {
         e.preventDefault();
         clearTimeout(searchDebounceTimer);
@@ -1496,26 +1447,24 @@ $(document).ready(function() {
         }
     });
 
-    // 6. Intercept "Tampilkan Semua Data" reset button in empty state
+    // 5. Intercept "Tampilkan Semua Data" reset button in empty state
     $(document).on('click', '#search-results-container a.btn-outline-primary', function(e) {
         if ($(this).text().includes('Tampilkan Semua Data')) {
             e.preventDefault();
             $qInput.val('');
             toggleClearBtn();
             $opdSelect.val('').trigger('change.select2');
-            $tahunSelect.val('').trigger('change.select2');
             executeLiveSearch($(this).attr('href'), false);
         }
     });
 
-    // 7. Support browser Back and Forward history buttons
+    // 6. Support browser Back and Forward history buttons
     window.addEventListener('popstate', function() {
         executeLiveSearch(window.location.href, false);
         const urlParams = new URLSearchParams(window.location.search);
         $qInput.val(urlParams.get('q') || '');
         toggleClearBtn();
         $opdSelect.val(urlParams.get('opd_search') || '').trigger('change.select2');
-        $tahunSelect.val(urlParams.get('tahun') || '').trigger('change.select2');
     });
 });
 </script>
