@@ -637,7 +637,12 @@ class Admin extends BaseController
 					END as is_periksa,
 					t.catatan_periksa, t.catatan,
 					COALESCE(ka.link_api, '') as link_tabel,
-					CASE WHEN m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL THEN 1 ELSE 0 END as is_dynamic,
+					CASE 
+						WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+						WHEN m.jenis_sumber = 'dinamis' THEN 1 
+						WHEN mi.id IS NOT NULL THEN 1 
+						ELSE 0 
+					END as is_dynamic,
 					ka.id_api,
 					ka.tahun_tersedia
 				FROM m_list_tabel m
@@ -673,7 +678,12 @@ class Admin extends BaseController
 					END as is_periksa,
 					t.catatan_periksa, t.catatan,
 					COALESCE(ka.link_api, '') as link_tabel,
-					CASE WHEN m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL THEN 1 ELSE 0 END as is_dynamic,
+					CASE 
+						WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+						WHEN m.jenis_sumber = 'dinamis' THEN 1 
+						WHEN mi.id IS NOT NULL THEN 1 
+						ELSE 0 
+					END as is_dynamic,
 					ka.id_api,
 					ka.tahun_tersedia
 				FROM m_list_tabel m
@@ -751,7 +761,12 @@ class Admin extends BaseController
 						END as is_periksa,
 						t.catatan_periksa, t.catatan,
 						COALESCE(ka.link_api, '') as link_tabel,
-						CASE WHEN m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL THEN 1 ELSE 0 END as is_dynamic,
+						CASE 
+						WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+						WHEN m.jenis_sumber = 'dinamis' THEN 1 
+						WHEN mi.id IS NOT NULL THEN 1 
+						ELSE 0 
+					END as is_dynamic,
 						ka.id_api,
 						ka.tahun_tersedia
 					FROM m_list_tabel m
@@ -1344,7 +1359,7 @@ class Admin extends BaseController
 				       api.id_api, api.link_api, api.tahun_tersedia,
 				       ind.id as id_indikator, ind.tahun_tampil,
 				       ml.id as id_tahun_tabel, COALESCE(l.tahun, '" . (int)$ta . "') as tahun,
-				       (CASE WHEN ml.jenis_sumber = 'dinamis' OR ind.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic
+				       (CASE WHEN ml.jenis_sumber = 'api_kominfo' THEN 0 WHEN ml.jenis_sumber = 'dinamis' THEN 1 WHEN ind.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic
 				$sql_base 
 				$sql_where 
 				ORDER BY CAST(SUBSTRING_INDEX(COALESCE(ml.no_tabel, '999'), '.', 1) AS UNSIGNED) ASC, 
@@ -1452,6 +1467,8 @@ class Admin extends BaseController
 			$id_api = null;
 			if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $link_input, $matches)) {
 				$id_api = $matches[0];
+			} elseif (preg_match('/[?&]id=([^&]+)/i', $link_input, $matches)) {
+				$id_api = $matches[1];
 			} elseif (!empty($link_input) && strlen($link_input) <= 100 && !filter_var($link_input, FILTER_VALIDATE_URL)) {
 				$id_api = $link_input;
 			}
@@ -1496,6 +1513,9 @@ class Admin extends BaseController
 
 			// Sinkronisasi m_konfigurasi_api jika api_kominfo
 			if ($jenis_sumber === 'api_kominfo') {
+				// Bersihkan konfigurasi tabel dinamis jika ada
+				$this->db->table('m_indikator_tabel')->where('id_tabel', $m_id)->delete();
+
 				$cekApi = $this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->get()->getRow();
 				if ($cekApi) {
 					$this->db->table('m_konfigurasi_api')->where('id', $cekApi->id)->update([
@@ -1516,6 +1536,9 @@ class Admin extends BaseController
 
 			// Sinkronisasi m_indikator_tabel jika dinamis
 			if ($jenis_sumber === 'dinamis') {
+				// Bersihkan konfigurasi API jika tabel diatur ke dinamis
+				$this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->delete();
+
 				$cekInd = $this->db->table('m_indikator_tabel')->where('id_tabel', $m_id)->get()->getRow();
 				if ($cekInd) {
 					$this->db->table('m_indikator_tabel')->where('id', $cekInd->id)->update([
@@ -1601,6 +1624,8 @@ class Admin extends BaseController
 			$id_api = null;
 			if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $link_input, $matches)) {
 				$id_api = $matches[0];
+			} elseif (preg_match('/[?&]id=([^&]+)/i', $link_input, $matches)) {
+				$id_api = $matches[1];
 			} elseif (!empty($link_input) && strlen($link_input) <= 100 && !filter_var($link_input, FILTER_VALIDATE_URL)) {
 				$id_api = $link_input;
 			}
@@ -1616,6 +1641,9 @@ class Admin extends BaseController
 
 			// Sinkronisasi m_konfigurasi_api jika api_kominfo
 			if ($jenis_sumber === 'api_kominfo') {
+				// Bersihkan konfigurasi tabel dinamis jika ada
+				$this->db->table('m_indikator_tabel')->where('id_tabel', $m_id)->delete();
+
 				$cekApi = $this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->get()->getRow();
 				if ($cekApi) {
 					$this->db->table('m_konfigurasi_api')->where('id', $cekApi->id)->update([
@@ -1636,6 +1664,9 @@ class Admin extends BaseController
 
 			// Sinkronisasi m_indikator_tabel jika dinamis
 			if ($jenis_sumber === 'dinamis') {
+				// Bersihkan konfigurasi API jika tabel diatur ke dinamis
+				$this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->delete();
+
 				$cekInd = $this->db->table('m_indikator_tabel')->where('id_tabel', $m_id)->get()->getRow();
 				if ($cekInd) {
 					$this->db->table('m_indikator_tabel')->where('id', $cekInd->id)->update([
@@ -1765,7 +1796,7 @@ class Admin extends BaseController
 				       api.id_api, api.link_api, api.tahun_tersedia,
 				       ind.id as id_indikator, ind.tahun_tampil,
 				       ml.id as id_tahun_tabel, COALESCE(l.tahun, '" . (int)$ta . "') as tahun,
-				       (CASE WHEN ml.jenis_sumber = 'dinamis' OR ind.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic
+				       (CASE WHEN ml.jenis_sumber = 'api_kominfo' THEN 0 WHEN ml.jenis_sumber = 'dinamis' THEN 1 WHEN ind.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic
 				$sql_base 
 				$sql_where 
 				ORDER BY CAST(SUBSTRING_INDEX(COALESCE(ml.no_tabel, '999'), '.', 1) AS UNSIGNED) ASC, 
@@ -2185,7 +2216,9 @@ class Admin extends BaseController
 
 		// Validasi persyaratan tampil (hanya saat mengaktifkan publikasi / is_publish = 1)
 		if ($is_publish === 1) {
-			$is_dynamic = (!empty($tabel->jenis_sumber) && $tabel->jenis_sumber === 'dinamis') || ($ctx['indikator'] !== null);
+			$is_dynamic = (($tabel->jenis_sumber ?? '') === 'api_kominfo') 
+				? false 
+				: (((!empty($tabel->jenis_sumber) && $tabel->jenis_sumber === 'dinamis') || ($ctx['indikator'] !== null)));
 
 			// 1. Syarat Link: Harus memiliki tautan data (jika bukan tabel dinamis)
 			if (!$is_dynamic && empty(trim($statusTahunan->link_tabel ?? ''))) {
@@ -2844,13 +2877,23 @@ class Admin extends BaseController
 	 * URL: admin/view_portal_tabel?id={id_api}
 	 * Mendukung Multiple ID dipisahkan koma (misal: ?id=uuid1,uuid2)
 	 */
-	public function view_portal_tabel()
+	public function view_portal_tabel($seg_id = null)
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		$id_api = $this->request->getGet('id');
+		$id_api = $this->request->getGet('id') ?: $this->request->getGet('id_api');
+		if (empty($id_api) && !empty($seg_id)) {
+			$id_api = $seg_id;
+		}
+		if (empty($id_api)) {
+			$uri = service('uri');
+			$seg3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : null;
+			$seg4 = $uri->getTotalSegments() >= 4 ? $uri->getSegment(4) : null;
+			$id_api = (!empty($seg3) && $seg3 !== 'view_portal_tabel') ? $seg3 : (!empty($seg4) ? $seg4 : null);
+		}
+
 		if (empty($id_api)) {
 			$a['page'] = "d_amain";
 			$this->session->setFlashdata("k", '<div class="alert alert-danger" id="alert">ID Portal Data tidak ditemukan</div>');
@@ -3458,7 +3501,12 @@ class Admin extends BaseController
 				m.judul_ind as raw_judul, 
 				'Tahunan' as periode_id,
 				ka.link_api as link_tabel,
-				CASE WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END as is_dynamic
+				CASE 
+					WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+					WHEN m.jenis_sumber = 'dinamis' THEN 1 
+					WHEN mi.id IS NOT NULL THEN 1 
+					ELSE 0 
+				END as is_dynamic
 			FROM m_list_tabel m
 			LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 			LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
@@ -3833,7 +3881,13 @@ class Admin extends BaseController
 			$cleanNo = rtrim($cleanNo, '.');
 			
 			$rowDb = $this->db->query("
-				SELECT m.id as id_db, ka.link_api as link_tabel, CASE WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END as is_dynamic
+				SELECT m.id as id_db, ka.link_api as link_tabel, 
+				CASE 
+					WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+					WHEN m.jenis_sumber = 'dinamis' THEN 1 
+					WHEN mi.id IS NOT NULL THEN 1 
+					ELSE 0 
+				END as is_dynamic
 				FROM m_list_tabel m
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id

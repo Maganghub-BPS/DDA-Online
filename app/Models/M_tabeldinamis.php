@@ -2372,6 +2372,13 @@ class M_tabeldinamis extends Model
 
         // 2. Ambil konfigurasi m_indikator_tabel (1:1 dengan m_list_tabel.id)
         $indikator = $this->where('id_tabel', $idMaster)->first();
+        if (($tabel->jenis_sumber ?? '') === 'api_kominfo') {
+            if ($indikator) {
+                // Bersihkan record indikator orphan jika tabel sudah diubah ke API Kominfo
+                $this->where('id_tabel', $idMaster)->delete();
+                $indikator = null;
+            }
+        }
 
         // 3. Ambil status tahunan dari t_status_tahunan untuk tahun aktif (atau fallback tahun terbaru)
         $statusRow = null;
@@ -2414,7 +2421,7 @@ class M_tabeldinamis extends Model
             'link_tabel'      => $apiRow->link_api ?? '',
             'id_api'          => $apiRow->id_api ?? null,
             'config_tabel'    => $apiRow->config_tabel ?? null,
-            'is_dynamic'      => (($tabel->jenis_sumber ?? '') === 'dinamis' || $indikator !== null) ? 1 : 0,
+            'is_dynamic'      => (($tabel->jenis_sumber ?? '') === 'api_kominfo') ? 0 : ((($tabel->jenis_sumber ?? '') === 'dinamis' || $indikator !== null) ? 1 : 0),
             'is_periksa'      => $statusRow ? (int)$statusRow->is_periksa : 0,
             'catatan_periksa' => $statusRow ? $statusRow->catatan_periksa : null,
             'is_confirm'      => $statusRow ? (string)$statusRow->is_confirm : '0',
