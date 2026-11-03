@@ -6202,6 +6202,7 @@ class Admin extends BaseController
 		}
 
 		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+		$thDataDefault = (int)$ta - 1;
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$context = $mTabelDinamis->resolveTableContext($id_param, $ta);
 		$tabel = $context['tabel'];
@@ -6386,7 +6387,7 @@ class Admin extends BaseController
 
 		// Fallback notice jika tahun data aktif belum punya data
 		$fallbackNotice = null;
-		if (!in_array($thDataDefault, $available_years, true) && !empty($available_years) && in_array(end($available_years), $selected_years, true)) {
+		if ($indikator && !empty($available_years) && !in_array($thDataDefault, $available_years, true) && in_array(end($available_years), $selected_years, true)) {
 			$lastYr = end($available_years);
 			$fallbackNotice = "Menampilkan data tahun {$lastYr} (Data {$thDataDefault} belum tersedia)";
 		}
@@ -6813,6 +6814,7 @@ class Admin extends BaseController
 		}
 
 		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+		$thDataDefault = (int)$ta - 1;
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$context = $mTabelDinamis->resolveTableContext($id_tabel ?: $id_indikator, $ta);
 		$tabel = $context['tabel'] ?? null;
