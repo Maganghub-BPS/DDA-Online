@@ -1845,7 +1845,11 @@ class M_tabeldinamis extends Model
                 }
             }
         }
-        $activeYears = !empty($dataYears) ? $dataYears : (!empty($tahunTampil) ? $tahunTampil : [(int)($indikator->tahun ?? date('Y'))]);
+        if (!empty($tahunTampil)) {
+            $activeYears = array_values(array_unique(array_merge($tahunTampil, $dataYears)));
+        } else {
+            $activeYears = !empty($dataYears) ? $dataYears : [(int)($indikator->tahun ?? date('Y'))];
+        }
         sort($activeYears);
 
         $tipePeriode = strtolower(trim($indikator->tipe_periode ?? 'tahunan'));

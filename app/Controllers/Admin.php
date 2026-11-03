@@ -4916,7 +4916,18 @@ class Admin extends BaseController
 				if (count($kNorms) === count($targetKarNorms) && count($kNorms) > 0) {
 					$matches = 0;
 					foreach ($kNorms as $idx => $kn) {
-						if ($kn === $targetKarNorms[$idx]) {
+						$tn = $targetKarNorms[$idx] ?? '';
+						$isMatch = ($kn === $tn);
+						if (!$isMatch) {
+							$knIsTotal = (strpos($kn, 'jumlah') !== false || strpos($kn, 'total') !== false);
+							$tnHasPlus = (strpos($tn, '+') !== false);
+							$knHasPlus = (strpos($kn, '+') !== false);
+							$tnIsTotal = (strpos($tn, 'jumlah') !== false || strpos($tn, 'total') !== false);
+							if (($knIsTotal && $tnHasPlus) || ($knHasPlus && $tnIsTotal)) {
+								$isMatch = true;
+							}
+						}
+						if ($isMatch) {
 							$matches++;
 						}
 					}
@@ -4959,6 +4970,7 @@ class Admin extends BaseController
 		// 6. Simpan m_indikator_tabel & aktifkan jenis_sumber = dinamis di m_list_tabel
 		$now = date('Y-m-d H:i:s');
 		$idMasterTabel = (int)$tabelRow->id;
+		$idTahunTabel  = $idDb > 0 ? $idDb : $idMasterTabel;
 		$existingInd = $mDinamis->where('id_tabel', $idMasterTabel)->first();
 		$indPayload = [
 			'id_tabel'                  => $idMasterTabel,
@@ -5082,7 +5094,7 @@ class Admin extends BaseController
 						$tahunDataCell = $pId;
 						$pId           = 0;
 					}
-					if ($bId > 0 && $kId > 0) {
+					if ($bId >= 0 && $kId > 0) {
 						$upsertCells[] = [
 							'id_baris_item'         => $bId,
 							'id_karakteristik_item' => $kId,

@@ -418,6 +418,10 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                 en_parts = []
                 for up in upper_path:
                     u_ind, u_en = split_bilingual(up)
+                    clean_up = up.lower().replace(' ', '')
+                    if ('+' in up) and any(k in clean_up for k in ['laki-laki+perempuan', 'laki+perempuan', 'male+female', 'pria+wanita', 'l+p', 'wni+wna', 'negeri+swasta']):
+                        u_ind = "Jumlah"
+                        u_en = "Total"
                     ind_parts.append(u_ind)
                     en_parts.append(u_en)
                 kar_ind = " || ".join(ind_parts)
@@ -435,6 +439,10 @@ def extract_table_structure_from_pdf(pdf_path, pages):
             en_parts = []
             for p_str in path:
                 u_ind, u_en = split_bilingual(p_str)
+                clean_p = p_str.lower().replace(' ', '')
+                if ('+' in p_str) and any(k in clean_p for k in ['laki-laki+perempuan', 'laki+perempuan', 'male+female', 'pria+wanita', 'l+p', 'wni+wna', 'negeri+swasta']):
+                    u_ind = "Jumlah"
+                    u_en = "Total"
                 ind_parts.append(u_ind)
                 en_parts.append(u_en)
             kar_ind = " || ".join(ind_parts)
@@ -521,6 +529,8 @@ def extract_table_structure_from_pdf(pdf_path, pages):
 
 def _clean_token_set(text):
     text = text.lower().replace('-', ' ').replace('_', ' ').replace('||', ' ').replace('/', ' ')
+    if '+' in text:
+        text += ' jumlah total'
     text = text.replace('kabupatenkota', 'kabupaten kota')
     text = text.replace('kabkota', 'kabupaten kota')
     text = text.replace('lakilaki', 'laki laki')

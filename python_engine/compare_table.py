@@ -659,9 +659,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if 'PENYINARAN MATAHARI' in s or 'SUNSHINE' in s:
                     return 'PENYINARAN_MATAHARI'
 
+                m_yr = re.search(r'\b(19\d{2}|20\d{2})\b', s)
+                if m_yr:
+                    yr = m_yr.group(1)
+                    s_no_yr = re.sub(r'\b(19\d{2}|20\d{2})\b', '', s)
+                    s_no_yr_rem = re.sub(r'\b(JUMLAH|TOTAL|REKAP|REKAPITULASI|PER|TAHUN|YEAR|SEMUA|KESELURUHAN|AKHIR)\b', '', s_no_yr)
+                    s_no_yr_rem = re.sub(r'[^\w]', '', s_no_yr_rem)
+                    if not s_no_yr_rem:
+                        return f"TOTAL_Y{yr}"
+
                 if s in ['JUMLAH', 'TOTAL', 'JUMLAH/TOTAL', 'TOTAL/JUMLAH', 'JUMLAH TOTAL']:
                     return 'TOTAL'
-                s_rem = re.sub(r'\b(JUMLAH|TOTAL|JAWA\s+TENGAH|PROVINSI|PROVINCE|KABUPATEN|REGENCY|KOTA|MUNICIPALITY|SEMUA|KESELURUHAN|AKHIR\s+TAHUN|(?:19|20)\d{2})\b', '', s)
+                s_rem = re.sub(r'\b(JUMLAH|TOTAL|JAWA\s+TENGAH|PROVINSI|PROVINCE|KABUPATEN|REGENCY|KOTA|MUNICIPALITY|SEMUA|KESELURUHAN|AKHIR\s+TAHUN)\b', '', s)
                 s_rem = re.sub(r'[^\w]', '', s_rem)
                 if (s.startswith('JUMLAH') or s.startswith('TOTAL')) and not s_rem:
                     return 'TOTAL'
@@ -836,18 +845,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
                     code = None
                     if not is_pdf and use_cols:
-                        raw_vals = [
-                            0.0 if str(r[c]).strip() in ('-', '–', '—') else parse_num(str(r[c]).strip(), is_pdf=False)
-                            for c in use_cols if c < len(r)
-                        ]
-                        if not any(v is not None for v in raw_vals):
-                            continue
                         first_col = use_cols[0]
                         if first_col > 1:
                             c0 = str(r[0]).strip()
                             if re.match(r'^\d+(?:\.\d+)*\.?$', c0) and not re.match(r'^(?:19|20)\d{2}', c0):
                                 code = c0.rstrip('.')
-                        label_cells = [re.sub(r'^\d+\.\s+', '', str(c).strip()) for c in r[:first_col] if str(c).strip()]
+                        label_cells = [re.sub(r'^\d+\.\s+', '', str(c).strip()) for c in r[:first_col] if str(c).strip() and str(c).strip().lower() != 'none']
+                        raw_vals = [
+                            0.0 if str(r[c]).strip() in ('-', '–', '—') else parse_num(str(r[c]).strip(), is_pdf=False)
+                            for c in use_cols if c < len(r)
+                        ]
+                        if not label_cells and not any(v is not None for v in raw_vals):
+                            continue
                         has_alpha_label = any(re.search(r'[a-zA-Z]{3,}', c) for c in label_cells)
                         if has_alpha_label:
                             raw_label = ' '.join(c for c in label_cells if parse_num(c) is None)
@@ -1035,6 +1044,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     h = re.sub(r'\bblla\b', 'biia', h)
                     h = re.sub(r'\bbiia\b', 'biia', h)
                     tokens = set(re.findall(r'\b\w+\b', h))
+                    if '+' in str(raw_h) or any(k in str(raw_h).lower() for k in ['laki+perempuan', 'laki laki+ perempuan', 'pria+wanita', 'l+p', 'wni+wna', 'negeri+swasta']):
+                        tokens.add('jumlah')
+                        tokens.add('total')
                     return tokens, h.strip()
 
                 is_horiz_col_split = (archetype in ["MULTI_PAGE_COLUMN_SPLIT", "MULTI_PAGE_SECTION_PER_PAGE"])
