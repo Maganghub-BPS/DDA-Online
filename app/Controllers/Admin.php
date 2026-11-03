@@ -4302,6 +4302,26 @@ class Admin extends BaseController
 			];
 		}
 
+		// Deteksi presisi desimal jika ada data desimal pecahan
+		$maxDetectedDec = 0;
+		foreach ($payload as $pItem) {
+			if ($pItem['nilai'] !== null && abs($pItem['nilai'] - round($pItem['nilai'])) > 0.00001) {
+				$vStr = (string)$pItem['nilai'];
+				if (strpos($vStr, '.') !== false) {
+					$dLen = strlen(rtrim(explode('.', $vStr)[1], '0'));
+					if ($dLen > $maxDetectedDec) {
+						$maxDetectedDec = min(4, $dLen);
+					}
+				}
+			}
+		}
+		if ($maxDetectedDec > 0) {
+			$indObj = $this->db->table('m_indikator_tabel')->where('id', $idIndikator)->get()->getRow();
+			if ($indObj && ((int)$indObj->desimal === 0 || (int)$indObj->desimal === -1)) {
+				$this->db->table('m_indikator_tabel')->where('id', $idIndikator)->update(['desimal' => $maxDetectedDec]);
+			}
+		}
+
 		$mDinamis = new \App\Models\M_tabeldinamis();
 		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload);
 

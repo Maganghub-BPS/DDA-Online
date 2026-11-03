@@ -1525,6 +1525,11 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                         $pId = (int)$lCol['periode_id'];
                         $bId = $dbTotalRowObj ? (int)$dbTotalRowObj->id : 0;
                         $cellData = $nilaiMap[$hYr][$bId][$kId][$pId] ?? null;
+                        if ($cellData === null && $bId !== 0) {
+                            $cellData = $nilaiMap[$hYr][0][$kId][$pId] ?? null;
+                        } elseif ($cellData === null && $bId === 0 && $dbTotalRowObj) {
+                            $cellData = $nilaiMap[$hYr][(int)$dbTotalRowObj->id][$kId][$pId] ?? null;
+                        }
                         $val  = $cellData['nilai'] ?? null;
                         $simb = $cellData['simbol'] ?? null;
                         $dec  = $cellData['jumlah_desimal'] ?? null;

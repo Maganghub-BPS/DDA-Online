@@ -2152,15 +2152,18 @@ class M_tabeldinamis extends Model
         } else {
             $idPeriodeAktif = 0;
             if (!empty($itemsPeriode)) {
-                $tahunTabel = trim((string)($indikator->tahun ?? ''));
+                $targetTahun = trim((string)($indikator->tahun ?? ''));
+                if ($targetTahun === '' && !empty($tahun)) {
+                    $targetTahun = (string)($tahun - 1);
+                }
                 foreach ($itemsPeriode as $p) {
-                    if ($tahunTabel !== '' && trim((string)$p->nama_periode_ind) === $tahunTabel) {
+                    if ($targetTahun !== '' && trim((string)$p->nama_periode_ind) === $targetTahun) {
                         $idPeriodeAktif = (int)$p->id;
                         break;
                     }
                 }
                 if (!$idPeriodeAktif) {
-                    $idPeriodeAktif = (int)$itemsPeriode[0]->id;
+                    $idPeriodeAktif = $isRuntunWaktu ? (int)end($itemsPeriode)->id : (int)$itemsPeriode[0]->id;
                 }
             }
 
