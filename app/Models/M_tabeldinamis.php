@@ -2380,6 +2380,21 @@ class M_tabeldinamis extends Model
             }
         }
 
+        // Self-healing: jika karakteristik memiliki grup bertingkat (max_depth >= 2) namun tingkat_kolom di DB tersimpan '1',
+        // pulihkan otomatis ke seluruh tingkat aktif ('1,2' dsb) agar tidak terjadi kolom buntung di tampilan
+        if ($indikator && !empty($indikator->id_karakteristik_kelompok)) {
+            $rawTingkat = trim((string)($indikator->tingkat_kolom ?? ''));
+            if ($rawTingkat === '1') {
+                $kItems = $this->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
+                $kStruct = $this->buildColumnStructure($kItems);
+                if (!empty($kStruct['max_depth']) && (int)$kStruct['max_depth'] >= 2) {
+                    $allLevels = range(1, (int)$kStruct['max_depth']);
+                    $indikator->tingkat_kolom = implode(',', $allLevels);
+                    $this->update($indikator->id, ['tingkat_kolom' => $indikator->tingkat_kolom]);
+                }
+            }
+        }
+
         // 3. Ambil status tahunan dari t_status_tahunan untuk tahun aktif (atau fallback tahun terbaru)
         $statusRow = null;
         if ($this->db->tableExists('t_status_tahunan')) {

@@ -228,7 +228,7 @@ $buildKarakteristikHeaderRows = function(array $cols, bool $addSubtotalCol = fal
                     $rG1[] = [
                         'ind'     => $g1,
                         'en'      => $g1En,
-                        'colspan' => 1,
+                        'colspan' => $span,
                         'rowspan' => 1,
                         'is_sub'  => false,
                     ];

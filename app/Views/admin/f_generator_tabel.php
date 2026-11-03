@@ -1485,7 +1485,7 @@ $(document).ready(function() {
         const $container = $('#container_tingkat_kolom');
         let savedVal = $('#input_tingkat_kolom').val();
         // Default tercentang semua jika baru dibuka atau belum diset
-        if (!savedVal || savedVal === 'semua') {
+        if (!savedVal || savedVal === 'semua' || (maxDepth >= 2 && savedVal === '1')) {
             const defArr = [];
             for (let i = 1; i <= maxDepth; i++) defArr.push(String(i));
             savedVal = defArr.join(',');
