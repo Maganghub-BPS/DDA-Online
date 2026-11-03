@@ -1163,7 +1163,7 @@
         
         <!-- SUB JUDUL -->
         <p class="hero-desc mx-auto mb-4 pb-2" style="font-size: 1.22rem; color: #334155; max-width: 760px; font-weight: 500; line-height: 1.65;">
-            Platform terpadu untuk menelusuri dan mengunduh data statistik dari seluruh Organisasi Perangkat Daerah di Jawa Tengah.
+            Platform terpadu untuk menelusuri dan mengunduh data statistik dari seluruh Organisasi Perangkat Daerah dan Instansi Vertikal di Jawa Tengah.
         </p>
 
         <!-- SEARCH BAR -->
@@ -1757,7 +1757,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-lg-7">
                             <h3 class="kc-title">Pencarian Dataset Cepat & Filter Presisi</h3>
                             <p class="kc-desc">
-                                Temukan data yang Anda butuhkan dalam hitungan detik dengan sistem pencarian dinamis, filter multi-instansi, dan pengelompokan tahun yang presisi.
+                                Temukan data yang Anda butuhkan dalam hitungan detik dengan sistem pencarian dinamis serta filter multi-instansi yang presisi.
                             </p>
 
                             <div class="kc-highlight-list mb-4">
@@ -1767,7 +1767,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                     <div class="kc-highlight-text">
                                         <h6>Filter Multi-Kriteria</h6>
-                                        <p>Saring dataset berdasarkan instansi (OPD), rentang tahun spesifik, hingga topik statistik dalam satu antarmuka terpadu.</p>
+                                        <p>Saring dataset berdasarkan instansi (OPD dan Instansi Vertikal) hingga topik statistik dalam satu antarmuka terpadu.</p>
                                     </div>
                                 </div>
                                 <div class="kc-highlight-item">
@@ -1853,7 +1853,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="sim-search-bar mb-3">
                                         <i class="fa-solid fa-magnifying-glass text-muted"></i>
                                         <span class="sim-search-text"><?= htmlspecialchars($sample_query) ?></span>
-                                        <span class="sim-search-badge"><?= htmlspecialchars($sample_year) ?></span>
+                                        <span class="sim-search-badge">Cari</span>
                                     </div>
 
                                     <!-- Simulated Result List (1 Contoh Nyata Judul Tabel) -->
@@ -1867,8 +1867,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <?= htmlspecialchars($sample_title) ?>
                                                 </div>
                                                 <div class="sim-result-meta">
-                                                    <span><i class="fa-solid fa-building me-1"></i> <?= htmlspecialchars($sample_opd) ?></span>
-                                                    <span class="sim-badge-year"><?= htmlspecialchars($sample_year) ?></span>
+                                                    <span><i class="fa-solid fa-building-columns me-1"></i> <?= htmlspecialchars($sample_opd) ?></span>
+
                                                 </div>
                                             </div>
                                         </div>
