@@ -1646,10 +1646,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?php if (!empty($recent_tables)) { ?>
                         <?php foreach ($recent_tables as $idx => $row) { ?>
                             <?php 
-                                if (!empty($row->is_dynamic)) {
-                                    $href = base_url('home/view_dinamis/' . $row->id);
-                                    $source_type = 'dinamis';
-                                } elseif (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
+                                if (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
                                     $portal_id = $row->link_tabel;
                                     if (preg_match('/[?&]id=([^&]+)/', $row->link_tabel, $m_id)) {
                                         $portal_id = $m_id[1];
@@ -1657,8 +1654,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     $href = base_url('home/view_tabel?id=' . urlencode($portal_id) . '&table_id=' . $row->id);
                                     $source_type = 'portal';
                                 } else {
-                                    $href = base_url('home/view_sheet?url=' . urlencode($row->link_tabel ?? '') . '&table_id=' . $row->id);
-                                    $source_type = 'sheet';
+                                    $href = base_url('home/view_dinamis/' . $row->id);
+                                    $source_type = 'dinamis';
                                 }
                             ?>
                             <div class="swiper-slide" style="height: auto;">
@@ -1676,12 +1673,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <?= htmlspecialchars($row->judul_ind) ?>
                                     </a>
 
-                                    <!-- 3. Tahun & 4. Button Buka -->
-                                    <div class="tcc-footer">
-                                        <span class="tcc-year">
-                                            <i class="fa-regular fa-calendar-days"></i>
-                                            <span>Tahun <?= htmlspecialchars($row->tahun ?? date('Y')) ?></span>
-                                        </span>
+                                    <!-- Button Buka -->
+                                    <div class="tcc-footer justify-content-end">
                                         <a href="<?= $href ?>" class="tcc-btn">
                                             <span>Buka</span>
                                             <i class="fa-solid fa-arrow-right"></i>
@@ -2711,9 +2704,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 $(document).ready(function() {
     $('select[name="opd_search"]').select2();
-    $('select[name="tahun"]').select2({
-        minimumResultsForSearch: Infinity
-    });
 
     // Hero search clear (X) button logic
     const $heroQ = $('#hero-search-q');

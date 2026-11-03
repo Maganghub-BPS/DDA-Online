@@ -46,6 +46,10 @@ $tipePeriode            = $indikator->tipe_periode ?? 'tahunan';
 $isTahunan              = in_array($tipePeriode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahunan_jumlah_rata', 'tahun_ajaran'], true);
 $isAkademik             = ($tipePeriode === 'tahun_ajaran');
 $isTablePreview         = !empty($isPreview);
+$isFrontendView         = (isset($is_admin) && $is_admin === false);
+$catRowBg               = $isFrontendView ? '#f1f6fc' : '#fde5ce';
+$catRowColor            = $isFrontendView ? '#0f2d59' : '#000000';
+$catRowBorder           = $isFrontendView ? '#e2e8f0' : '#ffffff';
 
 // Pastikan selected_years terisi minimal 1 tahun
 if (empty($selected_years)) {
@@ -869,11 +873,11 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 <?php endif; ?>
 
             <?php else: 
-                $totalSubLeftRowSpan = 2 + ($onlyTotalHorizontal ? 0 : count($kHeaderRowsPerPeriod));
-                $kColsPerSubPeriode = count($flatKolom) + ($addYearGroupSubtotal ? 1 : 0);
+                $totalSubLeftRowSpan = ($onlyTotalHorizontal ? 1 : 2) + (($onlyTotalHorizontal || !$hasRealKolom) ? 0 : count($kHeaderRowsPerPeriod));
+                $kColsPerSubPeriode = ($hasRealKolom ? count($flatKolom) : 1) + ($addYearGroupSubtotal ? 1 : 0);
                 $colsPerYear = count($subPeriodeList) * $kColsPerSubPeriode;
             ?>
-                <!-- ==================== HEADER SUB-TAHUNAN (TAHUN Â» SUB-PERIODE Â» KARAKTERISTIK) ==================== -->
+                <!-- ==================== HEADER SUB-TAHUNAN (TAHUN » SUB-PERIODE » KARAKTERISTIK) ==================== -->
                 <tr>
                     <?php if ($hasNoCol): ?>
                         <th rowspan="<?= $totalSubLeftRowSpan; ?>" class="col-nomor text-center" style="width: 45px; border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 6px;">
@@ -913,7 +917,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php endif; ?>
                 </tr>
 
-                <?php if (!$onlyTotalHorizontal && $hasRealKolom && !empty($kHeaderRowsPerPeriod)): ?>
+                <?php if (!$onlyTotalHorizontal && !empty($subPeriodeList)): ?>
                     <!-- Baris Header 2: Sub-Periode -->
                     <tr>
                         <?php foreach ($selected_years as $yr): ?>
@@ -929,22 +933,24 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     </tr>
 
                     <!-- Baris Header 3+: Karakteristik -->
-                    <?php foreach ($kHeaderRowsPerPeriod as $kRowCells): ?>
-                        <tr>
-                            <?php foreach ($selected_years as $yr): ?>
-                                <?php foreach ($subPeriodeList as $sp): ?>
-                                    <?php foreach ($kRowCells as $hCell): ?>
-                                        <th colspan="<?= $hCell['colspan']; ?>" rowspan="<?= $hCell['rowspan']; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 6px 8px; font-size: 11.5px; min-width: 90px; <?= (!empty($hCell['is_sub']) ? 'background: #0f355c;' : ''); ?>">
-                                            <div><?= esc($hCell['ind']); ?></div>
-                                            <?php if (!empty($hCell['en'])): ?>
-                                                <div class="header-subtitle" style="font-size: 10px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($hCell['en']); ?></div>
-                                            <?php endif; ?>
-                                        </th>
+                    <?php if ($hasRealKolom && !empty($kHeaderRowsPerPeriod)): ?>
+                        <?php foreach ($kHeaderRowsPerPeriod as $kRowCells): ?>
+                            <tr>
+                                <?php foreach ($selected_years as $yr): ?>
+                                    <?php foreach ($subPeriodeList as $sp): ?>
+                                        <?php foreach ($kRowCells as $hCell): ?>
+                                            <th colspan="<?= $hCell['colspan']; ?>" rowspan="<?= $hCell['rowspan']; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 6px 8px; font-size: 11.5px; min-width: 90px; <?= (!empty($hCell['is_sub']) ? 'background: #0f355c;' : ''); ?>">
+                                                <div><?= esc($hCell['ind']); ?></div>
+                                                <?php if (!empty($hCell['en'])): ?>
+                                                    <div class="header-subtitle" style="font-size: 10px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($hCell['en']); ?></div>
+                                                <?php endif; ?>
+                                            </th>
+                                        <?php endforeach; ?>
                                     <?php endforeach; ?>
                                 <?php endforeach; ?>
-                            <?php endforeach; ?>
-                        </tr>
-                    <?php endforeach; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 <?php endif; ?>
             <?php endif; ?>
 
@@ -1009,8 +1015,8 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             }
                             $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
                         ?>
-                            <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($portraitSplitCol ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; font-size: 12px;">
+                            <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($portraitSplitCol ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
                                     <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>
@@ -1226,8 +1232,8 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             }
                             $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
                         ?>
-                            <tr class="category-row" style="background: #fde5ce; font-weight: bold; color: #000000;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid #ffffff; font-size: 12px;">
+                            <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
                                     <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>

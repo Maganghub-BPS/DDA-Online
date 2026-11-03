@@ -213,7 +213,7 @@
                             <div class="status-container">
                                 <?php 
                                 $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
-                                $is_sudah_diisi = ($is_portal) || ($is_dynamic ? ($b->is_periksa == '1' && $is_dynamic_uploaded) : ($b->is_periksa == '1'));
+                                $is_sudah_diisi = ($is_portal) || ((int)($b->is_periksa ?? 0) === 1);
                                 ?>
                                 <?php if($is_sudah_diisi): ?>
                                     <span class="badge bg-success-subtle text-success border-0 align-self-start status-badge">
@@ -234,7 +234,7 @@
                                                 <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
                                             </div>
                                         <?php else: ?>
-                                            <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? htmlspecialchars($b->catatan_periksa) : 'Diinput melalui sheet manual'; ?>
+                                            <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? htmlspecialchars($b->catatan_periksa) : ($is_dynamic ? 'Data telah terisi di sistem' : 'Diinput melalui sheet manual'); ?>
                                         <?php endif; ?>
                                     </div>
                                     <?php if($is_dynamic): ?>

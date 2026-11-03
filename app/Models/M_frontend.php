@@ -31,22 +31,16 @@ class M_frontend extends Model
                 m_list_tabel.id_unitkerja,
                 m_list_tabel.kondef,
                 m_list_tabel.jenis_sumber,
-                (CASE 
-                    WHEN m_list_tabel.judul_ind LIKE '%20%' THEN m_list_tabel.judul_ind
-                    ELSE CONCAT(m_list_tabel.judul_ind, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((s.tahun - 1) AS CHAR)))
-                END) as judul_ind,
-                (CASE 
-                    WHEN m_list_tabel.judul_en LIKE '%20%' THEN m_list_tabel.judul_en
-                    ELSE CONCAT(m_list_tabel.judul_en, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((s.tahun - 1) AS CHAR)))
-                END) as judul_en,
+                m_list_tabel.judul_ind,
+                m_list_tabel.judul_en,
                 m_unitkerja.unitkerja_ind,
                 m_unitkerja.unitkerja_en";
     }
 
     /**
      * Subquery status publikasi per tabel:
-     * Jika $tahun diberikan, ambil status pada tahun tersebut.
-     * Jika $tahun kosong, ambil baris status publikasi dari tahun DDA terbaru yang is_publish = 1.
+     * Jika $tahun diberikan, ambil status sah pada tahun tersebut.
+     * Jika $tahun kosong, ambil baris status publikasi dari tahun DDA sah terbaru (is_publish=1, is_periksa=1, is_confirm='1').
      */
     private function applyPublishedStatusJoin($builder, $tahun = null)
     {
@@ -54,7 +48,7 @@ class M_frontend extends Model
             $tahunEsc = $this->db->escape((int)$tahun);
             $builder->join(
                 "t_status_tahunan s",
-                "s.id_tabel = m_list_tabel.id AND s.tahun = {$tahunEsc} AND s.is_publish = 1",
+                "s.id_tabel = m_list_tabel.id AND s.tahun = {$tahunEsc} AND s.is_publish = 1 AND s.is_periksa = 1 AND s.is_confirm = '1'",
                 "inner"
             );
         } else {
@@ -63,16 +57,21 @@ class M_frontend extends Model
                             SELECT id_tabel, MAX(tahun) AS max_tahun
                             FROM t_status_tahunan
                             WHERE is_publish = 1
+                              AND is_periksa = 1
+                              AND is_confirm = '1'
                             GROUP BY id_tabel
                         ) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun
-                        WHERE s1.is_publish = 1) s";
+                        WHERE s1.is_publish = 1
+                          AND s1.is_periksa = 1
+                          AND s1.is_confirm = '1') s";
             $builder->join($subSql, 's.id_tabel = m_list_tabel.id', 'inner');
         }
 
         $builder->join('m_unitkerja', 'm_list_tabel.id_unitkerja = m_unitkerja.id_unitkerja', 'left')
                 ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
                 ->join('m_indikator_tabel mi', 'mi.id_tabel = m_list_tabel.id', 'left')
-                ->where('m_list_tabel.is_active', 1);
+                ->where('m_list_tabel.is_active', 1)
+                ->where("(m_list_tabel.jenis_sumber = 'dinamis' OR (m_list_tabel.jenis_sumber = 'api_kominfo' AND ka.link_api LIKE '%view_portal_tabel%'))");
 
         return $builder;
     }
@@ -82,12 +81,25 @@ class M_frontend extends Model
         $builder = $this->db->table('m_list_tabel')->select($this->getBaseTableSelect());
         $this->applyPublishedStatusJoin($builder, $tahun);
 
-        return $builder->orderBy('s.published_at', 'DESC')
+        $results = $builder->orderBy('s.published_at', 'DESC')
                        ->orderBy('s.tahun', 'DESC')
                        ->orderBy('m_list_tabel.id', 'DESC')
                        ->limit($limit)
                        ->get()
                        ->getResult();
+
+        if (!empty($results)) {
+            foreach ($results as $r) {
+                if (!empty($r->judul_ind)) {
+                    $r->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_ind);
+                }
+                if (!empty($r->judul_en)) {
+                    $r->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_en);
+                }
+            }
+        }
+
+        return $results;
     }
 
     public function getTopOpdList($limit = 8, $tahun = null)
@@ -121,6 +133,8 @@ class M_frontend extends Model
         $tahunRow = $db->table('t_status_tahunan')
                        ->select('MAX(tahun) as max_tahun, MIN(tahun) as min_tahun')
                        ->where('is_publish', 1)
+                       ->where('is_periksa', 1)
+                       ->where('is_confirm', '1')
                        ->get()
                        ->getRow();
 
@@ -137,6 +151,8 @@ class M_frontend extends Model
         return $this->db->table('t_status_tahunan')
                         ->select('DISTINCT(tahun) as tahun')
                         ->where('is_publish', 1)
+                        ->where('is_periksa', 1)
+                        ->where('is_confirm', '1')
                         ->orderBy('tahun', 'DESC')
                         ->get()
                         ->getResult();
@@ -154,22 +170,58 @@ class M_frontend extends Model
                        ->getResult();
     }
 
-    public function searchTables($keyword = '', $tahun = '', $opd = '', $bab = '')
+    /**
+     * Pencarian tabel dengan filter keyword, unit/instansi, OPD, dan tahun beserta paginasi
+     * Mendukung pemanggilan via array filter (Home::search) maupun parameter skalar
+     */
+    public function searchTables($filters = [], int $page = 1, int $perPage = 12): array
     {
+        // Normalisasi parameter jika dipanggil dengan parameter skalar (legacy / direct call)
+        if (!is_array($filters)) {
+            $filters = [
+                'q'     => (string)$filters,
+                'tahun' => is_numeric($page) && $page > 1900 ? (string)$page : '',
+                'opd'   => is_string($perPage) ? $perPage : '',
+                'bab'   => func_num_args() > 3 ? func_get_arg(3) : ''
+            ];
+            $page = 1;
+            $perPage = 12;
+        }
+
+        $q          = $filters['q'] ?? ($filters['keyword'] ?? '');
+        $unit       = $filters['unit'] ?? ($filters['id_unitkerja'] ?? '');
+        $opd_search = $filters['opd_search'] ?? ($filters['opd'] ?? '');
+        $tahun      = $filters['tahun'] ?? '';
+        $bab        = $filters['bab'] ?? '';
+
         $builder = $this->db->table('m_list_tabel')->select($this->getBaseTableSelect());
         $this->applyPublishedStatusJoin($builder, $tahun);
 
-        if (!empty($keyword)) {
-            $builder->groupStart()
-                    ->like('m_list_tabel.judul_ind', $keyword)
-                    ->orLike('m_list_tabel.judul_en', $keyword)
-                    ->orLike('m_list_tabel.no_tabel', $keyword)
-                    ->orLike('m_unitkerja.unitkerja_ind', $keyword)
-                    ->groupEnd();
+        if (!empty($q)) {
+            $q_clean = trim(preg_replace('/\s+/', ' ', (string)$q));
+            $q_normalized = preg_replace('/^(nomor|no\.?|tabel)\s+/i', '', $q_clean);
+            $tokens = array_filter(explode(' ', $q_normalized), fn($t) => trim($t) !== '');
+
+            if (!empty($tokens)) {
+                $builder->groupStart();
+                foreach ($tokens as $token) {
+                    $builder->groupStart();
+                    $builder->like('m_list_tabel.judul_ind', $token);
+                    $builder->orLike('m_list_tabel.judul_en', $token);
+                    $builder->orLike('m_list_tabel.no_tabel', $token);
+                    $builder->orLike('m_unitkerja.unitkerja_ind', $token);
+                    $builder->groupEnd();
+                }
+                $builder->groupEnd();
+            }
         }
 
-        if (!empty($opd)) {
-            $builder->where('m_unitkerja.unitkerja_ind', $opd);
+        if (!empty($unit)) {
+            $builder->where('m_list_tabel.id_unitkerja', $unit);
+        }
+
+        if (!empty($opd_search)) {
+            $builder->like('m_unitkerja.unitkerja_ind', $opd_search);
         }
 
         if (!empty($bab)) {
@@ -179,12 +231,33 @@ class M_frontend extends Model
                     ->groupEnd();
         }
 
-        return $builder->orderBy('s.tahun', 'DESC')
-                       ->orderBy('CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, ".", 1) AS UNSIGNED)', 'ASC', false)
-                       ->orderBy('CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m_list_tabel.no_tabel, ".", 2), ".", -1) AS UNSIGNED)', 'ASC', false)
-                       ->orderBy('CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, ".", -1) AS UNSIGNED)', 'ASC', false)
-                       ->get()
-                       ->getResult();
+        $builder->orderBy('s.tahun', 'DESC')
+               ->orderBy("CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, '.', 1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m_list_tabel.no_tabel, '.', 2), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(m_list_tabel.no_tabel, '.', -1) AS UNSIGNED)", 'ASC', false);
+
+        // Hitung total data sebelum limit untuk paginasi
+        $total = $builder->countAllResults(false);
+
+        // Terapkan limit dan offset
+        $builder->limit($perPage, ($page - 1) * $perPage);
+        $results = $builder->get()->getResult();
+
+        if (!empty($results)) {
+            foreach ($results as $r) {
+                if (!empty($r->judul_ind)) {
+                    $r->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_ind);
+                }
+                if (!empty($r->judul_en)) {
+                    $r->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_en);
+                }
+            }
+        }
+
+        return [
+            'results' => $results ?: [],
+            'total'   => (int)$total
+        ];
     }
 
     public function getInstansiList($tahun = null)
@@ -203,7 +276,7 @@ class M_frontend extends Model
     private function buildMetadataRow($table_id)
     {
         $table_id = (int)$table_id;
-        return $this->db->table('m_list_tabel')
+        $row = $this->db->table('m_list_tabel')
                         ->select("
                             m_list_tabel.id,
                             m_list_tabel.id as id_tabel,
@@ -219,14 +292,8 @@ class M_frontend extends Model
                             m_list_tabel.id_unitkerja,
                             m_list_tabel.kondef,
                             m_list_tabel.jenis_sumber,
-                            (CASE 
-                                WHEN m_list_tabel.judul_ind LIKE '%20%' THEN m_list_tabel.judul_ind
-                                ELSE CONCAT(m_list_tabel.judul_ind, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((COALESCE(s.tahun, " . (int)date('Y') . ") - 1) AS CHAR)))
-                            END) as judul_ind,
-                            (CASE 
-                                WHEN m_list_tabel.judul_en LIKE '%20%' THEN m_list_tabel.judul_en
-                                ELSE CONCAT(m_list_tabel.judul_en, ', ', COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((COALESCE(s.tahun, " . (int)date('Y') . ") - 1) AS CHAR)))
-                            END) as judul_en,
+                            m_list_tabel.judul_ind,
+                            m_list_tabel.judul_en,
                             m_unitkerja.unitkerja_ind,
                             m_unitkerja.unitkerja_en
                         ")
@@ -234,13 +301,24 @@ class M_frontend extends Model
                         ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
                         ->join('m_indikator_tabel mi', 'mi.id_tabel = m_list_tabel.id', 'left')
                         ->join(
-                            '(SELECT s1.* FROM t_status_tahunan s1 INNER JOIN (SELECT id_tabel, MAX(tahun) as max_tahun FROM t_status_tahunan GROUP BY id_tabel) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun) s',
+                            '(SELECT s1.* FROM t_status_tahunan s1 INNER JOIN (SELECT id_tabel, MAX(tahun) as max_tahun FROM t_status_tahunan WHERE is_publish = 1 AND is_periksa = 1 AND is_confirm = \'1\' GROUP BY id_tabel) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun WHERE s1.is_publish = 1 AND s1.is_periksa = 1 AND s1.is_confirm = \'1\') s',
                             's.id_tabel = m_list_tabel.id',
                             'left'
                         )
                         ->where('m_list_tabel.id', $table_id)
                         ->get()
                         ->getRow();
+
+        if ($row) {
+            if (!empty($row->judul_ind)) {
+                $row->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $row->judul_ind);
+            }
+            if (!empty($row->judul_en)) {
+                $row->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $row->judul_en);
+            }
+        }
+
+        return $row;
     }
 
     public function getTableMetadata($table_id)
@@ -267,7 +345,7 @@ class M_frontend extends Model
         if (!$row) {
             return null;
         }
-        if ((int)$row->is_dynamic === 1 || ($row->jenis_sumber ?? '') === 'dinamis') {
+        if ((int)$row->is_dynamic === 1 || ($row->jenis_sumber ?? '') === 'dinamis' || strpos($row->link_tabel ?? '', 'view_portal_tabel') === false) {
             return $row;
         }
         return null;

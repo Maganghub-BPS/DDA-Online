@@ -852,9 +852,9 @@ $catatan_val = $indikator->catatan ?? '';
                                 <option value="tahun_ajaran" <?= ($sel_tipe_periode === 'tahun_ajaran') ? 'selected' : ''; ?>>Tahun Ajaran Pendidikan (YYYY/YYYY+1)</option>
                             </optgroup>
                             <optgroup label="Periode Sub-Tahunan Standar BPS">
-                                <option value="bulanan" <?= ($sel_tipe_periode === 'bulanan') ? 'selected' : ''; ?>>Bulanan (Januari â€“ Desember)</option>
-                                <option value="triwulanan" <?= ($sel_tipe_periode === 'triwulanan') ? 'selected' : ''; ?>>Triwulanan (Triwulan I â€“ IV)</option>
-                                <option value="semesteran" <?= ($sel_tipe_periode === 'semesteran') ? 'selected' : ''; ?>>Semesteran (Semester I â€“ II)</option>
+                                <option value="bulanan" <?= ($sel_tipe_periode === 'bulanan') ? 'selected' : ''; ?>>Bulanan (Januari - Desember)</option>
+                                <option value="triwulanan" <?= ($sel_tipe_periode === 'triwulanan') ? 'selected' : ''; ?>>Triwulanan (Triwulan I - IV)</option>
+                                <option value="semesteran" <?= ($sel_tipe_periode === 'semesteran') ? 'selected' : ''; ?>>Semesteran (Semester I - II)</option>
                             </optgroup>
                             <?php 
                                 $customPeriods = array_filter($list_periode, function($p) {
@@ -2691,7 +2691,7 @@ $(document).ready(function() {
         // 2. RENDER TBODY (BARIS BERTINGKAT 3 LEVEL & SEL PLACEHOLDER STRIP)
         // =====================================================================
         let tbodyHtml = '';
-        const placeholderSimbol = 'â€“'; // Tanda strip standar BPS (data tidak ada)
+        const placeholderSimbol = '-'; // Tanda strip standar BPS (data tidak ada)
 
         if (barisItems.length === 0) {
             if (!hasBaris && hasKolom && hasPeriode) {

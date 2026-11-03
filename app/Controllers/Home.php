@@ -39,18 +39,15 @@ class Home extends BaseController
         $q = $this->request->getGet('q');
         $unit = $this->request->getGet('unit');
         $opd_search = $this->request->getGet('opd_search');
-        $tahun = $this->request->getGet('tahun');
         $page = max(1, (int)($this->request->getVar('page') ?? 1));
         $perPage = 12;
 
         $unique_units = $this->frontendModel->getUniqueUnits();
-        $available_years = $this->frontendModel->getAvailableYears();
 
         $searchData = $this->frontendModel->searchTables([
             'q' => $q,
             'unit' => $unit,
             'opd_search' => $opd_search,
-            'tahun' => $tahun
         ], $page, $perPage);
 
         $data = [
@@ -58,14 +55,12 @@ class Home extends BaseController
             'q' => $q,
             'unit' => $unit,
             'opd_search' => $opd_search,
-            'tahun' => $tahun,
             'unique_units' => $unique_units,
-            'available_years' => $available_years,
-            'results' => $searchData['results'],
+            'results' => $searchData['results'] ?? [],
             'pager' => \Config\Services::pager(),
             'page_num' => $page,
             'per_page' => $perPage,
-            'total_rows' => $searchData['total'],
+            'total_rows' => $searchData['total'] ?? 0,
             'page' => 'frontend/search'
         ];
         return view('frontend/layout', $data);
@@ -224,9 +219,8 @@ class Home extends BaseController
             $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
             $dda_info = $this->frontendModel->getTableMetadata($parsed_table_id, $id_p);
 
-            // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
-            $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
-            if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
+            // Proteksi: Jika tabel berstatus Draft, tolak akses publik
+            if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1) {
                 return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
             }
 
@@ -265,9 +259,8 @@ class Home extends BaseController
         $parsed_table_id = (!empty($table_id) && is_numeric($table_id)) ? (int)$table_id : null;
         $dda_info = $this->frontendModel->getSheetMetadata($parsed_table_id, $url);
 
-        // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
-        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
-        if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
+        // Proteksi: Jika tabel berstatus Draft, tolak akses publik
+        if ($dda_info && (int)($dda_info->is_publish ?? 0) !== 1) {
             return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
         }
 
@@ -301,22 +294,13 @@ class Home extends BaseController
             return redirect()->to('/home/search')->with('error', 'Tabel data tidak ditemukan.');
         }
 
-        // Jika bukan tabel dinamis, arahkan ke endpoint yang sesuai
-        if (empty($dda_info->is_dynamic)) {
-            if (strpos($dda_info->link_tabel ?? '', 'view_portal_tabel') !== false) {
-                $portal_id = $dda_info->link_tabel;
-                if (preg_match('/[?&]id=([^&]+)/', $dda_info->link_tabel, $m_id)) {
-                    $portal_id = $m_id[1];
-                }
-                return redirect()->to("home/view_tabel?id=" . urlencode($portal_id) . "&table_id=" . $parsed_table_id);
+        // Jika tabel merupakan API Kominfo (view_portal_tabel), arahkan ke view_tabel
+        if (strpos($dda_info->link_tabel ?? '', 'view_portal_tabel') !== false) {
+            $portal_id = $dda_info->link_tabel;
+            if (preg_match('/[?&]id=([^&]+)/', $dda_info->link_tabel, $m_id)) {
+                $portal_id = $m_id[1];
             }
-            return redirect()->to("home/view_sheet?url=" . urlencode($dda_info->link_tabel ?? '') . "&table_id=" . $parsed_table_id);
-        }
-
-        // Proteksi: Jika tabel berstatus Draft, tolak akses publik (kecuali admin login)
-        $is_admin = session()->get('admin_valid') && !empty(session()->get('admin_id'));
-        if ((int)($dda_info->is_publish ?? 0) !== 1 && !$is_admin) {
-            return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
+            return redirect()->to("home/view_tabel?id=" . urlencode($portal_id) . "&table_id=" . $parsed_table_id);
         }
 
         $ta = (int)(session()->get('admin_ta') ?: (session()->get('tahun') ?: date('Y')));
@@ -325,6 +309,23 @@ class Home extends BaseController
         $indikator = $context['indikator'];
         $tahunTabel = $context['tahun_tabel'];
         $dda_info->id_tahun_tabel = $tahunTabel ? (int)$tahunTabel->id : (int)$dda_info->id;
+
+        // Ambil riwayat publikasi resmi dari t_status_tahunan (harus sudah diisi, terverifikasi BPS, dan dipublish)
+        $db = \Config\Database::connect();
+        $pubRows = $db->table('t_status_tahunan')
+            ->select('tahun')
+            ->where('id_tabel', (int)$dda_info->id)
+            ->where('is_publish', 1)
+            ->where('is_periksa', 1)
+            ->where('is_confirm', '1')
+            ->orderBy('tahun', 'DESC')
+            ->get()
+            ->getResultArray();
+
+        // Proteksi: Jika seluruh edisi tabel berstatus Draft, tolak akses publik
+        if (empty($pubRows)) {
+            return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
+        }
 
         $structureKolom  = null;
         $itemsKolom      = [];
@@ -403,25 +404,22 @@ class Home extends BaseController
 
             $available_years = $this->tabelDinamisModel->getAvailableYears((int)$indikator->id);
 
-            // Filter tahun data untuk pengunjung publik berdasarkan tahun DDA yang sudah dipublish di t_status_tahunan
-            $isAdminPreview = (bool)(session()->get('admin_valid') && !empty(session()->get('admin_id')));
-            if (!$isAdminPreview && !empty($available_years)) {
-                $db = \Config\Database::connect();
-                $pubRows = $db->table('t_status_tahunan')
-                    ->select('tahun')
-                    ->where('id_tabel', (int)$dda_info->id)
-                    ->where('is_publish', 1)
-                    ->orderBy('tahun', 'DESC')
-                    ->get()
-                    ->getResultArray();
-
+            // Filter tahun data: hanya tampilkan tahun dari edisi DDA yang sah dipublish
+            if (!empty($available_years)) {
                 if (!empty($pubRows)) {
+                    $isAnggaranPagu = (bool)preg_match('/(pagu|dipa|apbd|anggaran)/i', $dda_info->judul_ind ?? '');
                     $maxPublishedDdaYear = max(array_map(static fn($r) => (int)$r['tahun'], $pubRows));
-                    $maxAllowedDataYear = $maxPublishedDdaYear;
+                    $maxAllowedDataYear = $isAnggaranPagu ? $maxPublishedDdaYear : ($maxPublishedDdaYear - 1);
                     $available_years = array_values(array_filter($available_years, static function ($yr) use ($maxAllowedDataYear) {
                         return (int)$yr <= $maxAllowedDataYear;
                     }));
+                } else {
+                    $available_years = [];
                 }
+            }
+
+            if (empty($available_years)) {
+                return redirect()->to('/home/search')->with('error', 'Data untuk tabel ini belum dipublikasikan.');
             }
 
             // Resolusi tahun terpilih:
@@ -435,7 +433,7 @@ class Home extends BaseController
                 $rawReqList = is_array($reqYears) ? $reqYears : explode(',', (string)$reqYears);
             }
 
-            $selected_years = $mTabelDinamis->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
+            $selected_years = $this->tabelDinamisModel->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
             sort($selected_years);
 
             // Ambil seluruh sel nilai
@@ -461,20 +459,32 @@ class Home extends BaseController
             $selected_years = [$ta];
         }
 
-        $selectable_years = !empty($available_years) ? $available_years : [$ta];
-        if (!in_array($ta, $selectable_years, true)) {
-            $selectable_years[] = $ta;
-        }
+        // Hanya gunakan tahun data yang benar-benar memiliki data fisik (jangan suntikkan tahun kosong tanpa data)
+        $selectable_years = !empty($available_years) ? $available_years : [];
         rsort($selectable_years);
+
+        // Batasi $selected_years agar hanya berisi tahun yang sah dipublikasikan
+        if (!empty($selectable_years)) {
+            $selected_years = array_values(array_intersect($selected_years, $selectable_years));
+            if (empty($selected_years)) {
+                $selected_years = [max($selectable_years)];
+            }
+        } elseif (empty($selected_years) && !empty($selectable_years)) {
+            $selected_years = [max($selectable_years)];
+        }
 
         $tipePeriodeTabel = $indikator->tipe_periode ?? 'tahunan';
         $display_title = function_exists('formatDynamicTableTitle')
             ? formatDynamicTableTitle($dda_info->judul_ind, $selected_years, 'id', $tipePeriodeTabel)
             : ($dda_info->judul_ind ?? 'Tabel Dinamis');
+        $display_title_en = function_exists('formatDynamicTableTitle')
+            ? formatDynamicTableTitle($dda_info->judul_en ?: ($dda_info->judul_ind ?? ''), $selected_years, 'en', $tipePeriodeTabel)
+            : ($dda_info->judul_en ?? '');
 
         $data = [
             'title'            => $display_title,
             'display_title'    => $display_title,
+            'display_title_en' => $display_title_en,
             'tabel'            => $dda_info,
             'dda_info'         => $dda_info,
             'indikator'        => $indikator,
