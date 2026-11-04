@@ -6082,7 +6082,7 @@ class Admin extends BaseController
 
 		$tingkat_kolom = trim((string)$this->request->getPost('tingkat_kolom')) ?: 'semua';
 		$konfigurasi_total = trim((string)$this->request->getPost('konfigurasi_total'));
-		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom', 'runtun_waktu'], true)) {
+		if (!in_array($konfigurasi_total, ['default', 'grand_total', 'jawa_tengah', 'jumlah', 'none', 'kustom', 'runtun_waktu'], true)) {
 			$konfigurasi_total = ($existing && !empty($existing->konfigurasi_total)) ? $existing->konfigurasi_total : 'default';
 		}
 		$label_total_kustom = trim((string)$this->request->getPost('label_total_kustom'));

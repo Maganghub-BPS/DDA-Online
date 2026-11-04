@@ -955,10 +955,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // 4. Fallback deteksi teks untuk Total dan Kategori
             const rowFullText = trEl ? (trEl.textContent || '').trim().toLowerCase() : '';
             const isLastRow = domBodyRows && data.row.index === (domBodyRows.length - 1);
-            if ((isLastRow && (rowFullText.includes('jumlah') || rowFullText.includes('total') || rowFullText.includes('jawa tengah') || rowFullText.includes('pdrb'))) 
+            if ((isLastRow && (rowFullText.includes('jumlah') || rowFullText.includes('total') || rowFullText.includes('pdrb'))) 
                 || rowFullText.startsWith('jumlah') 
-                || rowFullText.startsWith('total') 
-                || rowFullText.startsWith('jawa tengah')) {
+                || rowFullText.startsWith('total')) {
                 return 'total';
             }
             if (trEl && trEl.children && trEl.children.length === 1 && (rowFullText.includes('kabupaten') || rowFullText.includes('kota'))) {

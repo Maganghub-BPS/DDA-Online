@@ -999,7 +999,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $namaBarisEn = $baris->nama_baris_en ?? '';
                     $lowerBaris  = strtolower($namaBaris);
 
-                    if ($tipeBaris === 'total' || $lowerBaris === 'jawa tengah' || $lowerBaris === 'jumlah') {
+                    if ($tipeBaris === 'total') {
                         $dbTotalRowObj = $baris;
                         continue; // dirender di blok total bawah
                     }
@@ -1207,7 +1207,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $namaBaris   = $baris->nama_baris_ind ?? '';
                     $namaBarisEn = $baris->nama_baris_en ?? '';
                     $lowerBaris  = strtolower($namaBaris);
-                    $isTotalRow  = ($tipeBaris === 'total' || $lowerBaris === 'jawa tengah' || $lowerBaris === 'jumlah');
+                    $isTotalRow  = ($tipeBaris === 'total');
 
                     // Baris Total bawaan DB
                     if ($isTotalRow) {
@@ -1243,7 +1243,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     // Resolusi label baris
                     $displayBarisLabel = $formatRowLabel($namaBaris, $rowNo, $isTotalRow);
                     if ($isTotalRow) {
-                        if ($jenisTotalVertikal === 'jawa_tengah') {
+                        if ($jenisTotalVertikal === 'grand_total') {
+                            $displayBarisLabel = 'Grand Total';
+                        } elseif ($jenisTotalVertikal === 'jawa_tengah') {
                             $displayBarisLabel = 'Jawa Tengah';
                         } elseif ($jenisTotalVertikal === 'jumlah') {
                             $displayBarisLabel = 'Jumlah';
@@ -1463,7 +1465,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 if (!$dbTotalRowObj) {
                     foreach ($itemsBaris as $bCand) {
                         $cName = strtolower(trim($bCand->nama_baris_ind ?? ''));
-                        if ($cName === 'jawa tengah' || $cName === 'jumlah' || ($bCand->tipe_baris ?? '') === 'total') {
+                        if (($bCand->tipe_baris ?? '') === 'total') {
                             $dbTotalRowObj = $bCand;
                             break;
                         }
@@ -1531,7 +1533,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
             // GRAND TOTAL VERTIKAL OTOMATIS: JIKA DIAKTIFKAN DAN BELUM ADA ROW TOTAL DB
             // =========================================================================
             if ($totalVertikal && !$hasDbTotalRow && !$isMacroTimeSeries):
-                if ($jenisTotalVertikal === 'jawa_tengah') {
+                if ($jenisTotalVertikal === 'grand_total') {
+                    $grandLabel = 'Grand Total';
+                } elseif ($jenisTotalVertikal === 'jawa_tengah') {
                     $grandLabel = 'Jawa Tengah';
                 } elseif ($jenisTotalVertikal === 'jumlah') {
                     $grandLabel = 'Jumlah';
@@ -1540,7 +1544,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 } elseif ($dbTotalRowObj && !empty($dbTotalRowObj->nama_baris_ind)) {
                     $grandLabel = $dbTotalRowObj->nama_baris_ind;
                 } else {
-                    $grandLabel = 'Jumlah';
+                    $grandLabel = 'Grand Total';
                 }
             ?>
                 <tr class="grand-total-row row-total" style="background: #FF6D1F; color: #ffffff; font-weight: bold; border-top: 2px solid #ffffff;">
