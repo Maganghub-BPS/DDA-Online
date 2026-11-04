@@ -1143,6 +1143,8 @@
                     let total = prog.total || (window.currentMatchedTables ? window.currentMatchedTables.length : 0);
                     let pct = prog.percent !== undefined ? prog.percent : (total > 0 ? Math.round((completed / total) * 100) : 0);
 
+                    window.lastBatchCompleted = completed;
+                    window.lastBatchTotal = total;
                     // Hanya update progress bar jika nilainya valid dan bergerak maju
                     if (completed > 0 || pct > 0) {
                         $('#batchProgressPercent').text(pct + '%');
@@ -1199,11 +1201,17 @@
 
     function stopBatchValidation() {
         $.post("<?= base_url('admin/stop_batch_worker') ?>", { ta: activeYear }, function() {
-            finishBatch(false);
+            finishBatch(false, window.lastBatchCompleted || 0, window.lastBatchTotal || 0);
         });
     }
 
     function finishBatch(isSuccess = true, completed = 0, total = 0) {
+        if (!completed && window.lastBatchCompleted) completed = window.lastBatchCompleted;
+        if (!total && window.lastBatchTotal) total = window.lastBatchTotal;
+        if (!total && window.currentMatchedTables) total = window.currentMatchedTables.length;
+        if (!completed && window.batchStatusMap) {
+            completed = Object.keys(window.batchStatusMap).length;
+        }
         window.isBatchRunning = false;
         if (batchPollTimer) clearTimeout(batchPollTimer);
         $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi').prop('disabled', false).removeClass('opacity-50');

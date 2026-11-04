@@ -640,16 +640,17 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if not text:
                     return ''
                 t_raw = str(text).strip()
+                c_raw = re.sub(r'[\s\*]', '', t_raw)
+                if c_raw in ['0', '01'] or re.match(r'^0[1-9]$', c_raw):
+                    return 'JAM_0'
+
                 if is_interval_label(t_raw):
                     digits = re.findall(r'\d+', t_raw)
                     if digits:
                         return f"INT_{'_'.join(digits)}"
-                    c = re.sub(r'[\s\*]', '', t_raw)
-                    if c in ['0', '01']:
-                        return 'JAM_0'
-                    if '+' in c:
-                        return f"JAM_{c.replace('+', '_PLUS')}"
-                    c_dash = re.sub(r'[\-–—\ufffd]', '_', c)
+                    if '+' in c_raw:
+                        return f"JAM_{c_raw.replace('+', '_PLUS')}"
+                    c_dash = re.sub(r'[\-–—\ufffd]', '_', c_raw)
                     return f"JAM_{c_dash}"
 
                 party = match_party_name(t_raw)
@@ -767,7 +768,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if not re.match(r'^(?:19|20)\d{2}\b', t):
                     t = re.sub(r'^(?:[IVXLCDM]+|[A-Za-z]|\d+)[\.\s]+', '', t).strip()
                 if '/' in t and not re.search(r'\d/\d|\bs/d\b|\b[IVX]+/[A-E]\b', t, re.IGNORECASE):
+                    m_yr_in_t = re.search(r'\b(19\d{2}|20\d{2})\b', t)
                     t_left = t.split('/')[0].strip()
+                    if m_yr_in_t and not re.search(r'\b(19\d{2}|20\d{2})\b', t_left):
+                        t_left = f"{t_left} {m_yr_in_t.group(1)}"
                     if t_left:
                         t = re.sub(r'\s+', ' ', t_left.replace('\n', ' ')).strip()
                 elif '\n' in t and any(t.lower().startswith(p) for p in ['jumlah modal', 'jumlah volume', 'koperasi\n', 'penyerapan\n']):
@@ -935,7 +939,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         if any(c in ('-', '–', '—', '•', '·') for c in label_cells) and last_parent_label:
                             is_sub_row_with_parent = True
 
-                        if any(any(k in c.lower() for k in ['jumlah', 'total']) for c in label_cells):
+                        is_tot_label = False
+                        for c in label_cells:
+                            c_clean = re.sub(r'[\s/]+', ' ', c.lower()).strip()
+                            if c_clean in ('jumlah', 'total', 'jumlah total', 'total jumlah') or re.match(r'^(?:jumlah|total)\s+(?:19|20)\d{2}$', c_clean):
+                                is_tot_label = True
+                                break
+
+                        if is_tot_label:
                             last_total_label = "Jumlah"
                             last_parent_label = ""
                             yr_part = next((c for c in label_cells if re.match(r'^(19|20)\d{2}$', c)), '')
@@ -943,7 +954,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         elif len(label_cells) == 1 and re.match(r'^(19|20)\d{2}$', label_cells[0]) and last_total_label:
                             raw_label = f"{last_total_label} {label_cells[0]}"
                         else:
-                            raw_label = ' '.join(filtered_labels)
+                            if not filtered_labels and len(label_cells) == 1 and (re.match(r'^\d+$', label_cells[0]) or re.match(r'^0[1-9]$', label_cells[0])):
+                                raw_label = re.sub(r'^0[1-9]$', '0', label_cells[0])
+                            else:
+                                raw_label = ' '.join(filtered_labels)
                     else:
                         first_idx = next((i for i, c in enumerate(r) if c is not None and str(c).strip() and str(c).strip().lower() != 'none'), -1)
                         raw_label = ''
@@ -1020,7 +1034,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             raw_label = ' '.join(str(c).strip() for c in r[:2] if str(c).strip() and parse_num(str(c).strip(), is_pdf=is_pdf) is None)
 
                     clean_disp = clean_cat_display(raw_label)
-                    if not clean_disp:
+                    if not clean_disp or clean_disp.lower() in ('tahun', 'years', 'tahun years', 'tahun/years', 'periode', 'jumlah jam kerja pada pekerjaan utama', 'lapangan pekerjaan utama'):
                         continue
                     sub_key = get_cat_key(clean_disp)
                     if is_sub_row_with_parent and last_parent_label and last_parent_label.lower() not in clean_disp.lower():
