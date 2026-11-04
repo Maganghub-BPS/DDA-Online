@@ -1200,7 +1200,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $currentParentEn         = '';
                 $currentParentRowspan    = 1;
                 $isFirstChildOfParent    = false;
-                $isJustRenderedFirstChild = false;
+                $remainingChildrenOfParent = 0;
 
                 foreach ($itemsBaris as $bIdx => $baris):
                     $tipeBaris   = strtolower(trim($baris->tipe_baris ?? 'data'));
@@ -1270,7 +1270,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $currentParentEn         = $namaBarisEn;
                             $currentParentRowspan    = $childCountMap[$bIdx];
                             $isFirstChildOfParent    = true;
-                            $isJustRenderedFirstChild = false;
+                            $remainingChildrenOfParent = $childCountMap[$bIdx];
                             continue;
                         }
                     }
@@ -1339,7 +1339,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             <?php else: ?>
                                 <?php if ($indentLevel > 0): ?>
                                     <?php if ($isFirstChildOfParent): 
-                                        $isJustRenderedFirstChild = true;
+
                                     ?>
                                         <td rowspan="<?= $currentParentRowspan; ?>" class="col-wilayah fw-bold" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
                                             <div><?= esc($currentParentInd); ?></div>
@@ -1445,14 +1445,18 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php 
                     if (!$isTotalRow) {
                         if ($isBarisDuaKolom && !$isMultiBaris) {
-                            if ($indentLevel === 0 || $isJustRenderedFirstChild) {
+                            if ($remainingChildrenOfParent > 0) {
+                                $remainingChildrenOfParent--;
+                                if ($remainingChildrenOfParent === 0) {
+                                    $rowNo++;
+                                }
+                            } else {
                                 $rowNo++;
                             }
                         } else {
                             $rowNo++;
                         }
                     }
-                    $isJustRenderedFirstChild = false;
                     ?>
                 <?php endforeach; ?>
             <?php endif; ?>
