@@ -6282,6 +6282,18 @@ class Admin extends BaseController
 			$tabel->unitkerja_en  = $tabel->unitkerja_en ?? 'BPS-Statistics of Jawa Tengah Province';
 		}
 
+		// Resolusi Back URL (Retensi Session agar riwayat halaman asal tidak hilang saat reload halaman / setelah input data)
+		$referer = $this->request->getServer('HTTP_REFERER');
+		if ($referer && strpos($referer, 'view_tabel_dinamis') === false && strpos($referer, base_url()) !== false) {
+			$this->session->set('dda_back_url_' . $id_param, $referer);
+		}
+
+		$smartFallback = (!empty($tabel->id_unitkerja))
+			? base_url('admin/dda/view_tabel?id=' . $tabel->id_unitkerja)
+			: base_url('admin/dda');
+
+		$back_url = $this->session->get('dda_back_url_' . $id_param) ?: $smartFallback;
+
 		$structureKolom  = null;
 		$itemsKolom      = [];
 		$itemsBaris      = [];
@@ -6466,6 +6478,7 @@ class Admin extends BaseController
 		$a['fallback_notice']      = $fallbackNotice;
 		$a['ta']                   = $ta;
 		$a['is_admin_bps']         = ($this->session->get('admin_unitkerja') == 'bps' || in_array(strtolower((string)$this->session->get('admin_level')), ['admin', 'super admin', 'superadmin']));
+		$a['back_url']             = $back_url;
 
 		return view('admin/index', $a);
 	}
