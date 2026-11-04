@@ -1887,7 +1887,7 @@ if ($primary_result):
                     </div>
                     <?php endif; ?>
 
-                    <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;">
+                    <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;" class="table-footer-notes">
                         <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($api_result['unitkerja_ind'] ?? '-'); ?></div>
                     </div>
                 </div>
