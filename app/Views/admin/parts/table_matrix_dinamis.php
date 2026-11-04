@@ -1245,12 +1245,18 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     if ($isTotalRow) {
                         if ($jenisTotalVertikal === 'grand_total') {
                             $displayBarisLabel = 'Grand Total';
+                            $namaBarisEn       = 'Grand Total';
                         } elseif ($jenisTotalVertikal === 'jawa_tengah') {
                             $displayBarisLabel = 'Jawa Tengah';
+                            $namaBarisEn       = 'Jawa Tengah';
                         } elseif ($jenisTotalVertikal === 'jumlah') {
                             $displayBarisLabel = 'Jumlah';
+                            $namaBarisEn       = 'Total';
                         } elseif ($jenisTotalVertikal === 'kustom' && !empty($labelTotalKustom)) {
                             $displayBarisLabel = $labelTotalKustom;
+                            $namaBarisEn       = '';
+                        } elseif (strtolower(trim($namaBaris)) === 'jumlah' && (empty($namaBarisEn) || strcasecmp(trim($namaBarisEn), 'jawa tengah') === 0)) {
+                            $namaBarisEn       = 'Total';
                         }
                     }
 
@@ -1479,7 +1485,16 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $rCount = count($runtunYears);
                 $totalLabelInd = 'Jumlah';
                 $totalLabelEn  = 'Total';
-                if (!empty($labelTotalKustom)) {
+                if ($jenisTotalVertikal === 'grand_total') {
+                    $totalLabelInd = 'Grand Total';
+                    $totalLabelEn  = 'Grand Total';
+                } elseif ($jenisTotalVertikal === 'jawa_tengah') {
+                    $totalLabelInd = 'Jawa Tengah';
+                    $totalLabelEn  = 'Jawa Tengah';
+                } elseif ($jenisTotalVertikal === 'jumlah') {
+                    $totalLabelInd = 'Jumlah';
+                    $totalLabelEn  = 'Total';
+                } elseif (!empty($labelTotalKustom)) {
                     $totalLabelInd = $labelTotalKustom;
                     $totalLabelEn  = '';
                 } elseif ($dbTotalRowObj) {
@@ -1538,17 +1553,23 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
             // =========================================================================
             if ($totalVertikal && !$hasDbTotalRow && !$isMacroTimeSeries):
                 if ($jenisTotalVertikal === 'grand_total') {
-                    $grandLabel = 'Grand Total';
+                    $grandLabel   = 'Grand Total';
+                    $grandLabelEn = 'Grand Total';
                 } elseif ($jenisTotalVertikal === 'jawa_tengah') {
-                    $grandLabel = 'Jawa Tengah';
+                    $grandLabel   = 'Jawa Tengah';
+                    $grandLabelEn = 'Jawa Tengah';
                 } elseif ($jenisTotalVertikal === 'jumlah') {
-                    $grandLabel = 'Jumlah';
+                    $grandLabel   = 'Jumlah';
+                    $grandLabelEn = 'Total';
                 } elseif ($jenisTotalVertikal === 'kustom' && !empty($labelTotalKustom)) {
-                    $grandLabel = $labelTotalKustom;
+                    $grandLabel   = $labelTotalKustom;
+                    $grandLabelEn = '';
                 } elseif ($dbTotalRowObj && !empty($dbTotalRowObj->nama_baris_ind)) {
-                    $grandLabel = $dbTotalRowObj->nama_baris_ind;
+                    $grandLabel   = $dbTotalRowObj->nama_baris_ind;
+                    $grandLabelEn = $dbTotalRowObj->nama_baris_en ?? '';
                 } else {
-                    $grandLabel = 'Grand Total';
+                    $grandLabel   = 'Grand Total';
+                    $grandLabelEn = 'Grand Total';
                 }
             ?>
                 <tr class="grand-total-row row-total" style="background: #FF6D1F; color: #ffffff; font-weight: bold; border-top: 2px solid #ffffff;">
@@ -1558,15 +1579,24 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
 
                     <?php if ($portraitMode && $portraitSplitCol): ?>
                         <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
-                            <?= esc($grandLabel); ?>
+                            <div><?= esc($grandLabel); ?></div>
+                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
+                            <?php endif; ?>
                         </td>
                     <?php elseif ($isBarisDuaKolom && !$portraitMode): ?>
                         <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
-                            <?= esc($grandLabel); ?>
+                            <div><?= esc($grandLabel); ?></div>
+                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
+                            <?php endif; ?>
                         </td>
                     <?php else: ?>
                         <td <?= ($isRuntunWaktuTotal ? 'colspan="2"' : ''); ?> class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
-                            <?= esc($grandLabel); ?>
+                            <div><?= esc($grandLabel); ?></div>
+                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
+                            <?php endif; ?>
                         </td>
                     <?php endif; ?>
 
