@@ -80,7 +80,8 @@ _VALID_SHORT_TOKENS = {
     'iii/a', 'iii/b', 'iii/c', 'iii/d',
     'ii/a', 'ii/b', 'ii/c', 'ii/d',
     'i/a', 'i/b', 'i/c', 'i/d',
-    'sd', 'smp', 'sma', 'smk', 'di', 'pt', 'tb', 'ha', 'kg', 'm2', 'm3', 'km', 'rp'
+    'sd', 'smp', 'sma', 'smk', 'di', 'pt', 'tb', 'ha', 'kg', 'm2', 'm3', 'km', 'rp',
+    'na', 'n.a', 'n.a.', 'na.', 'n/a'
 }
 
 def is_watermark_only_token(tok):
@@ -335,6 +336,13 @@ def parse_num(val_str, is_pdf=False):
     # Strip vertical watermark artifacts (e.g., newline followed by single letter)
     s = re.sub(r'[\r\n]+[a-z][\r\n]*', '', s)
 
+    s_clean_token = s.strip().lower()
+    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', 'na', 'n.a', 'n.a.', 'na.', 'n/a', '...', '', '\ufffd', '\u2026', '…'}
+    if s_clean_token in dash_nihil:
+        return 0.0
+    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isalnum() for c in s):
+        return 0.0
+
     s_raw_token = s.strip()
 
     # Cek kata alfabet bermakna >= 2 huruf SEBELUM stripping agar label teks seperti '1.1 Pajak Daerah' tidak terkonversi ke 1.1
@@ -354,13 +362,6 @@ def parse_num(val_str, is_pdf=False):
     s_no_units = re.sub(r'[a-zA-Z\s\.\/:\(\)]+$', '', s_no_units)
     if not any(c.isdigit() for c in s_no_units) and any(c.isalpha() for c in s_raw_token):
         return None
-
-    s_clean_token = s.strip().lower()
-    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', 'na', 'n.a', 'n.a.', 'n/a', '...', '', '\ufffd', '\u2026', '…'}
-    if s_clean_token in dash_nihil:
-        return 0.0
-    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isalnum() for c in s):
-        return 0.0
 
     if is_pdf:
         # Strip watermark prefixes before numbers or symbols (e.g. 'net7.478', 'gne1.470')
