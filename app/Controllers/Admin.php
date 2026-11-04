@@ -3798,6 +3798,15 @@ class Admin extends BaseController
 								'updated_at'  => date('Y-m-d H:i:s'),
 							];
 							$stateChanged = true;
+						} elseif (!$isEmpty && $currSt === 'api_empty') {
+							$stateData[$tNo] = [
+								'status'      => 'unverified',
+								'match_count' => 0,
+								'diff_count'  => 0,
+								'reason'      => 'Data telah terisi di database, siap diverifikasi.',
+								'updated_at'  => date('Y-m-d H:i:s'),
+							];
+							$stateChanged = true;
 						}
 					}
 				}
@@ -3844,6 +3853,31 @@ class Admin extends BaseController
 				$masterData['db_json_path'] = $dbJson;
 				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
 				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
+			}
+
+			// 1a. Auto-heal status state jika ada tabel dinamis yang di state masih 'api_empty' padahal di master data sudah ada nilainya
+			if ($masterData && !empty($masterData['matched_in_pdf']) && file_exists($stateJson)) {
+				$stData = json_decode(@file_get_contents($stateJson), true) ?? [];
+				$stChanged = false;
+				foreach ($masterData['matched_in_pdf'] as $mItem) {
+					$tNo = $mItem['nomor_tabel'] ?? '';
+					$isDyn = ($mItem['source_type'] ?? '') === 'dinamis' || ((int)($mItem['is_dynamic'] ?? 0)) === 1;
+					if ($isDyn && $tNo !== '' && empty($mItem['dynamic_empty'])) {
+						if (($stData[$tNo]['status'] ?? '') === 'api_empty') {
+							$stData[$tNo] = [
+								'status'      => 'unverified',
+								'match_count' => 0,
+								'diff_count'  => 0,
+								'reason'      => 'Data telah terisi di database, siap diverifikasi.',
+								'updated_at'  => date('Y-m-d H:i:s'),
+							];
+							$stChanged = true;
+						}
+					}
+				}
+				if ($stChanged) {
+					@file_put_contents($stateJson, json_encode($stData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+				}
 			}
 		}
 
@@ -4214,8 +4248,8 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
 		}
 
-		// AUTO-SYNC ALL LINKS & TABEL DINAMIS: Sinkronkan seluruh data terbaru dari MySQL ke dda_db_{ta}.json & dda_matched_{ta}.json
-		$this->syncMasterMatchingFiles((string)$ta, $pdfPath, $dbJson, $matchedJson, true);
+		// AUTO-SYNC ALL LINKS & TABEL DINAMIS: Sinkronkan seluruh data terbaru dari MySQL jika ada perubahan signature
+		$this->syncMasterMatchingFiles((string)$ta, $pdfPath, $dbJson, $matchedJson, false);
 
 		// Bersihkan stop file jika ada
 		$stopFile = $progressJson . '.stop';
@@ -4246,6 +4280,39 @@ class Admin extends BaseController
 		pclose(popen($cmd, "r"));
 
 		return $this->response->setJSON(['status' => 'success', 'message' => 'Batch worker berhasil dimulai', 'source_filter' => $sourceFilter]);
+	}
+
+	/**
+	 * AJAX endpoint: Sinkronkan seluruh data Tabel Dinamis dari Cloud MySQL ke snapshot lokal dda_db_{ta}.json & dda_matched_{ta}.json
+	 */
+	public function ajax_sync_cloud()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$pdfPath = $uploadPath . "dda_master_{$ta}.pdf";
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+
+		if (!file_exists($pdfPath) || !file_exists($matchedJson) || !file_exists($dbJson)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
+		}
+
+		// Force rebuild snapshot dari remote Cloud DB
+		$reloaded = $this->syncMasterMatchingFiles((string)$ta, $pdfPath, $dbJson, $matchedJson, true);
+		$stateData = file_exists($stateJson) ? (json_decode(@file_get_contents($stateJson), true) ?? []) : [];
+
+		return $this->response->setJSON([
+			'status'         => 'success',
+			'message'        => 'Data dari Cloud Aiven berhasil disinkronkan!',
+			'matched_in_pdf' => $reloaded['matched_in_pdf'] ?? [],
+			'batch_status'   => $stateData,
+			'db_sig'         => $reloaded['db_sig'] ?? ''
+		]);
 	}
 
 	/**

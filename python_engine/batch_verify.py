@@ -71,6 +71,26 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
             log_debug(f"WARNING: Could not load state file: {e}. Starting fresh.")
             state = {}
 
+    # Preload DB JSON and Index JSON once into memory to eliminate 359 redundant disk reads
+    db_tables_cached = None
+    if os.path.exists(db_json_path):
+        try:
+            with open(db_json_path, "r", encoding="utf-8") as f:
+                db_tables_cached = json.load(f)
+            log_debug("Preloaded db_json successfully into memory.")
+        except Exception as e:
+            log_debug(f"WARNING: Could not preload db_json: {e}")
+
+    index_cached = None
+    index_cache_path = pdf_path + ".index.json"
+    if os.path.exists(index_cache_path):
+        try:
+            with open(index_cache_path, "r", encoding="utf-8") as f:
+                index_cached = json.load(f)
+            log_debug("Preloaded index_json successfully into memory.")
+        except Exception as e:
+            log_debug(f"WARNING: Could not preload index_json: {e}")
+
     # Single lock for ALL file operations and counter updates
     file_lock = threading.Lock()
     completed = [0]  # Use list for mutability in closures
@@ -147,11 +167,29 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
             return None
 
         try:
+            # INSTANT BYPASS UNTUK TABEL KOSONG:
+            # Jika tabel dinamis memang kosong di DB (dynamic_empty: True), langsung beri status api_empty dalam 0ms
+            is_dyn = (table_item.get("source_type") == "dinamis" or int(table_item.get("is_dynamic", 0) or 0) == 1)
+            if is_dyn and table_item.get("dynamic_empty", False):
+                return {
+                    "nomor_tabel": t_num,
+                    "status": "api_empty",
+                    "diff_count": 0,
+                    "match_count": 0,
+                    "reason": "Data nilai Tabel Dinamis belum diisi di database.",
+                    "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+
             # Small random delay to stagger API requests
             if table_item.get("source_type") != "dinamis":
                 time.sleep(0.05 * (hash(t_num) % 5))
             
-            res = compare_head_to_head(pdf_path, t_num, db_json_path, tolerance=tolerance, id_db=id_db)
+            res = compare_head_to_head(
+                pdf_path, t_num, db_json_path,
+                tolerance=tolerance, id_db=id_db,
+                preloaded_db_tables=db_tables_cached,
+                preloaded_index=index_cached
+            )
             
             if res.get("status") == "success":
                 summary = res.get("summary", {})
@@ -218,8 +256,32 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
     error_count = 0
     success_count = 0
     
+    # Fast path: Tabel dinamis yang memang belum ada datanya di DB langsung diberi status api_empty di awal (0ms)
+    active_tables = []
+    for item in tables:
+        t_num = item.get("nomor_tabel", "").strip()
+        is_dyn = (item.get("source_type") == "dinamis" or int(item.get("is_dynamic", 0) or 0) == 1)
+        if is_dyn and item.get("dynamic_empty", False):
+            res_info = {
+                "nomor_tabel": t_num,
+                "status": "api_empty",
+                "diff_count": 0,
+                "match_count": 0,
+                "reason": "Data nilai Tabel Dinamis belum diisi di database.",
+                "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            state[t_num] = res_info
+            completed[0] += 1
+            error_count += 1
+        else:
+            active_tables.append(item)
+
+    if completed[0] > 0:
+        log_debug(f"Fast-path completed for {completed[0]} empty tables instantly.")
+        write_state_and_progress(None, is_running=True)
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(verify_single, item): item for item in tables}
+        futures = {executor.submit(verify_single, item): item for item in active_tables}
         
         for future in as_completed(futures):
             if os.path.exists(stop_file):

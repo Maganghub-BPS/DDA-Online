@@ -317,7 +317,10 @@
 
                                     <!-- Action & Search -->
                                     <div class="d-flex align-items-center gap-1 flex-wrap">
-                                        <button id="btnBatchVerifyDinamis" onclick="startBatchValidation('dinamis')" class="btn btn-sm btn-outline-success fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Cepat (~5 detik): Hanya memvalidasi semua Tabel Dinamis">
+                                        <button id="btnSyncCloud" onclick="syncCloudData()" class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Tarik data terbaru dari Database Cloud Aiven tanpa perlu reload halaman">
+                                            <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sync Cloud
+                                        </button>
+                                        <button id="btnBatchVerifyDinamis" onclick="startBatchValidation('dinamis')" class="btn btn-sm btn-outline-success fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Cepat: Memvalidasi semua Tabel Dinamis">
                                             <i class="bi bi-grid-3x3-gap-fill me-1"></i> Scan Dinamis
                                         </button>
                                         <button id="btnBatchVerifyApi" onclick="startBatchValidation('api')" class="btn btn-sm btn-outline-info fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Khusus API: Hanya memvalidasi seluruh tabel dari API Satu Data lewat konfigurasi layout terbaru">
@@ -747,9 +750,15 @@
         window.currentMatchedTables.forEach(item => {
             let srcType = (item.source_type === 'dinamis' || parseInt(item.is_dynamic || 0) === 1) ? 'dinamis' : 'api';
             let info = window.batchStatusMap[item.nomor_tabel];
-            if (srcType === 'dinamis' && item.dynamic_empty) {
-                info = { status: 'api_empty', reason: 'Data nilai Tabel Dinamis belum diisi di database.' };
-                window.batchStatusMap[item.nomor_tabel] = info;
+            if (srcType === 'dinamis') {
+                if (item.dynamic_empty) {
+                    info = { status: 'api_empty', reason: 'Data nilai Tabel Dinamis belum diisi di database.' };
+                    window.batchStatusMap[item.nomor_tabel] = info;
+                } else if (info && info.status === 'api_empty') {
+                    // Data di database sudah diisi (dynamic_empty = false), ubah status lama dari api_empty menjadi unverified
+                    info = { status: 'unverified', match_count: 0, diff_count: 0, reason: 'Data telah terisi di database.' };
+                    window.batchStatusMap[item.nomor_tabel] = info;
+                }
             }
             let status = info ? info.status : 'unverified';
             if (status !== 'diff' && status !== 'match' && status !== 'api_empty' && status !== 'pdf_only') {
@@ -1025,6 +1034,56 @@
     }
 
     let batchPollTimer = null;
+
+    function syncCloudData() {
+        if (window.isBatchRunning) {
+            alert("Harap tunggu proses validasi batch selesai terlebih dahulu.");
+            return;
+        }
+        let btn = $('#btnSyncCloud');
+        let origHtml = btn.html();
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style="width:0.65rem; height:0.65rem;"></span> Sinkronisasi Cloud...');
+
+        $('#batchProgressBox').removeClass('d-none');
+        $('#batchProgressBar').css('width', '100%').addClass('progress-bar-striped progress-bar-animated bg-primary');
+        $('#batchProgressPercent').text('...');
+        $('#batchProgressLabel').html('<i class="bi bi-cloud-arrow-down-fill text-primary me-1"></i> Mengunduh dan menyinkronkan data terbaru dari Cloud Aiven...');
+
+        $.ajax({
+            url: "<?= base_url('admin/ajax_sync_cloud') ?>",
+            type: "POST",
+            data: { ta: activeYear },
+            dataType: "json",
+            success: function(res) {
+                btn.prop('disabled', false).html(origHtml);
+                $('#batchProgressBar').removeClass('progress-bar-striped progress-bar-animated bg-primary');
+                if (res.status === 'success') {
+                    if (res.matched_in_pdf && res.matched_in_pdf.length > 0) {
+                        window.currentMatchedTables = res.matched_in_pdf;
+                    }
+                    if (res.batch_status) {
+                        window.batchStatusMap = res.batch_status;
+                    }
+                    updateBatchCounters();
+                    applyMatchedFilters();
+
+                    $('#batchProgressLabel').html('<i class="bi bi-check-circle-fill text-success me-1"></i> ' + res.message);
+                    setTimeout(() => {
+                        if (!window.isBatchRunning) $('#batchProgressBox').addClass('d-none');
+                    }, 3500);
+                } else {
+                    alert("Gagal sinkronisasi data cloud: " + res.message);
+                    $('#batchProgressBox').addClass('d-none');
+                }
+            },
+            error: function() {
+                btn.prop('disabled', false).html(origHtml);
+                $('#batchProgressBar').removeClass('progress-bar-striped progress-bar-animated bg-primary');
+                $('#batchProgressBox').addClass('d-none');
+                alert("Gagal menghubungi server saat sinkronisasi cloud.");
+            }
+        });
+    }
 
     function startBatchValidation(sourceFilter = 'all') {
         if (window.isBatchRunning) return;

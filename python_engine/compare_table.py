@@ -179,9 +179,12 @@ def match_opd_name(text):
     return None
 
 
-def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None):
-    with open(db_json_path, "r", encoding="utf-8") as f:
-        db_tables = json.load(f)
+def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None, preloaded_db_tables=None, preloaded_index=None):
+    if preloaded_db_tables is not None:
+        db_tables = preloaded_db_tables
+    else:
+        with open(db_json_path, "r", encoding="utf-8") as f:
+            db_tables = json.load(f)
     if isinstance(db_tables, dict):
         db_tables = db_tables.get("matched_in_pdf", db_tables.get("matched_tables", []))
 
@@ -212,40 +215,47 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
     # 3. SAFETY NET FALLBACK FUZZY MATCH: Jika tidak ketemu, Fuzzy Search ke DB menggunakan Judul PDF dari Cache Index
     index_cache_path = pdf_path + ".index.json"
-    if not target_info and os.path.exists(index_cache_path):
-        try:
-            with open(index_cache_path, "r", encoding="utf-8") as f:
-                index_cache = json.load(f)
-            pdf_cache_info = next((val for k, val in index_cache.items() if clean_num(k) == clean_num(target_table)), None)
+    if not target_info:
+        index_cache = preloaded_index
+        if index_cache is None and os.path.exists(index_cache_path):
+            try:
+                with open(index_cache_path, "r", encoding="utf-8") as f:
+                    index_cache = json.load(f)
+            except Exception:
+                index_cache = None
 
-            if pdf_cache_info and "display_title" in pdf_cache_info:
-                from rapidfuzz import fuzz
+        if index_cache:
+            try:
+                pdf_cache_info = next((val for k, val in index_cache.items() if clean_num(k) == clean_num(target_table)), None)
 
-                def norm_t(text):
-                    t = str(text).lower()
-                    t = t.replace('sertifikat', 'sertipikat').replace('ditebitkan', 'diterbitkan')
-                    t = re.sub(r'\b20\d{2}\b', ' ', t)
-                    t = re.sub(r'\b(?:di\s+)?jawa\s+provinsi\s+tengah\b', '', t)
-                    t = re.sub(r'\b(?:di\s+)?provinsi\s+jawa\s+tengah\b', '', t)
-                    t = re.sub(r'\b(?:di\s+)?jawa\s+tengah\b', '', t)
-                    t = re.sub(r'\b(?:dan|serta|atau)\b', ' ', t)
-                    t = t.encode('ascii', 'ignore').decode('ascii')
-                    t = re.sub(r'[^\w\s]', ' ', t)
-                    return re.sub(r'\s+', ' ', t).strip()
+                if pdf_cache_info and "display_title" in pdf_cache_info:
+                    from rapidfuzz import fuzz
 
-                norm_pdf_title = norm_t(pdf_cache_info["display_title"])
-                best_sim = 0
-                best_t = None
-                for t in db_tables:
-                    norm_db = norm_t(t.get('judul_tabel', t.get('judul_ind', '')))
-                    sim = max(fuzz.partial_ratio(norm_pdf_title, norm_db), fuzz.token_set_ratio(norm_pdf_title, norm_db))
-                    if sim > best_sim:
-                        best_sim = sim
-                        best_t = t
-                if best_sim >= 80:
-                    target_info = best_t
-        except Exception:
-            pass
+                    def norm_t(text):
+                        t = str(text).lower()
+                        t = t.replace('sertifikat', 'sertipikat').replace('ditebitkan', 'diterbitkan')
+                        t = re.sub(r'\b20\d{2}\b', ' ', t)
+                        t = re.sub(r'\b(?:di\s+)?jawa\s+provinsi\s+tengah\b', '', t)
+                        t = re.sub(r'\b(?:di\s+)?provinsi\s+jawa\s+tengah\b', '', t)
+                        t = re.sub(r'\b(?:di\s+)?jawa\s+tengah\b', '', t)
+                        t = re.sub(r'\b(?:dan|serta|atau)\b', ' ', t)
+                        t = t.encode('ascii', 'ignore').decode('ascii')
+                        t = re.sub(r'[^\w\s]', ' ', t)
+                        return re.sub(r'\s+', ' ', t).strip()
+
+                    norm_pdf_title = norm_t(pdf_cache_info["display_title"])
+                    best_sim = 0
+                    best_t = None
+                    for t in db_tables:
+                        norm_db = norm_t(t.get('judul_tabel', t.get('judul_ind', '')))
+                        sim = max(fuzz.partial_ratio(norm_pdf_title, norm_db), fuzz.token_set_ratio(norm_pdf_title, norm_db))
+                        if sim > best_sim:
+                            best_sim = sim
+                            best_t = t
+                    if best_sim >= 80:
+                        target_info = best_t
+            except Exception:
+                pass
 
     if not target_info:
         return {"status": "error", "message": "Tabel tidak ditemukan di database (ID tidak cocok dan Fuzzy Search gagal)"}
@@ -255,7 +265,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     link = str(target_info.get("link_tabel", "") or "").strip()
 
     target_pages = None
-    if os.path.exists(index_cache_path):
+    if preloaded_index is not None:
+        for k, val in preloaded_index.items():
+            if clean_num(k) == clean_num(target_table):
+                target_pages = val.get("pages", []) if isinstance(val, dict) else val
+                break
+    elif os.path.exists(index_cache_path):
         try:
             with open(index_cache_path, "r", encoding="utf-8") as f:
                 index_cache = json.load(f)
