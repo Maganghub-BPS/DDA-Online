@@ -826,6 +826,17 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 cur_sec = ""
                 use_cols = target_cols if target_cols is not None else active_cat_cols
                 last_parent_label = ""
+                last_total_label = ""
+
+                pdf_data_col_indices = []
+                if is_pdf:
+                    for r_check in data_list:
+                        if isinstance(r_check, list):
+                            bps_num_cols = [idx for idx, cell in enumerate(r_check) if cell is not None and re.match(r'^\([2-9]\d*\)$', str(cell).strip())]
+                            if len(bps_num_cols) >= 1:
+                                pdf_data_col_indices = bps_num_cols
+                                break
+
                 for r in data_list:
                     if not isinstance(r, list):
                         continue
@@ -844,6 +855,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         continue
 
                     code = None
+                    is_sub_row_with_parent = False
                     if not is_pdf and use_cols:
                         first_col = use_cols[0]
                         if first_col > 1:
@@ -855,7 +867,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             0.0 if str(r[c]).strip() in ('-', '–', '—') else parse_num(str(r[c]).strip(), is_pdf=False)
                             for c in use_cols if c < len(r)
                         ]
-                        if not label_cells and not any(v is not None for v in raw_vals):
+                        if not any(v is not None for v in raw_vals):
                             continue
                         has_alpha_label = any(re.search(r'[a-zA-Z]{3,}', c) for c in label_cells)
                         if has_alpha_label:
@@ -875,6 +887,48 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             c_str = str(r[c_idx]).strip() if c_idx < len(r) else ''
                             v = 0.0 if c_str in ('-', '–', '—') else parse_num(c_str, is_pdf=False)
                             nums.append(0.0 if v is None else v)
+                    elif is_pdf and pdf_data_col_indices:
+                        first_col = pdf_data_col_indices[0]
+                        label_cells = [str(c).strip() for c in r[:first_col] if c is not None and str(c).strip() and str(c).strip().lower() != 'none']
+
+                        if label_cells and re.match(r'^\d+\.?$', label_cells[0]):
+                            code = label_cells[0].rstrip('.')
+                            cand_parent = label_cells[1] if len(label_cells) > 1 else ""
+                        else:
+                            cand_parent = ""
+
+                        raw_nums = []
+                        has_any_cell = False
+                        for c_idx in pdf_data_col_indices:
+                            c_val = str(r[c_idx]).strip() if c_idx < len(r) and r[c_idx] is not None else ''
+                            if c_val != '':
+                                has_any_cell = True
+                            if c_val in ('-', '–', '—', ''):
+                                raw_nums.append(0.0)
+                            else:
+                                v = parse_num(c_val, is_pdf=True)
+                                raw_nums.append(v if v is not None else 0.0)
+
+                        if not has_any_cell:
+                            if cand_parent:
+                                last_parent_label = clean_cat_display(cand_parent)
+                            continue
+
+                        nums = raw_nums
+                        filtered_labels = [c for c in label_cells if c not in ('-', '–', '—', '•', '·') and not re.match(r'^\d+\.?$', c)]
+
+                        if any(c in ('-', '–', '—', '•', '·') for c in label_cells) and last_parent_label:
+                            is_sub_row_with_parent = True
+
+                        if any(any(k in c.lower() for k in ['jumlah', 'total']) for c in label_cells):
+                            last_total_label = "Jumlah"
+                            last_parent_label = ""
+                            yr_part = next((c for c in label_cells if re.match(r'^(19|20)\d{2}$', c)), '')
+                            raw_label = f"Jumlah {yr_part}".strip()
+                        elif len(label_cells) == 1 and re.match(r'^(19|20)\d{2}$', label_cells[0]) and last_total_label:
+                            raw_label = f"{last_total_label} {label_cells[0]}"
+                        else:
+                            raw_label = ' '.join(filtered_labels)
                     else:
                         first_idx = next((i for i, c in enumerate(r) if c is not None and str(c).strip() and str(c).strip().lower() != 'none'), -1)
                         raw_label = ''
@@ -883,6 +937,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             c_str = str(c).strip() if c is not None else ''
                             if not c_str or c_str.lower() == 'none':
                                 continue
+                            if is_pdf and not raw_label and not nums and c_str in ('-', '–', '—', '•', '·'):
+                                if any(re.search(r'[a-zA-Z]{2,}', str(x)) for x in r[idx_c+1:] if x is not None):
+                                    continue
                             if not raw_label and (is_interval_label(c_str) or re.match(r'^(?:19|20)\d{2}(?:[/\-–]\d{2,4})?$', c_str)) and not nums:
                                 raw_label = c_str
                                 continue
@@ -891,6 +948,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 code = c_code_cand.rstrip('.')
                                 continue
                             if not nums and re.match(r'^(19|20)\d{2}$', c_str) and any(k in raw_label.lower() for k in ['jumlah', 'total']):
+                                raw_label += ' ' + c_str
+                                continue
+                            if is_pdf and not raw_label and not nums and re.match(r'^(19|20)\d{2}$', c_str) and last_total_label:
+                                raw_label = f"{last_total_label} {c_str}"
                                 continue
                             c_low_unit = c_str.lower().strip()
                             if is_pdf and raw_label and not nums and (
@@ -915,8 +976,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                     else:
                                         raw_label += ' ' + c_str
 
-                    is_sub_row_with_parent = False
-                    if is_pdf:
+                    if is_pdf and not pdf_data_col_indices:
                         col0_txt = str(r[0]).strip() if len(r) > 0 and r[0] is not None else ''
                         col1_txt = str(r[1]).strip() if len(r) > 1 and r[1] is not None else ''
                         col0_clean = re.sub(r'\s+', '', col0_txt)
@@ -927,6 +987,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             continue
                         if col0_txt and any(k in col0_txt.lower() for k in ['jumlah', 'total']):
                             last_parent_label = ""
+                            last_total_label = "Jumlah"
                         elif col0_txt and parse_num(col0_txt, is_pdf=True) is None and not is_bps_col_num(col0_txt):
                             last_parent_label = col0_txt
                         if not col0_txt and col1_txt and last_parent_label and parse_num(col1_txt, is_pdf=True) is None:
@@ -946,9 +1007,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     clean_disp = clean_cat_display(raw_label)
                     if not clean_disp:
                         continue
+                    sub_key = get_cat_key(clean_disp)
                     if is_sub_row_with_parent and last_parent_label and last_parent_label.lower() not in clean_disp.lower():
                         clean_disp = f"{last_parent_label} - {clean_disp}"
                     key = get_cat_key(clean_disp)
+                    if any(k in clean_disp.lower() for k in ['jumlah', 'total']):
+                        last_total_label = "Jumlah"
                     if cur_sec:
                         digits = re.findall(r'\d+', str(raw_label))
                         c_dash = ' - '.join(digits) if digits else raw_label
@@ -960,7 +1024,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         full_key = key
 
                     if nums and full_key:
-                        records.append({'key': full_key, 'display': full_disp, 'nums': nums, 'sec': cur_sec, 'code': code})
+                        records.append({'key': full_key, 'sub_key': sub_key, 'display': full_disp, 'nums': nums, 'sec': cur_sec, 'code': code})
                 return records
 
             col_years_map = {}
@@ -1138,7 +1202,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 for idx_p, p in enumerate(p_recs):
                     if idx_p in used_p_indices:
                         continue
-                    candidates = [s for s in s_recs if s['key'] == p['key'] and (is_horiz_col_split or s['id'] not in used_s_ids)]
+                    candidates = [
+                        s for s in s_recs
+                        if (s['key'] == p['key'] or (p.get('sub_key') and s['key'] == p['sub_key'])) and (is_horiz_col_split or s['id'] not in used_s_ids)
+                    ]
                     match_s = next((s for s in candidates if s.get('sec') == p.get('sec')), None)
                     if not match_s and candidates:
                         match_s = candidates[0]
@@ -1207,6 +1274,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
                 for s_id, items in p_grouped_items.items():
                     if page_col_indices:
+                        if not items:
+                            p_grouped[s_id] = []
+                            continue
                         nums_full = [0.0] * len(pdf_cols)
                         for idx_p, n_list in items:
                             p_page = p_recs[idx_p].get('page') if idx_p < len(p_recs) else None
