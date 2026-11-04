@@ -1232,7 +1232,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
                         ?>
                             <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + (($isBarisDuaKolom || $isRuntunWaktuTotal) ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
                                     <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>
@@ -1557,7 +1557,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             <?= esc($grandLabel); ?>
                         </td>
                     <?php else: ?>
-                        <td class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
+                        <td <?= ($isRuntunWaktuTotal ? 'colspan="2"' : ''); ?> class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
                             <?= esc($grandLabel); ?>
                         </td>
                     <?php endif; ?>
