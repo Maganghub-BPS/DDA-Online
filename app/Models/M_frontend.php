@@ -71,7 +71,7 @@ class M_frontend extends Model
                 ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
                 ->join('m_indikator_tabel mi', 'mi.id_tabel = m_list_tabel.id', 'left')
                 ->where('m_list_tabel.is_active', 1)
-                ->where("(m_list_tabel.jenis_sumber = 'dinamis' OR (m_list_tabel.jenis_sumber = 'api_kominfo' AND ka.link_api LIKE '%view_portal_tabel%'))");
+                ->where("(m_list_tabel.jenis_sumber = 'dinamis' OR (m_list_tabel.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR ka.link_api LIKE '%portal%' OR ka.link_api LIKE '%satudata%' OR (ka.id_api IS NOT NULL AND ka.id_api != ''))))");
 
         return $builder;
     }
@@ -102,18 +102,22 @@ class M_frontend extends Model
         return $results;
     }
 
-    public function getTopOpdList($limit = 8, $tahun = null)
+    public function getTopOpdList($limit = null, $tahun = null)
     {
         $builder = $this->db->table('m_list_tabel')
                         ->select('m_unitkerja.id_unitkerja as id, m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en, COUNT(DISTINCT m_list_tabel.id) as total_tabel');
         $this->applyPublishedStatusJoin($builder, $tahun);
 
-        return $builder->where('m_unitkerja.id_unitkerja IS NOT NULL')
-                       ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en')
-                       ->orderBy('total_tabel', 'DESC')
-                       ->limit($limit)
-                       ->get()
-                       ->getResult();
+        $builder->where('m_unitkerja.id_unitkerja IS NOT NULL')
+                ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en')
+                ->orderBy('total_tabel', 'DESC')
+                ->orderBy('m_unitkerja.unitkerja_ind', 'ASC');
+
+        if (!empty($limit)) {
+            $builder->limit($limit);
+        }
+
+        return $builder->get()->getResult();
     }
 
     public function getPortalStats($tahun = null)
@@ -125,8 +129,9 @@ class M_frontend extends Model
         $rowTabel = $tabelBuilder->get()->getRow();
         $totalTabel = $rowTabel ? (int)$rowTabel->total : 0;
 
-        $opdBuilder = $db->table('m_list_tabel')->select('COUNT(DISTINCT m_list_tabel.id_unitkerja) as total_opd');
+        $opdBuilder = $db->table('m_list_tabel')->select('COUNT(DISTINCT m_unitkerja.id_unitkerja) as total_opd');
         $this->applyPublishedStatusJoin($opdBuilder, $tahun);
+        $opdBuilder->where('m_unitkerja.id_unitkerja IS NOT NULL');
         $opdRow = $opdBuilder->get()->getRow();
         $totalOpd = $opdRow ? (int)$opdRow->total_opd : 0;
 
@@ -259,14 +264,25 @@ class M_frontend extends Model
         ];
     }
 
-    public function getInstansiList($tahun = null)
+    public function getInstansiList($q = null, $tahun = null)
     {
+        if (is_numeric($q) && (int)$q > 1900 && (int)$q < 2100 && empty($tahun)) {
+            $tahun = (int)$q;
+            $q = null;
+        }
+
         $builder = $this->db->table('m_list_tabel')
                         ->select('m_unitkerja.id_unitkerja as id, m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en, COUNT(DISTINCT m_list_tabel.id) as total_tabel');
         $this->applyPublishedStatusJoin($builder, $tahun);
 
-        return $builder->where('m_unitkerja.id_unitkerja IS NOT NULL')
-                       ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en')
+        $builder->where('m_unitkerja.id_unitkerja IS NOT NULL');
+
+        if (!empty($q)) {
+            $builder->like('m_unitkerja.unitkerja_ind', trim($q));
+        }
+
+        return $builder->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en')
+                       ->orderBy('total_tabel', 'DESC')
                        ->orderBy('m_unitkerja.unitkerja_ind', 'ASC')
                        ->get()
                        ->getResult();
@@ -320,12 +336,73 @@ class M_frontend extends Model
         return $row;
     }
 
-    public function getTableMetadata($table_id)
+    public function getMatchMapping(array $ids): array
     {
-        $row = $this->buildMetadataRow($table_id);
-        if ($row && !empty($row->link_tabel) && strpos($row->link_tabel, 'bps.go.id') !== false) {
-            return $row;
+        if (empty($ids)) {
+            return [];
         }
+
+        $cleanIds = array_values(array_filter(array_map('trim', $ids)));
+        if (empty($cleanIds)) {
+            return [];
+        }
+
+        if ($this->db->tableExists('t_tabel_match')) {
+            $rows = $this->db->table('t_tabel_match')
+                             ->select('id_api, id_api_new')
+                             ->whereIn('id_api', $cleanIds)
+                             ->get()
+                             ->getResultArray();
+            if (!empty($rows)) {
+                return $rows;
+            }
+        }
+
+        if ($this->db->tableExists('m_konfigurasi_api')) {
+            return $this->db->table('m_konfigurasi_api')
+                            ->select('id_api, id_api as id_api_new')
+                            ->whereIn('id_api', $cleanIds)
+                            ->get()
+                            ->getResultArray();
+        }
+
+        return [];
+    }
+
+    public function getTableMetadata($table_id = null, $id_api = null)
+    {
+        if (!empty($table_id) && is_numeric($table_id)) {
+            $row = $this->buildMetadataRow((int)$table_id);
+            if ($row) {
+                return $row;
+            }
+        }
+
+        if (!empty($id_api)) {
+            $idClean = trim((string)$id_api);
+            if (strpos($idClean, '?') !== false) {
+                $idClean = explode('?', $idClean)[0];
+            }
+            if (strpos($idClean, 'data/') !== false) {
+                $idClean = explode('data/', $idClean)[1];
+            }
+            $idClean = trim($idClean, '/ ');
+
+            $builder = $this->db->table('m_list_tabel')
+                                ->select('m_list_tabel.id')
+                                ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
+                                ->groupStart()
+                                    ->where('ka.id_api', $idClean)
+                                    ->orLike('ka.link_api', 'id=' . $idClean)
+                                    ->orLike('ka.link_api', 'data/' . $idClean)
+                                ->groupEnd()
+                                ->limit(1);
+            $found = $builder->get()->getRow();
+            if ($found && !empty($found->id)) {
+                return $this->buildMetadataRow((int)$found->id);
+            }
+        }
+
         return null;
     }
 

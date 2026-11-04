@@ -1267,26 +1267,43 @@
                 $id = strtolower(trim((string)$id));
                 $nameLower = strtolower(trim((string)$name));
 
-                // Daftar ID resmi Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah
+                // 1. Identifikasi Instansi Vertikal / Kementerian / BUMN / Non-OPD berdasarkan ID resmi
+                $vertikal_ids = [
+                    'bps', 'nerwilis', 'distribusi', 'produksi', 'sosial', 'ipds', 'bkn', 'bpn',
+                    'kemenkumham', 'bi', 'kai', 'pln', 'bulog', 'klimatologi', 'ojk', 'polda', 'kejaksaan',
+                    'pengtinggi', 'pengadilanagama', 'ptun', 'kemenag', 'bkkbn', 'kpu', 'taspen', 'ptpn_ix',
+                    'bpdas', 'perhutani', 'kadin', 'djbc', 'tanjungemas', 'achmadyani', 'pos', 'pegadaian',
+                    'djp1jateng', 'djp2jateng', 'djpb', 'bpkp', 'bpom', 'bpjs', 'lldikti', 'kopertaisx',
+                    'koni', 'imigrasi', 'lapas', 'pertamina', 'bawaslu', 'bnn'
+                ];
+                if (in_array($id, $vertikal_ids)) {
+                    return false;
+                }
+
+                // 2. Identifikasi Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah berdasarkan ID resmi
                 $opd_ids = [
-                    'bkd', 'bpbd', 'bpkad', 'bppd', 'biropem', 'esdm', 'arsip', 'dkp', 'pemudaor',
+                    'bkd', 'bpbd', 'bpkad', 'bppd', 'bapenda', 'biropem', 'esdm', 'arsip', 'dkp', 'pemudaor',
                     'dinkes', 'koperasi', 'lingkunganhidup', 'binamarga', 'disdukcapil', 'dinsos',
                     'pertanian', 'ternaksehat', 'disnaker', 'modal', 'perakim', 'dishub', 'inspektorat',
-                    'sekdprd', 'dinpendidikan', 'disperindag', 'dp3akb', 'kesbangpol', 'bappeda'
+                    'sekdprd', 'dinpendidikan', 'disperindag', 'dp3akb', 'kesbangpol', 'bappeda',
+                    'diskominfo', 'kominfo', 'satpolpp', 'rsud'
                 ];
-
                 if (in_array($id, $opd_ids)) {
                     return true;
                 }
 
-                // Kata kunci pengecualian untuk Instansi Vertikal / Lembaga Pusat / BUMN / Non-OPD
+                // 3. Kata kunci pengecualian untuk Instansi Vertikal / Lembaga Pusat / BUMN / Non-OPD
                 $vertikal_keywords = [
-                    'kanwil', 'kementerian', 'kantor wilayah', 'bkn', 'bkkbn', 'bpkp', 'bpom',
-                    'balai pom', 'bank indonesia', 'ojk', 'polda', 'kejaksaan', 'pengadilan',
-                    'ptun', 'kpu', 'koni', 'kadin', 'lldikti', 'kopertais', 'stasiun klimatologi',
-                    'bmkg', 'perum', 'pt.', 'pt ', 'bpjs', 'taspen', 'pelabuhan', 'tanjung emas',
-                    'bea dan cukai', 'perbendaharaan', 'pajak', 'imigrasi', 'pemasyarakatan',
-                    'aliran sungai', 'tim statistik'
+                    'bps', 'badan pusat statistik', 'tim statistik', 'tim neraca', 'nerwilis', 'tim distribusi',
+                    'tim produksi', 'tim sosial', 'tim ipds', 'kanwil', 'kementerian', 'kantor wilayah',
+                    'bkn', 'bkkbn', 'bpkp', 'bpom', 'balai pom', 'bpn', 'pertanahan', 'agraria',
+                    'bank indonesia', 'ojk', 'polda', 'polres', 'kejaksaan', 'pengadilan',
+                    'ptun', 'kpu', 'bawaslu', 'bnn', 'koni', 'kadin', 'lldikti', 'kopertais',
+                    'stasiun klimatologi', 'klimatologi', 'bmkg', 'perum', 'pt.', 'pt ', 'persero',
+                    'bpjs', 'taspen', 'pelabuhan', 'tanjung emas', 'kesyahbandaran', 'bea dan cukai',
+                    'perbendaharaan', 'pajak', 'imigrasi', 'pemasyarakatan', 'permasyarakatan', 'lapas',
+                    'aliran sungai', 'bpdas', 'kereta api', 'kai', 'angkasa pura', 'perhutani', 'bulog',
+                    'pos indonesia', 'pertamina', 'pln', 'pegadaian', 'universitas', 'institut', 'politeknik'
                 ];
 
                 foreach ($vertikal_keywords as $vk) {
@@ -1295,17 +1312,18 @@
                     }
                 }
 
-                // Kata kunci OPD Pemprov
-                if (strpos($nameLower, 'dinas') !== false || 
-                    strpos($nameLower, 'badan kepegawaian') !== false ||
-                    strpos($nameLower, 'badan penanggulangan') !== false ||
-                    strpos($nameLower, 'badan pengelola') !== false ||
-                    strpos($nameLower, 'badan perencanaan') !== false ||
-                    strpos($nameLower, 'badan kesatuan bangsa') !== false ||
-                    strpos($nameLower, 'inspektorat') !== false ||
-                    strpos($nameLower, 'sekretariat dprd') !== false ||
-                    strpos($nameLower, 'biro ') !== false) {
-                    return true;
+                // 4. Kata kunci Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah
+                $opd_keywords = [
+                    'dinas', 'organisasi perangkat daerah', 'opd', 'badan kepegawaian', 'badan penanggulangan',
+                    'badan pengelola', 'badan perencanaan', 'bappeda', 'badan pendapatan', 'bapenda',
+                    'badan kesatuan bangsa', 'kesbangpol', 'inspektorat', 'sekretariat dprd', 'sekdprd',
+                    'sekretariat daerah', 'setda', 'biro ', 'satpol pp', 'satuan polisi pamong praja', 'rsud'
+                ];
+
+                foreach ($opd_keywords as $ok) {
+                    if (strpos($nameLower, $ok) !== false) {
+                        return true;
+                    }
                 }
 
                 return false;
@@ -1480,9 +1498,9 @@
                 </div>
 
                 <!-- Bottom Button: Exactly matching Image 2 -->
-                <?php if (!empty($opd_list) && count($opd_list) > 8) { ?>
-                <div class="text-center mt-4 pt-3">
-                    <button type="button" id="btn-load-more-opd" class="btn-opd-expand">
+                <?php if (!empty($opd_list)) { ?>
+                <div class="text-center mt-4 pt-3" id="opd-actions-container">
+                    <button type="button" id="btn-load-more-opd" class="btn-opd-expand" style="<?= count($opd_list) > 8 ? '' : 'display: none;' ?>">
                         <span>Tampilkan Lebih Banyak (<?= count($opd_list) ?> Instansi)</span>
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
@@ -1511,9 +1529,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var searchQuery = '';
     var defaultVisible = 8;
     var currentlyShown = defaultVisible;
+    var currentMatches = [];
 
     function updateDisplay() {
-        var matches = opdItems.filter(function(item) {
+        currentMatches = opdItems.filter(function(item) {
             var cat = item.getAttribute('data-category');
             var name = item.getAttribute('data-name');
             var matchesCat = (activeFilter === 'all' || cat === activeFilter);
@@ -1526,7 +1545,7 @@ document.addEventListener('DOMContentLoaded', function() {
             item.style.display = 'none';
         });
 
-        if (matches.length === 0) {
+        if (currentMatches.length === 0) {
             if (emptyState) emptyState.style.display = 'block';
             if (loadMoreBtn) loadMoreBtn.style.display = 'none';
             if (hideBtn) hideBtn.style.display = 'none';
@@ -1537,31 +1556,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (searchQuery !== '') {
             // Show all search matches
-            matches.forEach(function(item) {
+            currentMatches.forEach(function(item) {
                 item.style.display = 'block';
             });
             if (loadMoreBtn) loadMoreBtn.style.display = 'none';
             if (hideBtn) hideBtn.style.display = 'none';
         } else {
             // Paginated view
-            var toShow = matches.slice(0, currentlyShown);
+            var toShow = currentMatches.slice(0, currentlyShown);
             toShow.forEach(function(item) {
                 item.style.display = 'block';
             });
 
             if (loadMoreBtn) {
-                if (matches.length > currentlyShown) {
+                if (currentMatches.length > currentlyShown) {
                     loadMoreBtn.style.display = 'inline-flex';
                     var btnText = loadMoreBtn.querySelector('span');
                     if (btnText) {
-                        btnText.textContent = 'Tampilkan Lebih Banyak (' + matches.length + ' Instansi)';
+                        var catText = (activeFilter === 'opd') ? 'OPD' : ((activeFilter === 'vertikal') ? 'Instansi Vertikal' : 'Instansi');
+                        btnText.textContent = 'Tampilkan Lebih Banyak (' + currentMatches.length + ' ' + catText + ')';
                     }
                 } else {
                     loadMoreBtn.style.display = 'none';
                 }
             }
             if (hideBtn) {
-                hideBtn.style.display = (currentlyShown > defaultVisible && matches.length > defaultVisible) ? 'inline-flex' : 'none';
+                hideBtn.style.display = (currentlyShown > defaultVisible && currentMatches.length > defaultVisible) ? 'inline-flex' : 'none';
             }
         }
     }
@@ -1601,10 +1621,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Load More Click
+    // Load More Click - Tampilkan seluruh instansi yang tersisa
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener('click', function() {
-            currentlyShown += 8;
+            currentlyShown = currentMatches.length;
             updateDisplay();
         });
     }
@@ -1620,6 +1640,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Initial sync
+    updateDisplay();
 });
 </script>
 
@@ -1657,6 +1680,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     $href = base_url('home/view_dinamis/' . $row->id);
                                     $source_type = 'dinamis';
                                 }
+
+                                $raw_judul = $row->judul_ind ?? '';
+                                if (stripos($raw_judul, '[PERIODE]') !== false && function_exists('format_judul_tabel')) {
+                                    $raw_judul = format_judul_tabel($raw_judul, $row->periode_id ?? '');
+                                }
+                                $no_tabel_clean = trim((string)($row->no_tabel ?? ''));
+                                $display_title = (!empty($no_tabel_clean) && !preg_match('/^' . preg_quote($no_tabel_clean, '/') . '\b/i', $raw_judul) ? $no_tabel_clean . ' ' : '') . $raw_judul;
                             ?>
                             <div class="swiper-slide" style="height: auto;">
                                 <div class="table-clean-card">
@@ -1669,8 +1699,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
 
                                     <!-- 2. Judul -->
-                                    <a href="<?= $href ?>" class="tcc-title" title="<?= htmlspecialchars($row->judul_ind) ?>">
-                                        <?= htmlspecialchars($row->judul_ind) ?>
+                                    <a href="<?= $href ?>" class="tcc-title" title="<?= htmlspecialchars($display_title) ?>">
+                                        <?= htmlspecialchars($display_title) ?>
                                     </a>
 
                                     <!-- Button Buka -->

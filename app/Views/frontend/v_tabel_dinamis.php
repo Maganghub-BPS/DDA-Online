@@ -35,7 +35,8 @@ if (!empty($no_tabel)) {
 }
 
 // Bersihkan akhiran tahun lama / koma mentah jika ada di master judul
-$cleanJudulInd = preg_replace('/,\s*(?:[0-9]{4}(?:\s*[\–\-\/]\s*[0-9]{4})?)(?:,\s*[0-9]{4})*\s*$/u', '', trim($rawJudulInd));
+$cleanJudulInd = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', trim($rawJudulInd));
+$cleanJudulInd = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $cleanJudulInd);
 $cleanJudulInd = trim(rtrim($cleanJudulInd, " ,"));
 
 // 2. Judul Bahasa Inggris
@@ -52,7 +53,8 @@ if (!empty($no_tabel)) {
     $rawJudulEn = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/i', '', $rawJudulEn);
 }
 
-$cleanJudulEn = preg_replace('/,\s*(?:[0-9]{4}(?:\s*[\–\-\/]\s*[0-9]{4})?)(?:,\s*[0-9]{4})*\s*$/u', '', trim($rawJudulEn));
+$cleanJudulEn = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', trim($rawJudulEn));
+$cleanJudulEn = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $cleanJudulEn);
 $cleanJudulEn = trim(rtrim($cleanJudulEn, " ,"));
 
 // 3. Format Judul Dinamis Rapi Standar BPS (Opsi A) Berdasarkan Tahun yang Dipilih Pengguna
@@ -953,15 +955,43 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // 4. Fallback deteksi teks untuk Total dan Kategori
-            const rowFullText = trEl ? (trEl.textContent || '').trim().toLowerCase() : '';
+            let labelText = '';
+            if (trEl && trEl.children && trEl.children.length > 0) {
+                for (let i = 0; i < Math.min(3, trEl.children.length); i++) {
+                    const cTxt = (trEl.children[i].textContent || '').trim();
+                    if (cTxt && !/^\d+$/.test(cTxt)) {
+                        labelText = cTxt.toLowerCase().replace(/\s+/g, ' ');
+                        break;
+                    }
+                }
+            }
+            if (!labelText) {
+                labelText = trEl ? (trEl.textContent || '').trim().toLowerCase().replace(/\s+/g, ' ') : '';
+            }
+
             const isLastRow = domBodyRows && data.row.index === (domBodyRows.length - 1);
-            if ((isLastRow && (rowFullText.includes('jumlah') || rowFullText.includes('total') || rowFullText.includes('jawa tengah') || rowFullText.includes('pdrb'))) 
-                || rowFullText.startsWith('jumlah') 
-                || rowFullText.startsWith('total') 
-                || rowFullText.startsWith('jawa tengah')) {
+            const isGenuineTotal = (txt) => {
+                if (!txt) return false;
+                const clean = txt.trim().toLowerCase().replace(/\s+/g, ' ');
+                // Murni label total / jumlah (bukan nama indikator seperti "curah hujan", "hari hujan", "penduduk", dll)
+                if (/^(jumlah|total|grand\s+total|total\s+keseluruhan)(\s*[:\/\-]\s*(total|jumlah|grand\s+total))?$/i.test(clean)) {
+                    return true;
+                }
+                // Label total provinsi Jawa Tengah (di tabel kabupaten/kota)
+                if (/^(provinsi\s+)?jawa\s+tengah(\s*[:\/\-]\s*(central\s+java|central\s+java\s+province))?$/i.test(clean)) {
+                    return true;
+                }
+                // Label total PDRB murni pada baris akhir
+                if (/^(total\s+pdrb|jumlah\s+pdrb|pdrb)(\s*[:\/\-]\s*.*)?$/i.test(clean) && isLastRow) {
+                    return true;
+                }
+                return false;
+            };
+
+            if (isGenuineTotal(labelText) || (isLastRow && /^(jumlah|total|grand\s+total|jawa\s+tengah)\b/i.test(labelText) && !/(curah\s+hujan|hari\s+hujan|penduduk|tenaga\s+kerja|perusahaan|sekolah|guru|siswa|luas|kasus|fasilitas)/i.test(labelText))) {
                 return 'total';
             }
-            if (trEl && trEl.children && trEl.children.length === 1 && (rowFullText.includes('kabupaten') || rowFullText.includes('kota'))) {
+            if (trEl && trEl.children && trEl.children.length === 1 && (labelText.includes('kabupaten') || labelText.includes('kota'))) {
                 return 'category';
             }
 
