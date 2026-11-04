@@ -3739,6 +3739,180 @@ class Admin extends BaseController
 		return md5(json_encode($sigRow) . '_' . $kaSig . '_' . $mlSig . '_' . $ta);
 	}
 
+	/**
+	 * Sinkronisasi Delta Real-Time Cepat (< 1 detik) status data Tabel Dinamis dari Cloud MySQL
+	 * ke snapshot lokal dda_matched_{ta}.json, dda_db_{ta}.json, dan dda_state_{ta}.json.
+	 *
+	 * Tanpa re-index PDF (match_pdf.py) yang memakan waktu belasan detik!
+	 * Langsung mendeteksi tabel mana saja yang baru diisi nilainya oleh operator/teman di Cloud DB,
+	 * memperbarui grid data 2D tabel tersebut, dan mengubah statusnya menjadi 'unverified' agar
+	 * siap diverifikasi instan secara parsial.
+	 *
+	 * @param string $ta Tahun aktif (misal '2026')
+	 * @param bool $forceReexport Paksa periksa dan sinkronkan tanpa cek signature
+	 * @return array Ringkasan perubahan ['changed_to_filled' => [...], 'changed_to_empty' => [...], 'db_sig' => ...]
+	 */
+	public function syncDynamicTablesRealtime(string $ta, bool $forceReexport = false): array
+	{
+		$uploadPath = WRITEPATH . 'uploads/';
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+
+		if (!file_exists($matchedJson) || !file_exists($dbJson)) {
+			return ['status' => 'error', 'message' => 'File matched atau db JSON belum tersedia', 'changed_to_filled' => []];
+		}
+
+		$currentDbSig = $this->getDynamicConfigSignature($ta);
+		$masterData = json_decode(@file_get_contents($matchedJson), true);
+		if (!is_array($masterData) || (!isset($masterData['matched_in_pdf']) && !isset($masterData['matched_tables']))) {
+			return ['status' => 'error', 'message' => 'Format file matched JSON tidak valid', 'changed_to_filled' => []];
+		}
+
+		if (!$forceReexport && !empty($masterData['db_sig']) && $masterData['db_sig'] === $currentDbSig) {
+			return [
+				'status'            => 'success',
+				'message'           => 'Data sudah up-to-date dengan Cloud Aiven.',
+				'changed_to_filled' => [],
+				'changed_to_empty'  => [],
+				'db_sig'            => $currentDbSig
+			];
+		}
+
+		$sql = "
+			SELECT 
+				i.id as id_indikator,
+				i.id_tabel as id_master,
+				m.no_tabel,
+				COUNT(n.id) as filled_cnt
+			FROM m_indikator_tabel i
+			JOIN m_list_tabel m ON m.id = i.id_tabel
+			LEFT JOIN t_nilai_dinamis n ON n.id_indikator = i.id AND (
+				(n.nilai IS NOT NULL AND n.nilai != '') OR 
+				(n.simbol IS NOT NULL AND n.simbol != '')
+			)
+			WHERE m.is_active = 1
+			GROUP BY i.id, i.id_tabel, m.no_tabel
+		";
+		$rows = $this->db->query($sql)->getResultArray();
+
+		$dbFillById = [];
+		foreach ($rows as $r) {
+			$idM = (string)($r['id_master'] ?? '');
+			$cnt = (int)($r['filled_cnt'] ?? 0);
+			if ($cnt > 0) {
+				$dbFillById[$idM] = true;
+			} elseif (!isset($dbFillById[$idM])) {
+				$dbFillById[$idM] = false;
+			}
+		}
+
+		$dbList = json_decode(@file_get_contents($dbJson), true) ?? [];
+		$stateData = file_exists($stateJson) ? (json_decode(@file_get_contents($stateJson), true) ?? []) : [];
+		$mDinamis = new \App\Models\M_tabeldinamis();
+
+		$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+		$changedToFilled = [];
+		$changedToEmpty = [];
+		$matchedUpdated = false;
+		$dbUpdated = false;
+		$stateUpdated = false;
+
+		$dbIndexMap = [];
+		foreach ($dbList as $idx => $dbItem) {
+			$idDbStr = (string)($dbItem['id_db'] ?? '');
+			if ($idDbStr !== '') {
+				$dbIndexMap[$idDbStr] = $idx;
+			}
+		}
+
+		foreach ($masterData[$listKey] as &$mItem) {
+			$tNo = trim((string)($mItem['nomor_tabel'] ?? ''));
+			$idDb = (string)($mItem['id_db'] ?? '');
+			$isDyn = ($mItem['source_type'] ?? '') === 'dinamis' || ((int)($mItem['is_dynamic'] ?? 0)) === 1;
+			if (!$isDyn || $idDb === '') {
+				continue;
+			}
+
+			$currEmpty = !empty($mItem['dynamic_empty']);
+			$hasDataInDb = $dbFillById[$idDb] ?? false;
+			$actualEmpty = !$hasDataInDb;
+
+			if ($currEmpty && !$actualEmpty) {
+				$mItem['dynamic_empty'] = false;
+				$changedToFilled[] = $tNo;
+				$matchedUpdated = true;
+
+				$dynExport = $mDinamis->exportSingleDynamicTable((int)$idDb);
+				if ($dynExport && isset($dbIndexMap[$idDb])) {
+					$idx = $dbIndexMap[$idDb];
+					$dbList[$idx]['dynamic_empty'] = false;
+					$dbList[$idx]['dynamic_grid'] = $dynExport['dynamic_grid'] ?? [];
+					$dbList[$idx]['template_grid'] = $dynExport['template_grid'] ?? [];
+					$dbList[$idx]['cell_coords'] = $dynExport['cell_coords'] ?? [];
+					$dbUpdated = true;
+				}
+
+				if ($tNo !== '') {
+					$stateData[$tNo] = [
+						'status'      => 'unverified',
+						'match_count' => 0,
+						'diff_count'  => 0,
+						'reason'      => 'Data telah terisi di database, siap diverifikasi.',
+						'updated_at'  => date('Y-m-d H:i:s'),
+					];
+					$stateUpdated = true;
+				}
+			} elseif (!$currEmpty && $actualEmpty) {
+				$mItem['dynamic_empty'] = true;
+				$changedToEmpty[] = $tNo;
+				$matchedUpdated = true;
+
+				if (isset($dbIndexMap[$idDb])) {
+					$idx = $dbIndexMap[$idDb];
+					$dbList[$idx]['dynamic_empty'] = true;
+					$dbList[$idx]['dynamic_grid'] = [];
+					$dbUpdated = true;
+				}
+
+				if ($tNo !== '') {
+					$stateData[$tNo] = [
+						'status'      => 'api_empty',
+						'match_count' => 0,
+						'diff_count'  => 0,
+						'reason'      => 'Data nilai Tabel Dinamis belum diisi di database.',
+						'updated_at'  => date('Y-m-d H:i:s'),
+					];
+					$stateUpdated = true;
+				}
+			}
+		}
+		unset($mItem);
+
+		$masterData['db_sig'] = $currentDbSig;
+		@file_put_contents($matchedJson, json_encode($masterData, JSON_UNESCAPED_UNICODE));
+
+		if ($dbUpdated) {
+			@file_put_contents($dbJson, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+		}
+
+		if ($stateUpdated) {
+			@file_put_contents($stateJson, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+		}
+
+		return [
+			'status'            => 'success',
+			'message'           => count($changedToFilled) > 0 
+				? 'Ditemukan ' . count($changedToFilled) . ' tabel baru yang telah terisi data dari Cloud Aiven!' 
+				: 'Sinkronisasi berhasil! Status data tabel dinamis telah up-to-date.',
+			'changed_to_filled' => $changedToFilled,
+			'changed_to_empty'  => $changedToEmpty,
+			'db_sig'            => $currentDbSig,
+			'matched_in_pdf'    => $masterData[$listKey],
+			'batch_status'      => $stateData
+		];
+	}
+
 	private function syncMasterMatchingFiles(string $ta, string $pdfMaster, string $dbJson, string $matchedJson, bool $forceRebuild = false): ?array
 	{
 		if (!file_exists($matchedJson)) {
@@ -3766,6 +3940,12 @@ class Admin extends BaseController
 			if (!$hasLegacyFormat && !empty($masterData['db_sig']) && $masterData['db_sig'] === $currentDbSig) {
 				return $masterData;
 			}
+
+			// Signature berubah tapi file PDF sudah ada: jalankan Fast Delta Sync (< 1 detik)
+			// Alih-alih menjalankan match_pdf.py yang memakan waktu belasan detik
+			$this->syncDynamicTablesRealtime($ta);
+			$reloaded = json_decode(@file_get_contents($matchedJson), true);
+			return is_array($reloaded) ? $reloaded : $masterData;
 		}
 
 		$dbList = $this->buildDbTablesForMatching($ta);
@@ -4233,7 +4413,7 @@ class Admin extends BaseController
 		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$tolerance = $this->request->getPost('tolerance') ?? "0.0";
 		$sourceFilter = strtolower(trim((string)($this->request->getPost('source_filter') ?? 'all')));
-		if (!in_array($sourceFilter, ['all', 'dinamis', 'api'], true)) {
+		if (!in_array($sourceFilter, ['all', 'dinamis', 'api', 'unverified'], true)) {
 			$sourceFilter = 'all';
 		}
 
@@ -4248,8 +4428,8 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
 		}
 
-		// AUTO-SYNC ALL LINKS & TABEL DINAMIS: Sinkronkan seluruh data terbaru dari MySQL jika ada perubahan signature
-		$this->syncMasterMatchingFiles((string)$ta, $pdfPath, $dbJson, $matchedJson, false);
+		// AUTO-SYNC TABEL DINAMIS: Sinkronkan seluruh data terbaru dari MySQL secara real-time delta sync (< 1 detik)
+		$this->syncDynamicTablesRealtime((string)$ta);
 
 		// Bersihkan stop file jika ada
 		$stopFile = $progressJson . '.stop';
@@ -4257,7 +4437,7 @@ class Admin extends BaseController
 			@unlink($stopFile);
 		}
 
-		// Jika validasi semua, reset state file. Jika filter parsial (misal 'dinamis'), pertahankan state sumber lain.
+		// Jika validasi semua, reset state file. Jika filter parsial (misal 'unverified', 'dinamis', 'api'), pertahankan state yang sudah ada!
 		if ($sourceFilter === 'all' || !file_exists($stateJson)) {
 			@file_put_contents($stateJson, json_encode(new \stdClass(), JSON_FORCE_OBJECT));
 		}
@@ -4302,16 +4482,20 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
 		}
 
-		// Force rebuild snapshot dari remote Cloud DB
-		$reloaded = $this->syncMasterMatchingFiles((string)$ta, $pdfPath, $dbJson, $matchedJson, true);
+		// Jalankan Real-Time Delta Sync super cepat (< 1 detik)
+		$syncResult = $this->syncDynamicTablesRealtime((string)$ta, true);
 		$stateData = file_exists($stateJson) ? (json_decode(@file_get_contents($stateJson), true) ?? []) : [];
+		$masterData = file_exists($matchedJson) ? (json_decode(@file_get_contents($matchedJson), true) ?? []) : [];
+		$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
 
 		return $this->response->setJSON([
-			'status'         => 'success',
-			'message'        => 'Data dari Cloud Aiven berhasil disinkronkan!',
-			'matched_in_pdf' => $reloaded['matched_in_pdf'] ?? [],
-			'batch_status'   => $stateData,
-			'db_sig'         => $reloaded['db_sig'] ?? ''
+			'status'            => 'success',
+			'message'           => $syncResult['message'] ?? 'Data dari Cloud Aiven berhasil disinkronkan!',
+			'changed_to_filled' => $syncResult['changed_to_filled'] ?? [],
+			'changed_to_empty'  => $syncResult['changed_to_empty'] ?? [],
+			'matched_in_pdf'    => $masterData[$listKey] ?? [],
+			'batch_status'      => $stateData,
+			'db_sig'            => $syncResult['db_sig'] ?? ''
 		]);
 	}
 

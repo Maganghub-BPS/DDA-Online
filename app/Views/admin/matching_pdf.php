@@ -320,6 +320,9 @@
                                         <button id="btnSyncCloud" onclick="syncCloudData()" class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Tarik data terbaru dari Database Cloud Aiven tanpa perlu reload halaman">
                                             <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sync Cloud
                                         </button>
+                                        <button id="btnBatchVerifyUnverified" onclick="startBatchValidation('unverified')" class="btn btn-sm btn-outline-warning fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Cepat: Hanya memvalidasi tabel yang belum diperiksa / baru diisi nilainya di Cloud DB">
+                                            <i class="bi bi-clock-history me-1"></i> Cek Belum Diperiksa
+                                        </button>
                                         <button id="btnBatchVerifyDinamis" onclick="startBatchValidation('dinamis')" class="btn btn-sm btn-outline-success fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Cepat: Memvalidasi semua Tabel Dinamis">
                                             <i class="bi bi-grid-3x3-gap-fill me-1"></i> Scan Dinamis
                                         </button>
@@ -1067,10 +1070,17 @@
                     updateBatchCounters();
                     applyMatchedFilters();
 
-                    $('#batchProgressLabel').html('<i class="bi bi-check-circle-fill text-success me-1"></i> ' + res.message);
-                    setTimeout(() => {
-                        if (!window.isBatchRunning) $('#batchProgressBox').addClass('d-none');
-                    }, 3500);
+                    if (res.changed_to_filled && res.changed_to_filled.length > 0) {
+                        $('#batchProgressLabel').html('<i class="bi bi-check-circle-fill text-success me-1"></i> ' + res.message + ' Memvalidasi ' + res.changed_to_filled.length + ' tabel baru...');
+                        setTimeout(function() {
+                            startBatchValidation('unverified');
+                        }, 600);
+                    } else {
+                        $('#batchProgressLabel').html('<i class="bi bi-check-circle-fill text-success me-1"></i> ' + res.message);
+                        setTimeout(() => {
+                            if (!window.isBatchRunning) $('#batchProgressBox').addClass('d-none');
+                        }, 3500);
+                    }
                 } else {
                     alert("Gagal sinkronisasi data cloud: " + res.message);
                     $('#batchProgressBox').addClass('d-none');
@@ -1094,12 +1104,12 @@
 
         window.isBatchRunning = true;
         consecutiveStopCount = 0;
-        $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi').prop('disabled', true).addClass('opacity-50');
+        $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi, #btnBatchVerifyUnverified').prop('disabled', true).addClass('opacity-50');
         $('#btnStopBatch').removeClass('d-none');
         $('#batchProgressBox').removeClass('d-none');
         $('#batchProgressPercent').text('0%');
         $('#batchProgressBar').css('width', '0%');
-        let labelMode = sourceFilter === 'dinamis' ? 'Tabel Dinamis' : (sourceFilter === 'api' ? 'API Satudata' : 'Semua Tabel');
+        let labelMode = sourceFilter === 'dinamis' ? 'Tabel Dinamis' : (sourceFilter === 'api' ? 'API Satudata' : (sourceFilter === 'unverified' ? 'Tabel Belum Cek' : 'Semua Tabel'));
         $('#batchProgressLabel').html(`<i class="bi bi-cpu-fill text-primary me-1"></i> Memulai validasi (${labelMode})...`);
 
         $.ajax({
@@ -1214,7 +1224,7 @@
         }
         window.isBatchRunning = false;
         if (batchPollTimer) clearTimeout(batchPollTimer);
-        $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi').prop('disabled', false).removeClass('opacity-50');
+        $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi, #btnBatchVerifyUnverified').prop('disabled', false).removeClass('opacity-50');
         $('#btnStopBatch').addClass('d-none');
 
         renderAllMatchedRows();
