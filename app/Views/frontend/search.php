@@ -928,6 +928,84 @@
             border-radius: 12px;
         }
     }
+
+    /* Empty State Styling & Spacing */
+    .empty-state-container {
+        padding: 50px 20px 70px;
+        max-width: 580px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .empty-state-img {
+        max-width: 190px;
+        width: 100%;
+        height: auto;
+        opacity: 0.95;
+        margin-bottom: 22px;
+        transition: transform 0.3s ease;
+    }
+
+    .empty-state-img:hover {
+        transform: translateY(-4px);
+    }
+
+    .empty-state-title {
+        font-family: 'Inter', "Inter Fallback", sans-serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 8px;
+        letter-spacing: -0.2px;
+    }
+
+    .empty-state-subtitle {
+        font-family: 'Inter', "Inter Fallback", sans-serif;
+        font-size: 0.94rem;
+        color: #64748b;
+        margin-bottom: 24px;
+        line-height: 1.5;
+    }
+
+    .btn-reset-search {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 9.5px 26px;
+        border-radius: 50px;
+        font-family: 'Inter', "Inter Fallback", sans-serif;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: var(--bps-blue);
+        border: 1.5px solid var(--bps-blue);
+        background-color: #ffffff;
+        text-decoration: none !important;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(21, 70, 121, 0.06);
+    }
+
+    .btn-reset-search:hover,
+    .btn-reset-search:focus,
+    .btn-reset-search:active {
+        background-color: var(--bps-blue);
+        color: #ffffff !important;
+        border-color: var(--bps-blue);
+        box-shadow: 0 4px 14px rgba(21, 70, 121, 0.2);
+        transform: translateY(-1px);
+        text-decoration: none !important;
+    }
+
+    .btn-reset-search i {
+        font-size: 0.88rem;
+        color: inherit;
+        transition: transform 0.3s ease;
+    }
+
+    .btn-reset-search:hover i {
+        transform: rotate(-180deg);
+    }
 </style>
 
 <div class="page-header text-center">
@@ -1014,14 +1092,11 @@
     }
     ?>
 
+    <?php if (!empty($results)): ?>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <!-- Result Count Text (Pure Text) -->
         <div class="result-count-text">
-            <?php if (!empty($results)): ?>
-                Menampilkan <span class="highlight-num"><?= number_format($start_item, 0, ',', '.') ?>–<?= number_format($end_item, 0, ',', '.') ?></span> dari <span class="highlight-num"><?= number_format($total_count, 0, ',', '.') ?></span> tabel data
-            <?php else: ?>
-                <span>Tidak ada tabel data ditemukan</span>
-            <?php endif; ?>
+            Menampilkan <span class="highlight-num"><?= number_format($start_item, 0, ',', '.') ?>–<?= number_format($end_item, 0, ',', '.') ?></span> dari <span class="highlight-num"><?= number_format($total_count, 0, ',', '.') ?></span> tabel data
         </div>
 
         <!-- View Toggle Buttons -->
@@ -1030,6 +1105,7 @@
             <button class="btn btn-sm view-btn list-btn" onclick="switchView('list')" title="Tampilan List" style="border-radius: 50px; width: 36px; height: 32px; background: var(--bps-blue); color: white; display: flex; align-items: center; justify-content: center; padding: 0;"><i class="fa-solid fa-list"></i></button>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- Main Content List -->
     <div class="row">
@@ -1053,6 +1129,13 @@
                                 $source_type = 'dinamis';
                             }
                             $target = '';
+
+                            $raw_judul = $row->judul_ind ?? '';
+                            if (stripos($raw_judul, '[PERIODE]') !== false && function_exists('format_judul_tabel')) {
+                                $raw_judul = format_judul_tabel($raw_judul, $row->periode_id ?? '');
+                            }
+                            $no_tabel_clean = trim((string)($row->no_tabel ?? ''));
+                            $display_title = (!empty($no_tabel_clean) && !preg_match('/^' . preg_quote($no_tabel_clean, '/') . '\b/i', $raw_judul) ? $no_tabel_clean . ' ' : '') . $raw_judul;
                         ?>
                         <div class="col-lg-3 col-md-6">
                             <div class="table-clean-card">
@@ -1065,8 +1148,8 @@
                                 </div>
 
                                 <!-- 2. Judul -->
-                                <a href="<?= $href ?>" class="tcc-title" title="<?= htmlspecialchars($row->judul_ind) ?>">
-                                    <?= htmlspecialchars($row->judul_ind) ?>
+                                <a href="<?= $href ?>" class="tcc-title" title="<?= htmlspecialchars($display_title) ?>">
+                                    <?= htmlspecialchars($display_title) ?>
                                 </a>
 
                                 <!-- Button Buka -->
@@ -1099,6 +1182,13 @@
                             $source_type = 'dinamis';
                         }
                         $target = '';
+
+                        $raw_judul = $row->judul_ind ?? '';
+                        if (stripos($raw_judul, '[PERIODE]') !== false && function_exists('format_judul_tabel')) {
+                            $raw_judul = format_judul_tabel($raw_judul, $row->periode_id ?? '');
+                        }
+                        $no_tabel_clean = trim((string)($row->no_tabel ?? ''));
+                        $display_title = (!empty($no_tabel_clean) && !preg_match('/^' . preg_quote($no_tabel_clean, '/') . '\b/i', $raw_judul) ? $no_tabel_clean . ' ' : '') . $raw_judul;
                     ?>
                         <div class="result-card">
                             <div class="rc-number">
@@ -1106,8 +1196,8 @@
                             </div>
                             
                             <div class="rc-content">
-                                <a href="<?= $href ?>" <?= $target ?> class="rc-title">
-                                    <?= htmlspecialchars($row->judul_ind) ?>
+                                <a href="<?= $href ?>" <?= $target ?> class="rc-title" title="<?= htmlspecialchars($display_title) ?>">
+                                    <?= htmlspecialchars($display_title) ?>
                                 </a>
                                 
                                 <div class="rc-meta">
@@ -1213,11 +1303,14 @@
                     </div>
                 <?php endif; ?>
             <?php else: ?>
-                <div class="text-center py-5">
-                    <img src="<?= base_url('aset/img/empty-box.svg') ?>" alt="Data tidak ditemukan" style="max-width: 200px; opacity: 0.6; margin-bottom: 20px;">
-                    <h4 class="text-muted fw-bold">Tidak Ada Data Ditemukan</h4>
-                    <p class="text-muted">Maaf, tabel dengan kata kunci atau filter tersebut tidak tersedia.</p>
-                    <a href="<?= base_url('home/search') ?>" class="btn btn-outline-primary mt-3 rounded-pill px-4">Tampilkan Semua Data</a>
+                <div class="empty-state-container">
+                    <img src="<?= base_url('aset/img/empty-box.svg') ?>" alt="Data tidak ditemukan" class="empty-state-img">
+                    <h4 class="empty-state-title">Tidak Ada Data Ditemukan</h4>
+                    <p class="empty-state-subtitle">Maaf, tabel dengan kata kunci atau filter tersebut tidak tersedia.</p>
+                    <a href="<?= base_url('home/search') ?>" class="btn-reset-search">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span>Tampilkan Semua Data</span>
+                    </a>
                 </div>
             <?php endif; ?>
         </div>
@@ -1448,7 +1541,7 @@ $(document).ready(function() {
     });
 
     // 5. Intercept "Tampilkan Semua Data" reset button in empty state
-    $(document).on('click', '#search-results-container a.btn-outline-primary', function(e) {
+    $(document).on('click', '#search-results-container .btn-reset-search, #search-results-container a.btn-outline-primary', function(e) {
         if ($(this).text().includes('Tampilkan Semua Data')) {
             e.preventDefault();
             $qInput.val('');

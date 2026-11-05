@@ -84,6 +84,10 @@
 
         // Cek integer murni e.g. "25", "100"
         if (/^-?\d+$/.test(clean)) {
+            // Khusus tahun 4 digit (misal 2025, 2024, 2023): gunakan format angka polos '0' agar tidak ber-titik ribuan (2.025)
+            if (/^(19\d\d|20\d\d)$/.test(clean)) {
+                return { isNumeric: true, value: parseInt(clean, 10), format: '0' };
+            }
             const val = parseInt(clean, 10);
             return { isNumeric: !isNaN(val), value: val, format: '#,##0' };
         }
@@ -260,11 +264,15 @@
                     itemTitleId = itemTitleId.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
                     itemTitleEn = itemTitleEn.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-                    // Catatan & Sumber Footer
-                    const footerEl = wrapperEl?.querySelector('div[style*="font-size: 11px"]') ||
-                                     wrapperEl?.querySelector('.table-footer-notes') ||
-                                     document.querySelector('.table-wrapper div[style*="font-size: 11px"]');
+                    // Catatan & Sumber Footer (Hanya ambil kontainer footer resmi di luar tabel)
+                    const footerEl = wrapperEl?.querySelector('.table-footer-notes') ||
+                                     wrapperEl?.querySelector('.table-footer') ||
+                                     Array.from(wrapperEl?.querySelectorAll('div[style*="font-size: 11px"]') || []).find(el => !el.closest('table') && !el.classList.contains('header-subtitle')) ||
+                                     document.querySelector('.table-footer-notes');
                     let footerLines = footerEl ? footerEl.innerText.split('\n').map(l => l.trim()).filter(Boolean) : [];
+
+                    // Hanya izinkan teks yang memang berupa Sumber atau Catatan (buang subtitle header tabel seperti "Industrial Classification")
+                    footerLines = footerLines.filter(l => /^(sumber|source|catatan|note)\b/i.test(l));
 
                     // Pastikan sumber instansi/OPD disertakan di bawah (footer)
                     const hasSumberInFooter = footerLines.some(l => l.toLowerCase().startsWith('sumber') || l.toLowerCase().startsWith('source'));
@@ -327,11 +335,47 @@
                     // ==========================================
                     // 2. PARSING STRUKTUR TABEL (thead, tbody)
                     // ==========================================
-                    const rows = tableEl.querySelectorAll('tr');
+                    const allTrs = Array.from(tableEl.querySelectorAll('tr')).filter(tr => window.getComputedStyle(tr).display !== 'none');
 
-                    rows.forEach(tr => {
-                        if (window.getComputedStyle(tr).display === 'none') return;
+                    // Pre-identifikasi baris-baris total (mendukung multi-tahun / runtunan tahun Jawa Tengah)
+                    const totalRowIndices = new Set();
+                    let remainingTotalSpan = 0;
 
+                    allTrs.forEach((tr, idx) => {
+                        if (tr.closest('thead')) return;
+                        const txt = tr.innerText.toLowerCase();
+                        const cells = tr.querySelectorAll('th, td');
+                        const firstTxt = cells.length > 0 ? cells[0].innerText.trim().toLowerCase() : '';
+                        const isCat = (cells.length === 1 || firstTxt.startsWith('kabupaten /') || firstTxt.startsWith('kota /') || firstTxt === 'kabupaten' || firstTxt === 'kota');
+                        if (isCat) return;
+
+                        let isTot = (
+                            remainingTotalSpan > 0 ||
+                            tr.classList.contains('grand-total-row') ||
+                            tr.classList.contains('row-total') ||
+                            tr.classList.contains('total-row') ||
+                            tr.classList.contains('bg-total') ||
+                            txt.includes('jawa tengah') ||
+                            txt.includes('total') ||
+                            firstTxt.startsWith('jumlah')
+                        );
+
+                        if (isTot) {
+                            totalRowIndices.add(idx);
+                            cells.forEach(td => {
+                                const rs = parseInt(td.getAttribute('rowspan')) || 1;
+                                if (rs > 1) {
+                                    remainingTotalSpan = Math.max(remainingTotalSpan, rs);
+                                }
+                            });
+                        }
+
+                        if (remainingTotalSpan > 0) {
+                            remainingTotalSpan--;
+                        }
+                    });
+
+                    allTrs.forEach((tr, trIdx) => {
                         const isThead = tr.closest('thead') !== null;
                         const isNumRow = tr.classList.contains('num-row') || 
                                          (tr.innerText && /^\s*\(\d+\)[\s\(\)\d]*$/.test(tr.innerText.trim()));
@@ -350,14 +394,10 @@
                             rawFirstCellText === 'Kota'
                         );
 
-                        // Deteksi Baris Total / Jawa Tengah pada level baris (TR)
-                        const trText = tr.innerText.toLowerCase();
-                        const isTotalRow = !isThead && !isCategoryHeader && (
-                            trText.includes('total') || 
-                            trText.includes('jawa tengah') ||
-                            tr.classList.contains('total-row') ||
-                            tr.classList.contains('bg-total')
-                        );
+                        // Deteksi Baris Total / Jawa Tengah (termasuk seluruh runtunan tahun)
+                        const isTotalRow = !isThead && !isCategoryHeader && totalRowIndices.has(trIdx);
+                        const isFirstTotalRow = isTotalRow && !totalRowIndices.has(trIdx - 1);
+                        const isLastTotalRow = isTotalRow && !totalRowIndices.has(trIdx + 1);
 
                         worksheet.getRow(currentRow).height = isCategoryHeader ? 22 : (isNumRow ? 18 : (isThead ? 26 : 20));
 
@@ -467,7 +507,7 @@
                                 const isDash = parsed.isDash || (rawText === '-' || rawText === '–' || rawText === '—');
 
                                 if (isTotalRow) {
-                                    // Baris Total / Jawa Tengah: Garis atas tegas & garis bawah ganda memanjang di seluruh kolom
+                                    // Baris Total / Jawa Tengah (Single atau Runtunan Tahun): Garis atas tegas untuk awal & garis bawah ganda untuk penutup
                                     cellRef.font = {
                                         name: 'Arial',
                                         size: 9.5,
@@ -475,10 +515,10 @@
                                         color: { argb: 'FF000000' }
                                     };
                                     cellRef.border = {
-                                        top: { style: 'thin', color: { argb: 'FF000000' } },
-                                        bottom: { style: 'double', color: { argb: 'FF000000' } },
-                                        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                                        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                                        top: isFirstTotalRow ? { style: 'thin', color: { argb: 'FF000000' } } : { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                        bottom: isLastTotalRow ? { style: 'double', color: { argb: 'FF000000' } } : { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                        left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                        right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
                                     };
                                 } else {
                                     // Baris data biasa: Garis tipis rapi di seluruh sel
@@ -519,7 +559,16 @@
                                 for (let r = 0; r < rowspan; r++) {
                                     for (let c = 0; c < colspan; c++) {
                                         const mCell = worksheet.getCell(currentRow + r, currentCol + c);
-                                        mCell.border = cellRef.border;
+                                        if (isTotalRow) {
+                                            mCell.border = {
+                                                top: (r === 0 && isFirstTotalRow) ? { style: 'thin', color: { argb: 'FF000000' } } : { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                                bottom: (r === rowspan - 1 && isLastTotalRow) ? { style: 'double', color: { argb: 'FF000000' } } : { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                                left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                                right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                                            };
+                                        } else {
+                                            mCell.border = cellRef.border;
+                                        }
                                     }
                                 }
                             }
@@ -531,15 +580,16 @@
                             currentCol += colspan;
                         });
 
-                        // Memastikan baris Total / Jawa Tengah memiliki border memanjang utuh di semua kolom (termasuk di atas angka)
+                        // Memastikan setiap baris Total / Jawa Tengah (seluruh runtunan tahun) memiliki border utuh di semua kolom
                         if (isTotalRow) {
                             for (let c = 1; c <= maxActualCol; c++) {
                                 const totalCell = worksheet.getCell(currentRow, c);
+                                const currB = totalCell.border || {};
                                 totalCell.border = {
-                                    top: { style: 'thin', color: { argb: 'FF000000' } },
-                                    bottom: { style: 'double', color: { argb: 'FF000000' } },
-                                    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
-                                    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                                    top: isFirstTotalRow ? { style: 'thin', color: { argb: 'FF000000' } } : (currB.top || { style: 'thin', color: { argb: 'FFD1D5DB' } }),
+                                    bottom: isLastTotalRow ? { style: 'double', color: { argb: 'FF000000' } } : { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                    left: currB.left || { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                    right: currB.right || { style: 'thin', color: { argb: 'FFD1D5DB' } }
                                 };
                                 if (totalCell.font) {
                                     totalCell.font.bold = true;

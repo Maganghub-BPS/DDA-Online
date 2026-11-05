@@ -19,7 +19,7 @@ class Home extends BaseController
     public function index()
     {
         $recent_tables = $this->frontendModel->getRecentTables(15);
-        $opd_list = $this->frontendModel->getTopOpdList();
+        $opd_list = $this->frontendModel->getInstansiList();
         $stats = $this->frontendModel->getPortalStats();
 
         $data = [
@@ -224,13 +224,37 @@ class Home extends BaseController
                 return redirect()->to('/home/search')->with('error', 'Tabel data belum dipublikasikan untuk umum.');
             }
 
+            $no_tabel = !empty($dda_info->no_tabel) ? trim($dda_info->no_tabel) : '';
+            $req_tahun = $this->request->getGet('tahun') ?: $this->request->getGet('years');
+            $periode_id = !empty($req_tahun) ? $req_tahun : ($dda_info->periode_id ?? '');
+            $raw_title_ind = $dda_info->judul_ind ?? ($meta_info['title'] ?? $meta_info['judul'] ?? '');
+            $raw_title_en  = $dda_info->judul_en ?? ($meta_info['title_en'] ?? '');
+
+            $formatted_title = function_exists('format_judul_tabel')
+                ? format_judul_tabel($raw_title_ind, $periode_id)
+                : $raw_title_ind;
+
+            $formatted_title_en = function_exists('format_judul_tabel')
+                ? format_judul_tabel($raw_title_en, $periode_id, 'en')
+                : $raw_title_en;
+
+            if (!empty($no_tabel)) {
+                if (!preg_match('/^Tabel\s+/i', $formatted_title)) {
+                    $formatted_title = 'Tabel ' . $no_tabel . ' ' . $formatted_title;
+                }
+                if (!empty($formatted_title_en) && !preg_match('/^Table\s+/i', $formatted_title_en)) {
+                    $formatted_title_en = 'Table ' . $no_tabel . ' ' . $formatted_title_en;
+                }
+            }
+
             $final_res = $meta_info ?? [];
             $final_res['data']           = $all_rows;
             $final_res['res_id']         = $dda_info->id ?? 0;
-            $final_res['dda_title']      = $dda_info->judul_ind ?? '';
-            $final_res['dda_title_en']   = $dda_info->judul_en ?? '';
+            $final_res['no_tabel']       = $no_tabel;
+            $final_res['dda_title']      = $formatted_title;
+            $final_res['dda_title_en']   = $formatted_title_en;
             $final_res['config_tabel']   = $dda_info->config_tabel ?? null;
-            $final_res['unitkerja_ind']  = $dda_info->unitkerja_ind ?? '-';
+            $final_res['unitkerja_ind']  = $dda_info->unitkerja_ind ?? ($meta_info['instansi'] ?? $meta_info['opd'] ?? '-');
             $final_res['unitkerja_en']   = $dda_info->unitkerja_en ?? '-';
             $final_res['id_api']         = $id_p;
 
@@ -433,7 +457,12 @@ class Home extends BaseController
                 $rawReqList = is_array($reqYears) ? $reqYears : explode(',', (string)$reqYears);
             }
 
-            $selected_years = $this->tabelDinamisModel->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
+            if (!empty($rawReqList)) {
+                $selected_years = $this->tabelDinamisModel->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
+            } else {
+                // Default saat tabel diklik di frontend: tampilkan semua tahun yang tersedia
+                $selected_years = !empty($available_years) ? $available_years : [$thDataDefault];
+            }
             sort($selected_years);
 
             // Ambil seluruh sel nilai
@@ -482,7 +511,7 @@ class Home extends BaseController
             : ($dda_info->judul_en ?? '');
 
         $data = [
-            'title'            => $display_title,
+            'title'            => 'Lihat Tabel',
             'display_title'    => $display_title,
             'display_title_en' => $display_title_en,
             'tabel'            => $dda_info,
