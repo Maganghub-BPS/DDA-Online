@@ -180,7 +180,7 @@
                             }
                             ?>
                             <div class="d-flex flex-column gap-1">
-                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary" style="font-size: 0.95rem; line-height: 1.4;">
+                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary" style="font-size: 0.95rem; line-height: 1.4;" title="Klik untuk membuka dan mengisi tabel">
                                     <?php echo htmlspecialchars($judul_bersih); ?>
                                 </a>
                                 <div class="d-flex align-items-center gap-2 mt-1">
@@ -288,14 +288,9 @@
                                     <span class="badge bg-danger-subtle text-danger border-0 align-self-start status-badge">
                                         <i class="bi bi-dash-circle-fill me-1"></i> BELUM DIISI
                                     </span>
-                                    <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
-                                        <?php if($is_dynamic): ?>
-                                            <a href="<?php echo $tabel_url; ?>"
-                                               class="btn btn-action-sm btn-primary text-white shadow-sm"
-                                               title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
-                                                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Isi Data
-                                            </a>
-                                            <?php if ($is_bps_user): ?>
+                                    <?php if($is_dynamic): ?>
+                                        <?php if ($is_bps_user): ?>
+                                            <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
                                                 <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
                                                         data-id="<?php echo $b->id; ?>" 
                                                         data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
@@ -303,8 +298,10 @@
                                                         title="Tambahkan atau Ubah Catatan untuk Walidata">
                                                     <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
                                                 </button>
-                                            <?php endif; ?>
-                                        <?php else: ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
                                             <a href="javascript:;"
                                                class="btn btn-action-sm btn-warning text-white btn-isi-data shadow-sm"
                                                data-id="<?php echo $b->id; ?>"
@@ -312,8 +309,8 @@
                                                data-unit="<?php echo htmlspecialchars($b->id_unitkerja, ENT_QUOTES); ?>">
                                                 <i class="bi bi-plus-circle me-1"></i> Update Status
                                             </a>
-                                        <?php endif; ?>
-                                    </div>
+                                        </div>
+                                    <?php endif; ?>
                                     <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
                                         <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
                                             <div class="fw-bold text-warning-emphasis mb-0.5">
