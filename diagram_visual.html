@@ -74,23 +74,25 @@
   <div class="container">
     <span class="badge">BPS Provinsi Jawa Tengah</span>
     <h1>📊 Arsitektur Tabel Dinamis DDA (Versi Presentasi)</h1>
-    <div class="subtitle">Diagram sederhana dan terfokus untuk bahan presentasi & penjelasan logika data</div>
+    <div class="subtitle">Diagram sederhana dan terfokus untuk bahan presentasi &amp; penjelasan logika data</div>
 
     <!-- DIAGRAM 1 -->
     <div class="card">
       <h2>📌 Diagram 1: Hubungan Antar Tabel (3 Lapisan Logika)</h2>
-      <p>Menjelaskan pemisahan data dari Judul Master, Perakitan Dimensi, hingga Titik Nilai Sel.</p>
+      <p>Menjelaskan pemisahan data dari Judul Master, Status Publikasi Tahunan &amp; Konfigurasi API, Perakitan Dimensi, hingga Titik Nilai Sel.</p>
       <div class="mermaid">
 flowchart TD
-    subgraph L1["LAPISAN 1: MASTER PUBLIKASI DDA"]
+    subgraph L1["LAPISAN 1: MASTER PUBLIKASI & STATUS TAHUNAN"]
         MLT["<b>m_list_tabel</b><br>(Kamus Judul Master BPS)"]
-        TTT["<b>t_tahun_tabel</b><br>(Edisi Tahun: 2023, 2024, 2025)"]
-        MLT -->|1 : N| TTT
+        TST["<b>t_status_tahunan</b><br>(Edisi Publikasi Tahunan: 2024, 2025, 2026)"]
+        MKA["<b>m_konfigurasi_api</b><br>(Integrasi API SatuData/Portal)"]
+        MLT -->|1 : N| TST
+        MLT -->|1 : 1| MKA
     end
 
-    subgraph L2["LAPISAN 2: PERAKITAN MATRIKS"]
+    subgraph L2["LAPISAN 2: PERAKITAN MATRIKS DINAMIS"]
         MIT["<b>m_indikator_tabel</b><br>(Otak Perakitan Matriks)"]
-        TTT -->|1 : 1| MIT
+        MLT -->|1 : 1| MIT
 
         subgraph DIMS["Kamus 3 Dimensi Reusable"]
             KOL["<b>Dimensi Kolom</b><br>m_karakteristik_kelompok<br>↓<br>m_karakteristik_item"]
@@ -103,8 +105,8 @@ flowchart TD
         MIT -->|Merakit Waktu| WKT
     end
 
-    subgraph L3["LAPISAN 3: SEL ANGKA DATA"]
-        TND["<b>t_nilai_dinamis</b><br>Perpotongan Sel: [Tabel] x [Baris] x [Kolom] x [Waktu] = Nilai Angka BPS"]
+    subgraph L3["LAPISAN 3: SEL ANGKA DATA MULTI-TAHUN"]
+        TND["<b>t_nilai_dinamis</b><br>Perpotongan Sel: [Tabel] x [Tahun Data] x [Baris] x [Kolom] x [Waktu] = Nilai Angka BPS"]
         KOL --> TND
         BAR --> TND
         WKT --> TND
@@ -123,14 +125,15 @@ flowchart TD
       <p>Hanya menampilkan kolom kunci utama yang menghubungkan seluruh tabel ke sel nilai.</p>
       <div class="mermaid">
 flowchart TD
-    MLT["m_list_tabel<br>🔑 <b>id</b>"] -->|id -> id_tabel| TTT["t_tahun_tabel<br>🔗 <b>id_tabel</b><br>🔑 <b>id</b>"]
-    TTT -->|id -> id_tahun_tabel| MIT["m_indikator_tabel<br>🔗 <b>id_tahun_tabel</b><br>🔑 <b>id</b>"]
+    MLT["m_list_tabel<br>🔑 <b>id</b>"] -->|id -> id_tabel| TST["t_status_tahunan<br>🔗 <b>id_tabel</b><br>🔑 <b>id</b>"]
+    MLT -->|id -> id_tabel| MKA["m_konfigurasi_api<br>🔗 <b>id_tabel</b> (UK)<br>🔑 <b>id</b>"]
+    MLT -->|id -> id_tabel| MIT["m_indikator_tabel<br>🔗 <b>id_tabel</b> (UK)<br>🔑 <b>id</b>"]
 
     MIT -->|id_karakteristik_kelompok| MKI["m_karakteristik_item<br>🔑 <b>id</b> (Kolom / X)"]
     MIT -->|id_baris_kelompok| MBI["m_baris_item<br>🔑 <b>id</b> (Baris / Y)"]
     MIT -->|id_periode_kelompok| MPI["m_periode_item<br>🔑 <b>id</b> (Waktu / Z)"]
 
-    MIT -->|id| TND["<b>t_nilai_dinamis</b><br>───────────────<br>🔗 <b>id_indikator</b> (Tabel)<br>🔗 <b>id_baris_item</b> (Baris)<br>🔗 <b>id_karakteristik_item</b> (Kolom)<br>🔗 <b>id_periode_item</b> (Waktu)<br>───────────────<br>📊 <b>nilai</b> (Angka Sel)<br>🔣 <b>simbol</b> (-, NA)"]
+    MIT -->|id| TND["<b>t_nilai_dinamis</b><br>───────────────<br>🔗 <b>id_indikator</b> (Tabel)<br>📅 <b>tahun_data</b> (2023, 2024, 2025)<br>🔗 <b>id_baris_item</b> (Baris)<br>🔗 <b>id_karakteristik_item</b> (Kolom)<br>🔗 <b>id_periode_item</b> (Waktu/Sub-periode)<br>───────────────<br>📊 <b>nilai</b> (Angka Sel BPS)<br>🔣 <b>simbol</b> (-, NA)"]
     MKI -->|id| TND
     MBI -->|id| TND
     MPI -->|id| TND
