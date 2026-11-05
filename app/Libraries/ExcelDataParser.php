@@ -72,10 +72,38 @@ class ExcelDataParser
             ];
         }
 
-        $idTahunTabelExcel = (int)($metaPayload['id_tahun_tabel'] ?? 0);
-        $idIndikatorExcel  = (int)($metaPayload['id_indikator'] ?? 0);
+        $idTahunTabelExcel = (int)($metaPayload['id_tahun_tabel'] ?? ($metaSheet->getCell('B3')->getValue() ?: 0));
+        $idIndikatorExcel  = (int)($metaPayload['id_indikator'] ?? ($metaSheet->getCell('B4')->getValue() ?: 0));
         $idMasterExcel     = (int)($metaPayload['id_master_tabel'] ?? 0);
         $tahunExcel        = (int)($metaPayload['tahun_data'] ?? ($metaPayload['tahun'] ?? ($metaSheet->getCell('B16')->getValue() ?: $metaSheet->getCell('B6')->getValue())));
+        $dataStartRowExcel = (int)($metaPayload['data_start_row'] ?? ($metaSheet->getCell('B10')->getValue() ?: 0));
+        $dataEndRowExcel   = (int)($metaPayload['data_end_row'] ?? ($metaSheet->getCell('B11')->getValue() ?: 0));
+        $checksumExcel     = trim((string)($metaPayload['checksum'] ?? ($metaSheet->getCell('B14')->getValue() ?: '')));
+
+        // Hitung total kolom data (leaf columns)
+        $totalCols = (int)($metaPayload['total_cols'] ?? (isset($metaPayload['leaf_columns']) ? count($metaPayload['leaf_columns']) : 0));
+        if ($totalCols <= 0) {
+            $colStartStr = trim((string)$metaSheet->getCell('B12')->getValue());
+            $colEndStr   = trim((string)$metaSheet->getCell('B13')->getValue());
+            if ($colStartStr !== '' && $colEndStr !== '') {
+                $totalCols = Coordinate::columnIndexFromString($colEndStr) - Coordinate::columnIndexFromString($colStartStr) + 1;
+            }
+        }
+
+        // 3. Verifikasi Keamanan Hash Checksum (Anti-Tampering Integrity Check)
+        if (empty($checksumExcel)) {
+            throw new \Exception("Token keamanan (Checksum) pada lembar metadata tidak ditemukan. Pastikan Anda mengunggah berkas template resmi yang diunduh dari sistem DDA Online.");
+        }
+
+        $v1Payload = $idTahunTabelExcel . '|' . $idIndikatorExcel . '|' . $dataStartRowExcel . '|' . $dataEndRowExcel . '|' . $totalCols;
+        $v1Hash    = hash('sha256', $v1Payload . '|' . self::SECRET_SALT);
+
+        $v2Payload = $v1Payload . '|' . $tahunExcel;
+        $v2Hash    = hash('sha256', $v2Payload . '|' . self::SECRET_SALT);
+
+        if (!hash_equals($v1Hash, $checksumExcel) && !hash_equals($v2Hash, $checksumExcel)) {
+            throw new \Exception("Checksum keamanan berkas template Excel tidak valid! Lembar metadata tersembunyi telah dimodifikasi atau rusak. Pengunggahan ditolak demi integritas data.");
+        }
 
         $activeTa = (int)date('Y');
         if (PHP_SAPI !== 'cli' && function_exists('session')) {
@@ -87,7 +115,7 @@ class ExcelDataParser
             } catch (\Throwable $eSess) {}
         }
         $defaultTargetYear = $activeTa - 1;
-        $targetTahun = ($tahunInputOverride !== null && (int)$tahunInputOverride > 0) ? (int)$tahunInputOverride : $defaultTargetYear;
+        $targetTahun = ($tahunInputOverride !== null && (int)$tahunInputOverride > 0) ? (int)$tahunInputOverride : ($tahunExcel > 0 ? $tahunExcel : $defaultTargetYear);
 
         // Validasi Opsi 1: Cek integritas metadata tahun data pada template Excel
         if ($tahunExcel <= 0) {
@@ -95,7 +123,7 @@ class ExcelDataParser
         }
 
         // Validasi Opsi 1: Strict Match - Tolak jika tahun template Excel tidak sama dengan target tahun data
-        if ($targetTahun > 0 && $tahunExcel !== $targetTahun) {
+        if ($tahunInputOverride !== null && (int)$tahunInputOverride > 0 && $tahunExcel !== (int)$tahunInputOverride) {
             throw new \Exception("Tahun data pada berkas template Excel ({$tahunExcel}) tidak sesuai dengan tahun data target ({$targetTahun}) pada DDA {$activeTa}. Pengunggahan dibatalkan untuk mencegah kesalahan data lintas tahun. Harap gunakan berkas template resmi untuk data tahun {$targetTahun}.");
         }
 

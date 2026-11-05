@@ -29,6 +29,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) {
 			$ta = date('Y');
@@ -93,6 +94,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$a['page']	= "f_kalender";
 
 		return view('admin/index', $a);
@@ -103,6 +105,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -150,6 +153,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		/* pagination */
 		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM t_admin")->getRow()->total ?? 0);
@@ -281,6 +285,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$idu					= $this->session->get('admin_id');
 		$mau_ke					= $this->uri->segment(3);
 
@@ -312,6 +317,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$ke				= $this->uri->segment(3);
 		$id_user		= $this->session->get('admin_id');
@@ -410,6 +416,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$ta = $this->session->get('admin_ta');
 		parse_str($_SERVER['QUERY_STRING'], $_GET);
 
@@ -450,6 +457,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) {
@@ -630,9 +638,10 @@ class Admin extends BaseController
 					COALESCE(t.is_confirm, '0') as is_confirm,
 					COALESCE(t.is_publish, 0) as is_publish,
 					CASE 
-						WHEN t.is_periksa = 1 THEN 1
-						WHEN nd.id_indikator IS NOT NULL THEN 1
+						WHEN (m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+							CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
 						WHEN m.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE '%portal%' OR COALESCE(ka.link_api, '') LIKE '%satudata%') THEN 1
+						WHEN t.is_periksa = 1 THEN 1
 						ELSE 0
 					END as is_periksa,
 					t.catatan_periksa, t.catatan,
@@ -649,12 +658,12 @@ class Admin extends BaseController
 				LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
 				LEFT JOIN (
-					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE (tahun_data = ? OR tahun_data = ?) AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
 				) nd ON nd.id_indikator = mi.id
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				WHERE m.id_unitkerja = ? AND m.is_active = 1
 				ORDER BY m.no_tabel ASC, m.id ASC
-			", [$thDda, "%$thDataStr%", $thDda, $thData, (int)$thDda, $id_unitkerja])->getResult();
+			", [$thDda, "%$thDataStr%", $thDda, $thData, $id_unitkerja])->getResult();
 			$a['page'] = "l_dda";
 		} else if ($mau_ke == "periksa_tabel") {
 			$id_unitkerja = $this->input->get('id');
@@ -671,9 +680,10 @@ class Admin extends BaseController
 					COALESCE(t.is_confirm, '0') as is_confirm,
 					COALESCE(t.is_publish, 0) as is_publish,
 					CASE 
-						WHEN t.is_periksa = 1 THEN 1
-						WHEN nd.id_indikator IS NOT NULL THEN 1
+						WHEN (m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+							CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
 						WHEN m.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE '%portal%' OR COALESCE(ka.link_api, '') LIKE '%satudata%') THEN 1
+						WHEN t.is_periksa = 1 THEN 1
 						ELSE 0
 					END as is_periksa,
 					t.catatan_periksa, t.catatan,
@@ -690,14 +700,14 @@ class Admin extends BaseController
 				LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
 				LEFT JOIN (
-					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE (tahun_data = ? OR tahun_data = ?) AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
 				) nd ON nd.id_indikator = mi.id
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				WHERE m.id_unitkerja = ? AND m.is_active = 1
 				$whereConfirm
 				ORDER BY m.no_tabel ASC, m.id ASC
 				LIMIT ?, ?
-			", [$thDda, "%$thDataStr%", $thDda, $thData, (int)$thDda, $id_unitkerja, (int)$awal, (int)$akhir])->getResult();
+			", [$thDda, "%$thDataStr%", $thDda, $thData, $id_unitkerja, (int)$awal, (int)$akhir])->getResult();
 			$a['page'] = "l_dda_periksa";
 		} else {
 			$unitkerjalogin = $this->session->get('admin_unitkerja');
@@ -754,9 +764,10 @@ class Admin extends BaseController
 						COALESCE(t.is_confirm, '0') as is_confirm,
 						COALESCE(t.is_publish, 0) as is_publish,
 						CASE 
-							WHEN t.is_periksa = 1 THEN 1
-							WHEN nd.id_indikator IS NOT NULL THEN 1
+							WHEN (m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+								CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
 							WHEN m.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE '%portal%' OR COALESCE(ka.link_api, '') LIKE '%satudata%') THEN 1
+							WHEN t.is_periksa = 1 THEN 1
 							ELSE 0
 						END as is_periksa,
 						t.catatan_periksa, t.catatan,
@@ -773,12 +784,12 @@ class Admin extends BaseController
 					LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
 					LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
 					LEFT JOIN (
-						SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE (tahun_data = ? OR tahun_data = ?) AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+						SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
 					) nd ON nd.id_indikator = mi.id
 					LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 					WHERE m.id_unitkerja = ? AND m.is_active = 1
 					ORDER BY m.no_tabel ASC, m.id ASC
-				", [$thDda, "%$thDataStr%", $thDda, $thData, (int)$thDda, $unitkerjalogin])->getResult();
+				", [$thDda, "%$thDataStr%", $thDda, $thData, $unitkerjalogin])->getResult();
 				$a['page'] = "l_dda";
 			}
 		}
@@ -793,6 +804,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		// Email settings moved to actions
 
@@ -1217,6 +1229,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 		$a['ta'] = $ta;
@@ -1821,6 +1834,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$jenis_rekap = $this->request->getPost('jenis_rekap') ?? '0';
 
 		$a['jenis_rekap'] = $jenis_rekap;
@@ -1834,6 +1848,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 
@@ -2011,6 +2026,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		/* pagination */
 		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_unitkerja")->getRow()->total ?? 0);
 		$per_page		= 10;
@@ -2093,8 +2109,41 @@ class Admin extends BaseController
 		return redirect()->to('admin/index');
 	}
 
+	/**
+	 * Cek apakah user yang login memiliki hak istimewa Admin BPS / Super Admin
+	 */
+	private function isAdminBps(): bool
+	{
+		if (!$this->session->get('admin_valid')) {
+			return false;
+		}
+		$unitkerja = (string)$this->session->get('admin_unitkerja');
+		$level = strtolower((string)$this->session->get('admin_level'));
+		return ($unitkerja === 'bps' || in_array($level, ['admin', 'super admin', 'superadmin'], true));
+	}
+
+	/**
+	 * Cek apakah user berwenang mengelola tabel tertentu (Admin BPS atau pemilik unit kerja tabel)
+	 */
+	private function canManageTable($tabel): bool
+	{
+		if (!$this->session->get('admin_valid')) {
+			return false;
+		}
+		if ($this->isAdminBps()) {
+			return true;
+		}
+		$unitkerja = (string)$this->session->get('admin_unitkerja');
+		$tableUnitkerja = is_object($tabel) ? ($tabel->id_unitkerja ?? '') : ($tabel['id_unitkerja'] ?? '');
+		return (!empty($unitkerja) && !empty($tableUnitkerja) && (string)$tableUnitkerja === $unitkerja);
+	}
+
 	public function act_update_isi()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
 		$id_tabel = (int)$this->input->post('id_tabel');
 		$catatan  = $this->input->post('catatan_periksa');
 		$ta       = (int)($this->session->get('admin_ta') ?: date('Y'));
@@ -2102,6 +2151,11 @@ class Admin extends BaseController
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$ctx = $mTabelDinamis->resolveTableContext($id_tabel, $ta);
 		$id_master = $ctx['id_tabel'] ?: $id_tabel;
+
+		if (!$ctx['tabel'] || !$this->canManageTable($ctx['tabel'])) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda hanya berwenang mengubah status tabel instansi Anda sendiri.</div>');
+			return redirect()->back();
+		}
 
 		if ($id_master > 0) {
 			$mTabelDinamis->upsertStatusTahunan($id_master, $ta, [
@@ -2115,11 +2169,20 @@ class Admin extends BaseController
 
 	public function batal_isi($id)
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
 		$id_tabel = (int)$id;
 		$ta       = (int)($this->session->get('admin_ta') ?: date('Y'));
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$ctx = $mTabelDinamis->resolveTableContext($id_tabel, $ta);
 		$id_master = $ctx['id_tabel'] ?: $id_tabel;
+
+		if (!$ctx['tabel'] || !$this->canManageTable($ctx['tabel'])) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda hanya berwenang membatalkan pengisian tabel instansi Anda sendiri.</div>');
+			return redirect()->back();
+		}
 
 		if ($ctx['tabel']) {
 			$link_tabel = $ctx['tahun_tabel']->link_tabel ?? '';
@@ -2145,9 +2208,9 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		// Keamanan: Hanya akun BPS yang berwenang membatalkan verifikasi
-		if ($this->session->get('admin_unitkerja') != 'bps') {
-			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Hanya BPS yang berwenang membatalkan verifikasi data.</div>');
+		// Keamanan: Hanya akun Admin BPS yang berwenang membatalkan verifikasi data
+		if (!$this->isAdminBps()) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Hanya Admin BPS yang berwenang membatalkan verifikasi data.</div>');
 			return redirect()->back();
 		}
 
@@ -2239,10 +2302,7 @@ class Admin extends BaseController
 					$thDataCheck = (int)$ta - 1;
 					$has_nilai = ($this->db->table('t_nilai_dinamis')
 						->where('id_indikator', (int)$ctx['indikator']->id)
-						->groupStart()
-							->where('tahun_data', $thDataCheck)
-							->orWhere('tahun_data', (int)$ta)
-						->groupEnd()
+						->where('tahun_data', $thDataCheck)
 						->countAllResults() > 0);
 					if ($has_nilai) {
 						$is_filled = true;
@@ -2441,6 +2501,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		// Batasi hak akses hanya untuk Super Admin dan Admin (Diseminasi)
 		$user_lvl = strtolower(trim((string)($this->session->get('admin_level') ?? '')));
 		$admin_user = strtolower(trim((string)($this->session->get('admin_user') ?? '')));
@@ -2629,6 +2690,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 		$jenis_rekap = $this->input->post('jenis_rekap');
 		$ta = (int)($this->session->get('admin_ta') ?: date('Y'));
 		if ($jenis_rekap == '0') {
@@ -2883,6 +2945,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$id_api = $this->request->getGet('id') ?: $this->request->getGet('id_api');
 		if (empty($id_api) && !empty($seg_id)) {
 			$id_api = $seg_id;
@@ -3064,6 +3127,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$ta_input = trim((string)($this->request->getPost('tahun') ?? ''));
 		$ta       = !empty($ta_input) ? $ta_input : ($this->session->get('admin_ta') ?: date('Y'));
 
@@ -3136,6 +3200,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$selected_indices = $this->request->getPost('id_selected'); // Ini array index (0, 1, 2...)
 		$id_tabels        = $this->request->getPost('id_tabel_final'); // Array [index => id_tabel]
@@ -3233,6 +3298,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		// Keamanan: Hak akses dibatasi hanya untuk Super Admin
 		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
 		if (!in_array($user_lvl, ['super admin', 'superadmin'])) {
@@ -3315,6 +3381,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		// Keamanan tingkat 1: Hak akses dibatasi hanya untuk Super Admin
 		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
 		if (!in_array($user_lvl, ['super admin', 'superadmin'])) {
@@ -3381,6 +3448,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		// Keamanan: Hak akses dibatasi hanya untuk Super Admin
 		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
@@ -3662,6 +3730,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) {
@@ -4739,6 +4808,7 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
 		$uploadPath = WRITEPATH . 'uploads/';
@@ -5075,6 +5145,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		// Hak akses: hanya untuk akun BPS (Super Admin, Admin, LO, Supervisor)
 		$unitkerjalogin = $this->session->get('admin_unitkerja');
@@ -5656,9 +5727,8 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		// Hak akses: hanya untuk akun BPS
-		$unitkerjalogin = $this->session->get('admin_unitkerja');
-		if ($unitkerjalogin != 'bps') {
+		// Hak akses: khusus Admin BPS / Super Admin
+		if (!$this->isAdminBps()) {
 			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Generator Tabel Dinamis hanya dapat diakses oleh Admin BPS.</div>");
 			return redirect()->to('admin');
 		}
@@ -5944,7 +6014,9 @@ class Admin extends BaseController
 				->update([
 					'is_periksa'      => 0,
 					'catatan_periksa' => '-',
-					'is_publish'      => 0
+					'is_confirm'      => '0',
+					'is_publish'      => 0,
+					'published_at'    => null
 				]);
 		}
 
@@ -5994,9 +6066,13 @@ class Admin extends BaseController
 		// Ambil indikator untuk tahu id_tabel
 		$ind = $this->db->table('m_indikator_tabel')->where('id', $id_indikator)->get()->getRow();
 		if ($ind && !empty($ind->id_tabel)) {
-			$mTabelDinamis->upsertStatusTahunan((int)$ind->id_tabel, (int)$tahun_data, [
-				'is_periksa' => 0,
+			$targetDdaYear = (int)$tahun_data + 1;
+			$mTabelDinamis->upsertStatusTahunan((int)$ind->id_tabel, $targetDdaYear, [
+				'is_periksa'      => 0,
 				'catatan_periksa' => 'Data tahun ' . $tahun_data . ' dihapus via Generator Tabel',
+				'is_confirm'      => '0',
+				'is_publish'      => 0,
+				'published_at'    => null,
 			]);
 		}
 
@@ -6021,6 +6097,10 @@ class Admin extends BaseController
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
+		}
+		if (!$this->isAdminBps()) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Generator Tabel Dinamis hanya dapat diakses oleh Admin BPS.</div>");
+			return redirect()->to('admin');
 		}
 
 		$ta = $this->session->get('admin_ta') ?: date('Y');
@@ -6172,6 +6252,11 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		if (!$this->isAdminBps()) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Pelepasan Tabel Dinamis hanya dapat dilakukan oleh Admin BPS.</div>");
+			return redirect()->to('admin');
+		}
+
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$ctx = $mTabelDinamis->resolveTableContext($id_param, $ta);
@@ -6194,7 +6279,9 @@ class Admin extends BaseController
 			->update([
 				'is_periksa'      => 0,
 				'catatan_periksa' => '-',
-				'is_publish'      => 0
+				'is_confirm'      => '0',
+				'is_publish'      => 0,
+				'published_at'    => null
 			]);
 		$this->db->transComplete();
 
@@ -6227,6 +6314,15 @@ class Admin extends BaseController
 		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
 		$defaultTahunData = $ta - 1;
 		$tahunInput = (int)($tahun_param ?: ($this->request->getGet('tahun_data') ?: ($this->request->getGet('tahun') ?: $defaultTahunData)));
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$context = $mTabelDinamis->resolveTableContext($id_param, $ta);
+		$tabel = $context['tabel'];
+
+		if (!$tabel || !$this->canManageTable($tabel)) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda tidak memiliki izin untuk mengunduh template tabel instansi lain.</div>');
+			return redirect()->back();
+		}
 
 		try {
 			$generator = new \App\Libraries\ExcelTemplateGenerator();
@@ -6267,6 +6363,11 @@ class Admin extends BaseController
 		if (!$tabel) {
 			$this->session->setFlashdata('k', '<div class="alert alert-warning" id="alert">Data tabel tidak ditemukan.</div>');
 			return redirect()->to('admin/master_tabel');
+		}
+
+		if (!$this->canManageTable($tabel)) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda tidak memiliki izin untuk melihat tabel instansi lain.</div>');
+			return redirect()->to('admin/dda');
 		}
 
 		// Lengkapi objek tabel
@@ -6418,11 +6519,14 @@ class Admin extends BaseController
 			sort($allSelectableYears);
 			sort($selected_years);
 
-			// Ambil semua sel nilai dari t_nilai_dinamis untuk indikator ini
-			$nilaiRows = $this->db->table('t_nilai_dinamis')
-				->where('id_indikator', (int)$indikator->id)
-				->get()
-				->getResult();
+			// Ambil semua sel nilai dari t_nilai_dinamis untuk indikator ini (Optimasi Index Seek)
+			$cleanYears = array_values(array_filter(array_map('intval', $selected_years)));
+			$nilaiBuilder = $this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id);
+			if (!empty($cleanYears)) {
+				$nilaiBuilder->whereIn('tahun_data', $cleanYears);
+			}
+			$nilaiRows = $nilaiBuilder->get()->getResult();
 
 			// 4D Map: [$tahun_data][$id_baris_item][$id_karakteristik_item][$id_periode_item]
 			foreach ($nilaiRows as $nr) {
@@ -6591,8 +6695,10 @@ class Admin extends BaseController
 			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Walidata');
 			$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
 
-			$mTabelDinamis->upsertStatusTahunan((int)$tabel->id, (int)$ta, [
+			$tahunTargetDda = !empty($tahunDataTarget) ? ($tahunDataTarget + 1) : (int)$ta;
+			$mTabelDinamis->upsertStatusTahunan((int)$tabel->id, (int)$tahunTargetDda, [
 				'is_periksa'      => 1,
+				'is_confirm'      => '2',
 				'catatan_periksa' => $catatan
 			]);
 
@@ -6749,6 +6855,13 @@ class Admin extends BaseController
 			return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Indikator tabel tidak ditemukan']);
 		}
 
+		if (!empty($indRow->id_tabel)) {
+			$tabelRow = $this->db->table('m_list_tabel')->where('id', (int)$indRow->id_tabel)->get()->getRow();
+			if ($tabelRow && !$this->canManageTable($tabelRow)) {
+				return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Anda tidak berwenang mengubah konfigurasi tabel instansi lain.']);
+			}
+		}
+
 		$configRaw = $this->request->getPost('config_json');
 		$cfg = [];
 		if (!empty($configRaw)) {
@@ -6836,6 +6949,18 @@ class Admin extends BaseController
 
 		if (!$id_indikator) {
 			return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'ID Indikator tidak valid']);
+		}
+
+		$indRow = $this->db->table('m_indikator_tabel')->where('id', $id_indikator)->get()->getRow();
+		if (!$indRow) {
+			return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Indikator tabel tidak ditemukan']);
+		}
+
+		if (!empty($indRow->id_tabel)) {
+			$tabelRow = $this->db->table('m_list_tabel')->where('id', (int)$indRow->id_tabel)->get()->getRow();
+			if ($tabelRow && !$this->canManageTable($tabelRow)) {
+				return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Anda tidak berwenang mengubah konfigurasi tabel instansi lain.']);
+			}
 		}
 
 		$tahun_tampil_raw = $this->request->getPost('tahun_tampil');
@@ -6966,11 +7091,14 @@ class Admin extends BaseController
 			$selected_years = $mTabelDinamis->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
 			sort($selected_years);
 
-			// Ambil nilai dari t_nilai_dinamis
-			$nilaiRows = $this->db->table('t_nilai_dinamis')
-				->where('id_indikator', (int)$indikator->id)
-				->get()
-				->getResult();
+			// Ambil nilai dari t_nilai_dinamis (Optimasi Index Seek)
+			$cleanYears = array_values(array_filter(array_map('intval', $selected_years)));
+			$nilaiBuilder = $this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id);
+			if (!empty($cleanYears)) {
+				$nilaiBuilder->whereIn('tahun_data', $cleanYears);
+			}
+			$nilaiRows = $nilaiBuilder->get()->getResult();
 
 			foreach ($nilaiRows as $nr) {
 				$th = (int)$nr->tahun_data;

@@ -313,11 +313,15 @@
                                     <span class="badge bg-warning-subtle text-warning border-0 align-self-start status-badge">
                                         <i class="bi bi-clock-history me-1"></i> MENUNGGU CEK
                                     </span>
-                                    <?php if(session()->get('admin_unitkerja') == 'bps'): ?>
+                                    <?php if(session()->get('admin_unitkerja') == 'bps' && !empty($is_sudah_diisi)): ?>
                                         <div class="action-group">
                                             <button class="btn btn-action-sm btn-info text-white konfirmasi_modal shadow-sm" id="<?php echo $b->id;?>">
                                                 <i class="bi bi-shield-check me-1"></i> Verifikasi Data
                                             </button>
+                                        </div>
+                                    <?php elseif(session()->get('admin_unitkerja') == 'bps'): ?>
+                                        <div class="note-text text-muted mt-1" style="font-size: 0.72rem;">
+                                            <i class="bi bi-info-circle me-1"></i>Menunggu data diisi
                                         </div>
                                     <?php endif; ?>
                                 <?php endif; ?>
