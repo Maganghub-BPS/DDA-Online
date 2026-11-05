@@ -9,7 +9,14 @@ Berikut adalah diagram relasi database (*Entity Relationship Diagram*) resmi yan
 
 ![Diagram ERD Database Tabel Dinamis](diagram_erd_database.png)
 
-> 💡 **Panduan Membaca:** Gambar di atas merepresentasikan struktur relasional 11 tabel aktif produksi. Master publikasi berada di kiri atas (`m_list_tabel`), status publikasi tahunan di kanan atas (`t_status_tahunan`), konfigurasi API di bawah master (`m_konfigurasi_api`), perakitan matriks di tengah (`m_indikator_tabel`), kamus 3 dimensi di sisi kiri, kanan-tengah, dan kanan-jauh, serta muara sel koordinat data (`t_nilai_dinamis`) di bagian bawah tengah.
+> 💡 **Panduan Membaca:** Diagram di atas menggunakan tata letak simetris ortogonal (*CASE-tool standard*) dengan notasi resmi *Crow's Foot* (`||` untuk One, `>|` untuk Many):
+> - **Spine Utama (Kolom Tengah):** `m_list_tabel` (Master Judul) ──► `m_indikator_tabel` (Perakitan Matriks) ──► `t_nilai_dinamis` (Titik Nilai Sel Angka).
+> - **Sayap Tata Kelola (Baris Atas):** Mengapit `m_list_tabel`, yaitu `m_konfigurasi_api` (Kiri Atas, 1:1) dan `t_status_tahunan` (Kanan Atas, 1:N).
+> - **Sumbu 3 Dimensi (Kiri & Kanan):** 
+>   - **Dimensi Baris (Kiri):** `m_baris_kelompok` (Atas) ──► `m_baris_item` (Bawah) menghubungkan langsung baris data.
+>   - **Dimensi Karakteristik Kolom (Kanan 1):** `m_karakteristik_kelompok` (Atas) ──► `m_karakteristik_item` (Bawah).
+>   - **Dimensi Periode Waktu (Kanan 2):** `m_periode_kelompok` (Atas) ──► `m_periode_item` (Bawah).
+>   - Setiap tabel `_kelompok` bermuara ke `m_indikator_tabel`, dan setiap tabel `_item` bermuara ke `t_nilai_dinamis`. Seluruh jalur relasi 100% siku 90 derajat tanpa garis miring dan tanpa melintasi tabel lain, sehingga seluruh alur relasi sangat mudah ditelusuri.
 
 ---
 
