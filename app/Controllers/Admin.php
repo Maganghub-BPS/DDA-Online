@@ -3742,7 +3742,8 @@ class Admin extends BaseController
 					WHEN mi.id IS NOT NULL THEN 1 
 					ELSE 0 
 				END as is_dynamic,
-					ka.config_tabel
+					ka.config_tabel,
+					m.jenis_sumber
 				FROM m_list_tabel m
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
@@ -3762,7 +3763,7 @@ class Admin extends BaseController
 
 				if ($isDyn === 1) {
 					$sourceType = 'dinamis';
-				} elseif (strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) {
+				} elseif (($r['jenis_sumber'] ?? '') === 'api_kominfo' || strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) {
 					$sourceType = 'api';
 				} else {
 					$sourceType = 'spreadsheet';
@@ -5486,7 +5487,7 @@ class Admin extends BaseController
 						$tahunDataCell = $pId;
 						$pId           = 0;
 					}
-					if ($bId >= 0 && $kId > 0) {
+					if ($bId >= 0 && $kId >= 0) {
 						$upsertCells[] = [
 							'id_baris_item'         => $bId,
 							'id_karakteristik_item' => $kId,

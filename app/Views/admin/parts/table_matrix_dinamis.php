@@ -32,11 +32,17 @@ if ($isRuntunWaktuTotal) {
     if (!empty($config_tampilan['tahun_runtun_waktu']) && is_array($config_tampilan['tahun_runtun_waktu'])) {
         $runtunYears = array_values(array_unique(array_filter(array_map('intval', $config_tampilan['tahun_runtun_waktu']))));
     }
+    if (empty($runtunYears) && !empty($selected_years) && count($selected_years) > 1) {
+        $runtunYears = array_values(array_unique(array_filter(array_map('intval', $selected_years))));
+    }
     if (empty($runtunYears) && !empty($available_years) && count($available_years) > 1) {
-        $runtunYears = $available_years;
+        $runtunYears = array_values(array_unique(array_filter(array_map('intval', $available_years))));
     }
     if (empty($runtunYears)) {
-        $baseY = !empty($selected_years) ? (int)$selected_years[0] : (int)($tabel->tahun ?? date('Y'));
+        $baseY = !empty($selected_years) ? max(array_map('intval', $selected_years)) : (int)($tabel->tahun ?? date('Y'));
+        if ($baseY > 2100 || $baseY < 1900) {
+            $baseY = (int)date('Y');
+        }
         $runtunYears = [$baseY, $baseY - 1, $baseY - 2, $baseY - 3, $baseY - 4];
     }
     rsort($runtunYears);

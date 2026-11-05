@@ -1860,6 +1860,9 @@ class M_tabeldinamis extends Model
             if (!empty($cfgTampilan['tahun_runtun_waktu']) && is_array($cfgTampilan['tahun_runtun_waktu'])) {
                 $runtunYears = array_values(array_unique(array_filter(array_map('intval', $cfgTampilan['tahun_runtun_waktu']))));
             }
+            if (empty($runtunYears) && !empty($tahunTampil) && count($tahunTampil) > 1) {
+                $runtunYears = array_values(array_map('intval', $tahunTampil));
+            }
             if (empty($runtunYears) && !empty($dataYears) && count($dataYears) > 1) {
                 $runtunYears = array_values(array_map('intval', $dataYears));
             }

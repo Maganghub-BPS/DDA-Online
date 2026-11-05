@@ -120,6 +120,7 @@ def detect_active_data_cols(source_data):
                     is_row_num = (col_idx <= 1) and (len(first_3_digits) == 3 and first_3_digits == ['1', '2', '3'])
                     num_count = sum(1 for v in non_meta if parse_num(v) is not None)
                     is_mostly_numeric = (num_count >= 1 and num_count >= len(non_meta) * 0.3) if non_meta else False
+                    is_empty_target_col = (not non_meta or all(v in ['', 'None', '-', 'NA', 'na', 'null'] for v in non_meta))
                     
                     if num_val >= 2:
                         is_unit_col = any(
@@ -127,7 +128,7 @@ def detect_active_data_cols(source_data):
                             for r in source_data[:bps_row_idx]
                             if isinstance(r, list) and col_idx < len(r) and r[col_idx]
                         )
-                        if not is_row_num and is_mostly_numeric and not is_unit_col:
+                        if not is_row_num and (is_mostly_numeric or is_empty_target_col) and not is_unit_col:
                             data_col_indices.append(col_idx)
         if data_col_indices: return data_col_indices
     

@@ -44,6 +44,7 @@ from normalizer import (
     match_party_name,
 )
 from table_profiler import (
+    find_bps_numbering_row,
     is_title_row,
     is_header_or_metadata_row,
     detect_col_headers,
@@ -636,6 +637,55 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     break
                 clean_db_rows.append(r)
 
+            # ARCHETYPE: Stacked Period Matrix (Susenas / Gini / Distribusi Pengeluaran)
+            # PDF has [Category, Period, Metric 1, Metric 2, ...]
+            # DB has wide format: [Category, Metric 1 (Period 1), ..., Metric N (Period M)]
+            if clean_db_rows and len(clean_db_rows) >= 3 and clean_pdf_rows and len(clean_pdf_rows) >= 3:
+                db_headers = clean_db_rows[0]
+                period_matches = [re.search(r'\(((?:19|20)\d{2}\s+[A-Za-z]+)\)', str(h)) for h in db_headers[1:]]
+                col1_hdr = str(clean_pdf_rows[0][1]).lower() if len(clean_pdf_rows[0]) > 1 and clean_pdf_rows[0][1] else ''
+                if sum(1 for m in period_matches if m) >= 4 and any(k in col1_hdr for k in ['tahun', 'bulan', 'year', 'month', 'periode']):
+                    db_periods = []
+                    for m in period_matches:
+                        if m and m.group(1) not in db_periods:
+                            db_periods.append(m.group(1))
+                    db_metrics = []
+                    for h in db_headers[1:]:
+                        m_metric = re.sub(r'\s*\((?:19|20)\d{2}\s+[A-Za-z]+\)', '', str(h)).strip()
+                        if m_metric and m_metric not in db_metrics:
+                            db_metrics.append(m_metric)
+                    n_periods = len(db_periods)
+                    n_metrics = len(db_metrics)
+                    if n_periods > 0 and n_metrics > 0:
+                        data_start = 1
+                        for idx_r, r in enumerate(clean_pdf_rows[:4]):
+                            if any(re.match(r'^\(\d+\)$', str(c).strip()) for c in r if c):
+                                data_start = idx_r + 1
+                                break
+                        raw_data_rows = [r for r in clean_pdf_rows[data_start:] if isinstance(r, list) and any(str(c).strip() for c in r)]
+                        transformed_wide_pdf = [list(clean_db_rows[0]), list(clean_db_rows[1])]
+                        cat_idx = 0
+                        for chunk_start in range(0, len(raw_data_rows), n_periods):
+                            chunk = raw_data_rows[chunk_start : chunk_start + n_periods]
+                            if not chunk:
+                                continue
+                            db_target_row = clean_db_rows[2 + cat_idx] if (2 + cat_idx) < len(clean_db_rows) else None
+                            cat_label = db_target_row[0] if db_target_row else str(chunk[0][0])
+                            wide_vals = [cat_label]
+                            for m_idx in range(n_metrics):
+                                for p_idx in range(n_periods):
+                                    if p_idx < len(chunk):
+                                        pdf_row = chunk[p_idx]
+                                        col_in_pdf = 2 + m_idx
+                                        val = pdf_row[col_in_pdf] if col_in_pdf < len(pdf_row) else None
+                                        wide_vals.append(val)
+                                    else:
+                                        wide_vals.append(None)
+                            transformed_wide_pdf.append(wide_vals)
+                            cat_idx += 1
+                        if len(transformed_wide_pdf) > 2:
+                            clean_pdf_rows = transformed_wide_pdf
+
             def get_cat_key(text):
                 if not text:
                     return ''
@@ -778,6 +828,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     non_en = [l.strip() for l in t.split('\n') if l.strip() and not re.match(r'^(?:Total\b|Marketing\b|Cooperative\b|Business\b|Volume\b|Equity\b|Outside\b|Producer\b|Consumer\b|Service\b|Savings\b)', l.strip(), re.IGNORECASE)]
                     if non_en:
                         t = ' '.join(non_en)
+                if any(k in t.lower() for k in ['universitas', 'sekolah tinggi', 'institut', 'akademi', 'politeknik', 'stai', 'stit', 'fai', 'stie', 'stiq', 'stim', 'prodi', 'program studi']):
+                    t = ' '.join(l.strip() for l in t.split('\n') if l.strip())
                 lines = [l.strip() for l in t.split('\n') if l.strip()]
                 valid_lines = [l for l in lines if len(l) > 2 or any(c.isdigit() for c in l)]
                 first_line = valid_lines[0] if valid_lines else (lines[0] if lines else t)
@@ -833,7 +885,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 has_male = bool(re.search(r'\b(laki[\s\-_]?laki|lakilaki|male)\b', all_txt))
                 has_female = bool(re.search(r'\b(perempuan|female)\b', all_txt))
                 if has_male and has_female:
-                    return None
+                    return "Laki-Laki + Perempuan"
                 if has_male:
                     return "Laki-Laki"
                 elif has_female:
@@ -846,14 +898,27 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 use_cols = target_cols if target_cols is not None else active_cat_cols
                 last_parent_label = ""
                 last_total_label = ""
+                last_year_label = ""
 
                 pdf_data_col_indices = []
                 if is_pdf:
-                    for r_check in data_list:
+                    for r_idx, r_check in enumerate(data_list):
                         if isinstance(r_check, list):
-                            bps_num_cols = [idx for idx, cell in enumerate(r_check) if cell is not None and re.match(r'^\([2-9]\d*\)$', str(cell).strip())]
+                            bps_num_cols = [idx for idx, cell in enumerate(r_check) if cell is not None and re.match(r'^\(\d+\)$', str(cell).strip()) and int(re.search(r'\d+', str(cell)).group(0)) >= 2]
                             if len(bps_num_cols) >= 1:
-                                pdf_data_col_indices = bps_num_cols
+                                unit_cols = set()
+                                for r_hdr in data_list[:r_idx]:
+                                    if isinstance(r_hdr, list):
+                                        for c_idx in bps_num_cols:
+                                            if c_idx < len(r_hdr) and r_hdr[c_idx] is not None:
+                                                txt = str(r_hdr[c_idx]).strip().lower()
+                                                is_dim = (
+                                                    any(k in txt for k in ['satuan', 'unit', 'jenjang', 'akreditasi']) or
+                                                    any(txt.startswith(k) for k in ['tahun', 'bulan', 'periode', 'triwulan', 'semester', 'waktu'])
+                                                )
+                                                if is_dim:
+                                                    unit_cols.add(c_idx)
+                                pdf_data_col_indices = [c for c in bps_num_cols if c not in unit_cols]
                                 break
 
                 for r in data_list:
@@ -909,6 +974,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     elif is_pdf and pdf_data_col_indices:
                         first_col = pdf_data_col_indices[0]
                         label_cells = [str(c).strip() for c in r[:first_col] if c is not None and str(c).strip() and str(c).strip().lower() != 'none']
+
+                        if len(r) >= 2:
+                            c0_txt = str(r[0]).strip() if r[0] is not None else ''
+                            c1_txt = str(r[1]).strip() if r[1] is not None else ''
+                            m_y = re.search(r'\b(19\d{2}|20\d{2})\b', c0_txt)
+                            if m_y:
+                                last_year_label = m_y.group(1)
+                            m_m = re.search(r'\b(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|March|August|October|December)\b', c1_txt, re.I)
+                            if m_m and last_year_label:
+                                en_id = {'March': 'Maret', 'August': 'Agustus', 'October': 'Oktober', 'December': 'Desember'}
+                                bln_str = en_id.get(m_m.group(1).capitalize(), m_m.group(1).capitalize())
+                                label_cells = [f"{last_year_label} {bln_str}"]
 
                         if label_cells and re.match(r'^\d+\.?$', label_cells[0]):
                             code = label_cells[0].rstrip('.')
@@ -1144,10 +1221,19 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
                 is_horiz_col_split = (archetype in ["MULTI_PAGE_COLUMN_SPLIT", "MULTI_PAGE_SECTION_PER_PAGE"])
 
+                is_stitched_horiz = False
+                if target_pages and len(target_pages) > 1:
+                    idx_bps, cells_bps, _ = find_bps_numbering_row(target_pdf_rows)
+                    if any(re.match(r'^\(\d+\)$', str(c[1]).strip()) and int(re.search(r'\d+', str(c[1])).group(0)) >= 5 for c in cells_bps):
+                        is_stitched_horiz = True
+
+                if is_stitched_horiz:
+                    is_horiz_col_split = False
+
                 pdf_cols = []
                 is_single_year_filtered = bool(target_year and target_year in pdf_by_year and len(pdf_by_year) > 1 and len(db_header_years) <= 1)
                 is_row_continuation = False
-                if is_single_year_filtered:
+                if is_single_year_filtered or is_stitched_horiz:
                     p_hdrs = detect_col_headers(target_pdf_rows)
                     for h in p_hdrs:
                         t_set, h_clean = _norm_hdr(h)
