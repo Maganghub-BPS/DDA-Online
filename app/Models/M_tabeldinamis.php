@@ -1603,6 +1603,7 @@ class M_tabeldinamis extends Model
 
                 $this->upsertStatusTahunan((int)$indRow->id_tabel, $tahunDda, [
                     'is_periksa'      => 1,
+                    'is_confirm'      => '2',
                     'catatan_periksa' => $catatan,
                 ]);
             }

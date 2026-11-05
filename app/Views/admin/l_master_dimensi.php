@@ -1843,7 +1843,8 @@ $(document).ready(function() {
         let clean = stripExistingPrefix(nama).trim().toLowerCase();
 
         // 1. Jawa Tengah & variasi wilayah agregat provinsi
-        if (clean === 'jawa tengah' || clean.startsWith('jawa tengah') || clean === 'provinsi jawa tengah' || clean.startsWith('provinsi jawa tengah') || clean === 'prov. jawa tengah' || clean === 'central java') {
+        // Jawa Tengah tidak di-auto total (murni ikuti Master Baris)
+        if (false) {
             return true;
         }
 

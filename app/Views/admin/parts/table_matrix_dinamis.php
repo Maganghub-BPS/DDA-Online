@@ -999,7 +999,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $namaBarisEn = $baris->nama_baris_en ?? '';
                     $lowerBaris  = strtolower($namaBaris);
 
-                    if ($tipeBaris === 'total' || $lowerBaris === 'jawa tengah' || $lowerBaris === 'jumlah') {
+                    if ($tipeBaris === 'total') {
                         $dbTotalRowObj = $baris;
                         continue; // dirender di blok total bawah
                     }
@@ -1200,14 +1200,14 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $currentParentEn         = '';
                 $currentParentRowspan    = 1;
                 $isFirstChildOfParent    = false;
-                $isJustRenderedFirstChild = false;
+                $remainingChildrenOfParent = 0;
 
                 foreach ($itemsBaris as $bIdx => $baris):
                     $tipeBaris   = strtolower(trim($baris->tipe_baris ?? 'data'));
                     $namaBaris   = $baris->nama_baris_ind ?? '';
                     $namaBarisEn = $baris->nama_baris_en ?? '';
                     $lowerBaris  = strtolower($namaBaris);
-                    $isTotalRow  = ($tipeBaris === 'total' || $lowerBaris === 'jawa tengah' || $lowerBaris === 'jumlah');
+                    $isTotalRow  = ($tipeBaris === 'total');
 
                     // Baris Total bawaan DB
                     if ($isTotalRow) {
@@ -1232,7 +1232,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
                         ?>
                             <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
-                                <td colspan="<?= ($hasNoCol ? 1 : 0) + ($isBarisDuaKolom ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
+                                <td colspan="<?= ($hasNoCol ? 1 : 0) + (($isBarisDuaKolom || $isRuntunWaktuTotal) ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
                                     <?= esc($catLabel); ?><?php if ($isBilingualCat): ?> / <i><?= esc($catEn); ?></i><?php endif; ?>
                                 </td>
                             </tr>
@@ -1243,12 +1243,20 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     // Resolusi label baris
                     $displayBarisLabel = $formatRowLabel($namaBaris, $rowNo, $isTotalRow);
                     if ($isTotalRow) {
-                        if ($jenisTotalVertikal === 'jawa_tengah') {
+                        if ($jenisTotalVertikal === 'grand_total') {
+                            $displayBarisLabel = 'Grand Total';
+                            $namaBarisEn       = 'Grand Total';
+                        } elseif ($jenisTotalVertikal === 'jawa_tengah') {
                             $displayBarisLabel = 'Jawa Tengah';
+                            $namaBarisEn       = 'Jawa Tengah';
                         } elseif ($jenisTotalVertikal === 'jumlah') {
                             $displayBarisLabel = 'Jumlah';
+                            $namaBarisEn       = 'Total';
                         } elseif ($jenisTotalVertikal === 'kustom' && !empty($labelTotalKustom)) {
                             $displayBarisLabel = $labelTotalKustom;
+                            $namaBarisEn       = '';
+                        } elseif (strtolower(trim($namaBaris)) === 'jumlah' && (empty($namaBarisEn) || strcasecmp(trim($namaBarisEn), 'jawa tengah') === 0)) {
+                            $namaBarisEn       = 'Total';
                         }
                     }
 
@@ -1268,7 +1276,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $currentParentEn         = $namaBarisEn;
                             $currentParentRowspan    = $childCountMap[$bIdx];
                             $isFirstChildOfParent    = true;
-                            $isJustRenderedFirstChild = false;
+                            $remainingChildrenOfParent = $childCountMap[$bIdx];
                             continue;
                         }
                     }
@@ -1337,7 +1345,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             <?php else: ?>
                                 <?php if ($indentLevel > 0): ?>
                                     <?php if ($isFirstChildOfParent): 
-                                        $isJustRenderedFirstChild = true;
+
                                     ?>
                                         <td rowspan="<?= $currentParentRowspan; ?>" class="col-wilayah fw-bold" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
                                             <div><?= esc($currentParentInd); ?></div>
@@ -1443,14 +1451,18 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php 
                     if (!$isTotalRow) {
                         if ($isBarisDuaKolom && !$isMultiBaris) {
-                            if ($indentLevel === 0 || $isJustRenderedFirstChild) {
+                            if ($remainingChildrenOfParent > 0) {
+                                $remainingChildrenOfParent--;
+                                if ($remainingChildrenOfParent === 0) {
+                                    $rowNo++;
+                                }
+                            } else {
                                 $rowNo++;
                             }
                         } else {
                             $rowNo++;
                         }
                     }
-                    $isJustRenderedFirstChild = false;
                     ?>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -1463,7 +1475,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 if (!$dbTotalRowObj) {
                     foreach ($itemsBaris as $bCand) {
                         $cName = strtolower(trim($bCand->nama_baris_ind ?? ''));
-                        if ($cName === 'jawa tengah' || $cName === 'jumlah' || ($bCand->tipe_baris ?? '') === 'total') {
+                        if (($bCand->tipe_baris ?? '') === 'total') {
                             $dbTotalRowObj = $bCand;
                             break;
                         }
@@ -1473,7 +1485,16 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $rCount = count($runtunYears);
                 $totalLabelInd = 'Jumlah';
                 $totalLabelEn  = 'Total';
-                if (!empty($labelTotalKustom)) {
+                if ($jenisTotalVertikal === 'grand_total') {
+                    $totalLabelInd = 'Grand Total';
+                    $totalLabelEn  = 'Grand Total';
+                } elseif ($jenisTotalVertikal === 'jawa_tengah') {
+                    $totalLabelInd = 'Jawa Tengah';
+                    $totalLabelEn  = 'Jawa Tengah';
+                } elseif ($jenisTotalVertikal === 'jumlah') {
+                    $totalLabelInd = 'Jumlah';
+                    $totalLabelEn  = 'Total';
+                } elseif (!empty($labelTotalKustom)) {
                     $totalLabelInd = $labelTotalKustom;
                     $totalLabelEn  = '';
                 } elseif ($dbTotalRowObj) {
@@ -1531,16 +1552,24 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
             // GRAND TOTAL VERTIKAL OTOMATIS: JIKA DIAKTIFKAN DAN BELUM ADA ROW TOTAL DB
             // =========================================================================
             if ($totalVertikal && !$hasDbTotalRow && !$isMacroTimeSeries):
-                if ($jenisTotalVertikal === 'jawa_tengah') {
-                    $grandLabel = 'Jawa Tengah';
+                if ($jenisTotalVertikal === 'grand_total') {
+                    $grandLabel   = 'Grand Total';
+                    $grandLabelEn = 'Grand Total';
+                } elseif ($jenisTotalVertikal === 'jawa_tengah') {
+                    $grandLabel   = 'Jawa Tengah';
+                    $grandLabelEn = 'Jawa Tengah';
                 } elseif ($jenisTotalVertikal === 'jumlah') {
-                    $grandLabel = 'Jumlah';
+                    $grandLabel   = 'Jumlah';
+                    $grandLabelEn = 'Total';
                 } elseif ($jenisTotalVertikal === 'kustom' && !empty($labelTotalKustom)) {
-                    $grandLabel = $labelTotalKustom;
+                    $grandLabel   = $labelTotalKustom;
+                    $grandLabelEn = '';
                 } elseif ($dbTotalRowObj && !empty($dbTotalRowObj->nama_baris_ind)) {
-                    $grandLabel = $dbTotalRowObj->nama_baris_ind;
+                    $grandLabel   = $dbTotalRowObj->nama_baris_ind;
+                    $grandLabelEn = $dbTotalRowObj->nama_baris_en ?? '';
                 } else {
-                    $grandLabel = 'Jumlah';
+                    $grandLabel   = 'Grand Total';
+                    $grandLabelEn = 'Grand Total';
                 }
             ?>
                 <tr class="grand-total-row row-total" style="background: #FF6D1F; color: #ffffff; font-weight: bold; border-top: 2px solid #ffffff;">
@@ -1550,15 +1579,24 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
 
                     <?php if ($portraitMode && $portraitSplitCol): ?>
                         <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
-                            <?= esc($grandLabel); ?>
+                            <div><?= esc($grandLabel); ?></div>
+                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
+                            <?php endif; ?>
                         </td>
                     <?php elseif ($isBarisDuaKolom && !$portraitMode): ?>
                         <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
-                            <?= esc($grandLabel); ?>
+                            <div><?= esc($grandLabel); ?></div>
+                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
+                            <?php endif; ?>
                         </td>
                     <?php else: ?>
-                        <td class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
-                            <?= esc($grandLabel); ?>
+                        <td <?= ($isRuntunWaktuTotal ? 'colspan="2"' : ''); ?> class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
+                            <div><?= esc($grandLabel); ?></div>
+                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
+                            <?php endif; ?>
                         </td>
                     <?php endif; ?>
 

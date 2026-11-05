@@ -10,10 +10,12 @@
  * 6. Catatan & Sumber Standar DDA BPS.
  */
 
-// Siapkan Back URL
-$fallback_url = base_url('admin/dda');
-$back_url = $fallback_url;
-if (isset($_SERVER['HTTP_REFERER'])) {
+// Siapkan Back URL dengan Smart Fallback ke Instansi Tabel
+$id_unitkerja = $tabel->id_unitkerja ?? 0;
+$smartFallback = !empty($id_unitkerja) ? base_url('admin/dda/view_tabel?id=' . $id_unitkerja) : base_url('admin/dda');
+
+$back_url = $back_url ?? $smartFallback;
+if (empty($back_url) && isset($_SERVER['HTTP_REFERER'])) {
     $referer = $_SERVER['HTTP_REFERER'];
     if (strpos($referer, 'view_tabel_dinamis') === false && strpos($referer, base_url()) !== false) {
         $back_url = $referer;
