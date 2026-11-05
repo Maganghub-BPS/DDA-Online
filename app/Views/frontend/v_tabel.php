@@ -1202,7 +1202,7 @@ if ($primary_result):
         $selected_years = array_values(array_intersect(array_map('trim', $req_list), $unique_years));
     }
     if (empty($selected_years) && !empty($unique_years)) {
-        $selected_years = [max($unique_years)]; // Hanya pilih 1 tahun paling baru
+        $selected_years = $unique_years; // Default: Tampilkan semua tahun yang ada
     }
 
     // Format Judul Dinamis Standar BPS Berdasarkan Tahun Terpilih
