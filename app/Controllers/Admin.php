@@ -627,6 +627,11 @@ class Admin extends BaseController
 			return redirect()->to('admin/dda/');
 		} else if ($mau_ke == "view_tabel") {
 			$id_unitkerja = $this->input->get('id');
+			$unit_row = $this->db->table('m_unitkerja')->where('id_unitkerja', $id_unitkerja)->get()->getRow();
+			$a['nama_unitkerja']   = $unit_row->unitkerja_ind ?? strtoupper((string)$id_unitkerja);
+			$a['target_unitkerja'] = $id_unitkerja;
+			$a['is_bps']           = ($this->session->get('admin_unitkerja') == 'bps');
+			$a['ta']               = $ta;
 			$a['data'] = $this->db->query("
 				SELECT 
 					m.id as id,
@@ -664,11 +669,14 @@ class Admin extends BaseController
 				WHERE m.id_unitkerja = ? AND m.is_active = 1
 				ORDER BY m.no_tabel ASC, m.id ASC
 			", [$thDda, "%$thDataStr%", $thDda, $thData, $id_unitkerja])->getResult();
-			$a['page'] = "l_dda";
+			$a['page'] = "l_dda_periksa";
 		} else if ($mau_ke == "periksa_tabel") {
 			$id_unitkerja = $this->input->get('id');
-			$level = $this->session->get('admin_level');
-			$whereConfirm = ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') ? "" : " AND t.is_confirm = '1' ";
+			$unit_row = $this->db->table('m_unitkerja')->where('id_unitkerja', $id_unitkerja)->get()->getRow();
+			$a['nama_unitkerja']   = $unit_row->unitkerja_ind ?? strtoupper((string)$id_unitkerja);
+			$a['target_unitkerja'] = $id_unitkerja;
+			$a['is_bps']           = ($this->session->get('admin_unitkerja') == 'bps');
+			$a['ta']               = $ta;
 			$a['data'] = $this->db->query("
 				SELECT 
 					m.id as id,
@@ -704,7 +712,6 @@ class Admin extends BaseController
 				) nd ON nd.id_indikator = mi.id
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				WHERE m.id_unitkerja = ? AND m.is_active = 1
-				$whereConfirm
 				ORDER BY m.no_tabel ASC, m.id ASC
 				LIMIT ?, ?
 			", [$thDda, "%$thDataStr%", $thDda, $thData, $id_unitkerja, (int)$awal, (int)$akhir])->getResult();
@@ -753,6 +760,11 @@ class Admin extends BaseController
 
 				$a['page']		= "l_dda_admin";
 			} else {
+				$unit_row = $this->db->table('m_unitkerja')->where('id_unitkerja', $unitkerjalogin)->get()->getRow();
+				$a['nama_unitkerja']   = $unit_row->unitkerja_ind ?? strtoupper((string)$unitkerjalogin);
+				$a['target_unitkerja'] = $unitkerjalogin;
+				$a['is_bps']           = false;
+				$a['ta']               = $ta;
 				$a['data'] = $this->db->query("
 					SELECT 
 						m.id as id,
@@ -790,7 +802,7 @@ class Admin extends BaseController
 					WHERE m.id_unitkerja = ? AND m.is_active = 1
 					ORDER BY m.no_tabel ASC, m.id ASC
 				", [$thDda, "%$thDataStr%", $thDda, $thData, $unitkerjalogin])->getResult();
-				$a['page'] = "l_dda";
+				$a['page'] = "l_dda_periksa";
 			}
 		}
 

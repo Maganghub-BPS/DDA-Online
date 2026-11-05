@@ -63,15 +63,9 @@ echo session()->getFlashdata("k");
                     <tr class="opd-row">
                         <td class="text-center opd-no"><?php echo $no;?></td>
                         <td>
-                            <?php if(session()->get('admin_level') == 'lo'): ?>
-                                <a href="<?php echo base_URL()?>index.php/admin/dda/view_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark">
-                                    <i class="bi bi-folder2 me-2 text-warning"></i><?php echo $b->unitkerja_ind;?>
-                                </a>
-                            <?php else: ?>
-                                <a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark">
-                                    <i class="bi bi-folder-check me-2 text-primary"></i><?php echo $b->unitkerja_ind;?>
-                                </a>
-                            <?php endif; ?>
+                            <a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark">
+                                <i class="bi bi-folder-check me-2 text-primary"></i><?php echo $b->unitkerja_ind;?>
+                            </a>
                         </td>
                         <?php if(session()->get('admin_level') != 'lo'): ?>
                         <td class="text-center text-muted small">
