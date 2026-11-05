@@ -20,6 +20,7 @@ class ExcelTemplateGenerator
 {
     protected $db;
     protected $mTabelDinamis;
+    const SECRET_SALT = 'BPS_JATENG_SECRET_SALT';
 
     public function __construct()
     {
@@ -1659,7 +1660,7 @@ class ExcelTemplateGenerator
                                     ]
                                 ]
                             ]);
-                            for ($c = 3; $c <= $lastColIndex; $c++) {
+                            for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                                 $cLetter = Coordinate::stringFromColumnIndex($c);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
                                 $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
@@ -1741,7 +1742,7 @@ class ExcelTemplateGenerator
                         ]);
 
                         // Sel data angka (Mulai dari Kolom C s.d LastCol)
-                        for ($c = 3; $c <= $lastColIndex; $c++) {
+                        for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                             $cLetter = Coordinate::stringFromColumnIndex($c);
                             $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()
                                 ->setFormatCode($numFormat);
@@ -1816,7 +1817,7 @@ class ExcelTemplateGenerator
                         ]);
                     }
 
-                    for ($c = 3; $c <= $lastColIndex; $c++) {
+                    for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                         $cLetter = Coordinate::stringFromColumnIndex($c);
                         $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()
                             ->setFormatCode($numFormat);
@@ -1937,7 +1938,7 @@ class ExcelTemplateGenerator
                     ]);
 
                     // Sel data subtotal: Format angka & alignment & bold
-                    for ($c = 2; $c <= $lastColIndex; $c++) {
+                    for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                         $cLetter = Coordinate::stringFromColumnIndex($c);
                         $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()
                             ->setFormatCode($numFormat);
@@ -2020,7 +2021,7 @@ class ExcelTemplateGenerator
                     ]
                 ]);
 
-                for ($c = 3; $c <= $lastColIndex; $c++) {
+                for ($c = $startDataColIndex; $c <= $lastColIndex; $c++) {
                     $cLetter = Coordinate::stringFromColumnIndex($c);
                     $sheet->getStyle("{$cLetter}{$curRow}")->getNumberFormat()->setFormatCode($numFormat);
                     $sheet->getStyle("{$cLetter}{$curRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
@@ -2181,9 +2182,9 @@ class ExcelTemplateGenerator
             $leafColumnsMeta[] = array_merge(['excel_col' => $colLetter], $lCol);
         }
 
-        // Token Checksum Integritas
-        $checksumPayload = $id_tahun_tabel . '|' . $indikator->id . '|' . $dataStartRow . '|' . $dataEndRow . '|' . count($leafColumns);
-        $checksumHash = hash('sha256', $checksumPayload . '|BPS_JATENG_SECRET_SALT');
+        // Token Checksum Integritas (v2: mengikat tahunInput untuk integritas penuh)
+        $checksumPayload = $id_tahun_tabel . '|' . $indikator->id . '|' . $dataStartRow . '|' . $dataEndRow . '|' . count($leafColumns) . '|' . $tahunInput;
+        $checksumHash = hash('sha256', $checksumPayload . '|' . self::SECRET_SALT);
 
         $metaSheet->setCellValue('A14', 'CHECKSUM');
         $metaSheet->setCellValue('B14', $checksumHash);
@@ -2237,7 +2238,8 @@ class ExcelTemplateGenerator
     public function download(int $id_param, ?int $tahunInput = null)
     {
         if ($tahunInput === null || $tahunInput <= 0) {
-            $tahunInput = (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
+            $activeTa = (int)(session()->get('admin_ta') ?: session()->get('tahun') ?: date('Y'));
+            $tahunInput = $activeTa - 1;
         }
 
         $spreadsheet = $this->generate($id_param, null, $tahunInput);

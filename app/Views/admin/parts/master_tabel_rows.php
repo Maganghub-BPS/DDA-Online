@@ -88,6 +88,17 @@ if (empty($data)) {
                                 <i class="bi bi-file-earmark-excel me-2"></i> Unduh Template Excel
                             </a>
                         </li>
+                        <?php elseif (!empty($b->id_api) || !empty($b->link_api) || (!empty($b->link_tabel) && strpos($b->link_tabel, 'view_portal_tabel') !== false)): ?>
+                        <li>
+                            <?php 
+                            $portal_link = !empty($b->link_api) 
+                                ? (stripos($b->link_api, 'http') === 0 ? $b->link_api : base_url($b->link_api)) 
+                                : (!empty($b->link_tabel) ? (stripos($b->link_tabel, 'http') === 0 ? $b->link_tabel : base_url($b->link_tabel)) : base_url('admin/view_portal_tabel?id=' . urlencode($b->id_api)));
+                            ?>
+                            <a href="<?php echo $portal_link; ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold">
+                                <i class="bi bi-table me-2"></i> Lihat Tabel API
+                            </a>
+                        </li>
                         <?php endif; ?>
                         <li>
                             <hr class="dropdown-divider opacity-5 mt-1">

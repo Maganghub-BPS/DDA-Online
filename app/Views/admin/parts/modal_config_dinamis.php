@@ -227,7 +227,7 @@
                             <!-- OPSI TOTAL VERTIKAL (KOLOM / JAWA TENGAH) -->
                             <div class="form-check form-switch mb-1">
                                 <input class="form-check-input" type="checkbox" id="cfg_total_vertikal" name="total_vertikal" value="1" <?= (!empty($config_tampilan['total_vertikal']) ? 'checked' : ''); ?> onchange="document.getElementById('sub_total_vertikal_options').style.display = this.checked ? 'block' : 'none'">
-                                <label class="form-check-label small fw-bold" for="cfg_total_vertikal">Hitung Total Vertikal (Kolom - Jawa Tengah)</label>
+                                <label class="form-check-label small fw-bold" for="cfg_total_vertikal">Hitung Total Vertikal (Grand Total)</label>
                             </div>
 
                             <div id="sub_total_vertikal_options" class="ps-4 mb-2" style="<?= (!empty($config_tampilan['total_vertikal']) ? 'display:block;' : 'display:none;'); ?>">
@@ -238,6 +238,7 @@
                                         document.getElementById('wrapper_runtun_waktu_tahun').style.display = (this.value === 'runtun_waktu') ? 'block' : 'none';
                                     ">
                                         <option value="default" <?= (($config_tampilan['jenis_total_vertikal'] ?? 'default') === 'default' ? 'selected' : ''); ?>>Sesuai Master Baris / Otomatis</option>
+                                        <option value="grand_total" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'grand_total' ? 'selected' : ''); ?>>Grand Total</option>
                                         <option value="jawa_tengah" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'jawa_tengah' ? 'selected' : ''); ?>>Jawa Tengah</option>
                                         <option value="jumlah" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'jumlah' ? 'selected' : ''); ?>>Jumlah</option>
                                         <option value="runtun_waktu" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'runtun_waktu' ? 'selected' : ''); ?>>Runtun Waktu Multi-Tahun</option>

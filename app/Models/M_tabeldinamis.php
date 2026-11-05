@@ -1642,6 +1642,7 @@ class M_tabeldinamis extends Model
 
                 $this->upsertStatusTahunan((int)$indRow->id_tabel, $tahunDda, [
                     'is_periksa'      => 1,
+                    'is_confirm'      => '2',
                     'catatan_periksa' => $catatan,
                 ]);
             }
@@ -2436,6 +2437,28 @@ class M_tabeldinamis extends Model
 
         // 2. Ambil konfigurasi m_indikator_tabel (1:1 dengan m_list_tabel.id)
         $indikator = $this->where('id_tabel', $idMaster)->first();
+        if (($tabel->jenis_sumber ?? '') === 'api_kominfo') {
+            if ($indikator) {
+                // Bersihkan record indikator orphan jika tabel sudah diubah ke API Kominfo
+                $this->where('id_tabel', $idMaster)->delete();
+                $indikator = null;
+            }
+        }
+
+        // Self-healing: jika karakteristik memiliki grup bertingkat (max_depth >= 2) namun tingkat_kolom di DB tersimpan '1',
+        // pulihkan otomatis ke seluruh tingkat aktif ('1,2' dsb) agar tidak terjadi kolom buntung di tampilan
+        if ($indikator && !empty($indikator->id_karakteristik_kelompok)) {
+            $rawTingkat = trim((string)($indikator->tingkat_kolom ?? ''));
+            if ($rawTingkat === '1') {
+                $kItems = $this->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
+                $kStruct = $this->buildColumnStructure($kItems);
+                if (!empty($kStruct['max_depth']) && (int)$kStruct['max_depth'] >= 2) {
+                    $allLevels = range(1, (int)$kStruct['max_depth']);
+                    $indikator->tingkat_kolom = implode(',', $allLevels);
+                    $this->update($indikator->id, ['tingkat_kolom' => $indikator->tingkat_kolom]);
+                }
+            }
+        }
 
         // 3. Ambil status tahunan dari t_status_tahunan untuk tahun aktif (atau fallback tahun terbaru)
         $statusRow = null;
@@ -2478,7 +2501,7 @@ class M_tabeldinamis extends Model
             'link_tabel'      => $apiRow->link_api ?? '',
             'id_api'          => $apiRow->id_api ?? null,
             'config_tabel'    => $apiRow->config_tabel ?? null,
-            'is_dynamic'      => (($tabel->jenis_sumber ?? '') === 'dinamis' || $indikator !== null) ? 1 : 0,
+            'is_dynamic'      => (($tabel->jenis_sumber ?? '') === 'api_kominfo') ? 0 : ((($tabel->jenis_sumber ?? '') === 'dinamis' || $indikator !== null) ? 1 : 0),
             'is_periksa'      => $statusRow ? (int)$statusRow->is_periksa : 0,
             'catatan_periksa' => $statusRow ? $statusRow->catatan_periksa : null,
             'is_confirm'      => $statusRow ? (string)$statusRow->is_confirm : '0',

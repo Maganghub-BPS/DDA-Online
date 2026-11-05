@@ -682,7 +682,8 @@ function get_dda_label_nested($col)
 
 <div class="dda-body">
     <?php
-    $fallback_url = base_url() . 'admin/dda';
+    $id_unitkerja = $api_results[0]['id_unitkerja'] ?? 0;
+    $fallback_url = !empty($id_unitkerja) ? base_url('admin/dda/view_tabel?id=' . $id_unitkerja) : (base_url() . 'admin/dda');
     $back_url = $fallback_url;
     if (isset($_SERVER['HTTP_REFERER'])) {
         $referer = $_SERVER['HTTP_REFERER'];

@@ -25,7 +25,7 @@ if (empty($data)) {
                                 <td>
                                     <div class="d-flex flex-column gap-1">
                                         <?php 
-                                        $is_dyn = (($b->jenis_sumber ?? '') === 'dinamis') || !empty($b->is_dynamic);
+                                        $is_dyn = (($b->jenis_sumber ?? '') === 'dinamis') || (empty($b->jenis_sumber) && !empty($b->is_dynamic));
                                         $id_gen_url = (int)$b->id;
                                         $api_uuid = trim((string)($b->id_api ?? ''));
                                         $api_link = trim((string)($b->link_api ?? ($b->link_tabel ?? '')));
@@ -80,9 +80,14 @@ if (empty($data)) {
                                                     <i class="bi bi-table me-2"></i> Lihat Tabel
                                                 </a>
                                             </li>
-                                            <?php elseif (!empty($api_uuid)): ?>
+                                            <?php elseif (!empty($api_uuid) || !empty($api_link)): ?>
                                             <li>
-                                                <a href="<?php echo base_url('index.php/admin/view_portal_tabel/' . $api_uuid); ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold">
+                                                <?php 
+                                                $target_portal_url = !empty($api_link) 
+                                                    ? (stripos($api_link, 'http') === 0 ? $api_link : base_url($api_link)) 
+                                                    : base_url('admin/view_portal_tabel?id=' . urlencode($api_uuid));
+                                                ?>
+                                                <a href="<?php echo $target_portal_url; ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold">
                                                     <i class="bi bi-table me-2"></i> Lihat Tabel API
                                                 </a>
                                             </li>
