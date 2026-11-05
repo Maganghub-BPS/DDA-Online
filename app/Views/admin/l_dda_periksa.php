@@ -105,17 +105,10 @@
                 <div class="d-flex align-items-center">
                     <a href="<?= $back_url; ?>" class="btn btn-sm btn-light border-0 me-3 shadow-none bg-light-subtle" style="border-radius: 8px;" title="Kembali"><i class="bi bi-arrow-left"></i></a>
                     <div>
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <h5 class="fw-bold mb-0 text-dark" style="letter-spacing: -0.02em;">
-                                <?= $is_bps_user ? 'Pemeriksaan Tabel DDA' : 'Daftar Tabel DDA'; ?>
-                            </h5>
-                            <?php if (!empty($nama_unitkerja)): ?>
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 0.75rem; border-radius: 6px;">
-                                    <i class="bi bi-building me-1"></i><?= htmlspecialchars($nama_unitkerja); ?>
-                                </span>
-                            <?php endif; ?>
-                        </div>
-                        <p class="text-muted small mb-0"><?= $is_bps_user ? 'Verifikasi kelengkapan dan validasi data sektoral' : 'Kelola dan periksa data publikasi Jawa Tengah Dalam Angka'; ?></p>
+                        <h5 class="fw-bold mb-0 text-dark" style="letter-spacing: -0.02em;">
+                            Pemeriksaan Tabel DDA
+                        </h5>
+                        <p class="text-muted small mb-0">Verifikasi kelengkapan data sektoral</p>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-nowrap filter-search-container">
