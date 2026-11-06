@@ -236,9 +236,11 @@ class M_frontend extends Model
                     ->groupEnd();
         }
 
-        $builder->orderBy('s.published_at', 'DESC')
-               ->orderBy('s.tahun', 'DESC')
-               ->orderBy('m_list_tabel.id', 'DESC');
+        $builder->orderBy("CAST(SUBSTRING_INDEX(COALESCE(m_list_tabel.no_tabel, '999'), '.', 1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(m_list_tabel.no_tabel, '999'),'.0'), '.', 2), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(m_list_tabel.no_tabel, '999'),'.0.0'), '.', 3), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(m_list_tabel.no_tabel, '999'),'.0.0.0'), '.', 4), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy('m_list_tabel.id', 'ASC');
 
         // Hitung total data sebelum limit untuk paginasi
         $total = $builder->countAllResults(false);
