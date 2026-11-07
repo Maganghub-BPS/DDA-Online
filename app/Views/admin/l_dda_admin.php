@@ -9,15 +9,22 @@ echo session()->getFlashdata("k");
             <div class="card-body py-3">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                     <h5 class="fw-bold mb-0 text-primary">
-                        <i class="bi bi-building me-2"></i>Daftar Perangkat Daerah (OPD)
+                        <i class="bi bi-building me-2"></i>Daftar Organisasi Daerah
                     </h5>
-                    <div class="d-flex gap-2 align-items-center">
-                        <div class="input-group input-group-sm" style="max-width: 250px;">
+                    <div class="d-flex align-items-center gap-2 flex-wrap flex-md-nowrap">
+                        <div class="input-group input-group-sm" style="width: 220px;">
                             <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control border-start-0 ps-0" id="searchOPD" placeholder="Cari OPD (otomatis)..." autocomplete="off">
+                            <input type="text" class="form-control border-start-0 ps-0" id="searchOPD" placeholder="Cari organisasi..." autocomplete="off">
                         </div>
-                        <form method="GET" action="<?php echo base_url(); ?>index.php/admin/dda" class="d-flex gap-2">
-                            <select name="filter_tahun" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                        <form method="GET" action="<?php echo base_url(); ?>index.php/admin/dda" class="d-flex align-items-center gap-2 flex-nowrap m-0">
+                            <?php if (in_array(session()->get('admin_level'), ['Admin', 'Super Admin'])): ?>
+                            <select name="filter_jenis" id="filterJenisInstansi" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto; min-width: 175px;">
+                                <option value="all" <?php echo (isset($selected_jenis) && $selected_jenis == 'all') ? 'selected' : ''; ?>>-- Semua Organisasi --</option>
+                                <option value="opd" <?php echo (isset($selected_jenis) && $selected_jenis == 'opd') ? 'selected' : ''; ?>>Organisasi Perangkat Daerah</option>
+                                <option value="vertikal" <?php echo (isset($selected_jenis) && $selected_jenis == 'vertikal') ? 'selected' : ''; ?>>Organisasi Vertikal</option>
+                            </select>
+                            <?php endif; ?>
+                            <select name="filter_tahun" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto; min-width: 135px;">
                                 <option value="all" <?php echo (isset($selected_tahun) && $selected_tahun == 'all') ? 'selected' : ''; ?>>-- Semua Tahun --</option>
                                 <?php 
                                 for ($i = 2020; $i <= (date('Y')+1); $i++) {
@@ -26,8 +33,8 @@ echo session()->getFlashdata("k");
                                 }
                                 ?>
                             </select>
-                            <?php if(isset($selected_tahun) && $selected_tahun != 'all'): ?>
-                                <a href="<?php echo base_url(); ?>index.php/admin/dda?action=reset_dda" class="btn btn-sm btn-light border" title="Reset Tahun">
+                            <?php if((isset($selected_tahun) && $selected_tahun != 'all') || (isset($selected_jenis) && $selected_jenis != 'all')): ?>
+                                <a href="<?php echo base_url(); ?>index.php/admin/dda?action=reset_dda" class="btn btn-sm btn-light border text-danger d-inline-flex align-items-center justify-content-center" title="Reset Filter" style="height: 31px; width: 31px;">
                                     <i class="bi bi-arrow-counterclockwise"></i>
                                 </a>
                             <?php endif; ?>
@@ -46,7 +53,7 @@ echo session()->getFlashdata("k");
                 <thead class="table-light">
                     <tr>
                         <th width="5%" class="text-center">No.</th>
-                        <th width="65%">Nama OPD</th>
+                        <th width="65%">Nama Organisasi</th>
                         <?php if(session()->get('admin_level') != 'lo'): ?>
                         <th width="30%" class="text-center">Penanggung Jawab (Tim)</th>
                         <?php endif; ?>
@@ -60,10 +67,10 @@ echo session()->getFlashdata("k");
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
                     ?>
-                    <tr class="opd-row">
+                    <tr class="opd-row" data-jenis="<?php echo $b->jenis_instansi ?? 'vertikal'; ?>">
                         <td class="text-center opd-no"><?php echo $no;?></td>
                         <td>
-                            <a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark">
+                            <a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark d-inline-flex align-items-center">
                                 <i class="bi bi-folder-check me-2 text-primary"></i><?php echo $b->unitkerja_ind;?>
                             </a>
                         </td>
@@ -79,7 +86,7 @@ echo session()->getFlashdata("k");
                     }
                     ?>
                     <tr class="no-result-row d-none" id="noResultRow">
-                        <td colspan="3" class="text-center py-4 text-danger fw-bold">-- Tidak ada OPD yang cocok dengan pencarian --</td>
+                        <td colspan="3" class="text-center py-4 text-danger fw-bold">-- Tidak ada organisasi yang cocok dengan pencarian --</td>
                     </tr>
                 </tbody>
             </table>
@@ -96,16 +103,22 @@ echo session()->getFlashdata("k");
 
 <script type="text/javascript">
 $(document).ready(function() {
-    $('#searchOPD').on('input', function() {
-        var keyword = $(this).val().toLowerCase().trim();
+    function applyDdaFilter() {
+        var keyword = $('#searchOPD').val().toLowerCase().trim();
+        var selectedJenis = $('#filterJenisInstansi').length ? ($('#filterJenisInstansi').val() || 'all') : 'all';
         var $rows = $('.opd-row');
         var $noResult = $('#noResultRow');
         var visibleCount = 0;
         var num = 1;
-        
+
         $rows.each(function() {
-            var opdName = $(this).find('td:nth-child(2)').text().toLowerCase();
-            if (opdName.indexOf(keyword) > -1) {
+            var orgText = $(this).find('td:nth-child(2)').text().toLowerCase();
+            var jenis = $(this).attr('data-jenis') || 'vertikal';
+
+            var matchKeyword = (keyword === '' || orgText.indexOf(keyword) > -1);
+            var matchJenis = (selectedJenis === 'all' || jenis === selectedJenis);
+
+            if (matchKeyword && matchJenis) {
                 $(this).removeClass('d-none').show();
                 $(this).find('.opd-no').text(num++);
                 visibleCount++;
@@ -114,11 +127,13 @@ $(document).ready(function() {
             }
         });
 
-        if(visibleCount == 0 && keyword != '') {
+        if (visibleCount === 0) {
             $noResult.removeClass('d-none').show();
         } else {
             $noResult.addClass('d-none').hide();
         }
-    });
+    }
+
+    $('#searchOPD').on('input', applyDdaFilter);
 });
 </script>

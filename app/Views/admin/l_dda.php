@@ -188,7 +188,7 @@ if (empty($data)) {
         $is_portal = (stripos($b->link_tabel, 'portal') !== false || 
                       stripos($b->link_tabel, 'satudata') !== false || 
                       (isset($b->id_api) && !empty($b->id_api)));
-        $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
+        $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([^\r\n]+)/iu', $b->catatan_periksa, $m));
         $is_sudah_diisi = ($is_portal) || ($b->is_periksa == '1');
 
         if ($is_sudah_diisi) { ?>
@@ -207,7 +207,7 @@ if (empty($data)) {
                             <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
                         </span>
                         <span class="d-block text-muted mt-1" style="font-style: normal; font-size: 0.72rem;">
-                            <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                            <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?><?= (!str_ends_with($waktu, 'WIB') ? ' WIB' : ''); ?>
                         </span>
                     <?php else: ?>
                         <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? 'Catatan: '.htmlspecialchars($b->catatan_periksa) : 'Input Manual/Sheet'; ?>
@@ -254,8 +254,8 @@ if (empty($data)) {
                 <?php if($is_dynamic): ?>
                     <a href="<?php echo $tabel_url; ?>"
                        class="btn btn-sm btn-primary shadow-sm align-self-start border-0 text-white"
-                       title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
-                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Isi Data (<?= esc($thDataDda ?? ((int)$ta - 1)); ?>)
+                       title="<?= can('input_dda_input') ? 'Buka Viewer Tabel Dinamis untuk Mengisi Data' : 'Buka Viewer Tabel Dinamis untuk Melihat Data'; ?>">
+                        <i class="bi <?= can('input_dda_input') ? 'bi-cloud-arrow-up-fill' : 'bi-eye'; ?> me-1"></i><?= can('input_dda_input') ? 'Isi Data' : 'Lihat Data'; ?> (<?= esc($thDataDda ?? ((int)$ta - 1)); ?>)
                     </a>
                     <?php $thDataDda = (int)$ta - 1; ?>
                     <a href="<?= base_url('admin/download_template_tabel/' . $b->id . '/' . $thDataDda); ?>"
@@ -264,7 +264,7 @@ if (empty($data)) {
                        title="Unduh Template Excel Data Tahun <?= esc($thDataDda); ?>">
                         <i class="bi bi-download me-1"></i>Template (<?= esc($thDataDda); ?>)
                     </a>
-                <?php else: ?>
+                <?php elseif(can('input_dda_input')): ?>
                     <a href="javascript:;"
                        class="btn btn-sm btn-primary btn-isi-data shadow-sm align-self-start border-0" style="background: #FF6D1F;"
                        data-id="<?php echo $b->id; ?>"
@@ -289,7 +289,7 @@ if (empty($data)) {
             }
         }
 
-        if(session()->get('admin_unitkerja') == 'bps') {
+        if(can('input_dda_verif')) {
             if($b->is_confirm != '1') {
                 $id_konfirm = $b->id;
         ?>

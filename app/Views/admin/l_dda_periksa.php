@@ -112,18 +112,20 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-nowrap filter-search-container">
-                    <!-- Filter Publish Pill Buttons -->
-                    <div class="btn-group btn-group-sm bg-light p-1 rounded-3 flex-shrink-0 d-inline-flex align-items-center" role="group" id="filterPublishGroup" style="border: 1px solid #e9ecef; height: 38px;">
-                        <button type="button" class="btn btn-sm active fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="all" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
-                            Semua
-                        </button>
-                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="published" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
-                            <i class="bi bi-eye-fill text-success me-1"></i> Publik
-                        </button>
-                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="draft" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
-                            <i class="bi bi-eye-slash-fill text-secondary me-1"></i> Draft
-                        </button>
-                    </div>
+                    <?php if (can('input_dda_publish')): ?>
+                        <!-- Filter Publish Pill Buttons -->
+                        <div class="btn-group btn-group-sm bg-light p-1 rounded-3 flex-shrink-0 d-inline-flex align-items-center" role="group" id="filterPublishGroup" style="border: 1px solid #e9ecef; height: 38px;">
+                            <button type="button" class="btn btn-sm active fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="all" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                                Semua
+                            </button>
+                            <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="published" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                                <i class="bi bi-eye-fill text-success me-1"></i> Publik
+                            </button>
+                            <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="draft" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                                <i class="bi bi-eye-slash-fill text-secondary me-1"></i> Draft
+                            </button>
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Search Input -->
                     <div class="input-group input-group-sm flex-nowrap flex-shrink-0" style="width: 250px; height: 38px;">
@@ -143,16 +145,18 @@
                 <thead>
                     <tr>
                         <th width="4%" class="text-center">#</th>
-                        <th width="40%">Informasi Tabel</th>
-                        <th width="21%">Status Pengisian</th>
-                        <th width="21%">Status Verifikasi</th>
-                        <th width="14%" class="text-center">Status Tampil</th>
+                        <th width="<?= can('input_dda_publish') ? '40%' : '48%'; ?>">Informasi Tabel</th>
+                        <th width="<?= can('input_dda_publish') ? '21%' : '24%'; ?>">Status Pengisian</th>
+                        <th width="<?= can('input_dda_publish') ? '21%' : '24%'; ?>">Status Verifikasi</th>
+                        <?php if (can('input_dda_publish')): ?>
+                            <th width="14%" class="text-center">Status Tampil</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php 
                     if (empty($data)) {
-                        echo "<tr><td colspan='5' class='text-center py-5 text-muted'><i class='bi bi-info-circle me-2 d-block mb-3 display-6 opacity-25'></i>Tabel tidak ditemukan</td></tr>";
+                        echo "<tr><td colspan='" . (can('input_dda_publish') ? 5 : 4) . "' class='text-center py-5 text-muted'><i class='bi bi-info-circle me-2 d-block mb-3 display-6 opacity-25'></i>Tabel tidak ditemukan</td></tr>";
                     } else {
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
@@ -219,8 +223,8 @@
                         <td>
                             <div class="status-container">
                                 <?php 
-                                $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
-                                $is_sudah_diisi = ($is_portal) || ((int)($b->is_periksa ?? 0) === 1);
+                                $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([^\r\n]+)/iu', $b->catatan_periksa, $m));
+                                $is_sudah_diisi = ((int)($b->is_periksa ?? 0) === 1);
                                 ?>
                                 <?php if($is_sudah_diisi): ?>
                                     <span class="badge bg-success-subtle text-success border-0 align-self-start status-badge">
@@ -231,14 +235,14 @@
                                             Tersinkronisasi otomatis dengan Portal Data
                                         <?php elseif($is_dynamic && $is_dynamic_uploaded): ?>
                                             <?php
-                                            $uploader = trim($m[1]);
-                                            $waktu    = trim($m[2]);
+                                             $uploader = trim($m[1]);
+                                             $waktu    = trim($m[2]);
                                             ?>
                                             <div class="text-dark fw-semibold" style="font-size: 0.77rem; line-height: 1.35;">
                                                 <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
                                             </div>
                                             <div class="text-muted mt-1" style="font-size: 0.72rem;">
-                                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?><?= (!str_ends_with($waktu, 'WIB') ? ' WIB' : ''); ?>
                                             </div>
                                         <?php else: ?>
                                             <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? htmlspecialchars($b->catatan_periksa) : ($is_dynamic ? 'Data telah terisi di sistem' : 'Diinput melalui sheet manual'); ?>
@@ -288,7 +292,14 @@
                                     <span class="badge bg-danger-subtle text-danger border-0 align-self-start status-badge">
                                         <i class="bi bi-dash-circle-fill me-1"></i> BELUM DIISI
                                     </span>
-                                    <?php if($is_dynamic): ?>
+                                    <?php if($is_portal): ?>
+                                        <div class="note-text text-danger mt-1" style="font-size: 0.73rem;">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Tahun data (<?= $thPeriodeDda; ?>) belum tersedia di Portal Data
+                                            <?php if(!empty($b->tahun_tersedia)): ?>
+                                                <div class="text-muted" style="font-size: 0.70rem;">(Tersedia: <?= htmlspecialchars($b->tahun_tersedia); ?>)</div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php elseif($is_dynamic): ?>
                                         <?php if ($is_bps_user): ?>
                                             <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
                                                 <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
@@ -368,6 +379,7 @@
                             </div>
                         </td>
 
+                    <?php if (can('input_dda_publish')): ?>
                         <!-- STATUS TAMPIL (PUBLISH SWITCH) -->
                         <?php
                             $user_lvl_sess = strtolower(trim(session()->get('admin_level') ?? ''));
@@ -447,7 +459,7 @@
                                 <div id="pub-status-label-<?= $b->id ?>" class="mt-1">
                                     <?php if (!$has_link): ?>
                                         <span class="badge bg-light text-muted border px-2 py-0.5" style="font-size: 10px; font-weight: 600;">
-                                            <i class="bi bi-link-45deg me-0.5"></i> Tanpa Link
+                                             <i class="bi bi-link-45deg me-0.5"></i> Tanpa Link
                                         </span>
                                     <?php elseif ($is_published): ?>
                                         <span class="badge bg-success-subtle text-success border-0 px-2 py-0.5" style="font-size: 10px; font-weight: 700;">
@@ -461,13 +473,14 @@
                                 </div>
                             </div>
                         </td>
+                    <?php endif; ?>
                     </tr>
                     <?php 
                         }
                     }
                     ?>
                     <tr class="no-result-row d-none" id="noResultRow">
-                        <td colspan="5" class="text-center py-5">
+                        <td colspan="<?= can('input_dda_publish') ? 5 : 4; ?>" class="text-center py-5">
                             <i class="bi bi-search-heart display-4 text-muted opacity-25 d-block mb-3"></i>
                             <span class="text-secondary fw-medium">Tidak ada tabel yang sesuai dengan kata kunci Anda</span>
                         </td>

@@ -399,28 +399,60 @@ function get_dda_label_nested($col)
     }
 
     .main-table thead th {
-        border: 1px solid #000;
+        border: 1px solid rgba(255, 255, 255, 0.25);
         padding: 8px 4px;
         font-size: 12px;
         font-weight: bold;
         text-align: center;
         vertical-align: middle;
+        background: #154679;
+        color: white;
+    }
+
+    .main-table thead th i {
+        display: block !important;
+        font-style: italic !important;
+        font-weight: normal !important;
+        font-size: 0.85em !important;
+        margin-top: 2px !important;
+        line-height: 1.25 !important;
+        opacity: 0.95 !important;
+        color: #e0edfd !important;
     }
 
     .main-table thead tr.num-row th {
-        font-weight: normal;
-        padding: 2px;
-        background: #fff;
-        font-size: 10px;
+        font-weight: bold;
+        padding: 6px 4px;
+        background: #154679;
+        font-size: 11px;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.25);
     }
 
     .main-table tbody td {
-        border: 1px solid #ccc;
-        border-left: 1px solid #000;
-        border-right: 1px solid #000;
-        padding: 6px 8px;
+        border: 1px solid #e2e8f0;
+        padding: 7px 10px;
         font-size: 12px;
-        vertical-align: top;
+        vertical-align: middle;
+        color: #1e293b;
+    }
+
+    .main-table tbody tr.row-odd,
+    .main-table tbody tr.row-odd td {
+        background-color: #f1f6fc !important;
+    }
+
+    .main-table tbody tr.row-even,
+    .main-table tbody tr.row-even td {
+        background-color: #ffffff !important;
+    }
+
+    .main-table tbody tr.row-total,
+    .main-table tbody tr.row-total td {
+        background-color: #154679 !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
 
     .table-responsive-dda {
@@ -521,23 +553,23 @@ function get_dda_label_nested($col)
 
     .btn-back-modern:hover {
         background: #fff;
-        color: #ff6d1f;
-        border-color: #ff6d1f;
+        color: #154679;
+        border-color: #154679;
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(255, 109, 31, 0.1);
+        box-shadow: 0 6px 12px rgba(21, 70, 121, 0.15);
         text-decoration: none;
     }
 
     .export-btn-modern {
-        background: #FF6D1F;
+        background: #154679;
         color: #fff;
     }
 
     .export-btn-modern:hover {
-        background: #e05e15;
+        background: #0f355c;
         color: #fff;
         transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(255, 109, 31, 0.25);
+        box-shadow: 0 8px 15px rgba(21, 70, 121, 0.25);
     }
 
     /* Progress Bar Styles */
@@ -641,9 +673,9 @@ function get_dda_label_nested($col)
     }
 
     #configModal .nav-link.active {
-        background: #FF6D1F;
+        background: #154679;
         color: #fff;
-        border-color: #FF6D1F;
+        border-color: #154679;
     }
 
     .col-item {
@@ -761,7 +793,7 @@ function get_dda_label_nested($col)
         }
 
         .filter-box-modern:hover {
-            border-color: #FF6D1F;
+            border-color: #154679;
         }
 
         .form-select-modern {
@@ -834,6 +866,25 @@ function get_dda_label_nested($col)
     </script>
 
     <?php echo view('admin/parts/js_export_excel'); ?>
+
+    <?php 
+    $target_year_found = !empty($th_target_data) && in_array((string)$th_target_data, array_map('strval', $unique_years));
+    if (!empty($th_target_data) && !$target_year_found): 
+    ?>
+        <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4" style="border-radius: 12px; background-color: #fff8e1;">
+            <div class="me-3 text-warning fs-3">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div>
+                <div class="fw-bold text-dark" style="font-size: 0.95rem;">Perhatian: Data Tahun Target (<?= htmlspecialchars((string)$th_target_data); ?>) Belum Tersedia di API</div>
+                <div class="text-secondary small mt-0.5">
+                    Publikasi DDA Tahun <?= htmlspecialchars((string)($ta ?? ((int)$th_target_data + 1))); ?> membutuhkan data tahun <strong><?= htmlspecialchars((string)$th_target_data); ?></strong>. 
+                    Saat ini API Portal Data baru menyediakan data untuk tahun: <strong><?= !empty($unique_years) ? implode(', ', $unique_years) : 'Tidak ada data tahun'; ?></strong>.
+                    Status tabel pada daftar pemeriksaan adalah <span class="badge bg-danger text-white">BELUM DIISI</span>.
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if ($hasError): ?>
         <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
@@ -1067,7 +1118,7 @@ function get_dda_label_nested($col)
                     <!-- TABEL DATA UTAMA -->
                     <div class="table-responsive-dda">
                         <table class="main-table dda-table-item" id="dda-table-<?php echo $idx_res; ?>">
-                        <thead style="background: #FF6D1F; color: #fff;">
+                        <thead style="background: #154679; color: #fff;">
                             <!-- BARIS HEADER 1: INDUK -->
                             <tr>
                                 <?php foreach ($structure as $item): ?>
@@ -1091,7 +1142,7 @@ function get_dda_label_nested($col)
                                 </tr>
                             <?php endif; ?>
                             <!-- BARIS PENOMORAN (1), (2), (3) ... -->
-                            <tr class="num-row" style="background:#f9a066; color:#000;">
+                            <tr class="num-row" style="background:#154679; color:#fff;">
                                 <?php
                                 $col_count_n = 0;
                                 foreach ($columns as $idx_c => $col):

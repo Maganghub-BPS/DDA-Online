@@ -37,7 +37,7 @@ if ($jenis_rekap == '0') {
         FROM m_list_tabel mt
         JOIN m_unitkerja m ON mt.id_unitkerja = m.id_unitkerja 
         LEFT JOIN (
-            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa, MAX(link_tabel) as link_tabel 
+            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa 
             FROM t_status_tahunan WHERE tahun = ? GROUP BY id_tabel
         ) tt ON tt.id_tabel = mt.id
         LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
@@ -174,7 +174,7 @@ if ($jenis_rekap == '1') {
         FROM m_unitkerja u
         JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja 
         LEFT JOIN (
-            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa, MAX(link_tabel) as link_tabel 
+            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa 
             FROM t_status_tahunan WHERE tahun = ? GROUP BY id_tabel
         ) tt ON tt.id_tabel = mt.id
         LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id

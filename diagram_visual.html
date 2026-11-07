@@ -3,142 +3,250 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Diagram Arsitektur Tabel Dinamis (Versi Presentasi) - BPS Jateng</title>
+  <title>Diagram Arsitektur Relasional Tabel Dinamis DDA - BPS Jateng</title>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
       padding: 30px;
       background-color: #f8fafc;
-      color: #1e293b;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
     }
     .container {
-      max-width: 1050px;
+      max-width: 1100px;
       margin: 0 auto;
+    }
+    .badge-bps {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: #ffedd5;
+      color: #c2410c;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     h1 {
       color: #0f172a;
+      font-weight: 800;
+      letter-spacing: -0.025em;
       border-bottom: 3px solid #ff6d1f;
       padding-bottom: 12px;
       margin-bottom: 8px;
+      font-size: 1.85rem;
     }
     .subtitle {
       color: #64748b;
+      font-size: 1rem;
+      line-height: 1.5;
       margin-bottom: 30px;
-      font-size: 1.05rem;
     }
     .card {
       background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-      padding: 25px 30px;
+      border-radius: 14px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      padding: 28px 32px;
       margin-bottom: 35px;
       border: 1px solid #e2e8f0;
     }
     .card h2 {
       margin-top: 0;
       color: #1e3a8a;
+      font-weight: 700;
       border-bottom: 1px solid #f1f5f9;
       padding-bottom: 12px;
       font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .card p {
+    .card p.desc {
       color: #475569;
-      line-height: 1.5;
+      line-height: 1.6;
+      font-size: 0.95rem;
+      margin-top: 0;
+      margin-bottom: 20px;
     }
     .mermaid {
       display: flex;
       justify-content: center;
       background: #ffffff;
-      padding: 15px;
-      border-radius: 8px;
+      padding: 24px 10px;
+      border-radius: 10px;
       overflow-x: auto;
     }
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      background: #ffedd5;
-      color: #c2410c;
-      margin-bottom: 10px;
+    .mermaid text {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      letter-spacing: -0.01em;
     }
   </style>
   <script>
-    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: 'loose',
+      theme: 'base',
+      themeVariables: {
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
+        fontSize: '12px',
+        textColor: '#1e293b',
+        edgeLabelBackground: '#ffffff',
+        lineColor: '#64748b'
+      }
+    });
   </script>
 </head>
 <body>
   <div class="container">
-    <span class="badge">BPS Provinsi Jawa Tengah</span>
-    <h1>📊 Arsitektur Tabel Dinamis DDA (Versi Presentasi)</h1>
-    <div class="subtitle">Diagram sederhana dan terfokus untuk bahan presentasi &amp; penjelasan logika data</div>
+    <span class="badge-bps">BPS Provinsi Jawa Tengah • Sistem DDA Online</span>
+    <h1>Arsitektur Relasional &amp; Alur Data Tabel Dinamis</h1>
+    <div class="subtitle">Diagram arsitektur database dan alur kerja operasional untuk presentasi teknis</div>
 
-    <!-- DIAGRAM 1 -->
+    <!-- ============================================================== -->
+    <!-- DIAGRAM 1: ARSITEKTUR RELASIONAL 3 LAPISAN FORMAL              -->
+    <!-- ============================================================== -->
     <div class="card">
-      <h2>📌 Diagram 1: Hubungan Antar Tabel (3 Lapisan Logika)</h2>
-      <p>Menjelaskan pemisahan data dari Judul Master, Status Publikasi Tahunan &amp; Konfigurasi API, Perakitan Dimensi, hingga Titik Nilai Sel.</p>
+      <h2>Diagram 1: Arsitektur Relasional Database (3 Lapisan)</h2>
+      <p class="desc">
+        Struktur database terbagi ke dalam <b>3 Lapisan</b>: 
+        <b>Lapisan 1 (Master &amp; Konfigurasi Sumber)</b> ➔ 
+        <b>Lapisan 2 (Generator 3 Dimensi Matriks)</b> ➔ 
+        <b>Lapisan 3 (Pengisian Data &amp; Status Publikasi Tahunan)</b>.
+      </p>
+
       <div class="mermaid">
 flowchart TD
-    subgraph L1["LAPISAN 1: MASTER PUBLIKASI & STATUS TAHUNAN"]
-        MLT["<b>m_list_tabel</b><br>(Kamus Judul Master BPS)"]
-        TST["<b>t_status_tahunan</b><br>(Edisi Publikasi Tahunan: 2024, 2025, 2026)"]
-        MKA["<b>m_konfigurasi_api</b><br>(Integrasi API SatuData/Portal)"]
-        MLT -->|1 : N| TST
-        MLT -->|1 : 1| MKA
+    %% ==========================================
+    %% LAPISAN 1: MASTER & KONFIGURASI SUMBER
+    %% ==========================================
+    subgraph L1 ["LAPISAN 1: MASTER & KONFIGURASI SUMBER TABEL"]
+        direction TB
+        MLT["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_list_tabel</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>no_tabel</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(50)</td><td></td></tr><tr><td>judul_ind</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(1000)</td><td></td></tr><tr><td>jenis_sumber</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>enum</td><td></td></tr></table>"]
+        
+        MKA["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_konfigurasi_api</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>id_tabel</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK,UK</td></tr><tr><td>id_api</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(100)</td><td></td></tr><tr><td>link_api</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>text</td><td></td></tr><tr><td>config_tabel</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>longtext</td><td></td></tr><tr><td>cached_json</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>longtext</td><td></td></tr><tr><td>tahun_tersedia</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(100)</td><td></td></tr><tr><td>last_sync_at</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>datetime</td><td></td></tr></table>"]
+
+        MIT["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_indikator_tabel</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>id_tabel</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK,UK</td></tr><tr><td>id_baris_kelompok</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>id_karakteristik_kelompok</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>id_periode_kelompok</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>satuan</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(100)</td><td></td></tr></table>"]
+
+        MLT -->|API| MKA
+        MLT -->|Dinamis| MIT
     end
 
-    subgraph L2["LAPISAN 2: PERAKITAN MATRIKS DINAMIS"]
-        MIT["<b>m_indikator_tabel</b><br>(Otak Perakitan Matriks)"]
-        MLT -->|1 : 1| MIT
+    %% ==========================================
+    %% LAPISAN 2: GENERATOR 3 DIMENSI
+    %% ==========================================
+    subgraph L2 ["LAPISAN 2: GENERATOR 3 DIMENSI MATRIKS"]
+        direction TB
+        BK["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_baris_kelompok</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>nama_kelompok_ind</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(255)</td><td></td></tr></table>"]
+        
+        BI["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_baris_item</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>id_kelompok</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>nama_baris_ind</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(500)</td><td></td></tr><tr><td>tipe_baris</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>enum</td><td></td></tr></table>"]
+        BK --> BI
 
-        subgraph DIMS["Kamus 3 Dimensi Reusable"]
-            KOL["<b>Dimensi Kolom</b><br>m_karakteristik_kelompok<br>↓<br>m_karakteristik_item"]
-            BAR["<b>Dimensi Baris</b><br>m_baris_kelompok<br>↓<br>m_baris_item"]
-            WKT["<b>Dimensi Waktu</b><br>m_periode_kelompok<br>↓<br>m_periode_item"]
-        end
+        KK["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_karakteristik_kelompok</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>nama_kelompok_ind</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(255)</td><td></td></tr></table>"]
+        
+        KI["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_karakteristik_item</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>id_kelompok</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>item_ind</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(255)</td><td></td></tr></table>"]
+        KK --> KI
 
-        MIT -->|Merakit Kolom| KOL
-        MIT -->|Merakit Baris| BAR
-        MIT -->|Merakit Waktu| WKT
+        PK["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_periode_kelompok</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>nama_kelompok_ind</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(255)</td><td></td></tr></table>"]
+        
+        PI["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>m_periode_item</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>id_kelompok</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>nama_periode_ind</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(100)</td><td></td></tr></table>"]
+        PK --> PI
+
+        MIT -->|"Baris (Y)"| BK
+        MIT -->|"Karakteristik (X)"| KK
+        MIT -->|"Periode (Z)"| PK
     end
 
-    subgraph L3["LAPISAN 3: SEL ANGKA DATA MULTI-TAHUN"]
-        TND["<b>t_nilai_dinamis</b><br>Perpotongan Sel: [Tabel] x [Tahun Data] x [Baris] x [Kolom] x [Waktu] = Nilai Angka BPS"]
-        KOL --> TND
-        BAR --> TND
-        WKT --> TND
-        MIT --> TND
+    %% ==========================================
+    %% LAPISAN 3: PENGISIAN DATA & STATUS PUBLIKASI
+    %% ==========================================
+    subgraph L3 ["LAPISAN 3: PENGISIAN DATA & STATUS PUBLIKASI TAHUNAN"]
+        direction TB
+        TND["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>t_nilai_dinamis</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>bigint unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>id_indikator</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>tahun_data</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>smallint unsigned</td><td></td></tr><tr><td>id_baris_item</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>id_karakteristik_item</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>id_periode_item</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>nilai</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>decimal(20,4)</td><td></td></tr><tr><td>simbol</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(100)</td><td></td></tr></table>"]
+
+        TST["<table style='width:100%;font-size:11px;border-collapse:collapse;text-align:left;'><tr><th colspan='3' style='border-bottom:1.5px solid #000;padding-bottom:4px;font-size:12px;'>t_status_tahunan</th></tr><tr><td>id</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int unsigned</td><td style='color:#dc2626;font-weight:bold;text-align:right;'>PK</td></tr><tr><td>id_tabel</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>int</td><td style='color:#2563eb;font-weight:bold;text-align:right;'>FK</td></tr><tr><td>tahun</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>smallint unsigned</td><td></td></tr><tr><td>is_periksa</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>tinyint(1)</td><td></td></tr><tr><td>is_confirm</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>varchar(10)</td><td></td></tr><tr><td>is_publish</td><td style='color:#64748b;font-family:monospace;padding:2px 14px;'>tinyint(1)</td><td></td></tr></table>"]
+
+        BI --> TND
+        KI --> TND
+        PI --> TND
+
+        TND -->|"is_periksa = 1"| TST
+        MKA -->|"is_periksa = 1"| TST
     end
 
-    style L1 fill:#eff6ff,stroke:#3b82f6,stroke-width:2px
-    style L2 fill:#fff7ed,stroke:#f97316,stroke-width:2px
-    style L3 fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
+    %% STYLING FORMAL ERD SCHEMA
+    style L1 fill:#f0f9ff,stroke:#0284c7,stroke-width:1.5px
+    style MLT fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style MKA fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style MIT fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+
+    style L2 fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px
+    style BK fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style BI fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style KK fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style KI fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style PK fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style PI fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+
+    style L3 fill:#f0fdf4,stroke:#16a34a,stroke-width:1.5px
+    style TND fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
+    style TST fill:#ffffff,stroke:#000000,stroke-width:1.5px,rx:0px,ry:0px
       </div>
     </div>
 
-    <!-- DIAGRAM 2 -->
+    <!-- ============================================================== -->
+    <!-- DIAGRAM 2: SIKLUS ALUR KERJA OPERASIONAL                       -->
+    <!-- ============================================================== -->
     <div class="card">
-      <h2>📌 Diagram 2: Hubungan Antar Kolom (Kunci Penghubung / Foreign Keys)</h2>
-      <p>Hanya menampilkan kolom kunci utama yang menghubungkan seluruh tabel ke sel nilai.</p>
+      <h2>Diagram 2: Siklus Alur Kerja Operasional (Sequence Diagram)</h2>
+      <p class="desc">Alur kerja pengumpulan data DDA antara Tim LO/Admin BPS dan Walidata OPD.</p>
       <div class="mermaid">
-flowchart TD
-    MLT["m_list_tabel<br>🔑 <b>id</b>"] -->|id -> id_tabel| TST["t_status_tahunan<br>🔗 <b>id_tabel</b><br>🔑 <b>id</b>"]
-    MLT -->|id -> id_tabel| MKA["m_konfigurasi_api<br>🔗 <b>id_tabel</b> (UK)<br>🔑 <b>id</b>"]
-    MLT -->|id -> id_tabel| MIT["m_indikator_tabel<br>🔗 <b>id_tabel</b> (UK)<br>🔑 <b>id</b>"]
+sequenceDiagram
+    autonumber
+    actor LO as Tim LO / Admin BPS
+    actor Walidata as Walidata / OPD
+    actor Admin as Super Admin
+    actor Publik as Pengunjung Portal
 
-    MIT -->|id_karakteristik_kelompok| MKI["m_karakteristik_item<br>🔑 <b>id</b> (Kolom / X)"]
-    MIT -->|id_baris_kelompok| MBI["m_baris_item<br>🔑 <b>id</b> (Baris / Y)"]
-    MIT -->|id_periode_kelompok| MPI["m_periode_item<br>🔑 <b>id</b> (Waktu / Z)"]
+    rect rgb(240, 249, 255)
+    Note over LO: 1. Pembuatan Master Dimensi Reusable
+    LO->>LO: Membuat Master Baris, Karakteristik Kolom, & Periode
+    end
 
-    MIT -->|id| TND["<b>t_nilai_dinamis</b><br>───────────────<br>🔗 <b>id_indikator</b> (Tabel)<br>📅 <b>tahun_data</b> (2023, 2024, 2025)<br>🔗 <b>id_baris_item</b> (Baris)<br>🔗 <b>id_karakteristik_item</b> (Kolom)<br>🔗 <b>id_periode_item</b> (Waktu/Sub-periode)<br>───────────────<br>📊 <b>nilai</b> (Angka Sel BPS)<br>🔣 <b>simbol</b> (-, NA)"]
-    MKI -->|id| TND
-    MBI -->|id| TND
-    MPI -->|id| TND
+    rect rgb(255, 247, 237)
+    Note over LO: 2. Generate Matriks Tabel Dinamis
+    LO->>LO: Daftarkan Judul di m_list_tabel & Generate Matriks
+    end
 
-    style TND fill:#dcfce7,stroke:#16a34a,stroke-width:2px
+    rect rgb(254, 243, 199)
+    Note over Walidata: 3. Pengisian Sel Nilai di Tahun Aktif
+    Walidata->>Walidata: Buka Tabel & Isi Sel-Sel Angka / Simbol BPS
+    Walidata->>LO: Simpan Data (Status: Sudah Diisi / Menunggu Cek)
+    end
+
+    rect rgb(254, 226, 226)
+    Note over LO, Walidata: 4. Pemeriksaan & Verifikasi Data
+    LO->>LO: Cek Kelengkapan Sel & Validasi Angka
+    alt Ada Masalah / Sel Kosong
+        LO->>Walidata: Berikan Catatan Evaluasi (Kembali ke Walidata untuk diperbaiki)
+        Walidata->>LO: Perbaiki & Kirim Ulang
+    else Data Sudah Sesuai (Tidak Ada Catatan)
+        LO->>Admin: Set Status "Terverifikasi"
+    end
+    end
+
+    rect rgb(220, 252, 231)
+    Note over Admin, Publik: 5. Publikasi Multi-Tahun
+    Admin->>Publik: Switch Publikasi ON (Tabel langsung tayang di portal publik)
+    Publik->>Publik: Akses Data Multi-Tahun, Export Excel & PDF
+    end
       </div>
     </div>
   </div>

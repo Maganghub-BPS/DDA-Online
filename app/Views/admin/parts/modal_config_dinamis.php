@@ -33,14 +33,14 @@
     }
 
     #configModalDinamis .nav-link.active {
-        background: #FF6D1F !important;
+        background: #154679 !important;
         color: #fff !important;
-        border-color: #FF6D1F !important;
+        border-color: #154679 !important;
     }
 
     #configModalDinamis .form-check-input:checked {
-        background-color: #FF6D1F;
-        border-color: #FF6D1F;
+        background-color: #154679;
+        border-color: #154679;
     }
 
     /* Preview Cepat Tabel Dinamis - 100% Identik dengan Preview Tabel API */
@@ -141,7 +141,7 @@
             <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-3">
                     <h5 class="modal-title fw-bold text-dark mb-0">
-                        <i class="bi bi-sliders me-2" style="color: #FF6D1F;"></i> KONFIGURASI TABEL
+                        <i class="bi bi-sliders me-2" style="color: #154679;"></i> KONFIGURASI TABEL
                     </h5>
                     <button type="button" class="btn-sm btn btn-outline-secondary rounded-pill px-3 fw-bold" onclick="toggleGuideDinamis()" style="font-size: 10px;">
                         <i class="bi bi-question-circle me-1"></i> PANDUAN PENGGUNA
@@ -298,7 +298,7 @@
                         <div class="tab-pane fade" id="tab-pivot-dinamis">
                             <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" id="cfg_prioritas_karakteristik" name="prioritas_karakteristik" value="1" <?= (!empty($config_tampilan['prioritas_karakteristik']) ? 'checked' : ''); ?>>
-                                <label class="form-check-label small fw-bold" for="cfg_prioritas_karakteristik" style="color: #FF6D1F;">
+                                <label class="form-check-label small fw-bold" for="cfg_prioritas_karakteristik" style="color: #154679;">
                                     <i class="bi bi-diagram-3-fill me-1"></i> Prioritas Karakteristik (Karakteristik &raquo; Tahun)
                                 </label>
                                 <small class="text-muted d-block ps-1" style="font-size: 11px;">Default OFF: Tahun di atas Karakteristik. Jika ON: Karakteristik di atas Tahun.</small>
@@ -359,7 +359,7 @@
                     <button type="button" onclick="previewConfigDinamis()" class="btn btn-info text-white px-4 fw-bold rounded-pill">
                         <i class="bi bi-eye me-1"></i> Preview
                     </button>
-                    <button type="button" onclick="submitConfigDinamis(this)" class="btn btn-primary px-4 fw-bold rounded-pill shadow-primary" style="background: #FF6D1F; border: none;">
+                    <button type="button" onclick="submitConfigDinamis(this)" class="btn btn-primary px-4 fw-bold rounded-pill shadow-primary" style="background: #154679; border: none;">
                         <i class="bi bi-check-circle me-1"></i> Terapkan & Simpan
                     </button>
                 </div>

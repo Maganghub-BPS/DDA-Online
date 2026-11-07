@@ -1596,7 +1596,7 @@ class M_tabeldinamis extends Model
                 $uploaderName = (PHP_SAPI !== 'cli' && function_exists('session')) 
                     ? (session()->get('admin_nama') ?: (session()->get('admin_user') ?: 'Walidata'))
                     : 'Walidata';
-                $catatan = "Diunggah via Excel oleh {$uploaderName} pada " . date('d/m/Y H:i:s');
+                $catatan = "Diunggah via Excel oleh {$uploaderName} pada " . date('d/m/Y H:i');
 
                 $activeTa = (PHP_SAPI !== 'cli' && function_exists('session')) ? (int)(session()->get('admin_ta') ?: 0) : 0;
                 $tahunDda = ($activeTa > 0 && $activeTa === ((int)$tahun_data + 1)) ? $activeTa : ((int)$tahun_data + 1);

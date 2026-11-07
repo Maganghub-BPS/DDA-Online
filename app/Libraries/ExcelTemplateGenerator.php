@@ -2118,10 +2118,13 @@ class ExcelTemplateGenerator
         }
 
         // =====================================================================
-        // 12. PROTEKSI LEMBAR KERJA (DINONAKTIFKAN)
-        // Lembar kerja dibiarkan bebas tanpa proteksi agar OPD leluasa mengisi & menyalin data
+        // 12. PENGATURAN LEMBAR KERJA (OPSI 1: BEBAS PROTEKSI CLIENT-SIDE)
+        // Proteksi sheet dinonaktifkan agar operator OPD leluasa mengisi & copy-paste
+        // tanpa kendala ribbon Excel terkunci. Keamanan pergeseran baris/kolom ditangani
+        // 100% oleh Validasi Jangkar Server di ExcelDataParser.php.
         // =====================================================================
-        $sheet->getProtection()->setSheet(false);
+        $protection = $sheet->getProtection();
+        $protection->setSheet(false);
 
         // =====================================================================
         // 13. HIDDEN METADATA SHEET (__METADATA_DDA__)

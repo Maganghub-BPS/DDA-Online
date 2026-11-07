@@ -26,7 +26,7 @@ abstract class BaseController extends Controller
     protected $input;
     protected $uri;
     protected $security;
-    protected $helpers = ['url', 'form', 'file', 'my'];
+    protected $helpers = ['url', 'form', 'file', 'my', 'rbac'];
 
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {

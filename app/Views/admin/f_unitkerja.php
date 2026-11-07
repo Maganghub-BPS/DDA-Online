@@ -7,6 +7,7 @@ if ($mode == "edt" || $mode == "act_edt") {
 	$id_unitkerja	= $datpil->id_unitkerja;
 	$unitkerja_ind	= $datpil->unitkerja_ind;
 	$unitkerja_en	= $datpil->unitkerja_en;
+	$jenis_instansi	= $datpil->jenis_instansi ?? 'vertikal';
 	$user_wali		= $datpil->user_wali;
 	$user_spv		= $datpil->user_spv;
 	
@@ -19,6 +20,7 @@ if ($mode == "edt" || $mode == "act_edt") {
 	$id_unitkerja	= "";
 	$unitkerja_ind	= "";
 	$unitkerja_en	= "";
+	$jenis_instansi	= "vertikal";
 	$user_wali		= "";
 	$user_spv		= "";
 }
@@ -61,6 +63,33 @@ if ($mode == "edt" || $mode == "act_edt") {
 
                             <div class="col-12">
                                 <hr class="horizontal bg-gray-200 my-1 opacity-1">
+                            </div>
+
+                            <!-- Klasifikasi Jenis Instansi (RBAC) -->
+                            <div class="col-md-12">
+                                <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Klasifikasi Instansi (Hak Akses RBAC)</label>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="border rounded-3 p-3 bg-white d-block cursor-pointer position-relative <?= ($jenis_instansi == 'opd') ? 'border-primary shadow-xs' : 'border-light'; ?>" style="cursor: pointer;">
+                                            <div class="form-check ps-0 mb-0">
+                                                <div class="d-flex align-items-center mb-0">
+                                                    <input class="form-check-input me-2 mt-0" type="radio" name="jenis_instansi" id="jenis_opd" value="opd" <?= ($jenis_instansi == 'opd') ? 'checked' : ''; ?>>
+                                                    <span class="fw-bold text-dark text-sm"><i class="bi bi-bank text-primary-orange me-1"></i> Organisasi Perangkat Daerah</span>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="border rounded-3 p-3 bg-white d-block cursor-pointer position-relative <?= ($jenis_instansi == 'vertikal') ? 'border-primary shadow-xs' : 'border-light'; ?>" style="cursor: pointer;">
+                                            <div class="form-check ps-0 mb-0">
+                                                <div class="d-flex align-items-center mb-0">
+                                                    <input class="form-check-input me-2 mt-0" type="radio" name="jenis_instansi" id="jenis_vertikal" value="vertikal" <?= ($jenis_instansi == 'vertikal') ? 'checked' : ''; ?>>
+                                                    <span class="fw-bold text-dark text-sm"><i class="bi bi-building text-info me-1"></i> Organisasi Vertikal</span>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Nama Indonesia -->
