@@ -305,7 +305,7 @@
 
                 <!-- Tahun -->
                 <div class="mb-3 mt-2">
-                    <label class="form-label">Tahun Data</label>
+                    <label class="form-label">Tahun</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
                         <select name="ta" class="form-select">

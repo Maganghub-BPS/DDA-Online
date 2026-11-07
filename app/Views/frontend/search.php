@@ -1055,7 +1055,7 @@
                             <?php foreach($unique_units as $u): ?>
                                 <?php if (!empty($u->unitkerja_ind)): ?>
                                     <option value="<?= htmlspecialchars($u->unitkerja_ind) ?>" <?= ((isset($opd_search) && $opd_search === $u->unitkerja_ind) || (!empty($_GET['opd_search']) && $_GET['opd_search'] === $u->unitkerja_ind)) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($u->unitkerja_ind) ?>
+                                        <?= htmlspecialchars(formatInstansiName($u->unitkerja_ind, $u->id_unitkerja ?? '')) ?>
                                     </option>
                                 <?php endif; ?>
                             <?php endforeach; ?>
@@ -1141,9 +1141,9 @@
                             <div class="table-clean-card">
                                 <!-- 1. Instansi -->
                                 <div class="tcc-header d-flex align-items-center">
-                                    <span class="tcc-agency text-truncate" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
+                                    <span class="tcc-agency text-truncate" title="<?= htmlspecialchars(formatInstansiName($row->unitkerja_ind ?? 'Instansi Daerah', $row->id_unitkerja ?? '')) ?>">
                                         <i class="fa-solid fa-building-columns"></i>
-                                        <span><?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?></span>
+                                        <span><?= htmlspecialchars(formatInstansiName($row->unitkerja_ind ?? 'Instansi Daerah', $row->id_unitkerja ?? '')) ?></span>
                                     </span>
                                 </div>
 
@@ -1203,7 +1203,7 @@
                                 <div class="rc-meta">
                                     <span class="rc-badge rc-badge-opd">
                                         <i class="fa-solid fa-building"></i> 
-                                        <?= htmlspecialchars($row->unitkerja_ind ?? '-') ?>
+                                        <?= htmlspecialchars(formatInstansiName($row->unitkerja_ind ?? '-', $row->id_unitkerja ?? '')) ?>
                                     </span>
                                 </div>
                             </div>

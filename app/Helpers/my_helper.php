@@ -230,3 +230,47 @@ function formatDynamicCellValue($nilai, $simbol = null, int $settingDesimal = -1
 
     return number_format($num, 0, ',', '.');
 }
+
+if (!function_exists('formatInstansiName')) {
+    /**
+     * Format nama instansi khusus untuk tampilan frontend (menambahkan prefix BPS untuk 4 tim BPS)
+     *
+     * @param string|null $name
+     * @param string $id
+     * @return string
+     */
+    function formatInstansiName($name, $id = ''): string
+    {
+        if (empty($name)) {
+            return (string)$name;
+        }
+
+        $nameStr = trim((string)$name);
+        $idLower = strtolower(trim((string)$id));
+        $nameLower = strtolower($nameStr);
+
+        // Jika sudah mengandung kata BPS, tidak perlu diubah lagi
+        if (stripos($nameStr, 'BPS') !== false) {
+            return $nameStr;
+        }
+
+        // Pengecualian: jangan format jika OPD seperti Dinas Sosial
+        if (strpos($nameLower, 'dinas') !== false) {
+            return $nameStr;
+        }
+
+        $bps_ids = ['nerwilis', 'distribusi', 'produksi', 'sosial'];
+        $isBpsTeam = in_array($idLower, $bps_ids) ||
+                     strpos($nameLower, 'tim neraca') !== false ||
+                     strpos($nameLower, 'tim statistik distribusi') !== false ||
+                     strpos($nameLower, 'tim statistik produksi') !== false ||
+                     strpos($nameLower, 'tim statistik sosial') !== false;
+
+        if ($isBpsTeam) {
+            return 'BPS (' . $nameStr . ')';
+        }
+
+        return $nameStr;
+    }
+}
+
