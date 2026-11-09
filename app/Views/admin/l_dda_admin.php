@@ -2,7 +2,7 @@
 $unitkerjalogin = session()->get('admin_unitkerja');
 ?>  
 
-<div class="row mb-3">
+<div class="row mb-3 flex-shrink-0">
     <div class="col-lg-12">
         <div class="card border-0 shadow-sm">
             <div class="card-body py-3">
@@ -36,10 +36,10 @@ $unitkerjalogin = session()->get('admin_unitkerja');
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" id="tableOPD">
+<div class="card border-0 shadow-sm flex-grow-1 d-flex flex-column mb-0" style="min-height: 0;">
+    <div class="card-body p-0 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+        <div class="table-responsive table-scroll-container flex-grow-1" style="height: 100%;">
+            <table class="table table-hover align-middle mb-0 table-sticky-header" id="tableOPD">
                 <thead class="table-light">
                     <tr>
                         <th width="5%" class="text-center">No.</th>
@@ -82,13 +82,13 @@ $unitkerjalogin = session()->get('admin_unitkerja');
             </table>
         </div>
     </div>
-    <div class="card-footer bg-white text-center pb-3">
-        <?php if(!empty($pagi)): ?>
-        <div class="mt-2 text-center">
+    <?php if(!empty($pagi)): ?>
+    <div class="card-footer bg-white text-center py-2 border-top">
+        <div class="text-center">
             <?php echo $pagi; ?>
         </div>
-        <?php endif; ?>
     </div>
+    <?php endif; ?>
 </div>
 
 <script type="text/javascript">
@@ -127,3 +127,45 @@ $(document).ready(function() {
     $('#searchOPD').on('input', applyDdaFilter);
 });
 </script>
+
+<style>
+/* Kontainer scroll internal agar scrollbar ada di dalam dan header tetap terlihat */
+.table-scroll-container {
+    max-height: calc(100vh - 235px);
+    min-height: 350px;
+    height: 100%;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* Custom Slim Scrollbar (seperti pada Gambar 2) */
+.table-scroll-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.table-scroll-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Sticky Table Header */
+.table-sticky-header thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8fafc !important;
+    box-shadow: inset 0 -2px 0 #e2e8f0;
+    vertical-align: middle;
+}
+</style>

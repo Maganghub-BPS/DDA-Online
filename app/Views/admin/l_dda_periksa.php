@@ -11,11 +11,43 @@
         font-size: 0.75rem; 
         text-transform: uppercase; 
         letter-spacing: 0.05em;
-        background-color: #f8f9fa; 
+        background-color: #f8f9fa !important; 
         color: #6c757d; 
         font-weight: 700; 
         border-top: none;
         padding: 12px 15px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle;
+    }
+    /* Kontainer scroll internal agar scrollbar ada di dalam dan header tetap terlihat */
+    .table-scroll-container {
+        max-height: calc(100vh - 235px);
+        min-height: 350px;
+        height: 100%;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
     }
     .tabel-pemeriksaan-container { overflow-x: auto; }
     .tabel-judul-cell { min-width: 350px; white-space: normal !important; }
@@ -94,7 +126,7 @@
     }
 </style>
 
-<div class="row mb-3">
+<div class="row mb-3 flex-shrink-0">
     <div class="col-lg-12">
         <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 12px;">
             <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -138,9 +170,9 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
-    <div class="card-body p-0">
-        <div class="table-responsive">
+<div class="card border-0 shadow-sm flex-grow-1 d-flex flex-column mb-0" style="border-radius: 15px; overflow: hidden; min-height: 0;">
+    <div class="card-body p-0 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+        <div class="table-responsive table-scroll-container flex-grow-1" style="height: 100%;">
             <table class="table table-hover align-middle mb-0" id="tableTabelPeriksa">
                 <thead>
                     <tr>

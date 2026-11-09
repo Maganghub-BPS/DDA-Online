@@ -820,19 +820,8 @@ class Admin extends BaseController
 
 		$ta = $this->session->get('admin_ta');
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_unitkerja")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		if (empty($awal) || $awal == 1) {
-			$awal = 0;
-		}
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/forum_diskusi/p");
+		/* pagination dinonaktifkan: semua OPD langsung ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -845,10 +834,10 @@ class Admin extends BaseController
 		if ($mau_ke == 'view_topik') {
 			$id_unitkerja = $this->input->get('id');
 			if ($unitkerjalogin == 'bps' || $this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$id_unitkerja, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? ORDER BY id_topik DESC", [$id_unitkerja])->getResult();
 				$a['page']		= "l_forum_topik";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? ORDER BY id_topik DESC", [$unitkerjalogin])->getResult();
 				$a['page']		= "l_forum_topik";
 			}
 		} else if ($mau_ke == 'add_topik') {
@@ -956,7 +945,7 @@ class Admin extends BaseController
 			if ($unitkerjalogin == 'bps') {
 				$level = $this->session->get('admin_level');
 				if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
 					$user_level = strtolower(trim((string)$this->session->get('admin_level')));
@@ -979,11 +968,11 @@ class Admin extends BaseController
 				}
 				$a['page']		= "l_forum";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja=?", [$unitkerjalogin])->getResult();
 				$a['page']		= "l_forum";
 			}
 			if ($this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 				$a['page']		= "l_forum";
 			}
 		}
