@@ -32,11 +32,17 @@ if ($isRuntunWaktuTotal) {
     if (!empty($config_tampilan['tahun_runtun_waktu']) && is_array($config_tampilan['tahun_runtun_waktu'])) {
         $runtunYears = array_values(array_unique(array_filter(array_map('intval', $config_tampilan['tahun_runtun_waktu']))));
     }
+    if (empty($runtunYears) && !empty($selected_years) && count($selected_years) > 1) {
+        $runtunYears = array_values(array_unique(array_filter(array_map('intval', $selected_years))));
+    }
     if (empty($runtunYears) && !empty($available_years) && count($available_years) > 1) {
-        $runtunYears = $available_years;
+        $runtunYears = array_values(array_unique(array_filter(array_map('intval', $available_years))));
     }
     if (empty($runtunYears)) {
-        $baseY = !empty($selected_years) ? (int)$selected_years[0] : (int)($tabel->tahun ?? date('Y'));
+        $baseY = !empty($selected_years) ? max(array_map('intval', $selected_years)) : (int)($tabel->tahun ?? date('Y'));
+        if ($baseY > 2100 || $baseY < 1900) {
+            $baseY = (int)date('Y');
+        }
         $runtunYears = [$baseY, $baseY - 1, $baseY - 2, $baseY - 3, $baseY - 4];
     }
     rsort($runtunYears);
@@ -1223,6 +1229,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $currentParentInd        = '';
                 $currentParentEn         = '';
                 $currentParentRowspan    = 1;
+                $currentParentId         = null;
                 $isFirstChildOfParent    = false;
                 $remainingChildrenOfParent = 0;
 
@@ -1299,9 +1306,16 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $currentParentInd        = $displayBarisLabel;
                             $currentParentEn         = $namaBarisEn;
                             $currentParentRowspan    = $childCountMap[$bIdx];
+                            $currentParentId         = (int)$baris->id;
                             $isFirstChildOfParent    = true;
                             $remainingChildrenOfParent = $childCountMap[$bIdx];
                             continue;
+                        } elseif ($indentLevel === 0) {
+                            $currentParentId = null;
+                        }
+                    } else {
+                        if ($indentLevel === 0) {
+                            $currentParentId = null;
                         }
                     }
 
@@ -1318,6 +1332,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                         $gKey = $lCol['group_key'];
 
                         $cellData = $nilaiMap[$yr][$baris->id][$kId][$pId] ?? null;
+                        if (($cellData === null || ($cellData['nilai'] === null && empty($cellData['simbol']))) && !empty($currentParentId) && $indentLevel > 0) {
+                            $cellData = $nilaiMap[$yr][$currentParentId][$kId][$pId] ?? null;
+                        }
                         $val      = $cellData['nilai'] ?? null;
 
                         if ($val !== null && $val !== '') {
@@ -1448,6 +1465,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 $pId = (int)$lCol['periode_id'];
 
                                 $cellData = $nilaiMap[$yr][$baris->id][$kId][$pId] ?? null;
+                                if (($cellData === null || ($cellData['nilai'] === null && empty($cellData['simbol']))) && !empty($currentParentId) && $indentLevel > 0) {
+                                    $cellData = $nilaiMap[$yr][$currentParentId][$kId][$pId] ?? null;
+                                }
                                 $val      = $cellData['nilai'] ?? null;
                                 $simb     = $cellData['simbol'] ?? null;
                                 $dec      = $cellData['jumlah_desimal'] ?? null;
@@ -1579,6 +1599,11 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                         $pId = (int)$lCol['periode_id'];
                         $bId = $dbTotalRowObj ? (int)$dbTotalRowObj->id : 0;
                         $cellData = $nilaiMap[$hYr][$bId][$kId][$pId] ?? null;
+                        if ($cellData === null && $bId !== 0) {
+                            $cellData = $nilaiMap[$hYr][0][$kId][$pId] ?? null;
+                        } elseif ($cellData === null && $bId === 0 && $dbTotalRowObj) {
+                            $cellData = $nilaiMap[$hYr][(int)$dbTotalRowObj->id][$kId][$pId] ?? null;
+                        }
                         $val  = $cellData['nilai'] ?? null;
                         $simb = $cellData['simbol'] ?? null;
                         $dec  = $cellData['jumlah_desimal'] ?? null;

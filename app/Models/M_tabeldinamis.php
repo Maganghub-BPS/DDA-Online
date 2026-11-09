@@ -770,6 +770,21 @@ class M_tabeldinamis extends Model
         return $map;
     }
 
+    public function getBarisPipeCounts(): array
+    {
+        $rows = $this->db->table('m_baris_item')
+            ->select('id_kelompok, COUNT(*) as total_pipe')
+            ->like('nama_baris_ind', '||')
+            ->groupBy('id_kelompok')
+            ->get()
+            ->getResult();
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r->id_kelompok] = (int)$r->total_pipe;
+        }
+        return $map;
+    }
+
     public function getBarisTree(int $id_kelompok): array
     {
         return $this->getBarisItems($id_kelompok);
@@ -991,6 +1006,7 @@ class M_tabeldinamis extends Model
     {
         $items = [];
         $no = 1;
+        $hasSub = false;
 
         foreach ($treeItems as $it) {
             $nama_ind = trim($it['ind'] ?? ($it['nama_baris_ind'] ?? ''));
@@ -1000,6 +1016,9 @@ class M_tabeldinamis extends Model
             }
 
             $lvl = (int)($it['level'] ?? ($it['level_indentasi'] ?? 0));
+            if ($lvl > 0) {
+                $hasSub = true;
+            }
             $is_total = !empty($it['is_total']) || (($it['tipe_baris'] ?? '') === 'total');
 
             $items[] = [
@@ -1013,7 +1032,27 @@ class M_tabeldinamis extends Model
             ];
         }
 
-        return $this->syncBarisItems($id_kelompok, $items);
+        $res = $this->syncBarisItems($id_kelompok, $items);
+
+        // Jika memiliki sub-baris (hierarki level > 0), pastikan judul_sub_baris_ind terisi dan tabel terkonfigurasi 2_kolom
+        if ($res && $hasSub) {
+            $kelompok = $this->db->table('m_baris_kelompok')->where('id', $id_kelompok)->get()->getRow();
+            if ($kelompok && empty(trim((string)$kelompok->judul_sub_baris_ind))) {
+                $this->db->table('m_baris_kelompok')->where('id', $id_kelompok)->update([
+                    'judul_sub_baris_ind' => 'Satuan',
+                    'judul_sub_baris_en'  => 'Unit',
+                    'updated_at'          => date('Y-m-d H:i:s')
+                ]);
+            }
+
+            // Pastikan tabel-tabel dinamis yang memakai kelompok ini menampilkan mode 2_kolom
+            $this->db->table('m_indikator_tabel')
+                ->where('id_baris_kelompok', $id_kelompok)
+                ->where('tampilan_baris !=', '2_kolom')
+                ->update(['tampilan_baris' => '2_kolom']);
+        }
+
+        return $res;
     }
 
     public function parseBarisFromText(int $id_kelompok, string $text, string $text_en = ''): bool
@@ -1792,7 +1831,9 @@ class M_tabeldinamis extends Model
         $idPeriode        = (int)($indikator->id_periode_kelompok ?? 0);
         $posisiHirarki    = $indikator->posisi_hirarki ?? 'kolom_atas';
         $cfgTotal         = $indikator->konfigurasi_total ?? 'default';
-        $isRuntunWaktu    = ($cfgTotal === 'runtun_waktu');
+        $cfgTampilanRaw   = $indikator->config_tampilan ?? '';
+        $cfgTampilan      = is_string($cfgTampilanRaw) ? json_decode($cfgTampilanRaw, true) : (is_array($cfgTampilanRaw) ? $cfgTampilanRaw : []);
+        $isRuntunWaktu    = ($cfgTotal === 'runtun_waktu' || ($cfgTampilan['jenis_total_vertikal'] ?? '') === 'runtun_waktu');
         $tingkatKolom     = $indikator->tingkat_kolom ?? 'semua';
 
         if ($cache !== null) {
@@ -1821,8 +1862,30 @@ class M_tabeldinamis extends Model
                 }
             }
         }
-        $activeYears = !empty($dataYears) ? $dataYears : (!empty($tahunTampil) ? $tahunTampil : [(int)($indikator->tahun ?? date('Y'))]);
+        if (!empty($tahunTampil)) {
+            $activeYears = array_values(array_unique(array_merge($tahunTampil, $dataYears)));
+        } else {
+            $activeYears = !empty($dataYears) ? $dataYears : [(int)($indikator->tahun ?? date('Y'))];
+        }
         sort($activeYears);
+
+        $runtunYears = [];
+        if ($isRuntunWaktu) {
+            if (!empty($cfgTampilan['tahun_runtun_waktu']) && is_array($cfgTampilan['tahun_runtun_waktu'])) {
+                $runtunYears = array_values(array_unique(array_filter(array_map('intval', $cfgTampilan['tahun_runtun_waktu']))));
+            }
+            if (empty($runtunYears) && !empty($tahunTampil) && count($tahunTampil) > 1) {
+                $runtunYears = array_values(array_map('intval', $tahunTampil));
+            }
+            if (empty($runtunYears) && !empty($dataYears) && count($dataYears) > 1) {
+                $runtunYears = array_values(array_map('intval', $dataYears));
+            }
+            if (empty($runtunYears)) {
+                $baseY = !empty($activeYears) ? (int)end($activeYears) : (int)($indikator->tahun ?? date('Y'));
+                $runtunYears = [$baseY, $baseY - 1, $baseY - 2, $baseY - 3, $baseY - 4];
+            }
+            rsort($runtunYears);
+        }
 
         $tipePeriode = strtolower(trim($indikator->tipe_periode ?? 'tahunan'));
         if (empty($itemsPeriode)) {
@@ -2124,24 +2187,58 @@ class M_tabeldinamis extends Model
         } else {
             $idPeriodeAktif = 0;
             if (!empty($itemsPeriode)) {
-                $tahunTabel = trim((string)($indikator->tahun ?? ''));
+                $targetTahun = trim((string)($indikator->tahun ?? ''));
+                if ($targetTahun === '' && !empty($tahun)) {
+                    $targetTahun = (string)($tahun - 1);
+                }
                 foreach ($itemsPeriode as $p) {
-                    if ($tahunTabel !== '' && trim((string)$p->nama_periode_ind) === $tahunTabel) {
+                    if ($targetTahun !== '' && trim((string)$p->nama_periode_ind) === $targetTahun) {
                         $idPeriodeAktif = (int)$p->id;
                         break;
                     }
                 }
                 if (!$idPeriodeAktif) {
-                    $idPeriodeAktif = (int)$itemsPeriode[0]->id;
+                    $idPeriodeAktif = $isRuntunWaktu ? (int)end($itemsPeriode)->id : (int)$itemsPeriode[0]->id;
                 }
             }
 
             $hasRenderedTotal = false;
+            $isSubRowHierarchy = (($indikator->tampilan_baris ?? '1_kolom') === '2_kolom')
+                && !in_array(strtolower(trim((string)($kelompokBaris->judul_sub_baris_ind ?? ''))), ['', 'satuan', 'unit'], true);
+            $parentHasChildren = [];
+            if ($isSubRowHierarchy) {
+                $curPId = null;
+                foreach ($itemsBaris as $bItem) {
+                    $bLvl = (int)($bItem->level_indentasi ?? 0);
+                    if ($bLvl === 0) {
+                        $curPId = (int)$bItem->id;
+                        $parentHasChildren[$curPId] = false;
+                    } elseif ($curPId !== null) {
+                        $parentHasChildren[$curPId] = true;
+                    }
+                }
+            }
+            $currentParentBaris = '';
 
             foreach ($itemsBaris as $baris) {
                 $idB = (int)$baris->id;
                 $tipeBaris = strtolower(trim($baris->tipe_baris ?? ''));
                 $namaBaris = trim((string)($baris->nama_baris_ind ?? ($baris->item_ind ?? '')));
+                if ($isSubRowHierarchy) {
+                    $lvlBaris = (int)($baris->level_indentasi ?? 0);
+                    if ($lvlBaris === 0) {
+                        if (!empty($parentHasChildren[$idB])) {
+                            $currentParentBaris = $namaBaris;
+                            continue;
+                        }
+                        $currentParentBaris = '';
+                    } else {
+                        $tipeBaris = 'data';
+                        if ($currentParentBaris !== '') {
+                            $namaBaris = $currentParentBaris . ' - ' . $namaBaris;
+                        }
+                    }
+                }
                 $lowerBaris = strtolower($namaBaris);
 
                 if (!$tipeBaris) {
@@ -2185,17 +2282,15 @@ class M_tabeldinamis extends Model
                 if ($isRuntunWaktu) {
                     if ($tipeBaris === 'total') {
                         $hasRenderedTotal = true;
-                        foreach ($itemsPeriode as $p) {
-                            $row = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
-                            $tRow = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
+                        $yearsForTotal = !empty($runtunYears) ? $runtunYears : array_map(function($p) { return (int)$p->id; }, $itemsPeriode);
+                        foreach ($yearsForTotal as $rYr) {
+                            $row = [$namaBaris . ' ' . $rYr];
+                            $tRow = [$namaBaris . ' ' . $rYr];
                             foreach ($leafColumns as $lc) {
-                                $key = "{$idB}_{$lc['item_id']}_{$p->id}";
-                                if (!isset($lookup[$key])) {
-                                    $key0 = "0_{$lc['item_id']}_{$p->id}";
-                                    $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$p->id, $lookup[$key0] ?? null);
-                                } else {
-                                    $pushCellWithCoord($row, $tRow, $idB, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
-                                }
+                                $key = "{$idB}_{$lc['item_id']}_{$rYr}";
+                                $key0 = "0_{$lc['item_id']}_{$rYr}";
+                                $val = $lookup[$key] ?? ($lookup[$key0] ?? null);
+                                $pushCellWithCoord($row, $tRow, $idB ?: 0, (int)$lc['item_id'], (int)$rYr, $val);
                             }
                             $grid[] = $row;
                             $templateGrid[] = $tRow;
@@ -2235,16 +2330,19 @@ class M_tabeldinamis extends Model
                 }
             }
 
-            if ($isRuntunWaktu && !$hasRenderedTotal && !empty($itemsPeriode)) {
-                foreach ($itemsPeriode as $p) {
-                    $row = ['Jumlah ' . trim((string)$p->nama_periode_ind)];
-                    $tRow = ['Jumlah ' . trim((string)$p->nama_periode_ind)];
-                    foreach ($leafColumns as $lc) {
-                        $key = "0_{$lc['item_id']}_{$p->id}";
-                        $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
+            if ($isRuntunWaktu && !$hasRenderedTotal) {
+                $yearsForTotal = !empty($runtunYears) ? $runtunYears : array_map(function($p) { return (int)$p->id; }, $itemsPeriode);
+                if (!empty($yearsForTotal)) {
+                    foreach ($yearsForTotal as $rYr) {
+                        $row = ['Jumlah ' . $rYr];
+                        $tRow = ['Jumlah ' . $rYr];
+                        foreach ($leafColumns as $lc) {
+                            $key = "0_{$lc['item_id']}_{$rYr}";
+                            $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$rYr, $lookup[$key] ?? null);
+                        }
+                        $grid[] = $row;
+                        $templateGrid[] = $tRow;
                     }
-                    $grid[] = $row;
-                    $templateGrid[] = $tRow;
                 }
             }
         }

@@ -78,7 +78,7 @@ def parse_toc(doc):
     return out
 
 
-def detect_offset(doc, toc, sample=40):
+def detect_offset(doc, toc, sample=40, spatial_heads=None):
     """Selisih (nomor halaman fisik PDF 1-based - nomor halaman cetak), dicari lewat nomor tabel."""
     from collections import Counter
     votes = Counter()
@@ -89,7 +89,7 @@ def detect_offset(doc, toc, sample=40):
         for off in range(10, 130):
             p_0based = pr + off - 1
             if 0 <= p_0based < len(doc):
-                txt = doc[p_0based].get_text()[:400]
+                txt = spatial_heads[p_0based] if (spatial_heads and p_0based < len(spatial_heads)) else doc[p_0based].get_text()[:400]
                 if 'Lanjutan' in txt or 'Continued' in txt:
                     continue
                 if pat.search(txt):
@@ -102,36 +102,26 @@ def detect_offset(doc, toc, sample=40):
 def build_index(pdf_path, db_tables=None):
     doc = pymupdf.open(pdf_path)
     toc = parse_toc(doc)
-    off_1based = detect_offset(doc, toc)
     
-    # Pre-extract page headers for fast direct PDF scanning
-    page_heads = [p.get_text()[:400] for p in doc]
-    spatial_heads = None
+    # Pre-extract spatial headers (top 35% sorted by Y, X) for fast and precise table detection
+    spatial_heads = []
+    for p in doc:
+        max_y = (p.rect.height or 842) * 0.35
+        blocks = [b for b in p.get_text("blocks") if b[1] < max_y and len(b) > 4 and isinstance(b[4], str)]
+        blocks.sort(key=lambda b: (round(b[1] / 15.0), b[0]))
+        spatial_heads.append("\n".join(b[4].strip() for b in blocks))
 
-    def get_spatial_heads():
-        nonlocal spatial_heads
-        if spatial_heads is None:
-            spatial_heads = []
-            for p in doc:
-                max_y = (p.rect.height or 842) * 0.35
-                blocks = [b for b in p.get_text("blocks") if b[1] < max_y and len(b) > 4 and isinstance(b[4], str)]
-                blocks.sort(key=lambda b: (round(b[1] / 15.0), b[0]))
-                spatial_heads.append("\n".join(b[4].strip() for b in blocks))
-        return spatial_heads
+    off_1based = detect_offset(doc, toc, spatial_heads=spatial_heads)
     
+    pat_main_t = re.compile(r'(?:(?:Tabel|Table)\s*[\r\n\t ]+(\d{1,2}\.\d{1,2}(?:\.\d{1,3})?)\b|^\s*(\d{1,2}\.\d{1,2}(?:\.\d{1,3})?)\s*[\t ])', re.IGNORECASE | re.MULTILINE)
+    pat_lanj_t = re.compile(r'(?:(?:Lanjutan\s+Tabel|Continued\s+Table)\s*[\r\n\t ]+(\d{1,2}\.\d{1,2}(?:\.\d{1,3})?)\b)', re.IGNORECASE | re.MULTILINE)
+
     def find_pages_direct(t_num):
         pat = re.compile(rf'(?:(?:Tabel|Table|Lanjutan\s+Tabel|Continued\s+Table)\s*{re.escape(t_num)}\b|^\s*{re.escape(t_num)}\s*[\t ])', re.IGNORECASE | re.MULTILINE)
         p_list = []
-        for idx, ph in enumerate(page_heads):
-            if idx < 65: continue  # skip prelims/TOC
-            if pat.search(ph):
+        for idx in range(65, len(doc)):
+            if pat.search(spatial_heads[idx]):
                 p_list.append(idx + 1)
-        # Additive Fallback: Spatial Header Sorter (Top 35% sorted by Y, X)
-        if not p_list:
-            for idx, sh in enumerate(get_spatial_heads()):
-                if idx < 65: continue
-                if pat.search(sh):
-                    p_list.append(idx + 1)
         if not p_list: return []
         groups = []
         curr = [p_list[0]]
@@ -159,9 +149,25 @@ def build_index(pdf_path, db_tables=None):
     table_starts = []
     for k, v in toc.items():
         pr = v.get("printed_page")
+        st = None
         if pr is not None:
-            st = pr + off_1based
-        else:
+            raw_st = pr + off_1based
+            st = raw_st
+            # Self-Healing: Jika TOC BPS salah mencantumkan nomor halaman lanjutan alih-alih halaman utama
+            if 0 < raw_st <= len(doc):
+                sh_cur = spatial_heads[raw_st - 1]
+                m_lanj = pat_lanj_t.search(sh_cur)
+                if m_lanj and m_lanj.group(1) == k:
+                    # Mundur 1-3 halaman untuk mencari halaman pembuka (Tabel k) yang sesungguhnya
+                    for back in range(1, 4):
+                        cand_p = raw_st - back
+                        if cand_p > 65:
+                            sh_prev = spatial_heads[cand_p - 1]
+                            m_m = pat_main_t.search(sh_prev)
+                            if m_m and (m_m.group(1) or m_m.group(2)) == k:
+                                st = cand_p
+                                break
+        if not st:
             p_dir = find_pages_direct(k)
             st = p_dir[0] if p_dir else None
         if st:
@@ -180,6 +186,12 @@ def build_index(pdf_path, db_tables=None):
                 continue
             p_0based = p - 1
             if 0 <= p_0based < len(doc):
+                sh = spatial_heads[p_0based]
+                m_other = pat_main_t.search(sh)
+                if m_other:
+                    other_k = m_other.group(1) or m_other.group(2)
+                    if other_k != k:
+                        break
                 txt_head = doc[p_0based].get_text()[:500].lower()
                 is_gambar = bool(re.search(r'\b(?:gambar|figure)\s+\d', txt_head)) and not any(tbl in txt_head for tbl in ['tabel', 'table'])
                 is_bab = bool(re.search(r'^\s*bab\s+[ivxlc\d]+', txt_head, re.MULTILINE) or re.search(r'\bchapter\s+[ivxlc\d]+', txt_head))
@@ -259,6 +271,7 @@ def match_tables(toc, db_tables, min_score=65):
             if t_num in used:
                 continue
             used.add(t_num)
+            has_cfg = int(bool(item.get("config_tabel") and str(item.get("config_tabel")).strip() not in ("", "{}", "null")))
             route_matched_entry({
                 "nomor_tabel": t_num,
                 "id_db": db_id,
@@ -269,7 +282,9 @@ def match_tables(toc, db_tables, min_score=65):
                 "link_tabel": link,
                 "source_type": source_type,
                 "is_dynamic": int(item.get("is_dynamic", 0) or 0),
-                "dynamic_empty": bool(item.get("dynamic_empty", False))
+                "dynamic_empty": bool(item.get("dynamic_empty", False)),
+                "config_tabel": item.get("config_tabel"),
+                "has_config": has_cfg
             }, source_type)
         else:
             unmatched_db.append((item, db_id, title, source_type))
@@ -305,6 +320,7 @@ def match_tables(toc, db_tables, min_score=65):
                 if best_score >= min_score:
                     used.add(best_k)
                     matched_db_indices.add(r_idx)
+                    has_cfg = int(bool(item.get("config_tabel") and str(item.get("config_tabel")).strip() not in ("", "{}", "null")))
                     route_matched_entry({
                         "nomor_tabel": best_k,
                         "id_db": db_id,
@@ -315,7 +331,9 @@ def match_tables(toc, db_tables, min_score=65):
                         "link_tabel": link,
                         "source_type": source_type,
                         "is_dynamic": int(item.get("is_dynamic", 0) or 0),
-                        "dynamic_empty": bool(item.get("dynamic_empty", False))
+                        "dynamic_empty": bool(item.get("dynamic_empty", False)),
+                        "config_tabel": item.get("config_tabel"),
+                        "has_config": has_cfg
                     }, source_type)
                 elif source_type in ("dinamis", "api"):
                     still_missing.append({
@@ -352,6 +370,7 @@ def match_tables(toc, db_tables, min_score=65):
                 if best_score >= min_score and best_k and best_k not in used:
                     used.add(best_k)
                     avail_toc.remove(best_k)
+                    has_cfg = int(bool(item.get("config_tabel") and str(item.get("config_tabel")).strip() not in ("", "{}", "null")))
                     route_matched_entry({
                         "nomor_tabel": best_k,
                         "id_db": db_id,
@@ -362,7 +381,9 @@ def match_tables(toc, db_tables, min_score=65):
                         "link_tabel": item.get("link_tabel", ""),
                         "source_type": source_type,
                         "is_dynamic": int(item.get("is_dynamic", 0) or 0),
-                        "dynamic_empty": bool(item.get("dynamic_empty", False))
+                        "dynamic_empty": bool(item.get("dynamic_empty", False)),
+                        "config_tabel": item.get("config_tabel"),
+                        "has_config": has_cfg
                     }, source_type)
                 elif source_type in ("dinamis", "api"):
                     still_missing.append({

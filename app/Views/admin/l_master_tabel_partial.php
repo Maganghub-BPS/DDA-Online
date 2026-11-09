@@ -77,6 +77,9 @@ if (empty($data)) {
                                                 $target_portal_url = !empty($api_link) 
                                                     ? (stripos($api_link, 'http') === 0 ? $api_link : base_url($api_link)) 
                                                     : base_url('admin/view_portal_tabel?id=' . urlencode($api_uuid));
+                                                if (strpos($target_portal_url, 'view_portal_tabel') !== false && strpos($target_portal_url, 'table_id=') === false) {
+                                                    $target_portal_url .= (strpos($target_portal_url, '?') !== false ? '&' : '?') . 'table_id=' . $b->id;
+                                                }
                                                 ?>
                                                 <a href="<?php echo $target_portal_url; ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold">
                                                     <i class="bi bi-table me-2"></i> Lihat Tabel API

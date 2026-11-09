@@ -215,9 +215,29 @@ function formatDynamicCellValue($nilai, $simbol = null, int $settingDesimal = -1
 
     $num = (float)$nilai;
 
-    // Presisi ditentukan eksplisit (0, 1, 2, 3)
-    if ($settingDesimal >= 0) {
+    // Presisi ditentukan eksplisit (> 0)
+    if ($settingDesimal > 0) {
         return number_format($num, $settingDesimal, ',', '.');
+    }
+
+    if ($settingDesimal === 0) {
+        // Jika angka murni bulat (tidak ada pecahan), format dengan 0 desimal
+        if (abs($num - round($num)) < 0.00001) {
+            return number_format($num, 0, ',', '.');
+        }
+        // Jika nilai memiliki pecahan desimal asli (misal 106.88), jangan pangkas paksa ke 0 desimal
+        if ($cellDesimal !== null && $cellDesimal > 0) {
+            return number_format($num, $cellDesimal, ',', '.');
+        }
+        $valStr = (string)$nilai;
+        if (strpos($valStr, '.') !== false) {
+            $parts = explode('.', $valStr);
+            $decimals = strlen(rtrim($parts[1], '0'));
+            if ($decimals > 0) {
+                return number_format($num, min(4, $decimals), ',', '.');
+            }
+        }
+        return number_format($num, 0, ',', '.');
     }
 
     // Otomatis: gunakan desimal dari file Excel jika tersedia

@@ -208,6 +208,8 @@ class TestEngineSymbolIntegrity(unittest.TestCase):
             os.path.join(ENGINE_DIR, "normalizer.py"),
             os.path.join(ENGINE_DIR, "auto_config_pdf.py"),
             os.path.join(ENGINE_DIR, "fetcher.py"),
+            os.path.join(ENGINE_DIR, "table_profiler.py"),
+            os.path.join(ENGINE_DIR, "pdf_extractor.py"),
         ]
 
         class ScopeVisitor(ast.NodeVisitor):
@@ -387,6 +389,31 @@ class TestGenericApiNormalizer(unittest.TestCase):
         self.assertEqual(grid[0], ["Jenis Belanja", "Tahun 2024", "Tahun 2025"])
         row_peg = next(r for r in grid if r[0] == "Belanja Pegawai")
         self.assertEqual(row_peg, ["Belanja Pegawai", 500, 600])
+
+
+class TestActiveDataColsAndAlignment(unittest.TestCase):
+    def test_detect_active_data_cols_preserves_satuan_pendidikan_and_unit_kapal(self):
+        from table_profiler import detect_active_data_cols
+        grid_412 = [
+            ["Kabupaten/Kota", "2024/2025 Satuan Pendidikan", "2024/2025 Kepala Sekolah dan Pendidik", "2024/2025 Peserta Didik", "2025/2026 Satuan Pendidikan", "2025/2026 Kepala Sekolah dan Pendidik", "2025/2026 Peserta Didik"],
+            ["(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)"],
+            ["Cilacap", None, None, None, 188, 570, 8202],
+            ["Banyumas", None, None, None, 167, 442, 6199],
+        ]
+        cols = detect_active_data_cols(grid_412)
+        self.assertEqual(cols, [1, 2, 3, 4, 5, 6])
+
+        grid_9112 = [
+            ["Tahun", "Jenis Pelayaran - Samudra - Unit Kapal", "Jenis Pelayaran - Samudra - Gross Tonage (GT)"],
+            ["(1)", "(2)", "(3)"],
+            ["2025", 998, 23483962],
+        ]
+        self.assertEqual(detect_active_data_cols(grid_9112), [1, 2])
+
+    def test_is_header_or_metadata_row_catches_unit_kapal_subheader(self):
+        from normalizer import is_header_or_metadata_row
+        self.assertTrue(is_header_or_metadata_row([None, "Unit Kapal\nShip Unit", "Gross Tonage\n(GT)", "Unit Kapal\nShip Unit", "Gross Tonage\n(GT)"]))
+        self.assertFalse(is_header_or_metadata_row(["2025", "998", "23.483.962", "2.959", "10.521.394"]))
 
 
 if __name__ == "__main__":

@@ -807,7 +807,19 @@
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Judul Baris (Dimensi Baris)</h5>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <!-- Filter Cepat Satuan || -->
+                        <div class="filter-pipe-wrapper">
+                            <select id="filter_satuan_baris" class="form-select form-select-sm shadow-xs fw-semibold border"
+                                    style="border-radius: 10px; height: 38px; min-width: 195px; font-size: 0.82rem; cursor: pointer; background-color: #fff9f5; border-color: #fed7aa !important;">
+                                <option value="all">Semua Kelompok (<?= count($list_baris); ?>)</option>
+                                <option value="pipe" style="color: #c2410c; font-weight: bold;">
+                                    ⚡ Ada Satuan (||) (<?= $total_baris_with_pipe ?? 0; ?>)
+                                </option>
+                                <option value="no_pipe">Bersih / Tanpa (||)</option>
+                            </select>
+                        </div>
+
                         <!-- Kotak Pencarian Realtime Judul Baris -->
                         <div class="search-dimensi-wrapper">
                             <div class="search-dimensi-box shadow-xs">
@@ -846,11 +858,23 @@
                                     </td>
                                 </tr>
                             <?php else: ?>
-                                <?php $no = 1; foreach ($list_baris as $b): ?>
-                                    <tr class="dimensi-item-row" data-search="<?= esc(strtolower($b->nama_kelompok_ind . ' ' . ($b->nama_kelompok_en ?? '') . ' ' . ($b->judul_baris_ind ?? '') . ' ' . ($b->judul_baris_en ?? '') . ' ' . $b->total_items . ' baris')); ?>">
+                                <?php $no = 1; foreach ($list_baris as $b): 
+                                    $hasPipe = ($b->total_pipe ?? 0) > 0;
+                                    $pipeSearchTag = $hasPipe ? ' ada satuan || butuh split' : '';
+                                ?>
+                                    <tr class="dimensi-item-row" 
+                                        data-has-pipe="<?= $hasPipe ? '1' : '0'; ?>"
+                                        data-search="<?= esc(strtolower($b->nama_kelompok_ind . ' ' . ($b->nama_kelompok_en ?? '') . ' ' . ($b->judul_baris_ind ?? '') . ' ' . ($b->judul_baris_en ?? '') . ' ' . $b->total_items . ' baris' . $pipeSearchTag)); ?>">
                                         <td class="text-center fw-semibold text-muted row-number"><?= $no++; ?></td>
                                         <td>
-                                            <div class="item-title"><?= esc($b->nama_kelompok_ind); ?></div>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <span class="item-title"><?= esc($b->nama_kelompok_ind); ?></span>
+                                                <?php if ($hasPipe): ?>
+                                                    <span class="badge bg-warning text-dark border border-warning shadow-xs px-2 py-1 fw-bold d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; border-radius: 6px;" title="Terdapat <?= $b->total_pipe; ?> item dengan format satuan ||">
+                                                        <i class="bi bi-lightning-charge-fill text-danger"></i> <?= $b->total_pipe; ?> Satuan (||)
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                             <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
                                                 <span class="badge bg-light text-dark border small px-2 py-0" style="font-size: 0.75rem;" title="Judul Header Baris yang akan muncul di tabel publikasi & Excel">
                                                     <i class="bi bi-table me-1 text-primary"></i>Header: <strong><?= esc($b->judul_baris_ind ?: $b->nama_kelompok_ind); ?></strong>
@@ -1049,6 +1073,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/add_karakteristik'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <div class="modal-body p-4">
                     <!-- Baris 1: Nama Kelompok -->
                     <div class="row g-3 mb-3">
@@ -1122,6 +1147,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/edt_karakteristik'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" id="edit_kolom_id">
                 <div class="modal-body p-4">
                     <div class="mb-3">
@@ -1154,6 +1180,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/sync_karakteristik_items'); ?>" method="post" id="formSyncKolom">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_kelompok" id="manage_kolom_id">
                 <div class="modal-body p-4">
                     <!-- Baris 2: Dynamic Tree Builder Karakteristik (Kolom) -->
@@ -1216,6 +1243,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/add_baris'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <div class="modal-body p-4">
                     <!-- Baris 1: Nama Kelompok & Judul Header Baris -->
                     <div class="bg-light p-3 rounded-3 border mb-3">
@@ -1270,6 +1298,7 @@
                             </label>
                             <span class="badge bg-primary-soft text-primary border" id="add_baris_count">0 Baris</span>
                         </div>
+
                         <div class="tree-builder-card">
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
                             <div class="auto-prefix-toolbar mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
@@ -1313,6 +1342,9 @@
                                         </button>
                                         <button type="button" class="btn btn-prefix-clean" id="btn_add_clean_prefix" title="Bersihkan nomor / huruf">
                                             <i class="bi bi-eraser"></i> Bersihkan
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary fw-bold" id="btn_add_split_satuan" title="Pisahkan otomatis teks satuan (||) menjadi Sub-Baris">
+                                            <i class="bi bi-diagram-3-fill"></i> Pisah Satuan
                                         </button>
                                     </div>
                                 </div>
@@ -1376,6 +1408,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/edt_baris'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" id="edit_baris_id">
                 <div class="modal-body p-4">
                     <div class="mb-3">
@@ -1428,6 +1461,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/sync_baris_items'); ?>" method="post" id="formSyncBaris">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_kelompok" id="manage_baris_id">
                 <div class="modal-body p-4">
                     <!-- Baris 2: Dynamic Tree Builder Judul Baris -->
@@ -1438,6 +1472,17 @@
                             </label>
                             <span class="badge bg-primary-soft text-primary border" id="manage_baris_count">0 Baris</span>
                         </div>
+                        <!-- Smart Alert Deteksi Satuan || -->
+                        <div id="manage_baris_satuan_alert" class="alert alert-warning py-2 px-3 mb-2 rounded-3 small d-none align-items-center justify-content-between border border-warning shadow-xs">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-lightning-charge-fill text-warning fs-5"></i>
+                                <span>Terdeteksi <strong><span id="manage_baris_satuan_count">0</span> item</strong> baris memiliki format satuan (<code>||</code>). Ingin dipisahkan otomatis ke Sub-Baris?</span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-primary fw-bold" id="btn_alert_split_satuan" style="background: #FF6D1F; border: none;">
+                                <i class="bi bi-magic me-1"></i> Pisahkan Sekarang
+                            </button>
+                        </div>
+
                         <div class="tree-builder-card">
                             <!-- Toolbar Penomoran & Huruf Otomatis -->
                             <div class="auto-prefix-toolbar mb-2 d-flex flex-wrap align-items-center justify-content-between gap-2 shadow-xs">
@@ -1481,6 +1526,9 @@
                                         </button>
                                         <button type="button" class="btn btn-prefix-clean" id="btn_manage_clean_prefix" title="Bersihkan nomor / huruf">
                                             <i class="bi bi-eraser"></i> Bersihkan
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary fw-bold" id="btn_manage_split_satuan" title="Pisahkan otomatis teks satuan (||) menjadi Sub-Baris">
+                                            <i class="bi bi-diagram-3-fill"></i> Pisah Satuan
                                         </button>
                                     </div>
                                 </div>
@@ -1544,6 +1592,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/add_periode'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <div class="modal-body p-4">
                     <!-- Baris 1: Nama Kelompok -->
                     <div class="row g-3 mb-3">
@@ -1640,6 +1689,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/edt_periode'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id" id="edit_periode_id">
                 <div class="modal-body p-4">
                     <div class="mb-3">
@@ -1682,6 +1732,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?= base_url('admin/master_dimensi/sync_periode_items'); ?>" method="post">
+                <?= csrf_field(); ?>
                 <input type="hidden" name="id_kelompok" id="manage_periode_id">
                 <div class="modal-body p-4">
                     <!-- Baris 2: Dynamic List Builder Periode (Tanpa Sub) -->
@@ -2423,6 +2474,91 @@ $(document).ready(function() {
         cleanAllPrefix() {
             this.applyAutoPrefix({ bab: 'none', subbab: 'none', subsub: 'none' });
         }
+
+        splitSatuanToSub() {
+            let splitCount = 0;
+            const newItems = [];
+            const self = this;
+            let lastParent = null;
+
+            for (let i = 0; i < this.items.length; i++) {
+                const item = this.items[i];
+                let indText = (item.ind || '').trim();
+                let enText  = (item.en || '').trim();
+
+                // Cek apakah item ini root level 0 dan mengandung pemisah ||
+                if (item.level === 0 && indText.includes('||')) {
+                    const pInd = indText.split('||').map(s => s.trim());
+                    let parentInd = pInd[0] || '';
+                    let subInd = pInd.slice(1).join('||').trim();
+
+                    let parentEn = enText;
+                    let subEn = '';
+                    if (enText.includes('||')) {
+                        const pEn = enText.split('||').map(s => s.trim());
+                        parentEn = pEn[0] || '';
+                        subEn = pEn.slice(1).join('||').trim();
+                    }
+
+                    // Bersihkan jika subInd memiliki format dwibahasa slash "m3/m3", "stapel meter (sm)/ staple meter", atau "batang/trunk"
+                    if (subInd.includes('/')) {
+                        const slashParts = subInd.split('/').map(s => s.trim());
+                        if (slashParts.length === 2 && slashParts[0] && slashParts[1]) {
+                            subInd = slashParts[0];
+                            subEn = slashParts[1];
+                        }
+                    } else if (subEn.includes('/')) {
+                        const slashParts = subEn.split('/').map(s => s.trim());
+                        if (slashParts.length === 2 && slashParts[1]) {
+                            subEn = slashParts[1];
+                        }
+                    }
+                    if (!subEn) {
+                        subEn = subInd;
+                    }
+
+                    // Cek apakah sama dengan parent sebelumnya (Grouping otomatis jika komoditas berulang)
+                    let parentNode = null;
+                    if (lastParent && lastParent.ind.trim().toLowerCase() === parentInd.trim().toLowerCase()) {
+                        parentNode = lastParent;
+                    } else {
+                        item.ind = parentInd;
+                        if (parentEn) {
+                            item.en = parentEn;
+                        }
+                        newItems.push(item);
+                        parentNode = item;
+                        lastParent = item;
+                    }
+
+                    // Buat item anak (Sub-baris)
+                    const childNode = {
+                        id: 'node_' + (++self.idSeq),
+                        db_id: null,
+                        parentId: parentNode.id,
+                        level: 1,
+                        ind: subInd,
+                        en: subEn,
+                        tipe_baris: 'data',
+                        isTotal: false,
+                        isUserToggled: false
+                    };
+                    newItems.push(childNode);
+                    splitCount++;
+                } else {
+                    lastParent = (item.level === 0) ? item : null;
+                    newItems.push(item);
+                }
+            }
+
+            if (splitCount > 0) {
+                this.items = newItems;
+                this.render();
+                this.notify();
+            }
+
+            return splitCount;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -2928,6 +3064,22 @@ $(document).ready(function() {
         manageBarisBuilder.cleanAllPrefix();
     });
 
+    $('#btn_add_split_satuan').on('click', function() {
+        const count = addBarisBuilder.splitSatuanToSub();
+        if (count === 0) {
+            alert('Tidak ditemukan item baris dengan pemisah satuan (||) untuk dipisahkan.');
+        }
+    });
+
+    $('#btn_manage_split_satuan, #btn_alert_split_satuan').on('click', function() {
+        const count = manageBarisBuilder.splitSatuanToSub();
+        if (count > 0) {
+            $('#manage_baris_satuan_alert').addClass('d-none').removeClass('d-flex');
+        } else {
+            alert('Tidak ditemukan item baris dengan pemisah satuan (||) untuk dipisahkan.');
+        }
+    });
+
     // Auto-fill Judul Header Baris dari Nama Pilihan Master (Add Modal)
     let isAddJudulIndTouched = false;
     let isAddJudulEnTouched = false;
@@ -3005,6 +3157,21 @@ $(document).ready(function() {
                 });
 
                 manageBarisBuilder.setItems(treeItems);
+
+                let satuanCount = 0;
+                res.items.forEach(function(it) {
+                    if ((it.nama_baris_ind || '').includes('||')) {
+                        satuanCount++;
+                    }
+                });
+
+                if (satuanCount > 0) {
+                    $('#manage_baris_satuan_count').text(satuanCount);
+                    $('#manage_baris_satuan_alert').removeClass('d-none').addClass('d-flex');
+                } else {
+                    $('#manage_baris_satuan_alert').addClass('d-none').removeClass('d-flex');
+                }
+
                 $('#modalManageBaris').modal('show');
             }
         });
@@ -3316,24 +3483,26 @@ $(document).ready(function() {
     // =========================================================================
     // FITUR PENCARIAN REALTIME MASTER DIMENSI (BARIS, KARAKTERISTIK, PERIODE)
     // =========================================================================
-    function initDimensiLiveSearch(inputId, tableId, clearBtnId, countBadgeId, itemType) {
+    function initDimensiLiveSearch(inputId, tableId, clearBtnId, countBadgeId, itemType, filterPipeSelectId = null) {
         const $input = $(inputId);
         const $table = $(tableId);
         const $clearBtn = $(clearBtnId);
         const $countBadge = $(countBadgeId);
+        const $filterPipe = filterPipeSelectId ? $(filterPipeSelectId) : null;
 
         if ($input.length === 0 || $table.length === 0) return;
 
         function doSearch() {
             const rawQuery = $input.val();
             const query = $.trim(rawQuery).toLowerCase();
+            const filterPipeVal = $filterPipe && $filterPipe.length ? ($filterPipe.val() || 'all') : 'all';
             const $rows = $table.find('tbody tr.dimensi-item-row');
             const totalRows = $rows.length;
 
             // Hapus baris 'no results' sebelumnya jika ada
             $table.find('tbody tr.no-search-results').remove();
 
-            if (query === '') {
+            if (query === '' && filterPipeVal === 'all') {
                 $rows.show();
                 $clearBtn.addClass('d-none');
                 $countBadge.addClass('d-none').empty().removeClass('has-zero');
@@ -3346,17 +3515,32 @@ $(document).ready(function() {
                 return;
             }
 
-            // Tampilkan tombol pembersih (x)
-            $clearBtn.removeClass('d-none');
+            // Tampilkan tombol pembersih (x) jika query terisi
+            if (query !== '') {
+                $clearBtn.removeClass('d-none');
+            } else {
+                $clearBtn.addClass('d-none');
+            }
 
             let matchedCount = 0;
             $rows.each(function() {
                 const $row = $(this);
                 const searchData = ($row.attr('data-search') || '').toLowerCase();
                 const textContent = $row.text().toLowerCase();
+                const hasPipe = $row.attr('data-has-pipe') === '1';
 
-                // Pencarian multi-field (nama ind, nama en, header, total item)
-                if (searchData.indexOf(query) !== -1 || textContent.indexOf(query) !== -1) {
+                // Evaluasi filter satuan ||
+                let matchesFilter = true;
+                if (filterPipeVal === 'pipe') {
+                    matchesFilter = hasPipe;
+                } else if (filterPipeVal === 'no_pipe') {
+                    matchesFilter = !hasPipe;
+                }
+
+                // Evaluasi teks pencarian
+                const matchesQuery = (query === '') || (searchData.indexOf(query) !== -1 || textContent.indexOf(query) !== -1);
+
+                if (matchesFilter && matchesQuery) {
                     $row.show();
                     matchedCount++;
                     $row.find('.row-number').text(matchedCount);
@@ -3365,7 +3549,7 @@ $(document).ready(function() {
                 }
             });
 
-            // Tampilkan counter info hasil pencarian minimalis (e.g. 78/260) di dalam search box
+            // Tampilkan counter info hasil pencarian / filter di dalam search box
             if ($countBadge.length) {
                 $countBadge.removeClass('d-none');
                 if (matchedCount === 0) {
@@ -3377,14 +3561,21 @@ $(document).ready(function() {
 
             // Jika tidak ada data yang cocok
             if (matchedCount === 0 && totalRows > 0) {
+                let msg = `Tidak ada kelompok ${itemType} yang sesuai dengan kriteria yang dipilih.`;
+                if (query !== '') {
+                    msg = `Tidak ada kelompok ${itemType} yang sesuai dengan pencarian "<strong>${escapeHtml(rawQuery)}</strong>".`;
+                } else if (filterPipeVal === 'pipe') {
+                    msg = `Semua kelompok ${itemType} sudah bersih dari format satuan (<code>||</code>).`;
+                }
+
                 const noResultHtml = `
                     <tr class="no-search-results">
                         <td colspan="4" class="text-center py-5 text-muted">
                             <i class="bi bi-search fs-2 d-block mb-2 text-secondary opacity-50"></i>
-                            <div>Tidak ada kelompok ${itemType} yang sesuai dengan pencarian "<strong>${escapeHtml(rawQuery)}</strong>".</div>
+                            <div>${msg}</div>
                             <div class="mt-2">
                                 <button type="button" class="btn btn-sm btn-outline-secondary px-3 rounded-pill btn-reset-search-custom">
-                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Bersihkan Pencarian
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filter & Pencarian
                                 </button>
                             </div>
                         </td>
@@ -3404,8 +3595,15 @@ $(document).ready(function() {
 
         // Listener klik tombol reset di baris 'no results'
         $table.on('click', '.btn-reset-search-custom', function() {
+            if ($filterPipe && $filterPipe.length) {
+                $filterPipe.val('all');
+            }
             $input.val('').trigger('input').focus();
         });
+
+        if ($filterPipe && $filterPipe.length) {
+            $filterPipe.on('change', doSearch);
+        }
 
         // Keyboard shortcut: Escape untuk membatalkan search
         $input.on('keydown', function(e) {
@@ -3420,7 +3618,7 @@ $(document).ready(function() {
 
     // Aktifkan pencarian di ketiga tab Master Dimensi
     initDimensiLiveSearch('#search_master_karakteristik', '#table_dimensi_karakteristik', '#clear_search_karakteristik', '#count_search_karakteristik', 'karakteristik');
-    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris');
+    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris', '#filter_satuan_baris');
     initDimensiLiveSearch('#search_master_periode', '#table_dimensi_periode', '#clear_search_periode', '#count_search_periode', 'periode');
 
     // Global keyboard shortcut '/' atau 'Ctrl+K' untuk langsung fokus ke input pencarian dimensi

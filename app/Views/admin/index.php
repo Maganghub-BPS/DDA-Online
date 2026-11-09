@@ -799,22 +799,30 @@
             var csrfTokenName = '<?= csrf_token() ?>';
             var csrfHash = '<?= csrf_hash() ?>';
 
+            function getLatestCsrfHash() {
+                return $('#meta-csrf').attr('content') || csrfHash;
+            }
+
             // Global jQuery AJAX Setup: Otomatis kirim X-CSRF-TOKEN header pada request non-GET
             $.ajaxSetup({
                 beforeSend: function(xhr, settings) {
                     if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                        xhr.setRequestHeader('X-CSRF-TOKEN', csrfHash);
+                        xhr.setRequestHeader('X-CSRF-TOKEN', getLatestCsrfHash());
                     }
                 }
             });
 
             // Injeksi otomatis input hidden CSRF pada semua form POST yang belum memilikinya
             function injectCsrfToForms() {
+                var curHash = getLatestCsrfHash();
                 $('form').each(function() {
                     var method = ($(this).attr('method') || '').toUpperCase();
                     if (method === 'POST') {
-                        if ($(this).find('input[name="' + csrfTokenName + '"]').length === 0) {
-                            $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + csrfHash + '">');
+                        var $input = $(this).find('input[name="' + csrfTokenName + '"]');
+                        if ($input.length === 0) {
+                            $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + curHash + '">');
+                        } else if (!$input.val()) {
+                            $input.val(curHash);
                         }
                     }
                 });
@@ -825,8 +833,12 @@
             $(document).on('submit', 'form', function() {
                 var method = ($(this).attr('method') || '').toUpperCase();
                 if (method === 'POST') {
-                    if ($(this).find('input[name="' + csrfTokenName + '"]').length === 0) {
-                        $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + csrfHash + '">');
+                    var curHash = getLatestCsrfHash();
+                    var $input = $(this).find('input[name="' + csrfTokenName + '"]');
+                    if ($input.length === 0) {
+                        $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + curHash + '">');
+                    } else if (!$input.val()) {
+                        $input.val(curHash);
                     }
                 }
             });

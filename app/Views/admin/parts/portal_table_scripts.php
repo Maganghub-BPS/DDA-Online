@@ -485,7 +485,10 @@
         headerRows.forEach((row, rIdx) => {
             html += '<tr>';
             if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid rgba(255,255,255,0.25); width:45px; background:#154679; color:#ffffff; text-align:center; vertical-align:middle; font-weight:700;">No.</th>`;
-            row.forEach(cell => { html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid rgba(255,255,255,0.25); padding:8px 6px; text-align:center; background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">${cell.label}${cell.label_en ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${cell.label_en}</i>` : ''}</th>`; });
+            row.forEach(cell => {
+                const isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || ').trim().toLowerCase();
+                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid rgba(255,255,255,0.25); padding:8px 6px; text-align:center; background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">${cell.label}${isEnDiff ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${cell.label_en}</i>` : '}</th>`;
+            });
             if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid rgba(255,255,255,0.25); background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">Jumlah<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">Total</i></th>`;
             html += '</tr>';
         });
