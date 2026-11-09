@@ -147,3 +147,21 @@ debug_output.txt
 mock_db.json
 simdasi.html
 python_engine/backup_pre_upgrade/
+
+# Excluded from tabel_dinamis branch
+documentation/
+guide-book/
+.agent/
+.agents/
+AUDIT_*
+DIAGRAM_*
+DOKUMENTASI_*
+FLOW_*
+LAPORAN_AUDIT_*
+MASTER_PROMPT_*
+PLAN_AUDIT_*
+FORM_CHECKLIST_*
+IMPLEMENTASI_DRAG_*
+PANDUAN_PENGUJIAN_*
+diagram_erd_*
+diagram_visual.html
