@@ -901,11 +901,13 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 last_year_label = ""
 
                 pdf_data_col_indices = []
+                bps_header_limit_idx = -1
                 if is_pdf:
                     for r_idx, r_check in enumerate(data_list):
                         if isinstance(r_check, list):
                             bps_num_cols = [idx for idx, cell in enumerate(r_check) if cell is not None and re.match(r'^\(\d+\)$', str(cell).strip()) and int(re.search(r'\d+', str(cell)).group(0)) >= 2]
                             if len(bps_num_cols) >= 1:
+                                bps_header_limit_idx = r_idx
                                 unit_cols = set()
                                 for r_hdr in data_list[:r_idx]:
                                     if isinstance(r_hdr, list):
@@ -921,7 +923,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 pdf_data_col_indices = [c for c in bps_num_cols if c not in unit_cols]
                                 break
 
-                for r in data_list:
+                for r_idx, r in enumerate(data_list):
+                    if is_pdf and bps_header_limit_idx != -1 and r_idx <= bps_header_limit_idx:
+                        continue
                     if not isinstance(r, list):
                         continue
                     all_txt = ' '.join(str(c).strip().lower() for c in r if str(c).strip())
@@ -994,6 +998,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             cand_parent = ""
 
                         raw_nums = []
+                        valid_num_count = 0
                         has_any_cell = False
                         for c_idx in pdf_data_col_indices:
                             c_val = str(r[c_idx]).strip() if c_idx < len(r) and r[c_idx] is not None else ''
@@ -1003,9 +1008,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 raw_nums.append(0.0)
                             else:
                                 v = parse_num(c_val, is_pdf=True)
-                                raw_nums.append(v if v is not None else 0.0)
+                                if v is not None:
+                                    valid_num_count += 1
+                                    raw_nums.append(v)
+                                else:
+                                    raw_nums.append(0.0)
 
-                        if not has_any_cell:
+                        has_dash = any(str(r[c_idx]).strip() in ('-', '–', '—') for c_idx in pdf_data_col_indices if c_idx < len(r) and r[c_idx] is not None)
+                        if not has_any_cell or (valid_num_count == 0 and not has_dash):
                             if cand_parent:
                                 last_parent_label = clean_cat_display(cand_parent)
                             continue

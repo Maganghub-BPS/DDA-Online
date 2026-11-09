@@ -439,7 +439,7 @@
             <i class="bi bi-file-earmark-spreadsheet-fill fs-5"></i>
           </div>
           <div>
-            <h6 class="modal-title fw-bold text-dark mb-0">Penyusunan Rekap Global Excel</h6>
+            <h6 class="modal-title fw-bold text-dark mb-0" id="modalExportRekapTitle">Penyusunan Rekap Global Excel</h6>
             <div class="text-muted" style="font-size: 0.75rem;">Multi-Sheet: 1 Sheet Per Tabel (Khusus Data Selisih)</div>
           </div>
         </div>
@@ -1063,6 +1063,17 @@
 
         applyMatchedFilters();
         updateBatchCounters();
+
+        // Update tombol unduh & cache ketersediaan sesuai konteks tab aktif
+        let dlBtnText = '<i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap Global (.xlsx)';
+        if (src === 'api') {
+            dlBtnText = '<i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap API (.xlsx)';
+        } else if (src === 'dinamis') {
+            dlBtnText = '<i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap Dinamis (.xlsx)';
+        }
+        $('#btnDownloadRekapGlobal').html(dlBtnText);
+        $('#btnDownloadRekapGlobal').attr('href', "<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>&source=" + src);
+        checkRekapAvailability(src);
     }
 
     function applyMatchedFilters() {
@@ -2793,47 +2804,58 @@ ${getPdfSplitPaneHtml(pagesLabel)}
     // ==========================================
     let exportPollTimer = null;
 
-    function checkRekapAvailability() {
+    function checkRekapAvailability(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
         $.ajax({
             url: "<?= base_url('admin/ajax_check_rekap_excel') ?>",
             type: "GET",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function(res) {
                 if (res.is_running) {
-                    openExportModal();
-                    pollExportProgress();
+                    openExportModal(src);
+                    pollExportProgress(src);
                 } else if (res.file_exists) {
                     $('#btnDownloadRekapGlobal').removeClass('btn-outline-success').addClass('btn-success text-white');
                     $('#btnDownloadRekapGlobal').attr('title', `Ukuran: ${res.filesize_kb} KB | Dibuat: ${res.updated_at}`);
+                } else {
+                    $('#btnDownloadRekapGlobal').removeClass('btn-success text-white').addClass('btn-outline-success');
+                    $('#btnDownloadRekapGlobal').attr('title', 'Belum disusun. Klik Buat Ulang untuk menyusun file.');
                 }
             }
         });
     }
 
     function triggerGenerateRekapModal(forceRebuild = false) {
+        let src = window.currentSourceFilter || 'all';
         if (!forceRebuild) {
             $.ajax({
                 url: "<?= base_url('admin/ajax_check_rekap_excel') ?>",
                 type: "GET",
-                data: { ta: activeYear },
+                data: { ta: activeYear, source: src },
                 dataType: "json",
                 success: function(res) {
                     if (res.file_exists && !res.is_running) {
                         window.location.href = res.download_url;
                         return;
                     }
-                    openExportModal();
-                    startExportWorker();
+                    openExportModal(src);
+                    startExportWorker(src);
                 }
             });
             return;
         }
-        openExportModal();
-        startExportWorker();
+        openExportModal(src);
+        startExportWorker(src);
     }
 
-    function openExportModal() {
+    function openExportModal(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
+        let modalTitle = 'Penyusunan Rekap Global Excel (Semua Data)';
+        if (src === 'api') modalTitle = 'Penyusunan Rekap Excel (Sumber: API Satudata)';
+        else if (src === 'dinamis') modalTitle = 'Penyusunan Rekap Excel (Sumber: Tabel Dinamis)';
+        $('#modalExportRekapTitle').text(modalTitle);
+
         $('#exportRunningState').show();
         $('#exportCompletedState').hide();
         $('#exportProgressBar').css('width', '0%');
@@ -2843,15 +2865,16 @@ ${getPdfSplitPaneHtml(pagesLabel)}
         myModal.show();
     }
 
-    function startExportWorker() {
+    function startExportWorker(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
         $.ajax({
             url: "<?= base_url('admin/start_export_rekap') ?>",
             type: "POST",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function(res) {
                 if (res.status === 'success') {
-                    pollExportProgress();
+                    pollExportProgress(src);
                 } else {
                     alert("Gagal memulai export: " + (res.message || 'Error'));
                     let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
@@ -2864,12 +2887,13 @@ ${getPdfSplitPaneHtml(pagesLabel)}
         });
     }
 
-    function pollExportProgress() {
+    function pollExportProgress(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
         if (exportPollTimer) clearTimeout(exportPollTimer);
         $.ajax({
             url: "<?= base_url('admin/get_export_progress') ?>",
             type: "GET",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function(res) {
                 let pct = res.percent || 0;
@@ -2895,19 +2919,20 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                     return;
                 }
 
-                exportPollTimer = setTimeout(pollExportProgress, 1200);
+                exportPollTimer = setTimeout(function() { pollExportProgress(src); }, 1200);
             },
             error: function() {
-                exportPollTimer = setTimeout(pollExportProgress, 2500);
+                exportPollTimer = setTimeout(function() { pollExportProgress(src); }, 2500);
             }
         });
     }
 
     function cancelExportWorker() {
+        let src = window.currentSourceFilter || 'all';
         $.ajax({
             url: "<?= base_url('admin/stop_export_rekap') ?>",
             type: "POST",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function() {
                 if (exportPollTimer) clearTimeout(exportPollTimer);

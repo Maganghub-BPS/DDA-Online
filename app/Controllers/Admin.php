@@ -5700,24 +5700,25 @@ class Admin extends BaseController
 
 		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
-		$uploadPath = WRITEPATH . 'uploads/';
-		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
-		$stateJson = $uploadPath . "dda_state_{$ta}.json";
-		$pdfMaster = $uploadPath . "dda_master_{$ta}.pdf";
-		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$source = strtolower(trim((string)($this->request->getGet('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
 
-		// EKSPOR MULTI-SHEET EXCEL SESUAI KERANGKA BOS ANAS:
-		// 1. 1 Sheet Per Tabel (Nama Sheet: "Tabel [nomor_tabel]")
-		// 2. Tabel Cocok 100% otomatis dikecualikan agar file fokus hanya pada data bermasalah
-		// 3. Matriks kolom berpasangan: PDF vs Database
-		// 4. INSTANT SERVE: Jika file sudah ada, langsung kirim ke browser dalam 0,05 detik!
-		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
+		$uploadPath = WRITEPATH . 'uploads/';
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
 		if (file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000) {
-			return $this->response->download($canonicalExcel, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}.xlsx");
+			return $this->response->download($canonicalExcel, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx");
 		}
 
 		// Cek jika ada file generate sebelumnya dengan timestamp
-		$recentFiles = glob($uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}_*.xlsx");
+		$recentFiles = glob($uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}_*.xlsx");
 		if (!empty($recentFiles)) {
 			usort($recentFiles, function($a, $b) {
 				return filemtime($b) - filemtime($a);
@@ -5725,12 +5726,12 @@ class Admin extends BaseController
 			$latest = $recentFiles[0];
 			if (file_exists($latest) && filesize($latest) > 5000) {
 				@copy($latest, $canonicalExcel);
-				return $this->response->download($latest, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}.xlsx");
+				return $this->response->download($latest, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx");
 			}
 		}
 
 		// Jika belum ada file, arahkan ke halaman matching_pdf dengan trigger untuk generate di modal
-		return redirect()->to("admin/matching_pdf?ta={$ta}&trigger_export=1");
+		return redirect()->to("admin/matching_pdf?ta={$ta}&source={$source}&trigger_export=1");
 	}
 
 	/**
@@ -5740,9 +5741,20 @@ class Admin extends BaseController
 	{
 		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getGetPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
 		$uploadPath = WRITEPATH . 'uploads/';
-		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
-		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
 
 		$exists = file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000;
 		$mtimeStr = $exists ? date('d M Y H:i', filemtime($canonicalExcel)) : null;
@@ -5763,13 +5775,14 @@ class Admin extends BaseController
 
 		return $this->response->setJSON([
 			'status' => 'success',
+			'source' => $source,
 			'file_exists' => $exists,
 			'filesize_kb' => $fileSizeKb,
 			'updated_at' => $mtimeStr,
 			'is_running' => $isRunning,
 			'percent' => $percent,
 			'current_table' => $curTable,
-			'download_url' => base_url("admin/export_rekap_matching?ta={$ta}")
+			'download_url' => base_url("admin/export_rekap_matching?ta={$ta}&source={$source}")
 		]);
 	}
 
@@ -5784,13 +5797,24 @@ class Admin extends BaseController
 
 		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
 		$uploadPath = WRITEPATH . 'uploads/';
 		$pdfMaster = $uploadPath . "dda_master_{$ta}.pdf";
 		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
 		$dbJson = $uploadPath . "dda_db_{$ta}.json";
 		$stateJson = $uploadPath . "dda_state_{$ta}.json";
-		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
-		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
 		$stopFile = $progressJson . '.stop';
 
 		if (file_exists($stopFile)) {
@@ -5801,7 +5825,7 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data hasil verifikasi belum lengkap']);
 		}
 
-		// Pastikan tidak ada worker duplikat yang sedang berjalan
+		// Pastikan tidak ada worker duplikat yang sedang berjalan untuk sumber ini
 		if (file_exists($progressJson)) {
 			$pData = json_decode(@file_get_contents($progressJson), true) ?? [];
 			if (!empty($pData['is_running']) && !empty($pData['updated_at']) && (time() - $pData['updated_at'] < 180)) {
@@ -5812,6 +5836,7 @@ class Admin extends BaseController
 		// Inisialisasi status progress
 		$initProg = [
 			'status' => 'running',
+			'source' => $source,
 			'is_running' => true,
 			'completed' => 0,
 			'total' => 0,
@@ -5822,12 +5847,12 @@ class Admin extends BaseController
 		@file_put_contents($progressJson, json_encode($initProg));
 
 		$pyScript = FCPATH . "../python_engine/export_global_excel.py";
-		$errLog = $uploadPath . "dda_export_stderr_{$ta}.log";
-		$cmd = "start /B python " . escapeshellarg($pyScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($matchedJson) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($stateJson) . " " . escapeshellarg($canonicalExcel) . " 0.0 " . escapeshellarg($progressJson) . " > NUL 2>" . escapeshellarg($errLog);
+		$errLog = $uploadPath . "dda_export_stderr_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".log";
+		$cmd = "start /B python " . escapeshellarg($pyScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($matchedJson) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($stateJson) . " " . escapeshellarg($canonicalExcel) . " 0.0 " . escapeshellarg($progressJson) . " " . escapeshellarg($source) . " > NUL 2>" . escapeshellarg($errLog);
 
 		pclose(popen($cmd, "r"));
 
-		return $this->response->setJSON(['status' => 'success', 'message' => 'Background worker rekap excel berhasil dimulai']);
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Background worker rekap excel berhasil dimulai', 'source' => $source]);
 	}
 
 	/**
@@ -5837,12 +5862,24 @@ class Admin extends BaseController
 	{
 		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getGetPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
 		$uploadPath = WRITEPATH . 'uploads/';
-		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
-		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
 
 		$prog = [
 			'status' => 'idle',
+			'source' => $source,
 			'is_running' => false,
 			'completed' => 0,
 			'total' => 0,
@@ -5863,7 +5900,7 @@ class Admin extends BaseController
 
 		if (file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000) {
 			$prog['file_ready'] = true;
-			$prog['download_url'] = base_url("admin/export_rekap_matching?ta={$ta}");
+			$prog['download_url'] = base_url("admin/export_rekap_matching?ta={$ta}&source={$source}");
 			$prog['filesize_kb'] = round(filesize($canonicalExcel) / 1024, 1);
 			$prog['updated_at'] = date('d M Y H:i', filemtime($canonicalExcel));
 		}
@@ -5878,8 +5915,19 @@ class Admin extends BaseController
 	{
 		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
 		$uploadPath = WRITEPATH . 'uploads/';
-		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
 		$stopFile = $progressJson . '.stop';
 		@file_put_contents($stopFile, '1');
 

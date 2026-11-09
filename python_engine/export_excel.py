@@ -55,11 +55,25 @@ def get_instansi_name(tnum, id_db=None, preloaded_db=None):
     return "-"
 
 def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi=""):
+    def is_artifact_row(w):
+        if not w: return True
+        w_clean = str(w).strip().lower()
+        if w_clean in ("partai politik", "rincian", "uraian", "kabupaten/kota", "nama kabupaten/kota", 
+                       "bulan", "month", "tahun", "year", "periode", "period", "satuan", "unit", 
+                       "indikator", "variabel", "dimensi", "kategori", "none", "-", "–", "—"):
+            return True
+        if w_clean.startswith("none ") or w_clean.endswith(" none") or w_clean == "none none":
+            return True
+        if w_clean.startswith("tabel ") or w_clean.startswith("table ") or w_clean.startswith("bab ") or w_clean.startswith("chapter "):
+            return True
+        return False
+
     diffs = res.get("diffs", [])
     matches = res.get("matches", [])
     pdf_only = res.get("pdf_only", [])
-    total_diffs = len(diffs) + len(pdf_only)
-    total_all = len(diffs) + len(matches) + len(pdf_only)
+    real_pdf_only = [p for p in pdf_only if not is_artifact_row(p.get("wilayah")) and not any(k in str(p.get("note", "")).lower() for k in ("data historis", "tahun ajaran lalu", "tidak dimuat di database", "total jawa tengah tercetak"))]
+    total_diffs = len(diffs) + len(real_pdf_only)
+    total_all = len(diffs) + len(matches) + len(real_pdf_only)
 
     if not instansi or instansi == "-":
         instansi = get_instansi_name(tnum, res.get("id_db"))
@@ -103,8 +117,7 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi=""):
     # 6. Row 6: Spasi Pemisah Visual
     ws.row_dimensions[6].height = 10
 
-    def is_artifact_row(w):
-        return str(w).strip().lower() in ("partai politik", "rincian", "uraian", "kabupaten/kota", "nama kabupaten/kota")
+    # is_artifact_row already defined at top of function
 
     def get_col_label(item):
         sec = (item.get("section") or "").strip()
@@ -151,8 +164,8 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi=""):
             "is_pdf_only": False
         }
 
-    # 3. Masukkan data pdf_only (abaikan baris artefak header)
-    for p in pdf_only:
+    # 3. Masukkan data pdf_only (abaikan baris artefak header & data historis)
+    for p in real_pdf_only:
         w = (p.get("wilayah") or "-").strip()
         if is_artifact_row(w): continue
         c = get_col_label(p)
