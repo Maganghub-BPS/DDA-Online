@@ -25,7 +25,7 @@
             <i class="bi bi-hand-thumbs-up text-primary" style="font-size: 1.2rem;"></i>
         </div>
         <div>
-            Selamat datang <strong><?php echo session()->get('admin_nama'); ?></strong>
+            Selamat datang <strong><?php echo esc(session()->get('admin_nama')); ?></strong>
             <?php if (!empty($user_role_scope)): ?>
                 <?php if ($user_role_scope === 'walidata'): ?>
                     <span class="badge border ms-1 fw-semibold" style="background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; border-color: rgba(255, 109, 31, 0.2) !important;"><i class="bi bi-building me-1"></i>Walidata</span>
@@ -51,66 +51,66 @@
     $val_belum_diverifikasi = isset($stat_diisi_waiting) ? $stat_diisi_waiting : ($val_diisi - $val_sudah_acc);
     ?>
     <div class="col">
-        <div class="card card-stat border-0 shadow-sm bg-primary text-white p-3 h-100">
+        <div class="card card-stat border-0 text-white p-3 h-100" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); border-radius: 14px; box-shadow: 0 4px 15px rgba(30, 58, 138, 0.2);">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <h3 class="fw-bold mb-1"><?php echo number_format($total_tabel); ?></h3>
                     <p class="small mb-0 opacity-75">Total Tabel DDA</p>
                 </div>
-                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; background: rgba(255,255,255,0.15);">
-                    <i class="bi bi-table" style="font-size: 1.4rem;"></i>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: rgba(255,255,255,0.18); backdrop-filter: blur(4px);">
+                    <i class="bi bi-table" style="font-size: 1.35rem;"></i>
                 </div>
             </div>
         </div>
     </div>
     <div class="col">
-        <div class="card card-stat border-0 shadow-sm text-white p-3 h-100" style="background: #ef4444;">
+        <div class="card card-stat border-0 text-white p-3 h-100" style="background: linear-gradient(135deg, #be123c 0%, #f43f5e 100%); border-radius: 14px; box-shadow: 0 4px 15px rgba(190, 18, 60, 0.2);">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <h3 class="fw-bold mb-1"><?php echo number_format($val_belum_diisi); ?></h3>
                     <p class="small mb-0 opacity-75">Belum Diisi</p>
                 </div>
-                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; background: rgba(255,255,255,0.15);">
-                    <i class="bi bi-exclamation-triangle" style="font-size: 1.4rem;"></i>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: rgba(255,255,255,0.18); backdrop-filter: blur(4px);">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 1.35rem;"></i>
                 </div>
             </div>
         </div>
     </div>
     <div class="col">
-        <div class="card card-stat border-0 shadow-sm text-white p-3 h-100" style="background: #0284c7;">
+        <div class="card card-stat border-0 text-white p-3 h-100" style="background: linear-gradient(135deg, #1d4ed8 0%, #38bdf8 100%); border-radius: 14px; box-shadow: 0 4px 15px rgba(29, 78, 216, 0.2);">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <h3 class="fw-bold mb-1"><?php echo number_format($val_diisi); ?></h3>
                     <p class="small mb-0 opacity-75">Sudah Diisi</p>
                 </div>
-                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; background: rgba(255,255,255,0.15);">
-                    <i class="bi bi-pencil-square" style="font-size: 1.4rem;"></i>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: rgba(255,255,255,0.18); backdrop-filter: blur(4px);">
+                    <i class="bi bi-pencil-square" style="font-size: 1.35rem;"></i>
                 </div>
             </div>
         </div>
     </div>
     <div class="col">
-        <div class="card card-stat border-0 shadow-sm text-white p-3 h-100" style="background: #eab308;">
+        <div class="card card-stat border-0 text-white p-3 h-100" style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); border-radius: 14px; box-shadow: 0 4px 15px rgba(217, 119, 6, 0.2);">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <h3 class="fw-bold mb-1"><?php echo number_format($val_belum_diverifikasi); ?></h3>
                     <p class="small mb-0 opacity-75">Belum Diverifikasi</p>
                 </div>
-                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; background: rgba(255,255,255,0.15);">
-                    <i class="bi bi-hourglass-split" style="font-size: 1.4rem;"></i>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: rgba(255,255,255,0.18); backdrop-filter: blur(4px);">
+                    <i class="bi bi-hourglass-split" style="font-size: 1.35rem;"></i>
                 </div>
             </div>
         </div>
     </div>
     <div class="col">
-        <div class="card card-stat border-0 shadow-sm text-white p-3 h-100" style="background: #22c55e;">
+        <div class="card card-stat border-0 text-white p-3 h-100" style="background: linear-gradient(135deg, #047857 0%, #10b981 100%); border-radius: 14px; box-shadow: 0 4px 15px rgba(4, 120, 87, 0.2);">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <h3 class="fw-bold mb-1"><?php echo number_format($val_sudah_acc); ?></h3>
                     <p class="small mb-0 opacity-75">Sudah Diverifikasi</p>
                 </div>
-                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; background: rgba(255,255,255,0.15);">
-                    <i class="bi bi-check-circle" style="font-size: 1.4rem;"></i>
+                <div class="stat-icon rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background: rgba(255,255,255,0.18); backdrop-filter: blur(4px);">
+                    <i class="bi bi-check-circle" style="font-size: 1.35rem;"></i>
                 </div>
             </div>
         </div>
@@ -305,17 +305,19 @@
                 verticalAlign: 'bottom',
                 layout: 'horizontal'
             },
-            colors: ['#FF6D1F', '#ef4444'],
+            colors: ['#2563eb', '#e11d48'],
             series: [{
                 name: 'Status',
                 colorByPoint: true,
                 data: [{
                         name: 'Sudah Diisi',
-                        y: valDiisi
+                        y: valDiisi,
+                        color: '#2563eb'
                     },
                     {
                         name: 'Belum Diisi',
-                        y: valBelumDiisi
+                        y: valBelumDiisi,
+                        color: '#e11d48'
                     }
                 ]
             }],
@@ -377,17 +379,19 @@
                 verticalAlign: 'bottom',
                 layout: 'horizontal'
             },
-            colors: ['#22c55e', '#eab308'],
+            colors: ['#059669', '#d97706'],
             series: [{
                 name: 'Status',
                 colorByPoint: true,
                 data: [{
                         name: 'Sudah Diverifikasi',
-                        y: valSudahAcc
+                        y: valSudahAcc,
+                        color: '#059669'
                     },
                     {
                         name: 'Belum Diverifikasi',
-                        y: valBelumDiverifikasi
+                        y: valBelumDiverifikasi,
+                        color: '#d97706'
                     }
                 ]
             }],
@@ -423,9 +427,9 @@
                     html += '<td class="fw-medium">' + listTim[i] + '</td>';
                     html += '<td>';
                     html += '<div class="progress" style="height: 10px; border-radius: 5px;" data-bs-toggle="tooltip" title="Sudah Diverifikasi: ' + accPct + '% | Belum Diverifikasi: ' + waitPct + '% | Belum Diisi: ' + belumPct + '%">';
-                    html += '<div class="progress-bar" style="width: ' + accPct + '%; background: #22c55e;"></div>';
-                    html += '<div class="progress-bar" style="width: ' + waitPct + '%; background: #eab308;"></div>';
-                    html += '<div class="progress-bar" style="width: ' + belumPct + '%; background: #ef4444;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + accPct + '%; background: #059669;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + waitPct + '%; background: #d97706;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + belumPct + '%; background: #e11d48;"></div>';
                     html += '</div>';
                     html += '<small class="text-muted">' + progress + '% terisi</small>';
                     html += '</td>';
@@ -477,9 +481,9 @@
                     html += '<td class="fw-medium text-uppercase">' + item.name + '</td>';
                     html += '<td>';
                     html += '<div class="progress" style="height: 10px; border-radius: 5px;" data-bs-toggle="tooltip" title="Sudah Diverifikasi: ' + accPct + '% | Belum Diverifikasi: ' + waitPct + '% | Belum Diisi: ' + belumPct + '%">';
-                    html += '<div class="progress-bar" style="width: ' + accPct + '%; background: #22c55e;"></div>';
-                    html += '<div class="progress-bar" style="width: ' + waitPct + '%; background: #eab308;"></div>';
-                    html += '<div class="progress-bar" style="width: ' + belumPct + '%; background: #ef4444;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + accPct + '%; background: #059669;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + waitPct + '%; background: #d97706;"></div>';
+                    html += '<div class="progress-bar" style="width: ' + belumPct + '%; background: #e11d48;"></div>';
                     html += '</div>';
                     html += '<small class="text-muted">' + item.progress + '% terisi</small>';
                     html += '</td>';

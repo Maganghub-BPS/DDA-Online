@@ -97,7 +97,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                         if (isset($list_opd)) {
                             foreach ($list_opd as $opd) {
                                 $selected = (isset($selected_opd) && $selected_opd == $opd->id_unitkerja) ? 'selected' : '';
-                                echo "<option value='" . $opd->id_unitkerja . "' $selected>" . $opd->unitkerja_ind . "</option>";
+                                echo "<option value='" . esc($opd->id_unitkerja, 'attr') . "' $selected>" . esc($opd->unitkerja_ind) . "</option>";
                             }
                         }
                         ?>
@@ -113,7 +113,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                         if (isset($list_tim)) {
                             foreach ($list_tim as $tim) {
                                 $sel = (isset($selected_bidang) && $selected_bidang == $tim->user_wali) ? 'selected' : '';
-                                echo "<option value='" . $tim->user_wali . "' $sel>" . strtoupper($tim->user_wali) . "</option>";
+                                echo "<option value='" . esc($tim->user_wali, 'attr') . "' $sel>" . esc(strtoupper((string)$tim->user_wali)) . "</option>";
                             }
                         }
                         ?>
@@ -134,7 +134,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
             </form>
         </div>
 
-        <div class="table-responsive rounded-3 border border-light overflow-hidden">
+        <div class="table-responsive rounded-3 border border-light">
             <table class="table table-hover align-items-center mb-0">
                 <thead class="bg-gray-100">
                     <tr>
@@ -176,21 +176,16 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                                         if ($is_dyn): 
                                         ?>
                                             <a href="<?php echo base_url('admin/generator_tabel/' . $id_gen_url); ?>" class="badge badge-sm text-white border-0 align-self-start fw-bold shadow-xs text-decoration-none" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px;" title="Klik untuk mengelola matriks dinamis">
-                                                <i class="bi bi-boxes me-1"></i>🧩 TABEL DINAMIS
+                                                <i class="bi bi-boxes me-1"></i> TABEL DINAMIS
                                             </a>
-                                            <?php if (!empty($b->id_indikator)): ?>
-                                                <span class="text-xxs text-success fw-semibold mt-0.5"><i class="bi bi-check-circle-fill me-1"></i>Matriks Siap</span>
-                                            <?php else: ?>
-                                                <span class="text-xxs text-warning fw-semibold mt-0.5"><i class="bi bi-exclamation-circle me-1"></i>Belum Dirakit</span>
-                                            <?php endif; ?>
                                         <?php elseif (!empty($api_uuid) || !empty($api_link)): ?>
                                             <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold" style="font-size: 10px;">
-                                                <i class="bi bi-cloud-check me-1"></i>🔗 API KOMINFO
+                                                <i class="bi bi-cloud-check me-1"></i> API
                                             </span>
                                             <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 190px;" title="<?php echo esc($api_uuid ?: $api_link); ?>"><?php echo esc($api_uuid ?: str_replace('index.php/admin/', '', $api_link)); ?></code>
                                         <?php else: ?>
                                             <span class="badge badge-sm bg-light text-secondary border align-self-start fw-semibold" style="font-size: 10px;">
-                                                <i class="bi bi-dash-circle me-1"></i>🔗 API (BELUM DIISI)
+                                                <i class="bi bi-dash-circle me-1"></i> API (BELUM DIISI)
                                             </span>
                                             <span class="text-xxs text-muted fst-italic mt-1">Belum ada UUID API</span>
                                         <?php endif; ?>
@@ -204,7 +199,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                                 </td>
                                 <td class="text-center">
                                     <div class="dropdown">
-                                        <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown">
+                                        <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
                                             <i class="bi bi-three-dots-vertical fs-6"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 border-radius-lg p-2">
@@ -559,81 +554,4 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 </div>
 
 <!-- ========================================================================= -->
-
-
-<script>
-// =========================================================================
-// SCRIPT: INTERAKTIFITAS RESET TAHUN & SINKRONISASI TAHUN CLONE
-// 1. Mengubah teks prompt konfirmasi (misal: "HAPUS 2026") saat tahun di-select.
-// 2. Memvalidasi kecocokan ketikan input user secara real-time.
-// 3. Mengaktifkan tombol merah jika teks sudah sesuai.
-// 4. Mengatur tahun target clone = tahun sumber + 1 secara otomatis.
-// =========================================================================
-document.addEventListener("DOMContentLoaded", function() {
-    const selectTahun = document.getElementById("target_tahun_reset");
-    const promptConfirm = document.getElementById("textPromptConfirm");
-    const inputConfirm = document.getElementById("inputConfirmReset");
-    const btnExecute = document.getElementById("btnExecuteReset");
-    const labelJumlah = document.getElementById("labelJumlahTabel");
-
-    // Perbarui teks instruksi konfirmasi sesuai tahun yang dipilih pada dropdown
-    function updateResetPrompt() {
-        if (!selectTahun) return;
-        const selectedOpt = selectTahun.options[selectTahun.selectedIndex];
-        const tahun = selectedOpt ? selectedOpt.value : "";
-        const count = selectedOpt ? selectedOpt.getAttribute("data-count") : "0";
-        
-        const expectedText = "HAPUS " + tahun;
-        if (promptConfirm) promptConfirm.textContent = expectedText;
-        if (labelJumlah) labelJumlah.textContent = "(" + count + " Tabel)";
-
-        checkInput();
-    }
-
-    // Periksa apakah teks yang diketikkan user persis sama dengan kata kunci konfirmasi
-    function checkInput() {
-        if (!selectTahun || !inputConfirm || !btnExecute) return;
-        const selectedOpt = selectTahun.options[selectTahun.selectedIndex];
-        const tahun = selectedOpt ? selectedOpt.value : "";
-        const expectedText = "HAPUS " + tahun;
-        
-        // Bandingkan secara case-insensitive
-        if (inputConfirm.value.trim().toUpperCase() === expectedText.toUpperCase()) {
-            btnExecute.removeAttribute("disabled");
-            btnExecute.classList.add("shadow-lg");
-        } else {
-            btnExecute.setAttribute("disabled", "disabled");
-            btnExecute.classList.remove("shadow-lg");
-        }
-    }
-
-    // Event listener perubahan pilihan tahun di dropdown reset
-    if (selectTahun) {
-        selectTahun.addEventListener("change", function() {
-            if (inputConfirm) inputConfirm.value = "";
-            updateResetPrompt();
-        });
-    }
-
-    // Event listener pengetikan teks konfirmasi
-    if (inputConfirm) {
-        inputConfirm.addEventListener("input", checkInput);
-    }
-
-    // Auto sinkronisasi tahun tujuan di Modal Clone (+1 tahun dari tahun sumber)
-    const selectSumber = document.getElementById("select_tahun_sumber");
-    const inputTujuan = document.getElementById("input_tahun_tujuan");
-    if (selectSumber && inputTujuan) {
-        selectSumber.addEventListener("change", function() {
-            const val = parseInt(this.value);
-            if (!isNaN(val)) {
-                inputTujuan.value = val + 1;
-            }
-        });
-    }
-
-    // Inisialisasi awal prompt reset
-    updateResetPrompt();
-});
-</script>
 <?php endif; ?>

@@ -1092,8 +1092,22 @@ class M_tabeldinamis extends Model
     public function getPeriodeKelompokWithItems(): array
     {
         $kelompoks = $this->getPeriodeKelompokAll();
+        if (empty($kelompoks)) {
+            return [];
+        }
+        $ids = array_map(fn($k) => (int)$k->id, $kelompoks);
+        $allItems = $this->db->table('m_periode_item')
+            ->whereIn('id_kelompok', $ids)
+            ->orderBy('no_urut', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResult();
+        $grouped = [];
+        foreach ($allItems as $item) {
+            $grouped[(int)$item->id_kelompok][] = $item;
+        }
         foreach ($kelompoks as $k) {
-            $k->items = $this->getPeriodeItems((int)$k->id);
+            $k->items = $grouped[(int)$k->id] ?? [];
         }
         return $kelompoks;
     }
@@ -2374,11 +2388,8 @@ class M_tabeldinamis extends Model
         // 2. Ambil konfigurasi m_indikator_tabel (1:1 dengan m_list_tabel.id)
         $indikator = $this->where('id_tabel', $idMaster)->first();
         if (($tabel->jenis_sumber ?? '') === 'api_kominfo') {
-            if ($indikator) {
-                // Bersihkan record indikator orphan jika tabel sudah diubah ke API Kominfo
-                $this->where('id_tabel', $idMaster)->delete();
-                $indikator = null;
-            }
+            // Jangan hapus fisik m_indikator_tabel di fungsi read agar tidak memicu cascade delete t_nilai_dinamis
+            $indikator = null;
         }
 
         // Self-healing: jika karakteristik memiliki grup bertingkat (max_depth >= 2) namun tingkat_kolom di DB tersimpan '1',
@@ -2396,7 +2407,7 @@ class M_tabeldinamis extends Model
             }
         }
 
-        // 3. Ambil status tahunan dari t_status_tahunan untuk tahun aktif (atau fallback tahun terbaru)
+        // 3. Ambil status tahunan dari t_status_tahunan khusus untuk tahun aktif (tanpa fallback lintas tahun)
         $statusRow = null;
         if ($this->db->tableExists('t_status_tahunan')) {
             $statusRow = $this->db->table('t_status_tahunan')
@@ -2404,14 +2415,6 @@ class M_tabeldinamis extends Model
                 ->where('tahun', $tahunAktifInt)
                 ->get()
                 ->getRow();
-
-            if (!$statusRow) {
-                $statusRow = $this->db->table('t_status_tahunan')
-                    ->where('id_tabel', $idMaster)
-                    ->orderBy('tahun', 'DESC')
-                    ->get()
-                    ->getRow();
-            }
         }
 
         // 4. Ambil konfigurasi API/Spreadsheet dari m_konfigurasi_api

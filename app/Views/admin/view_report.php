@@ -9,24 +9,34 @@ if ($jenis_rekap == '0') {
     $thData = ((int)$ta) - 1;
     $thDataStr = (string)$thData;
 
-    // Ambil data progres pengisian tabel berdasarkan instansi (m_list_tabel, m_unitkerja, t_status_tahunan, t_nilai_dinamis, m_konfigurasi_api)
+    // Ambil data progres pengisian tabel berdasarkan instansi (selaras 100% dengan Dashboard)
     $data = \Config\Database::connect()->query("
         SELECT 
             m.unitkerja_ind,
             COUNT(mt.id) as jumlah_tabel,
             SUM(CASE 
                 WHEN (tt.is_confirm = '1') OR (
-                    tt.is_periksa = 1 
-                    OR nd.id_indikator IS NOT NULL 
-                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
                 ) THEN 0 
                 ELSE 1 
             END) as belum_isi,
             SUM(CASE 
                 WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
-                    tt.is_periksa = 1 
-                    OR nd.id_indikator IS NOT NULL 
-                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
                 ) THEN 1 
                 ELSE 0 
             END) as menunggu_validasi,
@@ -48,7 +58,7 @@ if ($jenis_rekap == '0') {
         WHERE mt.is_active = 1
         GROUP BY m.id_unitkerja 
         ORDER BY m.unitkerja_ind ASC
-    ", ["%$thDataStr%", "%portal%", "%satudata%", "%$thDataStr%", "%portal%", "%satudata%", $thDda, $thData])->getResult();
+    ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 ?>
     <div class="row align-items-center mb-4">
         <div class="col">
@@ -146,24 +156,34 @@ if ($jenis_rekap == '1') {
     $thData = ((int)$ta) - 1;
     $thDataStr = (string)$thData;
 
-    // Ambil data progres pengisian tabel berdasarkan tim
+    // Ambil data progres pengisian tabel berdasarkan tim (selaras 100% dengan Dashboard)
     $data = \Config\Database::connect()->query("
         SELECT 
             u.user_wali,
             COUNT(mt.id) as jumlah_tabel,
             SUM(CASE 
                 WHEN (tt.is_confirm = '1') OR (
-                    tt.is_periksa = 1 
-                    OR nd.id_indikator IS NOT NULL 
-                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
                 ) THEN 0 
                 ELSE 1 
             END) as belum_isi,
             SUM(CASE 
                 WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
-                    tt.is_periksa = 1 
-                    OR nd.id_indikator IS NOT NULL 
-                    OR (mt.jenis_sumber = 'api_kominfo' AND (COALESCE(ka.tahun_tersedia, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ? OR COALESCE(ka.link_api, '') LIKE ?))
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
                 ) THEN 1 
                 ELSE 0 
             END) as menunggu_validasi,
@@ -186,7 +206,7 @@ if ($jenis_rekap == '1') {
           AND u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
         GROUP BY u.user_wali 
         ORDER BY u.user_wali ASC
-    ", ["%$thDataStr%", "%portal%", "%satudata%", "%$thDataStr%", "%portal%", "%satudata%", $thDda, $thData])->getResult();
+    ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 ?>
     <div class="row align-items-center mb-4">
         <div class="col">
@@ -287,15 +307,15 @@ if ($jenis_rekap == '2') {
         </div>
     </div>
 
-    <div class="table-responsive bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0">
-        <table class="table align-items-center mb-0">
+    <div class="bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0" style="width: 100%; overflow-x: hidden !important;">
+        <table class="table table-hover align-items-center mb-0 w-100" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="valign-middle py-3 ps-4" style="width: 15%;">Satker</th>
-                    <th class="valign-middle py-3 px-2" style="width: 30%;">Judul DDA</th>
-                    <th class="valign-middle py-3 px-2" style="width: 30%;">Judul Portal</th>
-                    <th class="valign-middle text-center py-3 px-2">Tahun</th>
-                    <th class="valign-middle text-center py-3 px-2">Status</th>
+                    <th class="valign-middle py-3 ps-3 text-start" style="width: 22%; font-size: 0.78rem;">Satker</th>
+                    <th class="valign-middle py-3 px-2 text-start" style="width: 32%; font-size: 0.78rem;">Judul DDA</th>
+                    <th class="valign-middle py-3 px-2 text-start" style="width: 28%; font-size: 0.78rem;">Judul Portal</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 7%; font-size: 0.78rem;">Tahun</th>
+                    <th class="valign-middle text-center py-3 px-2" style="width: 11%; font-size: 0.78rem;">Status</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -321,26 +341,31 @@ if ($jenis_rekap == '2') {
                 } else {
                     foreach ($data as $b) {
                         $is_filled = (stripos($b->tahun_tersedia ?? '', (string)$thData) !== false);
-                        $status_label = $is_filled ? 'Sinkron (' . $thData . ')' : 'Belum Sinkron (' . $thData . ')';
+                        $status_label = $is_filled ? 'Sinkron' : 'Belum Sinkron';
                         $status_class = $is_filled ? 'bg-success-soft text-success border-success' : 'bg-light text-secondary border-secondary';
                         $tahun_display = !empty($b->tahun_tersedia) ? $b->tahun_tersedia : '-';
                 ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="text-xs font-weight-bold ps-4 text-uppercase text-secondary"><?php echo $b->satker ?></td>
-                            <td class="text-xs text-wrap py-3" style="max-width: 250px; line-height: 1.4;">
-                                <span class="font-weight-bold text-dark"><?php echo $b->judul_dda ?></span>
+                            <td class="ps-3 pe-2 py-2.5" style="word-break: break-word; line-height: 1.4;">
+                                <span class="fw-bold text-dark text-xs"><?php echo esc($b->satker); ?></span>
                             </td>
-                            <td class="text-xs text-wrap" style="max-width: 250px; line-height: 1.4;">
-                                <i class="bi bi-link me-1 text-info opacity-3 small"></i>
-                                <span class="text-secondary"><?php echo $b->judul_portal ?></span>
+                            <td class="px-2 py-2.5" style="word-break: break-word; line-height: 1.4;">
+                                <span class="fw-bold text-dark text-xs"><?php echo esc($b->judul_dda); ?></span>
                             </td>
-                            <td class="text-center">
-                                <span class="badge bg-light text-dark font-weight-bold text-xs px-2"><?php echo $tahun_display ?></span>
+                            <td class="px-2 py-2.5" style="word-break: break-word; line-height: 1.4;">
+                                <div class="d-flex align-items-start gap-1">
+                                    <i class="bi bi-link-45deg me-1 text-primary opacity-6 small flex-shrink-0 mt-0.5"></i>
+                                    <span class="text-secondary text-xs" style="word-break: break-word;"><?php echo esc($b->judul_portal); ?></span>
+                                </div>
                             </td>
-                            <td class="text-center">
-                                <span class="badge border <?php echo $status_class; ?> text-uppercase font-weight-bold" style="font-size: 9px; padding: 4px 8px;">
-                                    <?php echo $status_label ?>
+                            <td class="text-center px-1 py-2.5" style="word-break: break-word;">
+                                <span class="badge bg-light text-dark font-weight-bold text-xxs px-1.5 py-0.5"><?php echo esc($tahun_display); ?></span>
+                            </td>
+                            <td class="text-center px-2 py-2.5">
+                                <span class="badge border <?php echo $status_class; ?> text-uppercase fw-bold" style="font-size: 9px; padding: 3px 6px;">
+                                    <?php echo $status_label; ?>
                                 </span>
+                                <div class="text-secondary" style="font-size: 9px; margin-top: 2px;">(<?php echo $thData; ?>)</div>
                             </td>
                         </tr>
                 <?php

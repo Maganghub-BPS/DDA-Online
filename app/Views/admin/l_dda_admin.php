@@ -1,6 +1,5 @@
 <?php 
 $unitkerjalogin = session()->get('admin_unitkerja');
-echo session()->getFlashdata("k");
 ?>  
 
 <div class="row mb-3">
@@ -67,16 +66,16 @@ echo session()->getFlashdata("k");
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
                     ?>
-                    <tr class="opd-row" data-jenis="<?php echo $b->jenis_instansi ?? 'vertikal'; ?>">
+                    <tr class="opd-row" data-jenis="<?php echo esc($b->jenis_instansi ?? 'vertikal', 'attr'); ?>">
                         <td class="text-center opd-no"><?php echo $no;?></td>
                         <td>
-                            <a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-dark d-inline-flex align-items-center">
-                                <i class="bi bi-folder-check me-2 text-primary"></i><?php echo $b->unitkerja_ind;?>
+                            <a href="<?php echo base_URL()?>index.php/admin/dda/periksa_tabel?id=<?php echo esc($b->id_unitkerja, 'url');?>" class="text-decoration-none fw-medium text-dark d-inline-flex align-items-center">
+                                <i class="bi bi-folder-check me-2 text-primary"></i><?php echo esc($b->unitkerja_ind);?>
                             </a>
                         </td>
                         <?php if(session()->get('admin_level') != 'lo'): ?>
                         <td class="text-center text-muted small">
-                            <span class="badge bg-light text-dark border"><i class="bi bi-person-badge me-1"></i><?php echo $b->user_wali;?></span>
+                            <span class="badge bg-light text-dark border"><i class="bi bi-person-badge me-1"></i><?php echo esc($b->user_wali);?></span>
                         </td>
                         <?php endif; ?>
                     </tr>

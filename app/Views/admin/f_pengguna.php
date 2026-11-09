@@ -18,9 +18,7 @@
                 
                 <div class="card-body p-4 pt-3">
                     <form action="<?php echo base_URL(); ?>index.php/admin/pengguna/act_edt" method="post" accept-charset="utf-8" enctype="multipart/form-data">
-                        <input type="hidden" name="idp" value="<?php echo $data->id; ?>">
-                        
-                        <?php echo session()->getFlashdata("k"); ?>
+                        <input type="hidden" name="idp" value="<?php echo esc($data->id); ?>">
 
                         <div class="row g-3">
                             <!-- Left Column: Primary Info -->
@@ -31,7 +29,7 @@
                                     <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1">Nama Instansi</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-building text-primary-orange"></i></span>
-                                        <input type="text" name="nama" required value="<?php echo $data->nama; ?>" 
+                                        <input type="text" name="nama" required value="<?php echo esc($data->nama); ?>" 
                                                class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Nama Instansi" tabindex="1">
                                     </div>
                                 </div>
@@ -41,7 +39,7 @@
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0 align-items-start pt-2"><i class="bi bi-geo-alt text-primary-orange"></i></span>
                                         <textarea name="alamat" required class="form-control border-0 py-2 ps-1 text-sm bg-white" 
-                                                  placeholder="Alamat Lengkap Instansi" style="height: 100px;" tabindex="2"><?php echo $data->alamat; ?></textarea>
+                                                  placeholder="Alamat Lengkap Instansi" style="height: 100px;" tabindex="2"><?php echo esc($data->alamat); ?></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -54,7 +52,7 @@
                                     <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1">Nama Pimpinan / Kepala</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-person-badge text-primary-orange"></i></span>
-                                        <input type="text" name="kepsek" required value="<?php echo $data->kepsek; ?>" 
+                                        <input type="text" name="kepsek" required value="<?php echo esc($data->kepsek); ?>" 
                                                class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Nama Pimpinan" tabindex="3">
                                     </div>
                                 </div>
@@ -63,7 +61,7 @@
                                     <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1">NIP Pimpinan</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-upc-scan text-primary-orange"></i></span>
-                                        <input type="text" name="nip_kepsek" required value="<?php echo $data->nip_kepsek; ?>" 
+                                        <input type="text" name="nip_kepsek" required value="<?php echo esc($data->nip_kepsek); ?>" 
                                                class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="NIP Pimpinan" tabindex="4">
                                     </div>
                                 </div>

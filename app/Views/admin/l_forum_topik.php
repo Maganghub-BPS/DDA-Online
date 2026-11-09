@@ -1,11 +1,23 @@
 <?php
-$id_unitkerja = service('request')->getGet('id');
+$id_unitkerja = (string)service('request')->getGet('id');
 $unitkerjalogin = session()->get('admin_unitkerja');
 $hariini = tgl_jam_sql(date('Y-m-d'));
 
 $db = \Config\Database::connect();
-$query_unitkerja = $db->query("SELECT * from m_unitkerja where id_unitkerja='$id_unitkerja' LIMIT 1")->getRow();
+$query_unitkerja = $db->query("SELECT * FROM m_unitkerja WHERE id_unitkerja = ? LIMIT 1", [$id_unitkerja])->getRow();
 $nama_opd = $query_unitkerja ? $query_unitkerja->unitkerja_ind : 'Forum OPD';
+
+$commentCounts = [];
+if (!empty($data)) {
+    $topikIds = array_values(array_filter(array_map(fn($r) => (int)$r->id_topik, $data)));
+    if (!empty($topikIds)) {
+        $placeholders = implode(',', array_fill(0, count($topikIds), '?'));
+        $rowsCount = $db->query("SELECT id_topik, COUNT(*) AS jml FROM forumcomment WHERE id_topik IN ($placeholders) GROUP BY id_topik", $topikIds)->getResult();
+        foreach ($rowsCount as $rc) {
+            $commentCounts[(int)$rc->id_topik] = (int)$rc->jml;
+        }
+    }
+}
 ?>
 
 <style>
@@ -44,7 +56,7 @@ $nama_opd = $query_unitkerja ? $query_unitkerja->unitkerja_ind : 'Forum OPD';
             <a href="<?php echo base_url(); ?>index.php/admin/forum_diskusi" class="btn btn-sm btn-light border-0 me-3 shadow-none bg-light-subtle d-flex align-items-center justify-content-center" style="border-radius: 10px; width: 40px; height: 40px;"><i class="bi bi-arrow-left fs-5"></i></a>
             <div>
                 <h4 class="fw-bold text-dark mb-1" style="letter-spacing: -0.04em;">Forum Diskusi</h4>
-                <p class="text-muted small mb-0"><i class="bi bi-building me-1"></i> <?php echo $nama_opd; ?></p>
+                <p class="text-muted small mb-0"><i class="bi bi-building me-1"></i> <?php echo esc($nama_opd); ?></p>
             </div>
         </div>
         <div class="d-flex gap-2">
@@ -52,7 +64,7 @@ $nama_opd = $query_unitkerja ? $query_unitkerja->unitkerja_ind : 'Forum OPD';
                 <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-search"></i></span>
                 <input type="text" class="form-control border-0 ps-0 py-2 fw-medium" id="searchTopik" placeholder="Cari topik diskusi..." autocomplete="off" style="font-size: 0.85rem;">
             </div>
-            <a href="<?php echo base_URL(); ?>index.php/admin/forum_diskusi/add_topik?id=<?php echo $id_unitkerja;?>" class="btn btn-theme px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 12px; height: 42px; font-weight: 700;">
+            <a href="<?php echo base_URL(); ?>index.php/admin/forum_diskusi/add_topik?id=<?php echo esc($id_unitkerja, 'url');?>" class="btn btn-theme px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 12px; height: 42px; font-weight: 700;">
                 <i class="bi bi-plus-lg me-2"></i> Tambah Topik
             </a>
         </div>
@@ -79,7 +91,7 @@ $nama_opd = $query_unitkerja ? $query_unitkerja->unitkerja_ind : 'Forum OPD';
                     } else {
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
-                            $jmlhcomment = $db->query("select * from forumcomment comment where id_topik=".$b->id_topik)->getNumRows();
+                            $jmlhcomment = $commentCounts[(int)$b->id_topik] ?? 0;
                     ?>
                     <tr class="topik-row">
                         <td class="text-center text-muted fw-bold topik-no" style="font-size: 0.85rem;"><?php echo $no;?></td>
@@ -89,13 +101,13 @@ $nama_opd = $query_unitkerja ? $query_unitkerja->unitkerja_ind : 'Forum OPD';
                                     <i class="bi bi-chat-left-text-fill" style="font-size: 1.1rem;"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem; line-height: 1.4;"><?php echo $b->nama_topik;?></h6>
+                                    <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.95rem; line-height: 1.4;"><?php echo esc($b->nama_topik);?></h6>
                                     <span class="text-muted" style="font-size: 0.75rem;">Diskusi internal di instansi terkait</span>
                                 </div>
                             </div>
                         </td>
                         <td class="text-center">
-                            <a href="<?php echo base_URL()?>index.php/admin/forum_diskusi/view_comment?id_unitkerja=<?php echo $id_unitkerja.'&id_topik='.$b->id_topik; ?>" 
+                            <a href="<?php echo base_URL()?>index.php/admin/forum_diskusi/view_comment?id_unitkerja=<?php echo urlencode((string)$id_unitkerja).'&id_topik='.(int)$b->id_topik; ?>" 
                                class="btn btn-sm btn-light border-0 px-3 py-2 text-decoration-none shadow-none bg-light-subtle rounded-pill" 
                                style="font-size: 0.75rem; font-weight: 600;">
                                 <i class="bi bi-chat-dots me-1 text-primary"></i> <span class="text-dark"><?php echo $jmlhcomment;?> Komentar</span>

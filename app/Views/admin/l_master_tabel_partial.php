@@ -28,21 +28,16 @@ if (empty($data)) {
                                         if ($is_dyn): 
                                         ?>
                                             <a href="<?php echo base_url('admin/generator_tabel/' . $id_gen_url); ?>" class="badge badge-sm text-white border-0 align-self-start fw-bold shadow-xs text-decoration-none" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px;" title="Klik untuk mengelola matriks dinamis">
-                                                <i class="bi bi-boxes me-1"></i>🧩 TABEL DINAMIS
+                                                <i class="bi bi-boxes me-1"></i> TABEL DINAMIS
                                             </a>
-                                            <?php if (!empty($b->id_indikator)): ?>
-                                                <span class="text-xxs text-success fw-semibold mt-0.5"><i class="bi bi-check-circle-fill me-1"></i>Matriks Siap</span>
-                                            <?php else: ?>
-                                                <span class="text-xxs text-warning fw-semibold mt-0.5"><i class="bi bi-exclamation-circle me-1"></i>Belum Dirakit</span>
-                                            <?php endif; ?>
                                         <?php elseif (!empty($api_uuid) || !empty($api_link)): ?>
                                             <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold" style="font-size: 10px;">
-                                                <i class="bi bi-cloud-check me-1"></i>🔗 API KOMINFO
+                                                <i class="bi bi-cloud-check me-1"></i> API
                                             </span>
                                             <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 190px;" title="<?php echo esc($api_uuid ?: $api_link); ?>"><?php echo esc($api_uuid ?: str_replace('index.php/admin/', '', $api_link)); ?></code>
                                         <?php else: ?>
                                             <span class="badge badge-sm bg-light text-secondary border align-self-start fw-semibold" style="font-size: 10px;">
-                                                <i class="bi bi-dash-circle me-1"></i>🔗 API (BELUM DIISI)
+                                                <i class="bi bi-dash-circle me-1"></i> API (BELUM DIISI)
                                             </span>
                                             <span class="text-xxs text-muted fst-italic mt-1">Belum ada UUID API</span>
                                         <?php endif; ?>
@@ -56,7 +51,7 @@ if (empty($data)) {
                                 </td>
                                 <td class="text-center">
                                     <div class="dropdown">
-                                        <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown">
+                                        <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
                                             <i class="bi bi-three-dots-vertical fs-6"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 border-radius-lg p-2">

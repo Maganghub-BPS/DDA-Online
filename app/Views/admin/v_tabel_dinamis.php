@@ -625,6 +625,39 @@ $isConfigured  = ($indikator && $dimCount >= 2);
             <?php endif; ?>
         </div>
     <?php else: ?>
+        <?php 
+        $th_target_data = $th_target_data ?? ((int)$ta - 1);
+        $target_year_found = !empty($available_years) && in_array((int)$th_target_data, array_map('intval', $available_years), true);
+        if ($isConfigured && !empty($th_target_data) && !$target_year_found): 
+        ?>
+            <div class="alert border-0 shadow-xs d-flex align-items-center mb-3 p-3" style="background: #ffffff; border: 1px solid #fed7aa !important; border-left: 4px solid #f59e0b !important; border-radius: 10px; box-shadow: 0 2px 10px -2px rgba(245, 158, 11, 0.08) !important;">
+                <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0 me-3" style="width: 40px; height: 40px; background: #fff7ed; color: #d97706; border: 1px solid #fde68a; border-radius: 10px;">
+                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.15rem;"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <span class="fw-bold text-dark" style="font-size: 0.925rem; letter-spacing: -0.01em;">
+                            Data Tahun <?= htmlspecialchars((string)$th_target_data); ?> Belum Tersedia
+                        </span>
+                        <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-0.5 fw-bold" style="font-size: 10px; letter-spacing: 0.3px;">
+                            BELUM DIISI
+                        </span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.835rem; line-height: 1.5;">
+                        Publikasi DDA <?= htmlspecialchars((string)($ta ?? ((int)$th_target_data + 1))); ?> memerlukan data tahun <strong><?= htmlspecialchars((string)$th_target_data); ?></strong>. 
+                        Tahun data tersedia saat ini: 
+                        <?php if (!empty($available_years)): ?>
+                            <?php foreach ($available_years as $yr): ?>
+                                <span class="badge bg-light text-dark border px-2 py-0.5 fw-semibold me-1" style="font-size: 11px;"><?= htmlspecialchars((string)$yr); ?></span>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <span class="text-secondary fst-italic">Belum ada data</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <!-- ===== TAMPILAN RESMI 100% PERSIS VIEW API (v_portal_tabel.php) ===== -->
         <div id="dda-container-all" style="padding: 20px;">
             <div class="table-wrapper">
@@ -1073,28 +1106,36 @@ $(document).ready(function() {
                         Swal.fire({
                             html: `
                                 <div class="text-center pt-2 pb-1">
-                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-xs" style="width: 56px; height: 56px; background: #ecfdf5; border: 2px solid #a7f3d0; color: #059669;">
-                                        <i class="bi bi-check-lg" style="font-size: 1.85rem;"></i>
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 64px; height: 64px; background: #ecfdf5; color: #10b981; box-shadow: 0 0 0 10px #f0fdf4;">
+                                        <i class="bi bi-check-lg" style="font-size: 2.25rem;"></i>
                                     </div>
-                                    <h5 class="fw-bold text-dark mb-2">Impor Berhasil!</h5>
-                                    <p class="text-secondary small mb-3 px-2" style="line-height: 1.55;">
-                                        Data pengisian tabel dinamis berhasil diverifikasi dan disimpan ke database.
+                                    <h4 class="fw-bold text-dark mb-1" style="font-size: 1.2rem; letter-spacing: -0.01em;">Impor Data Berhasil!</h4>
+                                    <p class="text-secondary small mb-3 px-2" style="font-size: 0.85rem; line-height: 1.5;">
+                                        Data pengisian tabel dinamis berhasil diverifikasi dan disimpan ke dalam database.
                                     </p>
-                                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-success-subtle text-success border border-success-subtle text-xs fw-semibold">
-                                        <i class="bi bi-database-check"></i>
+                                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-1" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 0.825rem; font-weight: 600;">
+                                        <i class="bi bi-database-check fs-6 text-success"></i>
                                         <span><b>${res.filled_cells || 0} sel data</b> berhasil diperbarui</span>
                                     </div>
                                 </div>
                             `,
-                            confirmButtonText: 'Selesai',
+                            confirmButtonText: '<i class="bi bi-check2 me-1"></i> Selesai',
                             width: '390px',
                             customClass: {
                                 popup: 'rounded-4 shadow-lg border-0 p-4',
                                 htmlContainer: 'm-0 p-0',
                                 actions: 'mt-3 w-100 justify-content-center border-0 p-0',
-                                confirmButton: 'btn btn-success rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs'
+                                confirmButton: 'btn rounded-pill px-5 py-2 text-xs fw-bold text-white shadow-sm'
                             },
-                            buttonsStyling: false
+                            buttonsStyling: false,
+                            didOpen: (popup) => {
+                                const btn = popup.querySelector('.swal2-confirm');
+                                if (btn) {
+                                    btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                                    btn.style.border = 'none';
+                                    btn.style.minWidth = '140px';
+                                }
+                            }
                         }).then(function() {
                             window.location.reload();
                         });
@@ -1106,11 +1147,26 @@ $(document).ready(function() {
                 } else {
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
-                            icon: 'warning',
-                            title: 'Peringatan',
-                            text: res.message || 'Gagal menyimpan data ke database.',
+                            html: `
+                                <div class="text-center pt-2 pb-1">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 60px; height: 60px; background: #fffbeb; color: #d97706; box-shadow: 0 0 0 10px #fefce8;">
+                                        <i class="bi bi-exclamation-circle-fill" style="font-size: 2rem;"></i>
+                                    </div>
+                                    <h5 class="fw-bold text-dark mb-1" style="font-size: 1.1rem;">Peringatan</h5>
+                                    <p class="text-secondary small mb-3 px-2" style="font-size: 0.85rem; line-height: 1.5;">
+                                        ${res.message || 'Gagal menyimpan data ke database.'}
+                                    </p>
+                                </div>
+                            `,
                             confirmButtonText: 'Mengerti',
-                            confirmButtonColor: '#059669'
+                            width: '370px',
+                            customClass: {
+                                popup: 'rounded-4 shadow-lg border-0 p-4',
+                                htmlContainer: 'm-0 p-0',
+                                actions: 'mt-2 w-100 justify-content-center border-0 p-0',
+                                confirmButton: 'btn btn-warning rounded-pill px-4 py-2 text-xs fw-semibold text-dark shadow-xs'
+                            },
+                            buttonsStyling: false
                         });
                     } else {
                         alert(res.message || 'Gagal menyimpan data ke database.');
@@ -1129,11 +1185,26 @@ $(document).ready(function() {
                 }
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal Menyimpan',
-                        text: errMsg,
+                        html: `
+                            <div class="text-center pt-2 pb-1">
+                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 60px; height: 60px; background: #fef2f2; color: #ef4444; box-shadow: 0 0 0 10px #fff1f2;">
+                                    <i class="bi bi-x-circle-fill" style="font-size: 2rem;"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-1" style="font-size: 1.1rem;">Gagal Menyimpan</h5>
+                                <p class="text-secondary small mb-3 px-2" style="font-size: 0.85rem; line-height: 1.5;">
+                                    ${errMsg}
+                                </p>
+                            </div>
+                        `,
                         confirmButtonText: 'Tutup',
-                        confirmButtonColor: '#ef4444'
+                        width: '370px',
+                        customClass: {
+                            popup: 'rounded-4 shadow-lg border-0 p-4',
+                            htmlContainer: 'm-0 p-0',
+                            actions: 'mt-2 w-100 justify-content-center border-0 p-0',
+                            confirmButton: 'btn btn-secondary rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs'
+                        },
+                        buttonsStyling: false
                     });
                 } else {
                     alert(errMsg);

@@ -742,14 +742,14 @@
                     <div class="dropdown">
                         <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="user-info d-none d-md-block">
-                                <div class="user-name"><?php echo $nama; ?></div>
-                                <div class="user-role"><?php echo function_exists('current_user_role_label') ? current_user_role_label() : $level; ?></div>
+                                <div class="user-name"><?php echo esc($nama); ?></div>
+                                <div class="user-role"><?php echo esc(function_exists('current_user_role_label') ? current_user_role_label() : $level); ?></div>
                             </div>
-                            <div class="user-avatar"><?php echo $initial; ?></div>
+                            <div class="user-avatar"><?php echo esc($initial); ?></div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                             <li>
-                                <h6 class="dropdown-header"><?php echo $nama; ?></h6>
+                                <h6 class="dropdown-header"><?php echo esc($nama); ?></h6>
                             </li>
                             <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/profil"><i class="bi bi-person-circle me-2"></i>Profil Saya</a></li>
                             <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/passwod"><i class="bi bi-key me-2"></i>Ganti Password</a></li>
@@ -925,6 +925,18 @@
                         window.location.href = url;
                     }
                 });
+            });
+
+            // Global Dropdown Safety: Pastikan dropdown di dalam .table-responsive menggunakan strategy 'fixed'
+            // agar menu tidak terpotong (clipped) oleh overflow kontainer tabel
+            document.addEventListener('show.bs.dropdown', function(e) {
+                var toggleBtn = e.target;
+                if (toggleBtn && (toggleBtn.closest('.table-responsive') || toggleBtn.closest('table'))) {
+                    var dd = bootstrap.Dropdown.getInstance(toggleBtn);
+                    if (dd && (!dd._config.popperConfig || dd._config.popperConfig.strategy !== 'fixed')) {
+                        dd._config.popperConfig = { strategy: 'fixed' };
+                    }
+                }
             });
         });
     </script>

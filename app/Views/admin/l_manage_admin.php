@@ -55,15 +55,15 @@
                                     <i class="bi bi-person text-secondary"></i>
                                 </div>
                                 <div class="d-flex flex-column">
-                                    <h6 class="mb-0 text-sm font-weight-bold text-dark"><?php echo $b->username; ?></h6>
-                                    <p class="text-xxs text-secondary mb-0"><?php echo $b->email ?: '-'; ?></p>
+                                    <h6 class="mb-0 text-sm font-weight-bold text-dark"><?php echo esc($b->username); ?></h6>
+                                    <p class="text-xxs text-secondary mb-0"><?php echo esc($b->email ?: '-'); ?></p>
                                 </div>
                             </div>
                         </td>
                         <td>
                             <div class="d-flex flex-column">
-                                <span class="text-sm font-weight-bold text-dark lh-sm"><?php echo $b->nama; ?></span>
-                                <span class="text-xxs text-secondary mt-1 font-italic">NIP: <?php echo $b->nip ?: '-'; ?></span>
+                                <span class="text-sm font-weight-bold text-dark lh-sm"><?php echo esc($b->nama); ?></span>
+                                <span class="text-xxs text-secondary mt-1 font-italic">NIP: <?php echo esc($b->nip ?: '-'); ?></span>
                             </div>
                         </td>
                         <td class="text-center">

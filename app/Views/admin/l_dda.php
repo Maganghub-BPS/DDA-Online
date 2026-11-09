@@ -47,8 +47,6 @@
 @media (max-width: 991.98px) { .tabel-judul-cell { min-width: 250px; } }
 </style>
 
-<?php echo session()->getFlashdata("k"); ?>
-
 <!-- Toolbar -->
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-3">
@@ -56,9 +54,9 @@
             <h5 class="fw-bold mb-0">
                 <i class="bi bi-journal-text me-2 text-primary"></i>Tabel Jawa Tengah Dalam Angka
             </h5>
-            <?php if(session()->get('admin_unitkerja') != 'bps' || session()->get('admin_unitkerja') != ''): ?>
+            <?php if (can('input_dda_input') && session()->get('admin_unitkerja') !== 'bps' && session()->get('admin_unitkerja') !== ''): ?>
             <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/add" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-circle me-1"></i> Tambah Tabel
+                <i class="bi bi-plus-circle me-1"></i> Usulkan Tabel Baru
             </a>
             <?php endif; ?>
         </div>
@@ -189,7 +187,7 @@ if (empty($data)) {
                       stripos($b->link_tabel, 'satudata') !== false || 
                       (isset($b->id_api) && !empty($b->id_api)));
         $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([^\r\n]+)/iu', $b->catatan_periksa, $m));
-        $is_sudah_diisi = ($is_portal) || ($b->is_periksa == '1');
+        $is_sudah_diisi = ($b->is_periksa == '1');
 
         if ($is_sudah_diisi) { ?>
             <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Sudah Diisi</span>

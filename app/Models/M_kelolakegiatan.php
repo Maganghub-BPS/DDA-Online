@@ -5,7 +5,7 @@ namespace App\Models;
 use CodeIgniter\Model;
 
 
-class m_kelolakegiatan extends Model{
+class M_kelolakegiatan extends Model{
     protected $table="t_data";
     
     function cek($id,$data){
@@ -94,7 +94,7 @@ class m_kelolakegiatan extends Model{
     }
 	
 	function cekDataEditLengkap($tahun, $kode_indikator){
-           return $this->db->query("select d.*,k.nama_kab from t_data as d inner join m_kab as k on d.id_kab=k.id_kab inner join m_tahun as t on d.tahun=t.id where d.kode_indikator='$kode_indikator' and t.tahun='$tahun'");
+           return $this->db->query("select d.*,k.nama_kab from t_data as d inner join m_kab as k on d.id_kab=k.id_kab inner join m_tahun as t on d.tahun=t.id where d.kode_indikator=? and t.tahun=?", [$kode_indikator, $tahun]);
     }
 	
 	function cekData($tahun,$kode_goal,$kode_target,$kode_indikator){

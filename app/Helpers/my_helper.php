@@ -2,16 +2,21 @@
 
 function gli($tabel, $field_kunci, $pad) {
 	$db = \Config\Database::connect();
-	$nama = $db->query("SELECT max($field_kunci) AS last FROM $tabel")->getRow();
-	$data = (intval($nama->last)) + 1;
-	$last = str_pad($data, $pad, '0', STR_PAD_LEFT);
+	$tabel_clean = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$tabel);
+	$field_clean = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$field_kunci);
+	$nama = $db->query("SELECT MAX(`$field_clean`) AS last FROM `$tabel_clean`")->getRow();
+	$data = (intval($nama->last ?? 0)) + 1;
+	$last = str_pad((string)$data, (int)$pad, '0', STR_PAD_LEFT);
 	return $last;
 }
 
 function gval($tabel, $field_kunci, $diambil, $where) {
-	$db = \Config\Database::connect();	
-	$nama = $db->query("SELECT $diambil FROM $tabel WHERE $field_kunci = '$where'")->getRow();
-	$data = empty($nama) ? "-" : $nama->$diambil;
+	$db = \Config\Database::connect();
+	$tabel_clean   = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$tabel);
+	$field_clean   = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$field_kunci);
+	$diambil_clean = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$diambil);
+	$nama = $db->query("SELECT `$diambil_clean` FROM `$tabel_clean` WHERE `$field_clean` = ?", [$where])->getRow();
+	$data = empty($nama) ? "-" : ($nama->$diambil_clean ?? "-");
 	return $data;
 }
 

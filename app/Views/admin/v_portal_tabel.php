@@ -749,20 +749,23 @@ function get_dda_label_nested($col)
             <?php if (!empty($unique_years)): ?>
                 <div class="dropdown">
                     <button class="btn-rounded-modern btn-back-modern shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                        <i class="bi bi-calendar-event me-1"></i> <span id="year-filter-label">Tahun</span>
+                        <i class="bi bi-calendar-event me-1"></i> <span id="year-filter-label">Tahun (<?php echo count($unique_years); ?>)</span>
                     </button>
-                    <div class="dropdown-menu p-3 shadow-lg border-0" style="border-radius: 1rem; min-width: 200px;">
-                        <h6 class="dropdown-header px-0 mb-2">Pilih Tahun</h6>
-                        <div id="year-checklist-container">
+                    <div class="dropdown-menu p-3 shadow-lg border-0" style="border-radius: 1rem; min-width: 220px;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="dropdown-header px-0 mb-0 fw-bold text-dark" style="font-size: 11px;">PILIH TAHUN</h6>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary fw-semibold" style="font-size: 11px;" onclick="toggleAllYears()">Pilih Semua</button>
+                        </div>
+                        <div id="year-checklist-container" style="max-height: 220px; overflow-y: auto;">
                             <?php foreach ($unique_years as $yr): ?>
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input year-filter-check" type="checkbox" value="<?php echo $yr; ?>" id="yr-<?php echo $yr; ?>" onchange="filterByYear()">
+                                    <input class="form-check-input year-filter-check" type="checkbox" value="<?php echo $yr; ?>" id="yr-<?php echo $yr; ?>" checked onchange="filterByYear()">
                                     <label class="form-check-label small fw-bold" for="yr-<?php echo $yr; ?>">Tahun <?php echo $yr; ?></label>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                         <hr class="my-2">
-                        <button type="button" onclick="resetYearFilter()" class="btn btn-sm btn-link text-muted p-0 text-decoration-none small">Reset</button>
+                        <button type="button" onclick="resetYearFilter()" class="btn btn-sm btn-link text-muted p-0 text-decoration-none small">Reset ke Default</button>
                     </div>
                 </div>
             <?php endif; ?>
@@ -810,17 +813,90 @@ function get_dda_label_nested($col)
     </style>
 
     <script>
+        function formatDynamicTitleJs(baseTitle, selectedYears, lang) {
+            if (!baseTitle) return '';
+            const years = selectedYears.map(y => parseInt(y, 10)).filter(y => y > 1900 && y < 2100);
+            years.sort((a, b) => a - b);
+            const uniqueYears = Array.from(new Set(years));
+            if (uniqueYears.length === 0) return baseTitle;
+
+            const isEn = (lang === 'en');
+            const conj = isEn ? ' and ' : ' dan ';
+            let yearStr = '';
+
+            if (uniqueYears.length === 1) {
+                yearStr = uniqueYears[0].toString();
+            } else if (uniqueYears.length === 2) {
+                yearStr = uniqueYears[0] + conj + uniqueYears[1];
+            } else {
+                let isConsecutive = true;
+                for (let i = 1; i < uniqueYears.length; i++) {
+                    if (uniqueYears[i] !== uniqueYears[i - 1] + 1) {
+                        isConsecutive = false;
+                        break;
+                    }
+                }
+                if (isConsecutive) {
+                    yearStr = uniqueYears[0] + '–' + uniqueYears[uniqueYears.length - 1];
+                } else {
+                    const lastYear = uniqueYears[uniqueYears.length - 1];
+                    const otherYears = uniqueYears.slice(0, -1);
+                    const oxford = isEn ? ', and ' : ', dan ';
+                    yearStr = otherYears.join(', ') + oxford + lastYear;
+                }
+            }
+
+            if (baseTitle.toLowerCase().includes('[periode]')) {
+                return baseTitle.replace(/\[periode\]/gi, yearStr);
+            }
+            return baseTitle + ', ' + yearStr;
+        }
+
         function filterByYear() {
             const checkedYears = Array.from(document.querySelectorAll('.year-filter-check:checked')).map(cb => cb.value);
+
+            if (checkedYears.length === 0) {
+                alert('Pilih minimal 1 tahun untuk ditampilkan.');
+                document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = true);
+                filterByYear();
+                return;
+            }
+
             currentSelectedYears = checkedYears; // Update global state
 
+            const totalYears = document.querySelectorAll('.year-filter-check').length;
             const label = document.getElementById('year-filter-label');
-            if (checkedYears.length === 0) label.innerText = "Tahun";
-            else if (checkedYears.length === 1) label.innerText = "Tahun " + checkedYears[0];
-            else label.innerText = checkedYears.length + " Tahun";
+            if (checkedYears.length === totalYears) {
+                label.innerText = "Tahun (" + checkedYears.length + ")";
+            } else if (checkedYears.length === 1) {
+                label.innerText = "Tahun " + checkedYears[0];
+            } else {
+                label.innerText = "Tahun (" + checkedYears.length + ")";
+            }
 
             const tables = document.querySelectorAll('.table-wrapper');
             tables.forEach((wrapper, idx) => {
+                // Perbarui judul tabel secara dinamis sesuai pilihan checkbox tahun
+                const titleBox = wrapper.querySelector('.title-box');
+                if (titleBox) {
+                    const titleIdSpan = titleBox.querySelector('.title-id');
+                    const titleEnSpan = titleBox.querySelector('.title-en');
+
+                    if (checkedYears.length === 0) {
+                        if (titleIdSpan && titleBox.dataset.defaultId) titleIdSpan.textContent = titleBox.dataset.defaultId;
+                        if (titleEnSpan && titleBox.dataset.defaultEn) titleEnSpan.textContent = titleBox.dataset.defaultEn;
+                    } else {
+                        const baseId = titleBox.dataset.baseId || '';
+                        const baseEn = titleBox.dataset.baseEn || '';
+                        if (titleIdSpan && baseId) {
+                            titleIdSpan.textContent = formatDynamicTitleJs(baseId, checkedYears, 'id');
+                        }
+                        if (titleEnSpan && baseEn) {
+                            titleEnSpan.textContent = formatDynamicTitleJs(baseEn, checkedYears, 'en');
+                        }
+                    }
+                }
+
                 const customTable = wrapper.querySelector('.main-table');
                 if (customTable && (currentTableConfig || customTable.innerHTML.includes('style='))) {
                     let config = currentTableConfig;
@@ -847,7 +923,7 @@ function get_dda_label_nested($col)
                     let hasVisibleRow = false;
                     rows.forEach(row => {
                         const rowYear = row.getAttribute('data-tahun');
-                        if (checkedYears.length === 0 || checkedYears.includes(rowYear)) {
+                        if (checkedYears.includes(rowYear)) {
                             row.style.display = "";
                             hasVisibleRow = true;
                         } else {
@@ -859,8 +935,15 @@ function get_dda_label_nested($col)
             });
         }
 
+        function toggleAllYears() {
+            const checkboxes = document.querySelectorAll('.year-filter-check');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+            filterByYear();
+        }
+
         function resetYearFilter() {
-            document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = true);
             filterByYear();
         }
     </script>
@@ -871,16 +954,29 @@ function get_dda_label_nested($col)
     $target_year_found = !empty($th_target_data) && in_array((string)$th_target_data, array_map('strval', $unique_years));
     if (!empty($th_target_data) && !$target_year_found): 
     ?>
-        <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4" style="border-radius: 12px; background-color: #fff8e1;">
-            <div class="me-3 text-warning fs-3">
-                <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="alert border-0 shadow-xs d-flex align-items-center mb-3 p-3" style="background: #ffffff; border: 1px solid #fed7aa !important; border-left: 4px solid #f59e0b !important; border-radius: 10px; box-shadow: 0 2px 10px -2px rgba(245, 158, 11, 0.08) !important;">
+            <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0 me-3" style="width: 40px; height: 40px; background: #fff7ed; color: #d97706; border: 1px solid #fde68a; border-radius: 10px;">
+                <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.15rem;"></i>
             </div>
-            <div>
-                <div class="fw-bold text-dark" style="font-size: 0.95rem;">Perhatian: Data Tahun Target (<?= htmlspecialchars((string)$th_target_data); ?>) Belum Tersedia di API</div>
-                <div class="text-secondary small mt-0.5">
-                    Publikasi DDA Tahun <?= htmlspecialchars((string)($ta ?? ((int)$th_target_data + 1))); ?> membutuhkan data tahun <strong><?= htmlspecialchars((string)$th_target_data); ?></strong>. 
-                    Saat ini API Portal Data baru menyediakan data untuk tahun: <strong><?= !empty($unique_years) ? implode(', ', $unique_years) : 'Tidak ada data tahun'; ?></strong>.
-                    Status tabel pada daftar pemeriksaan adalah <span class="badge bg-danger text-white">BELUM DIISI</span>.
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                    <span class="fw-bold text-dark" style="font-size: 0.925rem; letter-spacing: -0.01em;">
+                        Data Tahun <?= htmlspecialchars((string)$th_target_data); ?> Belum Tersedia
+                    </span>
+                    <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-0.5 fw-bold" style="font-size: 10px; letter-spacing: 0.3px;">
+                        BELUM DIISI
+                    </span>
+                </div>
+                <div class="text-muted" style="font-size: 0.835rem; line-height: 1.5;">
+                    Publikasi DDA <?= htmlspecialchars((string)($ta ?? ((int)$th_target_data + 1))); ?> memerlukan data tahun <strong><?= htmlspecialchars((string)$th_target_data); ?></strong>. 
+                    Tahun data tersedia saat ini: 
+                    <?php if (!empty($unique_years)): ?>
+                        <?php foreach ($unique_years as $yr): ?>
+                            <span class="badge bg-light text-dark border px-2 py-0.5 fw-semibold me-1" style="font-size: 11px;"><?= htmlspecialchars((string)$yr); ?></span>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <span class="text-secondary fst-italic">Belum ada data</span>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -896,6 +992,8 @@ function get_dda_label_nested($col)
                 $dda_title = $api_result['dda_title'] ?? '';
                 $dda_title_en = $api_result['dda_title_en'] ?? '';
                 $no_tabel = $api_result['no_tabel'] ?? '';
+                $base_title_ind = $api_result['base_title_ind'] ?? ($dda_title ?: $portal_title);
+                $base_title_en  = $api_result['base_title_en'] ?? ($dda_title_en ?: ($api_result['title_en'] ?? ''));
 
                 if (empty($no_tabel) && preg_match('/^(\d+(?:\.\d+)+(?:[a-zA-Z])?)\s+(.*)$/u', $dda_title ?: $portal_title, $m_num)) {
                     $no_tabel = $m_num[1];
@@ -905,7 +1003,18 @@ function get_dda_label_nested($col)
                     $dda_title = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $dda_title);
                     $portal_title = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $portal_title);
                     $dda_title_en = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $dda_title_en);
+                    $base_title_ind = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $base_title_ind);
+                    $base_title_en = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $base_title_en);
                 }
+
+                // Bersihkan akhiran tahun dari base title agar formatDynamicTitleJs bisa menyusun rentang tahun secara bersih
+                $base_title_ind = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_ind);
+                $base_title_ind = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_ind);
+                $base_title_ind = trim(rtrim($base_title_ind, ','));
+
+                $base_title_en = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_en);
+                $base_title_en = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_en);
+                $base_title_en = trim(rtrim($base_title_en, ','));
                 $rows = [];
                 $columns = [];
 
@@ -1085,7 +1194,7 @@ function get_dda_label_nested($col)
                                 </div>
                             </td>
 
-                            <td class="title-box">
+                            <td class="title-box" data-base-id="<?php echo htmlspecialchars($base_title_ind); ?>" data-base-en="<?php echo htmlspecialchars($base_title_en); ?>" data-default-id="<?php echo htmlspecialchars($idx_res === 0 ? ($dda_title ?: $portal_title) : $portal_title); ?>" data-default-en="<?php echo htmlspecialchars($idx_res === 0 ? ($dda_title_en ?: ($api_result['title_en'] ?? '')) : ($api_result['title_en'] ?? $dda_title_en ?? '')); ?>">
                                 <span class="title-id">
                                     <?php
                                     if ($idx_res === 0) {
@@ -1222,7 +1331,7 @@ function get_dda_label_nested($col)
     <script>
         // Store raw data from PHP
         let rawApiResults = <?php echo json_encode($api_results); ?>;
-        let currentSelectedYears = []; // Global state multi-tahun
+        let currentSelectedYears = <?php echo json_encode(array_values(array_map('strval', $unique_years ?? []))); ?>; // Global state multi-tahun default all
         let currentTableConfig = null;
 
         // --- 1. AUTO-LOAD DARI DATABASE SAAT HALAMAN DIBUKA ---

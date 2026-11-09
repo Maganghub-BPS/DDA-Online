@@ -8,7 +8,6 @@
  * 3. Menyetujui usulan (tombol ACC hijau) yang membuka form konfirmasi f_add_opd.
  * 4. Menolak/menghapus usulan (tombol merah) melalui dialog konfirmasi aman.
  */
-echo session()->getFlashdata("k"); 
 ?>
 
 <div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
@@ -43,7 +42,7 @@ echo session()->getFlashdata("k");
             Halaman ini menampilkan tabel baru yang diusulkan oleh OPD. Klik <strong>ACC</strong> untuk mendaftarkan ke Master Tabel.
         </div>
 
-        <div class="table-responsive rounded-3 border border-light overflow-hidden">
+        <div class="table-responsive rounded-3 border border-light">
             <table class="table table-hover align-items-center mb-0">
                 <thead class="bg-gray-100 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">
                     <tr>

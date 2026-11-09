@@ -10,11 +10,27 @@ use App\Libraries\RbacService;
 class RbacFilter implements FilterInterface
 {
     /**
+     * Daftar aksi publik di bawah /admin/ yang boleh diakses tanpa login
+     */
+    protected array $publicActions = ['login', 'do_login', 'logout', 'set_tahun'];
+
+    /**
      * Inspect incoming request and enforce RBAC permission arguments.
      * Example route usage: ['filter' => 'rbac:matching']
      */
     public function before(RequestInterface $request, $arguments = null)
     {
+        $path = trim($request->getUri()->getPath(), '/');
+        if (str_starts_with($path, 'index.php/')) {
+            $path = substr($path, 10);
+        }
+        $segments = explode('/', $path);
+        $action = strtolower($segments[1] ?? 'index');
+
+        if (in_array($action, $this->publicActions, true)) {
+            return;
+        }
+
         $session = session();
         if (!$session->get('admin_valid') || !$session->get('admin_id')) {
             return redirect()->to('admin/login');

@@ -26,9 +26,9 @@
     .desc-text { font-size: 0.72rem; line-height: 1.3; color: #6c757d; margin-bottom: 12px; }
     .section-title { font-size: 0.65rem; font-weight: 800; color: #adb5bd; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 10px; }
     
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: #1e1e1e; }
-    ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+    #log::-webkit-scrollbar { width: 4px; }
+    #log::-webkit-scrollbar-track { background: #1e1e1e; }
+    #log::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
 </style>
 
 <div class="row mb-2 mt-1">

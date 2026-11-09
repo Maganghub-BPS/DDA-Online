@@ -62,7 +62,7 @@ if (empty($data)) {
             <!-- Kolom Aksi Dropdown (Edit Detail & Hapus Modal Aman) -->
             <td class="text-center">
                 <div class="dropdown">
-                    <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown">
+                    <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
                         <i class="bi bi-three-dots-vertical fs-6"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 border-radius-lg p-2">
