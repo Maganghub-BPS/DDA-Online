@@ -34,6 +34,7 @@ class Filters extends BaseFilters
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
+        'rbac'          => \App\Filters\RbacFilter::class,
     ];
 
     /**
@@ -106,5 +107,9 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+        'rbac' => [
+            'before' => ['admin', 'admin/*'],
+        ],
+    ];
 }

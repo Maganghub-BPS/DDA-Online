@@ -480,21 +480,21 @@
         });
         const hasVisibleApiTotal = finalCols.some(c => !c.hidden && !c.isRow && (((c.label_id || c.key || '').toLowerCase().includes('jumlah')) || ((c.label_id || c.key || '').toLowerCase().includes('total'))));
         const showTotal = (config.show_total_col || (config.pivot && config.pivot.enabled && config.pivot.total_row)) && !hasVisibleApiTotal;
-        let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#fff;">`;
-        html += '<thead style="background:#FF6D1F; color:#fff;">';
+        let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#ffffff;">`;
+        html += '<thead style="background:#154679; color:#ffffff;">';
         headerRows.forEach((row, rIdx) => {
             html += '<tr>';
-            if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid #fff; width:40px;">No.</th>`;
+            if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid rgba(255,255,255,0.25); width:45px; background:#154679; color:#ffffff; text-align:center; vertical-align:middle; font-weight:700;">No.</th>`;
             row.forEach(cell => {
-                const isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || '').trim().toLowerCase();
-                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid #fff; padding:8px; text-align:center;">${cell.label}${isEnDiff ? `<br><i>${cell.label_en}</i>` : ''}</th>`;
+                const isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || ').trim().toLowerCase();
+                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid rgba(255,255,255,0.25); padding:8px 6px; text-align:center; background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">${cell.label}${isEnDiff ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${cell.label_en}</i>` : '}</th>`;
             });
-            if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid #fff; ${config.pivot.only_total ? 'background:#FF6D1F;' : ''}">Jumlah<br><i>Total</i></th>`;
+            if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid rgba(255,255,255,0.25); background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">Jumlah<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">Total</i></th>`;
             html += '</tr>';
         });
-        html += '<tr style="background:#f9a066; color:#000; font-size:10px;">';
-        finalCols.filter(c => !c.hidden).forEach((c, idx) => html += `<th style="border:1px solid #fff; text-align:center;">(${idx + 1})</th>`);
-        if (showTotal) html += `<th style="border:1px solid #fff; text-align:center;">(${finalCols.filter(c => !c.hidden).length + 1})</th>`;
+        html += '<tr style="background:#154679; color:#ffffff; font-size:11px;">';
+        finalCols.filter(c => !c.hidden).forEach((c, idx) => html += `<th style="border:1px solid rgba(255,255,255,0.25); text-align:center; background:#154679; color:#ffffff; font-weight:600; padding:6px 6px;">(${idx + 1})</th>`);
+        if (showTotal) html += `<th style="border:1px solid rgba(255,255,255,0.25); text-align:center; background:#154679; color:#ffffff; font-weight:600; padding:6px 6px;">(${finalCols.filter(c => !c.hidden).length + 1})</th>`;
         html += '</tr></thead><tbody>';
         let lastTipe = null; 
         let lastLevel1 = null; 
@@ -510,13 +510,16 @@
             const isKotaRow = (curCodeInt >= 3371 && curCodeInt <= 3376);
             const tipeLabel = (fullCode === '9999') ? null : (isKotaRow ? 'Kota / Municipality' : 'Kabupaten / Regency');
             if (config.group_by_region && tipeLabel && tipeLabel !== lastTipe) {
-                html += `<tr style="background:#fde5ce; font-weight:bold; color:#000;"><td colspan="${finalCols.length + 2}" style="padding:10px 15px; border:1px solid #ffffff; border-left:4px solid #FF6D1F;">${tipeLabel}</td></tr>`;
+                html += `<tr class="row-category" style="background:#f1f6fc; font-weight:bold; color:#0f2d59;"><td colspan="${finalCols.length + 2}" style="padding:10px 15px; border:1px solid #e2e8f0; font-size:12.5px; background:#f1f6fc; font-weight:bold; color:#0f2d59;">${tipeLabel}</td></tr>`;
                 lastTipe = tipeLabel; sectionIdx = 0;
             }
             sectionIdx++;
             
             let rowHtml = "";
-            let rowClass = (r_idx % 2 === 0 ? 'background:#fde5ce;' : 'background:#fef3e6;');
+            let isOdd = (sectionIdx % 2 === 1);
+            let isWhiteFirst = Boolean(config.group_by_region);
+            let rowBg = isWhiteFirst ? (isOdd ? '#ffffff' : '#f1f6fc') : (isOdd ? '#f1f6fc' : '#ffffff');
+            let rowClass = `background:${rowBg};`;
             
             // --- NEW: Row Hierarchy Logic (Optimized) ---
             const fCol = finalCols[0];
@@ -562,7 +565,7 @@
             html += `<tr style="${rowClass}">`;
             const firstRowCol = rowHeaderCols[0]?.key;
             const noRowspan = firstRowCol ? rowspanMap[firstRowCol + '-' + r_idx] : 1;
-            if (noRowspan !== 0) html += `<td ${noRowspan > 1 ? `rowspan="${noRowspan}"` : ''} style="border:1px solid #eee; text-align:center; border-left:2px solid #FF6D1F; vertical-align:top; padding-top:8px;">${config.group_by_region ? sectionIdx : r_idx + 1}.</td>`;
+            if (noRowspan !== 0) html += `<td ${noRowspan > 1 ? `rowspan="${noRowspan}"` : ''} style="border:1px solid #e2e8f0; text-align:center; border-left:2px solid #154679; vertical-align:top; padding-top:8px; background:${rowBg}; color:#1e293b;">${config.group_by_region ? sectionIdx : r_idx + 1}.</td>`;
             let rowSum = 0;
             finalCols.forEach((col, c_idx) => {
                 const rsValue = rowspanMap[col.key + '-' + r_idx];
@@ -631,29 +634,27 @@
                 if (col.isRow || c_idx === 0) align = 'left'; // (baru) agar kolom pertama rata kiri 
                 else if ((isNumeric || isFormattedNum || displayVal === '-') && !isTahunCol) align = 'right'; // (baru) untuk rata kanan bagian kolom angka
 
-                html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #eee; padding:8px; text-align:${align}; ${col.isRow || c_idx === 0 ? 'font-weight:bold;' : ''}">${displayVal}</td>`;
+                html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #e2e8f0; padding:7px 10px; text-align:${align}; color:#1e293b; background:${rowBg}; ${col.isRow || c_idx === 0 ? 'font-weight:600;' : ''}">${displayVal}</td>`;
             });
-            if (showTotal) html += `<td style="border:1px solid #eee; text-align:center; font-weight:bold; background:#fffafa;">${formatVal(rowSum, 'number')}</td>`;
+            if (showTotal) html += `<td style="border:1px solid #e2e8f0; text-align:right; font-weight:bold; background:${rowBg}; color:#154679; padding:7px 10px;">${formatVal(rowSum, 'number')}</td>`;
             html += '</tr>';
         });
         if (config.pivot.total_col) {
             const jtMapping = config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: 'Central Java' };
-            html += `<tr style="background: #FF6D1F; color: #fff; font-weight: bold;"><td colspan="2" style="padding:10px; border:1px solid #fff;">${jtMapping.label_id}${jtMapping.label_en ? `<br><i>${jtMapping.label_en}</i>` : ''}</td>`;
+            html += `<tr class="row-total" style="background: #154679; color: #ffffff; font-weight: bold;"><td colspan="2" style="padding:10px 12px; border:1px solid rgba(255,255,255,0.25); color:#ffffff; vertical-align:middle; background:#154679;">${jtMapping.label_id}${jtMapping.label_en ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${jtMapping.label_en}</i>` : ''}</td>`;
             let grandTotal = 0;
             finalCols.forEach((col, c_idx) => {
                 if (c_idx === 0 || col.hidden) return;
-                if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:1px solid #fff;"></td>`;
+                if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:1px solid rgba(255,255,255,0.25); background:#154679;"></td>`;
                 else {
                     const sum = verticalTotals[col.key];
                     const colLabel = (col.label_id || col.key || '').toLowerCase();
                     if (!(colLabel.includes('jumlah') || colLabel.includes('total'))) grandTotal += sum;
-                    // html += `<td style="border:1px solid #fff; text-align:center;">${formatVal(sum, col.format || 'number')}</td>`; (lama)
-                     html += `<td style="border:1px solid #fff; text-align:right;">${formatVal(sum, col.format || 'number')}</td>`;  // (baru) untuk rata kanan bagian angka jumlah
+                    html += `<td style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${formatVal(sum, col.format || 'number')}</td>`;
                 }
             });
             if (showTotal) 
-                // html += `<th style="border:1px solid #fff; text-align:center;">${formatVal(grandTotal, 'number')}</th>`; (lama)
-             html += `<th style="border:1px solid #fff; text-align:right;">${formatVal(grandTotal, 'number')}</th>`;  // (baru) untuk rata kanan bagian angka jumlah
+                html += `<th style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${formatVal(grandTotal, 'number')}</th>`;
             html += '</tr>';
         }
         html += '</tbody></table>';

@@ -1257,27 +1257,33 @@
         <div class="text-center mb-4 pb-1">
             <h2 class="stats-section-title">Jelajahi Instansi</h2>
             <p class="stats-section-subtitle">
-                Telusuri ketersediaan data statistik resmi berdasarkan Organisasi Perangkat Daerah (OPD) dan Instansi Vertikal di Jawa Tengah.
+                Telusuri ketersediaan data statistik resmi berdasarkan Organisasi Perangkat Daerah (OPD), Instansi Vertikal, dan Tim Kerja BPS di Jawa Tengah.
             </p>
         </div>
 
         <?php
-        if (!function_exists('isOpdCategory')) {
-            function isOpdCategory($id, $name) {
+        if (!function_exists('getInstansiCategorySlug')) {
+            function getInstansiCategorySlug($id, $name) {
                 $id = strtolower(trim((string)$id));
                 $nameLower = strtolower(trim((string)$name));
 
-                // 1. Identifikasi Instansi Vertikal / Kementerian / BUMN / Non-OPD berdasarkan ID resmi
-                $vertikal_ids = [
-                    'bps', 'nerwilis', 'distribusi', 'produksi', 'sosial', 'ipds', 'bkn', 'bpn',
-                    'kemenkumham', 'bi', 'kai', 'pln', 'bulog', 'klimatologi', 'ojk', 'polda', 'kejaksaan',
-                    'pengtinggi', 'pengadilanagama', 'ptun', 'kemenag', 'bkkbn', 'kpu', 'taspen', 'ptpn_ix',
-                    'bpdas', 'perhutani', 'kadin', 'djbc', 'tanjungemas', 'achmadyani', 'pos', 'pegadaian',
-                    'djp1jateng', 'djp2jateng', 'djpb', 'bpkp', 'bpom', 'bpjs', 'lldikti', 'kopertaisx',
-                    'koni', 'imigrasi', 'lapas', 'pertamina', 'bawaslu', 'bnn'
+                // 1. Identifikasi BPS (4 Tim BPS Jawa Tengah)
+                $bps_ids = ['nerwilis', 'distribusi', 'produksi', 'sosial', 'bps', 'ipds'];
+                if (in_array($id, $bps_ids)) {
+                    return 'bps';
+                }
+
+                $bps_keywords = [
+                    'tim neraca', 'nerwilis', 'neraca wilayah',
+                    'tim statistik distribusi', 'statistik distribusi',
+                    'tim statistik produksi', 'statistik produksi',
+                    'tim statistik sosial', 'statistik sosial',
+                    'badan pusat statistik'
                 ];
-                if (in_array($id, $vertikal_ids)) {
-                    return false;
+                foreach ($bps_keywords as $bk) {
+                    if (strpos($nameLower, $bk) !== false) {
+                        return 'bps';
+                    }
                 }
 
                 // 2. Identifikasi Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah berdasarkan ID resmi
@@ -1289,30 +1295,10 @@
                     'diskominfo', 'kominfo', 'satpolpp', 'rsud'
                 ];
                 if (in_array($id, $opd_ids)) {
-                    return true;
+                    return 'opd';
                 }
 
-                // 3. Kata kunci pengecualian untuk Instansi Vertikal / Lembaga Pusat / BUMN / Non-OPD
-                $vertikal_keywords = [
-                    'bps', 'badan pusat statistik', 'tim statistik', 'tim neraca', 'nerwilis', 'tim distribusi',
-                    'tim produksi', 'tim sosial', 'tim ipds', 'kanwil', 'kementerian', 'kantor wilayah',
-                    'bkn', 'bkkbn', 'bpkp', 'bpom', 'balai pom', 'bpn', 'pertanahan', 'agraria',
-                    'bank indonesia', 'ojk', 'polda', 'polres', 'kejaksaan', 'pengadilan',
-                    'ptun', 'kpu', 'bawaslu', 'bnn', 'koni', 'kadin', 'lldikti', 'kopertais',
-                    'stasiun klimatologi', 'klimatologi', 'bmkg', 'perum', 'pt.', 'pt ', 'persero',
-                    'bpjs', 'taspen', 'pelabuhan', 'tanjung emas', 'kesyahbandaran', 'bea dan cukai',
-                    'perbendaharaan', 'pajak', 'imigrasi', 'pemasyarakatan', 'permasyarakatan', 'lapas',
-                    'aliran sungai', 'bpdas', 'kereta api', 'kai', 'angkasa pura', 'perhutani', 'bulog',
-                    'pos indonesia', 'pertamina', 'pln', 'pegadaian', 'universitas', 'institut', 'politeknik'
-                ];
-
-                foreach ($vertikal_keywords as $vk) {
-                    if (strpos($nameLower, $vk) !== false) {
-                        return false;
-                    }
-                }
-
-                // 4. Kata kunci Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah
+                // 3. Kata kunci Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah
                 $opd_keywords = [
                     'dinas', 'organisasi perangkat daerah', 'opd', 'badan kepegawaian', 'badan penanggulangan',
                     'badan pengelola', 'badan perencanaan', 'bappeda', 'badan pendapatan', 'bapenda',
@@ -1322,27 +1308,34 @@
 
                 foreach ($opd_keywords as $ok) {
                     if (strpos($nameLower, $ok) !== false) {
-                        return true;
+                        return 'opd';
                     }
                 }
 
-                return false;
+                // 4. Sisanya adalah Instansi Vertikal & Lembaga Lainnya
+                return 'vertikal';
+            }
+        }
+
+        if (!function_exists('isOpdCategory')) {
+            function isOpdCategory($id, $name) {
+                return getInstansiCategorySlug($id, $name) === 'opd';
             }
         }
 
         $cat_counts = [
             'all' => !empty($opd_list) ? count($opd_list) : 0,
             'opd' => 0,
-            'vertikal' => 0
+            'vertikal' => 0,
+            'bps' => 0
         ];
 
         if (!empty($opd_list)) {
             foreach ($opd_list as $opd_item) {
                 $uid = isset($opd_item->id_unitkerja) ? $opd_item->id_unitkerja : '';
-                if (isOpdCategory($uid, $opd_item->unitkerja_ind)) {
-                    $cat_counts['opd']++;
-                } else {
-                    $cat_counts['vertikal']++;
+                $slug = getInstansiCategorySlug($uid, $opd_item->unitkerja_ind);
+                if (isset($cat_counts[$slug])) {
+                    $cat_counts[$slug]++;
                 }
             }
         }
@@ -1350,18 +1343,28 @@
         if (!function_exists('getOpdDirectoryMeta')) {
             function getOpdDirectoryMeta($name, $index, $id = '') {
                 $lower = strtolower($name);
+                $idLower = strtolower(trim((string)$id));
+                $catSlug = getInstansiCategorySlug($id, $name);
                 
-                // Category classification (OPD vs Instansi Vertikal)
-                if (isOpdCategory($id, $name)) {
-                    $catSlug = 'opd';
+                // Category classification (BPS, OPD, Instansi Vertikal)
+                if ($catSlug === 'bps') {
+                    $catLabel = 'Badan Pusat Statistik (BPS)';
+                } elseif ($catSlug === 'opd') {
                     $catLabel = 'Organisasi Perangkat Daerah';
                 } else {
-                    $catSlug = 'vertikal';
                     $catLabel = 'Instansi Vertikal & Lembaga';
                 }
 
-                // Specific Icon per instansi
-                if (strpos($lower, 'kepegawaian') !== false || strpos($lower, 'sdm') !== false || strpos($lower, 'bkd') !== false) {
+                // Specific Icon per instansi / tim BPS
+                if (strpos($lower, 'neraca') !== false || $idLower === 'nerwilis') {
+                    $icon = 'fa-solid fa-chart-line';
+                } elseif (strpos($lower, 'distribusi') !== false || $idLower === 'distribusi') {
+                    $icon = 'fa-solid fa-boxes-packing';
+                } elseif ((strpos($lower, 'produksi') !== false && strpos($lower, 'statistik') !== false) || $idLower === 'produksi') {
+                    $icon = 'fa-solid fa-industry';
+                } elseif (((strpos($lower, 'statistik sosial') !== false || strpos($lower, 'tim sosial') !== false) || $idLower === 'sosial') && strpos($lower, 'dinas') === false) {
+                    $icon = 'fa-solid fa-users';
+                } elseif (strpos($lower, 'kepegawaian') !== false || strpos($lower, 'sdm') !== false || strpos($lower, 'bkd') !== false) {
                     $icon = 'fa-solid fa-id-card-clip';
                 } elseif (strpos($lower, 'bencana') !== false || strpos($lower, 'bpbd') !== false) {
                     $icon = 'fa-solid fa-house-fire';
@@ -1455,6 +1458,13 @@
                             </span>
                             <span class="opd-sidebar-badge"><?= $cat_counts['vertikal'] ?></span>
                         </button>
+                        <button type="button" class="opd-sidebar-item" data-filter="bps">
+                            <span class="opd-sidebar-label">
+                                <i class="fa-solid fa-chart-pie"></i>
+                                <span>BPS</span>
+                            </span>
+                            <span class="opd-sidebar-badge"><?= $cat_counts['bps'] ?></span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1465,9 +1475,10 @@
                     <?php if (!empty($opd_list)) { ?>
                         <?php foreach($opd_list as $index => $opd) { 
                             $meta = getOpdDirectoryMeta($opd->unitkerja_ind, $index, $opd->id_unitkerja ?? '');
+                            $displayName = formatInstansiName($opd->unitkerja_ind, $opd->id_unitkerja ?? '');
                         ?>
-                            <div class="col-md-6 col-12 opd-item" data-category="<?= $meta['catSlug'] ?>" data-name="<?= strtolower(htmlspecialchars($opd->unitkerja_ind)) ?>" <?= $index >= 8 ? 'style="display:none;"' : '' ?>>
-                                <a href="<?= base_url('home/search?opd_search=' . urlencode($opd->unitkerja_ind)) ?>" class="opd-strip-card" title="<?= htmlspecialchars($opd->unitkerja_ind) ?>">
+                            <div class="col-md-6 col-12 opd-item" data-category="<?= $meta['catSlug'] ?>" data-name="<?= strtolower(htmlspecialchars($displayName . ' ' . $opd->unitkerja_ind)) ?>" <?= $index >= 8 ? 'style="display:none;"' : '' ?>>
+                                <a href="<?= base_url('home/search?opd_search=' . urlencode($opd->unitkerja_ind)) ?>" class="opd-strip-card" title="<?= htmlspecialchars($displayName) ?>">
                                     <!-- Left Round Icon with unified brand color -->
                                     <div class="opd-strip-icon">
                                         <i class="<?= $meta['icon'] ?>"></i>
@@ -1475,7 +1486,7 @@
 
                                     <!-- Middle Details -->
                                     <div class="opd-strip-info">
-                                        <h6 class="opd-strip-name"><?= htmlspecialchars($opd->unitkerja_ind) ?></h6>
+                                        <h6 class="opd-strip-name"><?= htmlspecialchars($displayName) ?></h6>
                                         <span class="opd-strip-meta"><?= $opd->total_tabel ?> Tabel Data</span>
                                     </div>
 
@@ -1573,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadMoreBtn.style.display = 'inline-flex';
                     var btnText = loadMoreBtn.querySelector('span');
                     if (btnText) {
-                        var catText = (activeFilter === 'opd') ? 'OPD' : ((activeFilter === 'vertikal') ? 'Instansi Vertikal' : 'Instansi');
+                        var catText = (activeFilter === 'opd') ? 'OPD' : ((activeFilter === 'vertikal') ? 'Instansi Vertikal' : ((activeFilter === 'bps') ? 'Tim BPS' : 'Instansi'));
                         btnText.textContent = 'Tampilkan Lebih Banyak (' + currentMatches.length + ' ' + catText + ')';
                     }
                 } else {
@@ -1692,9 +1703,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="table-clean-card">
                                     <!-- 1. Instansi -->
                                     <div class="tcc-header d-flex align-items-center">
-                                        <span class="tcc-agency text-truncate" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
+                                        <span class="tcc-agency text-truncate" title="<?= htmlspecialchars(formatInstansiName($row->unitkerja_ind ?? 'Instansi Daerah', $row->id_unitkerja ?? '')) ?>">
                                             <i class="fa-solid fa-building-columns"></i>
-                                            <span><?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?></span>
+                                            <span><?= htmlspecialchars(formatInstansiName($row->unitkerja_ind ?? 'Instansi Daerah', $row->id_unitkerja ?? '')) ?></span>
                                         </span>
                                     </div>
 

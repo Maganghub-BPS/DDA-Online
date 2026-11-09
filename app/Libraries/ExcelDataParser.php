@@ -372,6 +372,7 @@ class ExcelDataParser
                         $leafColumns[] = [
                             'excel_col'  => $colLetter,
                             'item_id'    => (int)$ch->id,
+                            'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                             'periode_id' => 0,
                         ];
                         $colIdx++;
@@ -455,6 +456,7 @@ class ExcelDataParser
                     $leafColumns[] = [
                         'excel_col'  => $colLetter,
                         'item_id'    => (int)$ch->id,
+                        'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                         'periode_id' => 0,
                     ];
                     $colIdx++;
@@ -463,9 +465,10 @@ class ExcelDataParser
                 foreach ($itemsPeriode as $p) {
                     $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                     $leafColumns[] = [
-                        'excel_col'  => $colLetter,
-                        'item_id'    => 0,
-                        'periode_id' => (int)$p->id,
+                        'excel_col'   => $colLetter,
+                        'item_id'     => 0,
+                        'periode_id'  => (int)$p->id,
+                        'periode_ind' => $p->nama_periode_ind ?? ($p->nama_periode_en ?? ''),
                     ];
                     $colIdx++;
                 }
@@ -475,6 +478,7 @@ class ExcelDataParser
                     $leafColumns[] = [
                         'excel_col'  => $colLetter,
                         'item_id'    => (int)$ch->id,
+                        'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                         'periode_id' => 0,
                     ];
                     $colIdx++;
@@ -486,6 +490,7 @@ class ExcelDataParser
                         $leafColumns[] = [
                             'excel_col'  => $colLetter,
                             'item_id'    => (int)$ch->id,
+                            'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                             'periode_id' => 0,
                         ];
                         $colIdx++;
@@ -495,9 +500,11 @@ class ExcelDataParser
                         foreach ($flatKolom as $ch) {
                             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                             $leafColumns[] = [
-                                'excel_col'  => $colLetter,
-                                'item_id'    => (int)$ch->id,
-                                'periode_id' => (int)$p->id,
+                                'excel_col'   => $colLetter,
+                                'item_id'     => (int)$ch->id,
+                                'item_ind'    => $ch->item_ind ?? ($ch->item_en ?? ''),
+                                'periode_id'  => (int)$p->id,
+                                'periode_ind' => $p->nama_periode_ind ?? ($p->nama_periode_en ?? ''),
                             ];
                             $colIdx++;
                         }
@@ -507,9 +514,11 @@ class ExcelDataParser
                         foreach ($itemsPeriode as $p) {
                             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                             $leafColumns[] = [
-                                'excel_col'  => $colLetter,
-                                'item_id'    => (int)$ch->id,
-                                'periode_id' => (int)$p->id,
+                                'excel_col'   => $colLetter,
+                                'item_id'     => (int)$ch->id,
+                                'item_ind'    => $ch->item_ind ?? ($ch->item_en ?? ''),
+                                'periode_id'  => (int)$p->id,
+                                'periode_ind' => $p->nama_periode_ind ?? ($p->nama_periode_en ?? ''),
                             ];
                             $colIdx++;
                         }
@@ -658,6 +667,168 @@ class ExcelDataParser
                         'nama'      => $bItem->nama_baris_ind ?? '',
                     ];
                     $currR++;
+                }
+            }
+        }
+
+        // =====================================================================
+        // 7.5. VALIDASI INTEGRITAS STRUKTUR BARIS (ROW ANCHOR INTEGRITY CHECK)
+        // Memastikan tidak ada baris yang disisipkan atau dihapus oleh pengguna
+        // Setiap baris data dicocokkan dengan teks label wilayah/indikator di kolom A/B
+        // =====================================================================
+        $cleanAnchorStr = function(string $str): string {
+            $str = mb_strtolower($str, 'UTF-8');
+            $str = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $str);
+            return trim(preg_replace('/\s+/', ' ', $str));
+        };
+
+        foreach ($rowItems as $rItem) {
+            $rowIdx       = (int)($rItem['excel_row'] ?? 0);
+            $expectedName = trim((string)($rItem['nama'] ?? ''));
+            $rTipe        = $rItem['tipe'] ?? 'data';
+
+            // Validasi difokuskan pada baris data aktual yang menampung sel angka
+            if ($rowIdx <= 0 || empty($expectedName) || $rTipe === 'kategori') {
+                continue;
+            }
+
+            $valA       = trim((string)$dataSheet->getCell("A{$rowIdx}")->getValue());
+            $valB       = trim((string)$dataSheet->getCell("B{$rowIdx}")->getValue());
+            $actualText = trim($valA . ' ' . $valB);
+
+            $cExp    = $cleanAnchorStr($expectedName);
+            $cActA   = $cleanAnchorStr($valA);
+            $cActB   = $cleanAnchorStr($valB);
+            $cActAll = $cleanAnchorStr($actualText);
+
+            $isRowMatched = false;
+            if ($cActAll === $cExp || $cActA === $cExp || $cActB === $cExp) {
+                $isRowMatched = true;
+            } elseif (!empty($cExp) && !empty($cActAll) && (strpos($cActAll, $cExp) !== false || strpos($cExp, $cActAll) !== false)) {
+                $isRowMatched = true;
+            } elseif (!empty($cExp) && !empty($cActA) && (strpos($cActA, $cExp) !== false || (mb_strlen($cActA) >= 3 && strpos($cExp, $cActA) !== false))) {
+                $isRowMatched = true;
+            } elseif (!empty($cExp) && !empty($cActB) && (strpos($cActB, $cExp) !== false || (mb_strlen($cActB) >= 3 && strpos($cExp, $cActB) !== false))) {
+                $isRowMatched = true;
+            }
+
+            if (!$isRowMatched) {
+                $ditemukan = !empty($actualText) ? "'{$actualText}'" : "(Baris Kosong)";
+                throw new \Exception(
+                    "Perubahan struktur template terdeteksi pada baris ke-{$rowIdx}! " .
+                    "Diharapkan baris data untuk '{$expectedName}', namun ditemukan {$ditemukan}. " .
+                    "Kemungkinan terdapat baris baru yang disisipkan atau dihapus. " .
+                    "Pengunggahan ditolak demi mencegah pergeseran data. " .
+                    "Mohon gunakan berkas template resmi tanpa menambah atau menghapus baris."
+                );
+            }
+        }
+
+        // =====================================================================
+        // 7.6. VALIDASI INTEGRITAS STRUKTUR KOLOM (COLUMN ANCHOR INTEGRITY CHECK)
+        // Memastikan tidak ada kolom yang disisipkan atau dihapus oleh pengguna
+        // Setiap kolom data (leaf column) diverifikasi teks judul headernya
+        // =====================================================================
+        $firstDataRow = $dataStartRowExcel > 0 ? $dataStartRowExcel : (!empty($rowItems) ? (int)$rowItems[0]['excel_row'] : 7);
+        $minHeaderRow = max(1, $firstDataRow - 5);
+
+        foreach ($leafColumns as $colItem) {
+            $colLetter = trim((string)($colItem['excel_col'] ?? ''));
+            if (empty($colLetter)) {
+                continue;
+            }
+
+            // Kumpulkan calon teks label yang diharapkan untuk kolom ini
+            $candidates = [];
+            if (!empty($colItem['periode_ind']))     $candidates[] = trim((string)$colItem['periode_ind']);
+            if (!empty($colItem['periode_en']))      $candidates[] = trim((string)$colItem['periode_en']);
+            if (!empty($colItem['item_ind']))        $candidates[] = trim((string)$colItem['item_ind']);
+            if (!empty($colItem['item_en']))         $candidates[] = trim((string)$colItem['item_en']);
+            if (!empty($colItem['group_title_ind'])) $candidates[] = trim((string)$colItem['group_title_ind']);
+            if (!empty($colItem['group_title_en']))  $candidates[] = trim((string)$colItem['group_title_en']);
+
+            // Jika tidak ada kandidat nama di metadata, lewati pemeriksaan spesifik
+            if (empty($candidates)) {
+                continue;
+            }
+
+            $primaryExpectedLabel = $candidates[0];
+
+            // Baca seluruh teks di kolom ini pada rentang baris header (di atas baris data pertama)
+            $headerTexts = [];
+            for ($r = $minHeaderRow; $r < $firstDataRow; $r++) {
+                $valCell = trim((string)$dataSheet->getCell("{$colLetter}{$r}")->getValue());
+                if ($valCell !== '') {
+                    $headerTexts[] = $valCell;
+                }
+            }
+            $actualHeaderCombined = trim(implode(' ', $headerTexts));
+
+            // Kasus 1: Kolom kosong total pada area header (seperti kolom kosong yang baru disisipkan oleh pengguna)
+            if (empty($actualHeaderCombined)) {
+                throw new \Exception(
+                    "Perubahan struktur template terdeteksi pada Kolom {$colLetter}! " .
+                    "Kolom ini kosong dan tidak memiliki judul header (diharapkan kolom untuk '{$primaryExpectedLabel}'). " .
+                    "Terdeteksi adanya kolom baru yang disisipkan di berkas Excel. " .
+                    "Pengunggahan ditolak demi mencegah pergeseran data. Mohon gunakan berkas template resmi tanpa menambah kolom."
+                );
+            }
+
+            // Kasus 2: Periksa apakah teks header di kolom ini memuat salah satu kandidat nama yang diharapkan
+            $cAct = $cleanAnchorStr($actualHeaderCombined);
+            $isColMatched = false;
+
+            foreach ($candidates as $cand) {
+                $cExp = $cleanAnchorStr($cand);
+                if (empty($cExp)) continue;
+
+                if (strpos($cAct, $cExp) !== false || strpos($cExp, $cAct) !== false) {
+                    $isColMatched = true;
+                    break;
+                }
+            }
+
+            if (!$isColMatched) {
+                throw new \Exception(
+                    "Perubahan struktur template terdeteksi pada Kolom {$colLetter}! " .
+                    "Diharapkan kolom untuk '{$primaryExpectedLabel}', namun ditemukan header '{$actualHeaderCombined}'. " .
+                    "Kemungkinan terdapat kolom yang disisipkan atau dihapus sehingga posisi kolom bergeser. " .
+                    "Pengunggahan ditolak demi mencegah pergeseran data. Mohon gunakan berkas template resmi tanpa mengubah kolom."
+                );
+            }
+        }
+
+        // =====================================================================
+        // 7.7. DETEKSI DATA KOLOM BERLEBIH (RIGHT-BOUNDARY OVERFLOW CHECK)
+        // Memastikan tidak ada data di sebelah kanan kolom data resmi terakhir
+        // =====================================================================
+        if (!empty($leafColumns)) {
+            $lastColMeta = end($leafColumns);
+            $lastColLetter = $lastColMeta['excel_col'] ?? '';
+            if (!empty($lastColLetter)) {
+                $lastColIndex = Coordinate::columnIndexFromString($lastColLetter);
+                $overflowColLetter = Coordinate::stringFromColumnIndex($lastColIndex + 1);
+
+                $overflowFound = false;
+                foreach ($rowItems as $rItem) {
+                    $rIdx = (int)($rItem['excel_row'] ?? 0);
+                    $rTipe = $rItem['tipe'] ?? 'data';
+                    if ($rIdx <= 0 || $rTipe === 'kategori') continue;
+
+                    $overVal = trim((string)$dataSheet->getCell("{$overflowColLetter}{$rIdx}")->getValue());
+                    if ($overVal !== '') {
+                        $overflowFound = true;
+                        break;
+                    }
+                }
+
+                if ($overflowFound) {
+                    throw new \Exception(
+                        "Perubahan struktur template terdeteksi! Ditemukan data pada Kolom {$overflowColLetter} " .
+                        "yang berada di luar batas kolom template resmi (kolom data terakhir: {$lastColLetter}). " .
+                        "Kemungkinan terdapat kolom baru yang disisipkan di sebelah kiri sehingga data bergeser ke kanan. " .
+                        "Pengunggahan ditolak demi integritas data."
+                    );
                 }
             }
         }

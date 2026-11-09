@@ -89,7 +89,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <?php endif; ?>
                                 </label>
                                 <div class="position-relative">
-                                    <textarea name="judul_ind" id="judul_ind" tabindex="1" required class="form-control" rows="3" placeholder="Ketik judul dasar tabel (tanpa tahun)..." autocomplete="off"><?php echo $judul_ind; ?></textarea>
+                                    <textarea name="judul_ind" id="judul_ind" tabindex="1" required class="form-control" rows="3" autocomplete="off"><?php echo esc($judul_ind); ?></textarea>
                                     <small class="text-muted" style="font-size: 11px;">
                                         <i class="bi bi-info-circle me-1 text-primary"></i>Tulis judul dasar tabel tanpa angka tahun di ujungnya. Tahun akan dirakit otomatis oleh sistem sesuai tahun data yang ditampilkan.
                                     </small>
@@ -135,7 +135,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label fw-bold text-dark"><i class="bi bi-translate me-1 text-primary"></i> Base Title (English)</label>
-                                <textarea name="judul_en" tabindex="2" required class="form-control" rows="3" placeholder="Type english base table title (without year)..."><?php echo $judul_en; ?></textarea>
+                                <textarea name="judul_en" tabindex="2" required class="form-control" rows="3"><?php echo esc($judul_en); ?></textarea>
                                 <small class="text-muted" style="font-size: 11px;">
                                     <i class="bi bi-info-circle me-1 text-primary"></i>Write base title without static year at the end. The year suffix will be automatically assembled.
                                 </small>
@@ -146,7 +146,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
                             <label class="form-label fw-bold text-dark"><i class="bi bi-hash me-1 text-primary"></i> No Tabel</label>
-                            <input type="text" name="no_tabel" id="no_tabel" class="form-control" value="<?php echo $no_tabel; ?>" placeholder="Contoh: 1.1">
+                            <input type="text" name="no_tabel" id="no_tabel" class="form-control" value="<?php echo esc($no_tabel); ?>">
                             <div id="no_tabel_suggestion" class="mt-1" style="display: none;"></div>
                         </div>
                         <div class="col-md-8">
@@ -154,19 +154,19 @@ if ($mode == "edt" || $mode == "act_edt") {
                             <select name="id_unitkerja" id="id_unitkerja" class="form-select" tabindex="5" required>
                                 <?php
                                 $db = \Config\Database::connect();
-                                $unitkerja = $db->query("select * from m_unitkerja order by unitkerja_ind")->getResultArray();
+                                $unitkerja = $db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind")->getResultArray();
                                 
                                 if ($mode == "edt" || $mode == "act_edt") {
-                                    echo "<option selected value='".$idunitkerja_terpilih."'>".$unitkerja_terpilih."</option>";
+                                    echo "<option selected value='" . esc($idunitkerja_terpilih, 'attr') . "'>" . esc($unitkerja_terpilih) . "</option>";
                                     foreach($unitkerja as $p){
                                         if ($p['id_unitkerja'] != $idunitkerja_terpilih) {
-                                            echo "<option value='".$p['id_unitkerja']."'>".$p['unitkerja_ind']."</option>";
+                                            echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
                                         }
                                     }
                                 } else {
                                     echo "<option selected value=''>- Pilih Instansi Penanggung Jawab -</option>";
                                     foreach($unitkerja as $p){
-                                        echo "<option value='".$p['id_unitkerja']."'>".$p['unitkerja_ind']."</option>";
+                                        echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
                                     }
                                 }
                                 ?>
@@ -221,7 +221,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     UUID: <span id="text_detected_uuid"><?= esc($id_api); ?></span>
                                 </span>
                             </label>
-                            <textarea name="link_api" id="input_link_api" tabindex="3" class="form-control" rows="2" placeholder="Tempel URL endpoint atau UUID tabel Open Data Jateng (misal: https://data.jatengprov.go.id/.../view_portal_tabel/30a3ec6e-1d54-47c3-b715-db16bf24065e)"><?= esc($link_api); ?></textarea>
+                            <textarea name="link_api" id="input_link_api" tabindex="3" class="form-control" rows="2"><?= esc($link_api); ?></textarea>
                             <small class="text-muted mt-1" style="font-size: 11px;">
                                 <i class="bi bi-lightbulb text-warning me-1"></i>Sistem otomatis mengekstrak UUID tabel jika Anda menempelkan URL lengkap dari browser.
                             </small>

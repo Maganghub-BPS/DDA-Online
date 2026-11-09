@@ -148,7 +148,7 @@ mock_db.json
 simdasi.html
 python_engine/backup_pre_upgrade/
 
-# Excluded from matching-tabel branch
+# Excluded documentation & non-system files
 documentation/
 guide-book/
 .agent/
@@ -163,5 +163,5 @@ PLAN_AUDIT_*
 FORM_CHECKLIST_*
 IMPLEMENTASI_DRAG_*
 PANDUAN_PENGUJIAN_*
-diagram_erd_database.png
+# Excluded documentation & non-system files
 diagram_visual.html

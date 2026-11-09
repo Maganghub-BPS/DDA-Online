@@ -33,38 +33,51 @@
                         <th width="120" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Kode OPD</th>
                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Nama Organisasi (ID)</th>
                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Organization Name (EN)</th>
-                        <th width="150" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Walidata</th>
+                        <th width="140" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Klasifikasi (RBAC)</th>
+                        <th width="140" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Walidata</th>
                         <th width="100" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tableOPDBody" class="divide-y divide-gray-100 bg-white">
                     <?php 
                     if (empty($data)) {
-                        echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
+                        echo "<tr><td colspan='6' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
                     } else {
                         foreach ($data as $b) {
+                            $isOpd = (($b->jenis_instansi ?? 'vertikal') === 'opd');
                     ?>
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="text-center">
-                            <span class="badge badge-sm bg-gray-100 text-dark font-weight-bold px-3 py-2 border-radius-md border border-light"><?php echo $b->id_unitkerja; ?></span>
+                            <span class="badge badge-sm bg-gray-100 text-dark font-weight-bold px-3 py-2 border-radius-md border border-light"><?php echo esc($b->id_unitkerja); ?></span>
                         </td>
                         <td class="py-3">
-                            <h6 class="mb-0 text-sm font-weight-bold text-dark text-wrap" style="line-height: 1.5;"><?php echo $b->unitkerja_ind; ?></h6>
+                            <h6 class="mb-0 text-sm font-weight-bold text-dark text-wrap" style="line-height: 1.5;"><?php echo esc($b->unitkerja_ind); ?></h6>
                         </td>
                         <td>
-                            <p class="text-xs text-secondary mb-0 font-italic text-wrap" style="line-height: 1.4;"><?php echo $b->unitkerja_en; ?></p>
+                            <p class="text-xs text-secondary mb-0 font-italic text-wrap" style="line-height: 1.4;"><?php echo esc($b->unitkerja_en); ?></p>
+                        </td>
+                        <td class="text-center">
+                            <?php if ($isOpd): ?>
+                                <span class="badge badge-sm bg-success-subtle text-success border border-success-subtle font-weight-bold px-2 py-1 border-radius-md" title="Organisasi Perangkat Daerah (Read-Only)">
+                                    <i class="bi bi-bank me-1"></i> OPD Pemprov
+                                </span>
+                            <?php else: ?>
+                                <span class="badge badge-sm bg-info-subtle text-info border border-info-subtle font-weight-bold px-2 py-1 border-radius-md" title="Organisasi Vertikal (Upload Excel Mandiri)">
+                                    <i class="bi bi-building me-1"></i> Vertikal
+                                </span>
+                            <?php endif; ?>
                         </td>
                         <td class="text-center">
                             <span class="badge badge-sm bg-primary-soft text-primary font-weight-bold px-3 py-2 border-radius-md border-primary-soft">
-                                <i class="bi bi-person-badge me-1"></i><?php echo strtoupper($b->user_wali); ?>
+                                <i class="bi bi-person-badge me-1"></i><?php echo esc(strtoupper((string)$b->user_wali)); ?>
                             </span>
                         </td>
                         <td class="text-center">
                             <div class="d-flex gap-1 justify-content-center">
-                                <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/edt/<?php echo $b->id_unitkerja; ?>" class="btn btn-icon-only btn-outline-primary btn-sm border-radius-lg shadow-none" title="Edit OPD">
+                                <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/edt/<?php echo esc($b->id_unitkerja, 'url'); ?>" class="btn btn-icon-only btn-outline-primary btn-sm border-radius-lg shadow-none" title="Edit OPD">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="<?php echo base_URL()?>index.php/admin/master_opd/del/<?php echo $b->id_unitkerja;?>" class="btn btn-icon-only btn-outline-danger btn-sm border-radius-lg shadow-none" title="Hapus OPD" onclick="return confirm('Anda Yakin Akan Menghapus OPD <?php echo $b->unitkerja_ind;?> (<?php echo $b->id_unitkerja;?>) ?')">
+                                <a href="<?php echo base_URL()?>index.php/admin/master_opd/del/<?php echo esc($b->id_unitkerja, 'url');?>" class="btn btn-icon-only btn-outline-danger btn-sm border-radius-lg shadow-none" title="Hapus OPD" onclick="return confirm('Anda Yakin Akan Menghapus OPD <?php echo esc($b->unitkerja_ind, 'js');?> (<?php echo esc($b->id_unitkerja, 'js');?>) ?')">
                                     <i class="bi bi-trash"></i>
                                 </a>
                             </div>                  
@@ -104,6 +117,14 @@
     .bg-info-soft { background-color: rgba(17, 205, 239, 0.08) !important; color: #11cdef !important; }
     .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
     .border-info-soft { border: 1px solid rgba(17, 205, 239, 0.15) !important; }
+
+    .bg-success-subtle { background-color: #d1fae5 !important; }
+    .text-success { color: #059669 !important; }
+    .border-success-subtle { border-color: #a7f3d0 !important; }
+
+    .bg-info-subtle { background-color: #e0f2fe !important; }
+    .text-info { color: #0284c7 !important; }
+    .border-info-subtle { border-color: #bae6fd !important; }
 
     .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }
     .table thead th { border-bottom: 0 !important; font-size: 0.75rem !important; }

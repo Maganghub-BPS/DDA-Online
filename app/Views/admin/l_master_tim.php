@@ -1,5 +1,3 @@
-<?php echo session()->getFlashdata("k"); ?>
-
 <!-- Consolidated Control Card (Format 1: Serasi dengan Master OPD) -->
 <div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
     <div class="card-header pb-3 pt-4 px-4 bg-white border-0">

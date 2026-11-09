@@ -776,9 +776,8 @@ $catatan_val = $indikator->catatan ?? '';
             <?php endif; ?>
 
             <form action="<?= base_url('admin/save_generator_tabel'); ?>" method="post" id="formGenerator">
-                <input type="hidden" name="id_tabel" value="<?= $tabel->id; ?>">
-                        <input type="hidden" name="id_tahun_tabel" value="<?= $tabel->id; ?>">
-                <input type="hidden" name="id_tabel" value="<?= $tabel->id_master_tabel ?? $tabel->id; ?>">
+                <input type="hidden" name="id_tahun_tabel" value="<?= $tabel->id; ?>">
+                <input type="hidden" name="id_tabel" id="input_id_tabel" value="<?= $tabel->id_master_tabel ?? $tabel->id; ?>">
                 <input type="hidden" name="posisi_hirarki" id="input_posisi_hirarki" value="periode_atas">
                 <input type="hidden" name="tingkat_kolom" id="input_tingkat_kolom" value="<?= esc($sel_tingkat_kolom); ?>">
 
@@ -1271,12 +1270,7 @@ $(document).ready(function() {
     }
 
     function formatSampleCell() {
-        const d = parseInt($('#selectDesimal').val());
-        if (d === 0) return '1.250';
-        if (d === 1) return '1.250,5';
-        if (d === 2) return '1.250,50';
-        if (d === 3) return '1.250,500';
-        return '1.250';
+        return '';
     }
 
     // Sinkronisasi status tombol switch hirarki saat awal dimuat
@@ -3316,12 +3310,27 @@ $(document).ready(function() {
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.fire({
-                    title: 'Menghapus Data Tahun ' + tahun + '...',
-                    text: 'Mohon tunggu sebentar...',
+                    html: `
+                        <div class="py-3 px-2 text-center">
+                            <div class="mb-3 position-relative d-inline-block">
+                                <div class="spinner-border text-danger" style="width: 3.25rem; height: 3.25rem; border-width: 0.25rem;" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <div class="position-absolute top-50 start-50 translate-middle text-danger">
+                                    <i class="bi bi-trash3-fill" style="font-size: 1.15rem;"></i>
+                                </div>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Menghapus Data Tahun ${tahun}</h5>
+                            <p class="text-secondary small mb-0" style="font-size: 0.85rem;">Mohon tunggu, proses sedang berlangsung...</p>
+                        </div>
+                    `,
                     allowOutsideClick: false,
+                    allowEscapeKey: false,
                     showConfirmButton: false,
-                    width: '320px',
-                    didOpen: () => { Swal.showLoading(); }
+                    width: '380px',
+                    customClass: {
+                        popup: 'rounded-4 shadow-lg border-0 p-3'
+                    }
                 });
 
                 $.ajax({
@@ -3335,22 +3344,62 @@ $(document).ready(function() {
                     success: function(res) {
                         if (res.status === 'success') {
                             Swal.fire({
-                                icon: 'success',
-                                iconColor: '#10b981',
-                                title: 'Berhasil!',
-                                text: res.message || ('Data tahun ' + tahun + ' berhasil dihapus.'),
+                                html: `
+                                    <div class="py-3 px-2 text-center">
+                                        <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 56px; height: 56px; background: #ecfdf5; color: #10b981;">
+                                            <i class="bi bi-check-lg" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Berhasil Dihapus!</h5>
+                                        <p class="text-secondary small mb-0" style="font-size: 0.85rem;">${res.message || ('Data tahun ' + tahun + ' berhasil dihapus.')}</p>
+                                    </div>
+                                `,
                                 timer: 1500,
                                 showConfirmButton: false,
-                                width: '320px'
+                                width: '360px',
+                                customClass: {
+                                    popup: 'rounded-4 shadow-lg border-0 p-3'
+                                }
                             }).then(() => {
                                 location.reload();
                             });
                         } else {
-                            Swal.fire('Gagal!', res.message || 'Terjadi kesalahan.', 'error');
+                            Swal.fire({
+                                html: `
+                                    <div class="py-3 px-2 text-center">
+                                        <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 56px; height: 56px; background: #fef2f2; color: #ef4444;">
+                                            <i class="bi bi-x-lg" style="font-size: 1.75rem;"></i>
+                                        </div>
+                                        <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Gagal!</h5>
+                                        <p class="text-secondary small mb-3" style="font-size: 0.85rem;">${res.message || 'Terjadi kesalahan saat menghapus data.'}</p>
+                                        <button type="button" class="btn btn-secondary rounded-pill px-4 py-2 text-xs fw-semibold" onclick="Swal.close()">Tutup</button>
+                                    </div>
+                                `,
+                                showConfirmButton: false,
+                                width: '360px',
+                                customClass: {
+                                    popup: 'rounded-4 shadow-lg border-0 p-3'
+                                }
+                            });
                         }
                     },
                     error: function() {
-                        Swal.fire('Error!', 'Gagal menghubungi server.', 'error');
+                        Swal.fire({
+                            html: `
+                                <div class="py-3 px-2 text-center">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 56px; height: 56px; background: #fef2f2; color: #ef4444;">
+                                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.75rem;"></i>
+                                    </div>
+                                    <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Koneksi Terputus</h5>
+                                    <p class="text-secondary small mb-3" style="font-size: 0.85rem;">Gagal menghubungi server. Silakan coba kembali.</p>
+                                    <button type="button" class="btn btn-secondary rounded-pill px-4 py-2 text-xs fw-semibold" onclick="Swal.close()">Tutup</button>
+                                </div>
+                            `,
+                            showConfirmButton: false,
+                            width: '360px',
+                            customClass: {
+                                popup: 'rounded-4 shadow-lg border-0 p-3'
+                            }
+                        });
                     }
                 });
             }
@@ -3409,6 +3458,29 @@ $(document).ready(function() {
             }
         }).then((result) => {
             if (result.isConfirmed) {
+                Swal.fire({
+                    html: `
+                        <div class="py-3 px-2 text-center">
+                            <div class="mb-3 position-relative d-inline-block">
+                                <div class="spinner-border text-danger" style="width: 3.25rem; height: 3.25rem; border-width: 0.25rem;" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <div class="position-absolute top-50 start-50 translate-middle text-danger">
+                                    <i class="bi bi-link-45deg" style="font-size: 1.25rem;"></i>
+                                </div>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-1" style="font-size: 1.05rem;">Melepas Status Dinamis</h5>
+                            <p class="text-secondary small mb-0" style="font-size: 0.85rem;">Mohon tunggu, proses sedang berlangsung...</p>
+                        </div>
+                    `,
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    width: '380px',
+                    customClass: {
+                        popup: 'rounded-4 shadow-lg border-0 p-3'
+                    }
+                });
                 window.location.href = url;
             }
         });

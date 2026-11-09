@@ -99,13 +99,13 @@ if ($mode == "edt" || $mode == "act_edt") {
                     <div class="col-md-12">
                         <div class="mb-4">
                             <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Judul Bahasa Indonesia</label>
-                            <textarea name="judul_ind" tabindex="1" required class="form-control border-radius-lg p-3" rows="3" placeholder="Ketik judul tabel bahasa Indonesia..."><?php echo $judul_ind; ?></textarea>
+                            <textarea name="judul_ind" tabindex="1" required class="form-control border-radius-lg p-3" rows="3"><?php echo esc($judul_ind); ?></textarea>
                             <small class="text-muted" style="font-size: 11px;">Periode akan otomatis digabungkan di akhir judul.</small>
                         </div>
                         
                         <div class="mb-4">
                             <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Judul Bahasa Inggris</label>
-                            <textarea name="judul_en" tabindex="2" class="form-control border-radius-lg p-3" rows="3" placeholder="Type english table title..."><?php echo $judul_en; ?></textarea>
+                            <textarea name="judul_en" tabindex="2" class="form-control border-radius-lg p-3" rows="3"><?php echo esc($judul_en); ?></textarea>
                         </div>
 
                         <?php if ($mode == "edt" || $mode == "act_edt"): ?>
@@ -127,18 +127,18 @@ if ($mode == "edt" || $mode == "act_edt") {
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Nomor Tabel (Opsional)</label>
-                                <input type="text" name="no_tabel" id="input_no_tabel" class="form-control border-radius-lg p-3" placeholder="Contoh: 4.1.19" value="<?php echo esc($no_tabel ?? ''); ?>">
+                                <input type="text" name="no_tabel" id="input_no_tabel" class="form-control border-radius-lg p-3" value="<?php echo esc($no_tabel ?? ''); ?>">
                                 <div id="no_tabel_opd_suggestion" style="display: none;"></div>
                                 <small class="text-muted d-block mt-1" style="font-size: 11px;">Bisa dikosongkan untuk diratakan nanti.</small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Periode Tabel (ID)</label>
-                                <input type="text" name="periode_id" class="form-control border-radius-lg p-3" placeholder="Contoh: <?php echo $default_periode; ?>" value="<?php echo esc($periode_id ?? $default_periode); ?>">
+                                <input type="text" name="periode_id" class="form-control border-radius-lg p-3" value="<?php echo esc($periode_id ?? $default_periode); ?>">
                                 <small class="text-muted" style="font-size: 11px;">Periode Bahasa Indonesia.</small>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Period (EN)</label>
-                                <input type="text" name="periode_en" class="form-control border-radius-lg p-3" placeholder="Example: <?php echo $default_periode; ?>" value="<?php echo esc($periode_en ?? $default_periode); ?>">
+                                <input type="text" name="periode_en" class="form-control border-radius-lg p-3" value="<?php echo esc($periode_en ?? $default_periode); ?>">
                                 <small class="text-muted" style="font-size: 11px;">English Period.</small>
                             </div>
                             <div class="col-md-2">
@@ -151,11 +151,11 @@ if ($mode == "edt" || $mode == "act_edt") {
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Link Tabel Portal (Opsional)</label>
-                                <input type="text" name="link_tabel" class="form-control border-radius-lg p-3" placeholder="URL API Portal Data / Link Tabel..." value="<?php echo esc($link_tabel ?? ''); ?>">
+                                <input type="text" name="link_tabel" class="form-control border-radius-lg p-3" value="<?php echo esc($link_tabel ?? ''); ?>">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-secondary mb-2 ls-1 text-uppercase text-xxs">Link Tabel Sebelumnya (Opsional)</label>
-                                <input type="text" name="link_sebelumnya" class="form-control border-radius-lg p-3" placeholder="URL / Link Tahun Sebelumnya..." value="<?php echo esc($link_sebelumnya ?? ''); ?>">
+                                <input type="text" name="link_sebelumnya" class="form-control border-radius-lg p-3" value="<?php echo esc($link_sebelumnya ?? ''); ?>">
                             </div>
                         </div>
                         <?php else: ?>

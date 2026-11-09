@@ -52,10 +52,11 @@ $tipePeriode            = $indikator->tipe_periode ?? 'tahunan';
 $isTahunan              = in_array($tipePeriode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahunan_jumlah_rata', 'tahun_ajaran'], true);
 $isAkademik             = ($tipePeriode === 'tahun_ajaran');
 $isTablePreview         = !empty($isPreview);
-$isFrontendView         = (isset($is_admin) && $is_admin === false);
-$catRowBg               = $isFrontendView ? '#f1f6fc' : '#fde5ce';
-$catRowColor            = $isFrontendView ? '#0f2d59' : '#000000';
-$catRowBorder           = $isFrontendView ? '#e2e8f0' : '#ffffff';
+$isImportPreview        = !empty($isImportPreview);
+$isFrontendView         = ((isset($is_admin) && $is_admin === false) || $isImportPreview);
+$catRowBg               = '#f1f6fc';
+$catRowColor            = '#0f2d59';
+$catRowBorder           = '#e2e8f0';
 
 // Pastikan selected_years terisi minimal 1 tahun
 if (empty($selected_years)) {
@@ -688,7 +689,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
 
 <div class="table-responsive-dda">
     <table class="<?= $isTablePreview ? 'table table-bordered table-sm w-100' : 'main-table dda-table-item w-100'; ?>" id="<?= esc($matrix_dom_id ?? 'table-dinamis-matrix'); ?>" style="border-collapse: collapse; margin-bottom: 0;">
-        <thead <?= $isTablePreview ? 'class="bg-white text-dark"' : 'style="background: #FF6D1F; color: #ffffff;"'; ?>>
+        <thead <?= $isTablePreview ? 'class="bg-white text-dark"' : 'style="background: #154679; color: #ffffff;"'; ?>>
             <?php if ($portraitMode): 
                 $totalPortraitHeaderRows = $onlyTotalHorizontal ? 1 : count($kHeaderRowsPortrait);
             ?>
@@ -740,7 +741,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                         <?php endif; ?>
 
                         <?php if ($rIdx === 0 && $totalHorizontal && !$skipGrandHorizontal): ?>
-                            <th rowspan="<?= $totalPortraitHeaderRows; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #FF6D1F; min-width: 110px;">
+                            <th rowspan="<?= $totalPortraitHeaderRows; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #154679; min-width: 110px;">
                                 <div class="fw-bold"><?= ($jenisTotalHorizontal === 'avg' ? 'Rata-rata' : 'Jumlah'); ?></div>
                                 <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= ($jenisTotalHorizontal === 'avg' ? 'Average' : 'Total'); ?></div>
                             </th>
@@ -787,7 +788,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php endif; ?>
 
                     <?php if ($totalHorizontal && !$skipGrandHorizontal): ?>
-                        <th rowspan="<?= $totalLeftRowSpan; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #FF6D1F; min-width: 110px;">
+                        <th rowspan="<?= $totalLeftRowSpan; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #154679; min-width: 110px;">
                             <div class="fw-bold"><?= ($jenisTotalHorizontal === 'avg' ? 'Rata-rata' : 'Jumlah'); ?></div>
                             <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= ($jenisTotalHorizontal === 'avg' ? 'Average' : 'Total'); ?></div>
                         </th>
@@ -852,7 +853,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php endif; ?>
 
                     <?php if ($totalHorizontal && !$skipGrandHorizontal): ?>
-                        <th rowspan="2" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #FF6D1F; min-width: 110px;">
+                        <th rowspan="2" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #154679; min-width: 110px;">
                             <div class="fw-bold"><?= ($jenisTotalHorizontal === 'avg' ? 'Rata-rata' : 'Jumlah'); ?></div>
                             <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= ($jenisTotalHorizontal === 'avg' ? 'Average' : 'Total'); ?></div>
                         </th>
@@ -916,7 +917,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php endif; ?>
 
                     <?php if ($totalHorizontal && !$skipGrandHorizontal): ?>
-                        <th rowspan="<?= $totalSubLeftRowSpan; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #FF6D1F; min-width: 110px;">
+                        <th rowspan="<?= $totalSubLeftRowSpan; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); vertical-align: middle; padding: 8px 14px; background: #154679; min-width: 110px;">
                             <div class="fw-bold"><?= ($jenisTotalHorizontal === 'avg' ? 'Rata-rata' : 'Jumlah'); ?></div>
                             <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= ($jenisTotalHorizontal === 'avg' ? 'Average' : 'Total'); ?></div>
                         </th>
@@ -961,7 +962,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
             <?php endif; ?>
 
             <!-- Baris Nomor Urut Kolom: (1), (2), (3)... -->
-            <tr class="num-row" style="background: #f9a066; color: #000000; font-size: 10px; font-weight: bold;">
+            <tr class="num-row" style="background: #154679; color: #ffffff; font-size: 11px; font-weight: bold;">
                 <?php 
                 $numColIdx = 1;
                 if ($hasNoCol): ?>
@@ -1053,7 +1054,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             }
                         }
                         $portraitRowClass = (($rowNo + $pIdx) % 2 === 1 ? 'row-odd' : 'row-even');
-                        $portraitRowBg    = (($rowNo + $pIdx) % 2 === 1 ? '#fde5ce' : '#fef3e6');
+                        $portraitRowBg    = (($rowNo + $pIdx) % 2 === 1 ? '#f1f6fc' : '#ffffff');
                     ?>
                         <tr class="<?= $portraitRowClass; ?>" style="background: <?= $portraitRowBg; ?>; color: #000000;">
                             <?php if ($hasNoCol): ?>
@@ -1127,8 +1128,31 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     $displayCell = function_exists('formatDynamicCellValue')
                                         ? formatDynamicCellValue($val, $simb, $cfgDesimal, $dec)
                                         : ($simb ?: ($val !== null ? number_format((float)$val, 2, ',', '.') : '-'));
+
+                                    $previewStyle = '';
+                                    $cellPreviewClass = '';
+                                    if ($isImportPreview) {
+                                        $isCellFilled = ($val !== null && $val !== '') || !empty($simb);
+                                        $statusDiff   = $cellData['status_diff'] ?? ($isCellFilled ? 'new' : 'empty');
+                                        $hasExisting  = !empty($hasExistingData);
+
+                                        if ($statusDiff === 'modified') {
+                                            $previewStyle = 'background: #fef3c7 !important; color: #92400e !important; font-weight: 700; border: 1.5px solid #f59e0b !important;';
+                                            $cellPreviewClass = 'cell-modified';
+                                        } elseif ($hasExisting && $statusDiff === 'same') {
+                                            $previewStyle = 'background: #ffffff !important; color: #334155 !important; border: 1px solid #dee2e6 !important;';
+                                            $cellPreviewClass = 'cell-same';
+                                        } elseif ($statusDiff === 'new' || (!$hasExisting && $isCellFilled)) {
+                                            $previewStyle = 'background: #dcfce7 !important; color: #15803d !important; font-weight: 600; border: 1px solid #bbf7d0 !important;';
+                                            $cellPreviewClass = 'cell-filled-new';
+                                        } else {
+                                            $previewStyle = 'background: #f8fafc !important; color: #94a3b8 !important; border: 1px solid #dee2e6 !important;';
+                                            $cellPreviewClass = 'cell-empty';
+                                            $displayCell = '—';
+                                        }
+                                    }
                                 ?>
-                                    <td class="text-end" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px;">
+                                    <td class="text-end <?= $cellPreviewClass; ?>" style="border: 1px solid #dee2e6; padding: 6px 12px; font-size: 12px; <?= $previewStyle; ?>">
                                         <?= $displayCell; ?>
                                     </td>
                                 <?php endif; ?>
@@ -1271,7 +1295,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $indentPadding = 12 + ($indentLevel * 16);
                     $isBoldRow     = $isTotalRow || !empty($baris->is_bold) || ($tipeBaris === 'subtotal');
                     $rowClass      = $isTotalRow ? 'row-total' : ($rowNo % 2 === 1 ? 'row-odd' : 'row-even');
-                    $rowBg         = $isTotalRow ? '#FF6D1F' : ($rowNo % 2 === 1 ? '#fde5ce' : '#fef3e6');
+                    $rowBg         = $isTotalRow ? '#154679' : ($rowNo % 2 === 1 ? '#f1f6fc' : '#ffffff');
                     $rowColor      = $isTotalRow ? '#ffffff' : '#000000';
                     $rowFontWeight = $isBoldRow ? 'bold' : 'normal';
 
@@ -1415,7 +1439,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     ? formatDynamicCellValue($rowAgg, null, $cfgDesimal)
                                     : ($rowAgg !== null ? number_format($rowAgg, 2, ',', '.') : '-');
                             ?>
-                                <td class="text-end fw-bold" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'background: #FF6D1F; color: #ffffff !important;' : 'background: #fed7aa; color: #9a3412;'); ?>">
+                                <td class="text-end fw-bold" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'background: #154679; color: #ffffff !important;' : 'background: #dbeafe; color: #1e3a8a;'); ?>">
                                     <?= $displayCell; ?>
                                 </td>
                             <?php elseif (!empty($lCol['is_group_total'])):
@@ -1432,7 +1456,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     ? formatDynamicCellValue($gVal, null, $cfgDesimal)
                                     : ($gVal !== null ? number_format($gVal, 2, ',', '.') : '-');
                             ?>
-                                <td class="text-end fw-semibold" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'background: #FF6D1F; color: #ffffff !important;' : 'background: #fde5ce; color: #000000;'); ?>">
+                                <td class="text-end fw-semibold" style="border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'background: #154679; color: #ffffff !important;' : 'background: #f1f6fc; color: #1e293b;'); ?>">
                                     <?= $displayCell; ?>
                                 </td>
                             <?php else:
@@ -1461,8 +1485,31 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 $displayCell = function_exists('formatDynamicCellValue')
                                     ? formatDynamicCellValue($val, $simb, $cfgDesimal, $dec)
                                     : ($simb ?: ($val !== null ? number_format((float)$val, 2, ',', '.') : '-'));
+
+                                $previewStyle = '';
+                                $cellPreviewClass = '';
+                                if ($isImportPreview && !$isTotalRow) {
+                                    $isCellFilled = ($val !== null && $val !== '') || !empty($simb);
+                                    $statusDiff   = $cellData['status_diff'] ?? ($isCellFilled ? 'new' : 'empty');
+                                    $hasExisting  = !empty($hasExistingData);
+
+                                    if ($statusDiff === 'modified') {
+                                        $previewStyle = 'background: #fef3c7 !important; color: #92400e !important; font-weight: 700; border: 1.5px solid #f59e0b !important;';
+                                        $cellPreviewClass = 'cell-modified';
+                                    } elseif ($hasExisting && $statusDiff === 'same') {
+                                        $previewStyle = 'background: #ffffff !important; color: #334155 !important; border: 1px solid #dee2e6 !important;';
+                                        $cellPreviewClass = 'cell-same';
+                                    } elseif ($statusDiff === 'new' || (!$hasExisting && $isCellFilled)) {
+                                        $previewStyle = 'background: #dcfce7 !important; color: #15803d !important; font-weight: 600; border: 1px solid #bbf7d0 !important;';
+                                        $cellPreviewClass = 'cell-filled-new';
+                                    } else {
+                                        $previewStyle = 'background: #f8fafc !important; color: #94a3b8 !important; border: 1px solid #dee2e6 !important;';
+                                        $cellPreviewClass = 'cell-empty';
+                                        $displayCell = '—';
+                                    }
+                                }
                             ?>
-                                <td class="text-end" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important; font-weight: bold;' : ''); ?>">
+                                <td class="text-end <?= $cellPreviewClass; ?>" style="border: 1px solid #dee2e6; padding: 6px 12px; font-size: 12px; <?= $previewStyle; ?> <?= ($isTotalRow ? 'color: #ffffff !important; font-weight: bold;' : ''); ?>">
                                     <?= $displayCell; ?>
                                 </td>
                             <?php endif; ?>
@@ -1530,20 +1577,20 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 foreach ($runtunYears as $rIdx => $hYr):
                     $hYrLabel = $formatTahunLabel($hYr);
             ?>
-                <tr class="grand-total-row row-total" style="background: #FF6D1F; color: #ffffff; font-weight: bold; border-top: 2px solid #ffffff;">
+                <tr class="grand-total-row row-total" style="background: #154679; color: #ffffff; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.25);">
                     <?php if ($hasNoCol): ?>
                         <?php if ($rIdx === 0): ?>
-                            <td rowspan="<?= $rCount; ?>" class="text-center" style="border: 1px solid #ffffff; padding: 6px; vertical-align: middle; background: #FF6D1F; color: #ffffff;"></td>
+                            <td rowspan="<?= $rCount; ?>" class="text-center" style="border: 1px solid rgba(255,255,255,0.25); padding: 6px; vertical-align: middle; background: #154679; color: #ffffff;"></td>
                         <?php endif; ?>
                     <?php endif; ?>
 
                     <?php if ($rIdx === 0): ?>
-                        <td rowspan="<?= $rCount; ?>" class="fw-bold td-freeze-col" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff; vertical-align: middle; background: #FF6D1F;">
+                        <td rowspan="<?= $rCount; ?>" class="fw-bold td-freeze-col" style="border: 1px solid rgba(255,255,255,0.25); padding: 8px 12px; font-size: 12px; color: #ffffff; vertical-align: middle; background: #154679;">
                             <div><?= esc($totalLabelInd); ?><?php if ($isBilingualTotal): ?> <span style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.9;">/ <?= esc($totalLabelEn); ?></span><?php endif; ?></div>
                         </td>
                     <?php endif; ?>
 
-                    <td class="text-center fw-bold" style="border: 1px solid #ffffff; padding: 6px 10px; font-size: 12px; color: #ffffff; vertical-align: middle; background: #FF6D1F; width: 80px;">
+                    <td class="text-center fw-bold" style="border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; font-size: 12px; color: #ffffff; vertical-align: middle; background: #154679; width: 80px;">
                         <?= esc($hYrLabel); ?>
                     </td>
 
@@ -1564,7 +1611,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             ? formatDynamicCellValue($val, $simb, $cfgDesimal, $dec)
                             : ($simb ?: ($val !== null ? number_format((float)$val, 2, ',', '.') : '-'));
                     ?>
-                        <td class="text-end fw-bold" style="border: 1px solid #ffffff; padding: 6px 12px; font-size: 12px; color: #ffffff; background: #FF6D1F;">
+                        <td class="text-end fw-bold" style="border: 1px solid rgba(255,255,255,0.25); padding: 6px 12px; font-size: 12px; color: #ffffff; background: #154679;">
                             <?= $displayCell; ?>
                         </td>
                     <?php endforeach; ?>
@@ -1597,7 +1644,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $grandLabelEn = 'Grand Total';
                 }
             ?>
-                <tr class="grand-total-row row-total" style="background: #FF6D1F; color: #ffffff; font-weight: bold; border-top: 2px solid #ffffff;">
+                <tr class="grand-total-row row-total" style="background: #154679; color: #ffffff; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.25);">
                     <?php if ($hasNoCol): ?>
                         <td class="text-center" style="border: 1px solid #ffffff; padding: 8px 6px; color: #ffffff;"></td>
                     <?php endif; ?>
@@ -1631,7 +1678,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             ? formatDynamicCellValue($cVal, null, $cfgDesimal)
                             : ($cVal !== null ? number_format($cVal, 2, ',', '.') : '-');
                     ?>
-                        <td class="text-end fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff; background: #FF6D1F;">
+                        <td class="text-end fw-bold" style="border: 1px solid rgba(255,255,255,0.25); padding: 8px 12px; font-size: 12px; color: #ffffff; background: #154679;">
                             <?= $displayCell; ?>
                         </td>
                     <?php endforeach; ?>

@@ -34,7 +34,7 @@ if (preg_match('/^Table\s+([\d\.\w]+)\s+(.*?)(?:,\s*(\d{4}(?:-\d{4})?))?$/is', t
 }
 $judul_en_only = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_en_only);
 
-$unitkerja_nm = $dda_info->unitkerja_ind ?? '-';
+$unitkerja_nm = formatInstansiName($dda_info->unitkerja_ind ?? '-', $dda_info->id_unitkerja ?? '');
 
 // Format URL for iframe to hide toolbars
 $iframe_url = trim($sheet_url);

@@ -7,11 +7,12 @@ if ($mode == "edt" || $mode == "act_edt") {
 	$id_unitkerja	= $datpil->id_unitkerja;
 	$unitkerja_ind	= $datpil->unitkerja_ind;
 	$unitkerja_en	= $datpil->unitkerja_en;
+	$jenis_instansi	= $datpil->jenis_instansi ?? 'vertikal';
 	$user_wali		= $datpil->user_wali;
 	$user_spv		= $datpil->user_spv;
 	
 	$db = \Config\Database::connect();
-	$querynama_userwali = $db->query("SELECT nama from t_admin where username='$user_wali' LIMIT 1")->getRow();
+	$querynama_userwali = $db->query("SELECT nama FROM t_admin WHERE username = ? LIMIT 1", [$user_wali])->getRow();
 	$nama_userwali = $querynama_userwali->nama ?? $user_wali;
 } else {
 	$act			= "act_add";
@@ -19,6 +20,7 @@ if ($mode == "edt" || $mode == "act_edt") {
 	$id_unitkerja	= "";
 	$unitkerja_ind	= "";
 	$unitkerja_en	= "";
+	$jenis_instansi	= "vertikal";
 	$user_wali		= "";
 	$user_spv		= "";
 }
@@ -41,10 +43,8 @@ if ($mode == "edt" || $mode == "act_edt") {
                 </div>
                 
                 <div class="card-body p-4 pt-3">
-                    <form action="<?php echo base_URL(); ?>index.php/admin/master_opd/<?php echo $act; ?>" method="post" accept-charset="utf-8">
-                        <input type="hidden" name="idp" value="<?php echo $idp; ?>">
-                        
-                        <?php echo session()->getFlashdata("k"); ?>
+                    <form action="<?php echo base_URL(); ?>index.php/admin/master_opd/<?php echo esc($act); ?>" method="post" accept-charset="utf-8">
+                        <input type="hidden" name="idp" value="<?php echo esc($idp); ?>">
 
                         <div class="row g-4">
                             <!-- Kode OPD -->
@@ -52,7 +52,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                 <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Kode OPD / Unit Kerja</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-gray-100 border-0"><i class="bi bi-hash text-muted"></i></span>
-                                    <input type="text" name="id_unitkerja" required value="<?php echo $id_unitkerja; ?>" 
+                                    <input type="text" name="id_unitkerja" required value="<?php echo esc($id_unitkerja); ?>" 
                                            class="form-control border-0 bg-gray-100 ps-2" placeholder="Contoh: BAPPEDA" 
                                            tabindex="1" autofocus style="border-radius: 0 0.5rem 0.5rem 0 !important;">
                                 </div>
@@ -63,11 +63,38 @@ if ($mode == "edt" || $mode == "act_edt") {
                                 <hr class="horizontal bg-gray-200 my-1 opacity-1">
                             </div>
 
+                            <!-- Klasifikasi Jenis Instansi (RBAC) -->
+                            <div class="col-md-12">
+                                <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Klasifikasi Instansi (Hak Akses RBAC)</label>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="border rounded-3 p-3 bg-white d-block cursor-pointer position-relative <?= ($jenis_instansi == 'opd') ? 'border-primary shadow-xs' : 'border-light'; ?>" style="cursor: pointer;">
+                                            <div class="form-check ps-0 mb-0">
+                                                <div class="d-flex align-items-center mb-0">
+                                                    <input class="form-check-input me-2 mt-0" type="radio" name="jenis_instansi" id="jenis_opd" value="opd" <?= ($jenis_instansi == 'opd') ? 'checked' : ''; ?>>
+                                                    <span class="fw-bold text-dark text-sm"><i class="bi bi-bank text-primary-orange me-1"></i> Organisasi Perangkat Daerah</span>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="border rounded-3 p-3 bg-white d-block cursor-pointer position-relative <?= ($jenis_instansi == 'vertikal') ? 'border-primary shadow-xs' : 'border-light'; ?>" style="cursor: pointer;">
+                                            <div class="form-check ps-0 mb-0">
+                                                <div class="d-flex align-items-center mb-0">
+                                                    <input class="form-check-input me-2 mt-0" type="radio" name="jenis_instansi" id="jenis_vertikal" value="vertikal" <?= ($jenis_instansi == 'vertikal') ? 'checked' : ''; ?>>
+                                                    <span class="fw-bold text-dark text-sm"><i class="bi bi-building text-info me-1"></i> Organisasi Vertikal</span>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Nama Indonesia -->
                             <div class="col-md-12">
                                 <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Nama Unit Kerja (Bahasa Indonesia)</label>
                                 <div class="input-group border-radius-lg overflow-hidden shadow-none border border-gray-100">
-                                    <input type="text" name="unitkerja_ind" required value="<?php echo $unitkerja_ind; ?>" 
+                                    <input type="text" name="unitkerja_ind" required value="<?php echo esc($unitkerja_ind); ?>" 
                                            class="form-control border-0 py-2 ps-3" placeholder="Masukkan nama organisasi..." tabindex="2">
                                 </div>
                             </div>
@@ -76,7 +103,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                             <div class="col-md-12">
                                 <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Organization Name (English Translation)</label>
                                 <div class="input-group border-radius-lg overflow-hidden shadow-none border border-gray-100">
-                                    <input type="text" name="unitkerja_en" required value="<?php echo $unitkerja_en; ?>" 
+                                    <input type="text" name="unitkerja_en" required value="<?php echo esc($unitkerja_en); ?>" 
                                            class="form-control border-0 py-2 ps-3 text-italic text-secondary" placeholder="Organization name in English..." tabindex="3">
                                 </div>
                             </div>
@@ -88,17 +115,17 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <span class="input-group-text bg-white border-0"><i class="bi bi-people-fill text-primary-orange"></i></span>
                                     <select name="user_wali" id="user_wali" class="form-select border-0 py-2" tabindex="5">
                                         <?php if ($mode == "edt" || $mode == "act_edt"): ?>
-                                            <option selected value="<?php echo $user_wali; ?>"><?php echo $nama_userwali; ?></option>
+                                            <option selected value="<?php echo esc($user_wali, 'attr'); ?>"><?php echo esc($nama_userwali); ?></option>
                                         <?php else: ?>
                                             <option selected value="Kosong">- Pilih Tim Pembina / Walidata -</option>
                                         <?php endif; ?>
                                         
                                         <?php
                                         $db = \Config\Database::connect();
-                                        $user_wali_data = $db->query("select username,nama from t_admin where id_unitkerja='bps' order by nama ASC")->getResultArray();
+                                        $user_wali_data = $db->query("SELECT username, nama FROM t_admin WHERE id_unitkerja = 'bps' ORDER BY nama ASC")->getResultArray();
                                         foreach($user_wali_data as $p){
                                             if ($p['username'] != $user_wali) {
-                                                echo "<option value='".$p['username']."'>".$p['nama']."</option>";
+                                                echo "<option value='" . esc($p['username'], 'attr') . "'>" . esc($p['nama']) . "</option>";
                                             }
                                         }
                                         ?>

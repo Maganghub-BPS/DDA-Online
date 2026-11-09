@@ -2,9 +2,9 @@
 /**
  * VIEW: VIEWER TABEL DINAMIS PUBLIKASI RESMI BPS (v_tabel_dinamis.php)
  * Didesain 100% selaras dengan tampilan View API (v_portal_tabel.php):
- * 1. Toolbar Modern: Tombol KEMBALI, filter TAHUN, KONFIGURASI, dan tombol EXPORT EXCEL oranye (#FF6D1F).
+ * 1. Toolbar Modern: Tombol KEMBALI, filter TAHUN, KONFIGURASI, dan tombol EXPORT EXCEL Biru Navy BPS (#154679).
  * 2. Header Table Klasik BPS: Kotak nomor tabel terpisah garis vertikal dengan judul dwibahasa (Ind/En).
- * 3. Matriks Oranye Resmi BPS: Header tabel oranye cerah (#FF6D1F) dengan teks putih, dan baris nomor kolom peach (#f9a066).
+ * 3. Matriks Navy Resmi BPS: Header tabel biru navy (#154679) dengan teks putih, dan baris nomor kolom navy senada.
  * 4. Pemisah Wilayah: Banner pembatas Kabupaten / Regency dan Kota / Municipality berlatar #fff1e6 dengan border oranye.
  * 5. Baris Selang-Seling: Tampilan lembut bergantian (#fff dan #fff4eb), nilai kosong standar strip ('–').
  * 6. Catatan & Sumber Standar DDA BPS.
@@ -205,24 +205,24 @@ $isConfigured  = ($indikator && $dimCount >= 2);
 
     .btn-back-modern:hover {
         background: #fff;
-        color: #ff6d1f;
-        border-color: #ff6d1f;
+        color: #154679;
+        border-color: #154679;
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(255, 109, 31, 0.1);
+        box-shadow: 0 6px 12px rgba(21, 70, 121, 0.15);
         text-decoration: none;
     }
 
     .export-btn-modern {
-        background: #FF6D1F;
+        background: #154679;
         color: #fff !important;
         text-decoration: none;
     }
 
     .export-btn-modern:hover {
-        background: #e05e15;
+        background: #0f355c;
         color: #fff !important;
         transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(255, 109, 31, 0.25);
+        box-shadow: 0 8px 15px rgba(21, 70, 121, 0.25);
         text-decoration: none;
     }
 
@@ -367,62 +367,58 @@ $isConfigured  = ($indikator && $dimCount >= 2);
     }
 
     .main-table thead th {
-        background: #FF6D1F;
-        color: #fff;
-        border: 1px solid #fff !important;
-        padding: 8px 6px;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        padding: 8px 8px;
         font-size: 12px;
         font-weight: bold;
         text-align: center;
         vertical-align: middle;
-        line-height: 1.25;
+        background: #154679 !important;
+        color: white;
     }
 
     .main-table thead th i {
-        display: block;
-        font-weight: normal;
-        font-size: 0.85em;
-        margin-top: 2px;
-        color: rgba(255, 255, 255, 0.9);
+        display: block !important;
+        font-style: italic !important;
+        font-weight: normal !important;
+        font-size: 0.85em !important;
+        margin-top: 2px !important;
+        line-height: 1.25 !important;
+        opacity: 0.95 !important;
+        color: #e0edfd !important;
     }
 
-    .main-table thead tr.num-row th {
+    /* Baris Penomoran (1), (2), (3)... Tema Navy BPS (#154679) Seragam dengan Header */
+    .main-table thead tr.num-row th,
+    .main-table thead tr.row-nomor-kolom th {
         font-weight: bold !important;
-        padding: 3px 4px !important;
-        background: #f9a066 !important;
-        color: #000000 !important;
-        font-size: 10px !important;
-        border: 1px solid #ffffff !important;
-        text-align: center !important;
+        padding: 6px 6px;
+        background: #154679 !important;
+        font-size: 11px;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        text-align: center;
     }
 
-    .main-table tbody td {
-        border: 1px solid #ffffff !important;
-        padding: 6px 8px;
-        font-size: 12px;
-        vertical-align: middle;
-        color: #000000;
-    }
-
+    /* Zebra Striping: Turunan Biru Lembut (#f1f6fc) & Putih Bersih (#ffffff) */
     .main-table tbody tr.row-odd,
     .main-table tbody tr.row-odd td {
-        background-color: #fde5ce !important;
-        color: #000000 !important;
+        background-color: #f1f6fc !important;
+        color: #1e293b !important;
     }
 
     .main-table tbody tr.row-even,
     .main-table tbody tr.row-even td {
-        background-color: #fef3e6 !important;
-        color: #000000 !important;
+        background-color: #ffffff !important;
+        color: #1e293b !important;
     }
 
-    .main-table tbody tr.category-row,
-    .main-table tbody tr.category-row td {
-        background-color: #fde5ce !important;
-        color: #000000 !important;
-        font-weight: bold !important;
-        border: 1px solid #ffffff !important;
-        padding: 10px 15px !important;
+    .main-table tbody td {
+        border: 1px solid #e2e8f0 !important;
+        padding: 7px 10px;
+        font-size: 12px;
+        vertical-align: middle;
+        color: #1e293b;
     }
 
     .main-table tbody td.col-val {
@@ -431,36 +427,50 @@ $isConfigured  = ($indikator && $dimCount >= 2);
         padding-left: 8px !important;
     }
 
-    /* Baris Subtotal / Sub-Jumlah (Sama Seperti Angka di Bawah Kolom Header Sesuai Gambar 1 & 2) */
+    /* Baris Kategori Wilayah / Master Divider */
+    .main-table tr.category-row,
+    .main-table tr.category-row td,
+    .main-table tr.row-category,
+    .main-table tr.row-category td,
+    .main-table tbody tr.category-row,
+    .main-table tbody tr.category-row td {
+        background-color: #f1f6fc !important;
+        font-weight: bold !important;
+        color: #0f2d59 !important;
+        border: 1px solid #e2e8f0 !important;
+        padding: 10px 15px !important;
+    }
+
+    /* Baris Subtotal / Sub-Jumlah */
     .main-table tbody tr.row-subtotal,
     .main-table tbody tr.row-subtotal td {
-        background-color: #f9a55f !important;
-        color: #000000 !important;
+        background-color: #dbeafe !important;
+        color: #1e3a8a !important;
         font-weight: bold !important;
-        border: 1px solid #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
     }
 
     .main-table tbody tr.row-subtotal td.col-val {
-        color: #000000 !important;
+        color: #1e3a8a !important;
         text-align: right !important;
         font-weight: bold !important;
     }
 
     .main-table tbody tr.row-subtotal td i {
-        color: #000000 !important;
+        color: #1e3a8a !important;
         font-weight: normal;
     }
 
-    /* Baris Grand Total (Jumlah / Total / Jawa Tengah) Menyerupai Header Sesuai Gambar 2 */
+    /* Baris Grand Total (Jumlah / Total / Jawa Tengah) Navy BPS (#154679) */
     .main-table tbody tr.row-total,
     .main-table tbody tr.row-total td,
     .main-table tbody tr.grand-total-row,
     .main-table tbody tr.grand-total-row td,
     .main-table tbody tr.grand-total-row th {
-        background-color: #FF6D1F !important;
+        background-color: #154679 !important;
         color: #ffffff !important;
         font-weight: bold !important;
-        border: 1px solid #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
 
     .main-table tbody tr.row-total td.col-val,
@@ -468,11 +478,14 @@ $isConfigured  = ($indikator && $dimCount >= 2);
     .main-table tbody tr.grand-total-row td.col-val {
         color: #ffffff !important;
         text-align: right !important;
+        font-weight: bold !important;
+        background-color: #154679 !important;
     }
 
     .main-table tbody tr.row-total td i,
     .main-table tbody tr.grand-total-row td i {
-        color: rgba(255, 255, 255, 0.95) !important;
+        color: #e0edfd !important;
+        font-style: italic;
     }
 
     /* Hover effect dinonaktifkan agar selaras dengan view portal tabel */
@@ -570,10 +583,16 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                 </button>
             <?php endif; ?>
 
-            <!-- Tombol Upload Excel (Admin BPS & Walidata) -->
-            <button type="button" class="btn-rounded-modern upload-btn-modern shadow-success" data-bs-toggle="modal" data-bs-target="#ModalUploadExcelDinamis">
-                <i class="bi bi-cloud-arrow-up-fill"></i> <span class="d-none d-sm-inline">UPLOAD EXCEL</span><span class="d-inline d-sm-none">UPLOAD</span>
-            </button>
+            <!-- Tombol Upload Excel (Super Admin, Admin, LO & Walidata Vertikal) -->
+            <?php if (can('input_dda_input')): ?>
+                <button type="button" class="btn-rounded-modern upload-btn-modern shadow-success" data-bs-toggle="modal" data-bs-target="#ModalUploadExcelDinamis">
+                    <i class="bi bi-cloud-arrow-up-fill"></i> <span class="d-none d-sm-inline">UPLOAD EXCEL</span><span class="d-inline d-sm-none">UPLOAD</span>
+                </button>
+            <?php else: ?>
+                <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill align-self-center me-1" title="Data OPD Pemprov Jateng tersinkronisasi otomatis via Satu Data">
+                    <i class="bi bi-lock-fill text-muted me-1"></i> Read-Only (OPD Pemprov)
+                </span>
+            <?php endif; ?>
 
             <?php $thDataOtomatis = (int)$ta - 1; ?>
             <!-- Tombol Unduh Template Excel Otomatis Sesuai Tahun Publikasi ($ta - 1) -->
@@ -606,6 +625,39 @@ $isConfigured  = ($indikator && $dimCount >= 2);
             <?php endif; ?>
         </div>
     <?php else: ?>
+        <?php 
+        $th_target_data = $th_target_data ?? ((int)$ta - 1);
+        $target_year_found = !empty($available_years) && in_array((int)$th_target_data, array_map('intval', $available_years), true);
+        if ($isConfigured && !empty($th_target_data) && !$target_year_found): 
+        ?>
+            <div class="alert border-0 shadow-xs d-flex align-items-center mb-3 p-3" style="background: #ffffff; border: 1px solid #fed7aa !important; border-left: 4px solid #f59e0b !important; border-radius: 10px; box-shadow: 0 2px 10px -2px rgba(245, 158, 11, 0.08) !important;">
+                <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0 me-3" style="width: 40px; height: 40px; background: #fff7ed; color: #d97706; border: 1px solid #fde68a; border-radius: 10px;">
+                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.15rem;"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <span class="fw-bold text-dark" style="font-size: 0.925rem; letter-spacing: -0.01em;">
+                            Data Tahun <?= htmlspecialchars((string)$th_target_data); ?> Belum Tersedia
+                        </span>
+                        <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-0.5 fw-bold" style="font-size: 10px; letter-spacing: 0.3px;">
+                            BELUM DIISI
+                        </span>
+                    </div>
+                    <div class="text-muted" style="font-size: 0.835rem; line-height: 1.5;">
+                        Publikasi DDA <?= htmlspecialchars((string)($ta ?? ((int)$th_target_data + 1))); ?> memerlukan data tahun <strong><?= htmlspecialchars((string)$th_target_data); ?></strong>. 
+                        Tahun data tersedia saat ini: 
+                        <?php if (!empty($available_years)): ?>
+                            <?php foreach ($available_years as $yr): ?>
+                                <span class="badge bg-light text-dark border px-2 py-0.5 fw-semibold me-1" style="font-size: 11px;"><?= htmlspecialchars((string)$yr); ?></span>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <span class="text-secondary fst-italic">Belum ada data</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
         <!-- ===== TAMPILAN RESMI 100% PERSIS VIEW API (v_portal_tabel.php) ===== -->
         <div id="dda-container-all" style="padding: 20px;">
             <div class="table-wrapper">
@@ -674,9 +726,10 @@ $isConfigured  = ($indikator && $dimCount >= 2);
     <?php endif; ?>
 </div>
 
+<?php if (can('input_dda_input')): ?>
 <!-- MODAL UPLOAD EXCEL WALIDATA (TABEL DINAMIS) -->
 <div id="ModalUploadExcelDinamis" class="modal fade" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg" id="modalDialogUploadDinamis">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
             <div class="modal-header border-bottom px-4 py-3 bg-white">
                 <div class="d-flex align-items-center gap-3">
@@ -684,18 +737,19 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                         <i class="bi bi-file-earmark-arrow-up-fill fs-5 text-success"></i>
                     </div>
                     <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" style="font-size: 1.05rem;">Upload Berkas Excel Tabel Dinamis</h5>
-                        <small class="text-muted" style="font-size: 0.8rem;">Impor data pengisian tabel dinamis secara otomatis</small>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalUploadTitle" style="font-size: 1.05rem;">Upload Berkas Excel Tabel Dinamis</h5>
+                        <small class="text-muted" id="modalUploadSubtitle" style="font-size: 0.8rem;">Impor data pengisian tabel dinamis secara otomatis</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            <form id="formUploadExcelDinamis" enctype="multipart/form-data">
-                <?= csrf_field(); ?>
-                <input type="hidden" name="id_tabel" value="<?= esc($tabel->id); ?>">
+            <div id="uploadStep1Container">
+                <form id="formUploadExcelDinamis" enctype="multipart/form-data">
+                    <?= csrf_field(); ?>
+                    <input type="hidden" name="id_tabel" value="<?= esc($tabel->id); ?>">
                     <input type="hidden" name="id_tahun_tabel" value="<?= esc($tabel->id); ?>">
-                <input type="hidden" name="tahun_data" value="<?= $thDataOtomatis; ?>">
+                    <input type="hidden" name="tahun_data" value="<?= $thDataOtomatis; ?>">
                 
                 <div class="modal-body p-4">
                     <div class="mb-3 p-2.5 bg-light rounded-3 border d-flex align-items-center justify-content-between">
@@ -718,11 +772,12 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                         </a>
                     </div>
 
+                    <!-- Hidden File Input -->
+                    <input type="file" id="file_excel_input" name="file_excel" accept=".xlsx" style="display: none;">
+
                     <!-- Drag & Drop Zone Modern -->
                     <div id="dropZoneExcel" class="upload-dropzone p-4 text-center rounded-3 mb-3" style="border: 2px dashed #94a3b8; background: #f8fafc; cursor: pointer; transition: all 0.25s ease;">
-                        <input type="file" id="file_excel_input" name="file_excel" accept=".xlsx" style="display: none;">
-                        
-                        <div id="dropZonePrompt" class="py-2">
+                        <div id="dropZonePrompt" class="py-2" style="cursor: pointer;">
                             <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-xs" style="width: 58px; height: 58px; background: #ecfdf5; color: #059669;">
                                 <i class="bi bi-file-earmark-excel" style="font-size: 1.85rem;"></i>
                             </div>
@@ -734,9 +789,9 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                                 <span class="text-muted text-xxs"><i class="bi bi-info-circle me-1"></i>Berkas dari tahun data lain akan ditolak otomatis oleh sistem.</span>
                             </div>
                             <div>
-                                <span class="btn btn-sm btn-success px-3 py-1.5 fw-semibold shadow-xs" style="background: #059669 !important; border: none; font-size: 0.8rem; border-radius: 6px; pointer-events: none;">
+                                <button type="button" id="btnBrowseFile" class="btn btn-sm btn-success px-3 py-1.5 fw-semibold shadow-xs" style="background: #059669 !important; border: none; font-size: 0.8rem; border-radius: 6px; cursor: pointer;">
                                     <i class="bi bi-folder2-open me-1"></i> Telusuri Berkas
-                                </span>
+                                </button>
                             </div>
                         </div>
 
@@ -795,30 +850,59 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                     </div>
                 </div>
 
-                <div class="modal-footer px-4 py-3 bg-light border-top">
-                    <button type="button" class="btn btn-light border rounded-pill px-4 py-2 text-xs fw-semibold text-secondary shadow-xs" data-bs-dismiss="modal" id="btnCancelUpload">Batal</button>
-                    <button type="submit" class="btn btn-success rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs d-inline-flex align-items-center gap-2" id="btnSubmitUpload" disabled style="background: #059669 !important; border-color: #059669 !important;">
-                        <i class="bi bi-cloud-arrow-up-fill"></i> Mulai Impor Data
-                    </button>
-                </div>
-            </form>
+                    <div class="modal-footer px-4 py-3 bg-light border-top">
+                        <button type="button" class="btn btn-light border rounded-pill px-4 py-2 text-xs fw-semibold text-secondary shadow-xs" data-bs-dismiss="modal" id="btnCancelUpload">Batal</button>
+                        <button type="submit" class="btn btn-success rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs d-inline-flex align-items-center gap-2" id="btnSubmitUpload" disabled style="background: #059669 !important; border-color: #059669 !important;">
+                            <i class="bi bi-eye-fill"></i> Lanjut ke Pratinjau
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- STEP 2: PRATINJAU MATRIKS TABEL DINAMIS (AJAX INJECTED) -->
+            <div id="uploadStep2Container" class="p-4" style="display: none;"></div>
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <script type="text/javascript">
 $(document).ready(function() {
     var dropZone = document.getElementById('dropZoneExcel');
     var fileInput = document.getElementById('file_excel_input');
+    var currentCsrfToken = '<?= csrf_token(); ?>';
+    var currentCsrfHash  = '<?= csrf_hash(); ?>';
 
-    if (dropZone && fileInput) {
-        dropZone.addEventListener('click', function(e) {
-            if (e.target.id === 'btnRemoveFile' || $(e.target).closest('#btnRemoveFile').length) {
-                return;
-            }
+    function updateCsrf(token, hash) {
+        if (token && hash) {
+            currentCsrfToken = token;
+            currentCsrfHash = hash;
+            $('input[name="' + token + '"]').val(hash);
+        }
+    }
+
+    // Klik tombol "Telusuri Berkas"
+    $(document).on('click', '#btnBrowseFile', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (fileInput) {
+            fileInput.value = '';
             fileInput.click();
-        });
+        }
+    });
 
+    // Klik seluruh area dropzone (kecuali tombol di dalamnya)
+    $(document).on('click', '#dropZoneExcel', function(e) {
+        if ($(e.target).closest('#btnRemoveFile').length || $(e.target).closest('#btnBrowseFile').length) {
+            return;
+        }
+        if (fileInput) {
+            fileInput.value = '';
+            fileInput.click();
+        }
+    });
+
+    if (dropZone) {
         ['dragenter', 'dragover'].forEach(function(eventName) {
             dropZone.addEventListener(eventName, function(e) {
                 e.preventDefault();
@@ -839,34 +923,42 @@ $(document).ready(function() {
 
         dropZone.addEventListener('drop', function(e) {
             var dt = e.dataTransfer;
-            var files = dt.files;
+            var files = dt ? dt.files : null;
             if (files && files.length > 0) {
-                fileInput.files = files;
-                handleSelectedFile(files[0]);
+                if (fileInput) {
+                    try {
+                        fileInput.files = files;
+                    } catch(err) {}
+                }
+                window.handleSelectedFile(files[0]);
             }
-        });
-
-        fileInput.addEventListener('change', function() {
-            if (this.files && this.files.length > 0) {
-                handleSelectedFile(this.files[0]);
-            }
-        });
-
-        $('#btnRemoveFile').on('click', function(e) {
-            e.stopPropagation();
-            fileInput.value = '';
-            $('#dropZonePrompt').show();
-            $('#dropZoneFileInfo').hide();
-            $('#btnSubmitUpload').prop('disabled', true);
         });
     }
 
-    function handleSelectedFile(file) {
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                window.handleSelectedFile(this.files[0]);
+            }
+        });
+    }
+
+    $(document).on('click', '#btnRemoveFile', function(e) {
+        e.stopPropagation();
+        if (fileInput) fileInput.value = '';
+        $('#dropZonePrompt').show();
+        $('#dropZoneFileInfo').hide();
+        $('#btnSubmitUpload').prop('disabled', true);
+    });
+
+    window.handleSelectedFile = function(file) {
+        if (!file) return;
+
         var ext = file.name.split('.').pop().toLowerCase();
         if (ext !== 'xlsx') {
             $('#uploadErrorMessage').text('Berkas yang dipilih harus berekstensi .xlsx');
             $('#uploadErrorAlert').show().addClass('d-flex');
-            fileInput.value = '';
+            if (fileInput) fileInput.value = '';
             $('#btnSubmitUpload').prop('disabled', true);
             return;
         }
@@ -878,9 +970,9 @@ $(document).ready(function() {
         $('#dropZonePrompt').hide();
         $('#dropZoneFileInfo').show();
         $('#btnSubmitUpload').prop('disabled', false);
-    }
+    };
 
-    // Modal reset when opened
+    // Modal reset saat dibuka
     var uploadModalEl = document.getElementById('ModalUploadExcelDinamis');
     if (uploadModalEl) {
         uploadModalEl.addEventListener('show.bs.modal', function() {
@@ -890,24 +982,36 @@ $(document).ready(function() {
             $('#uploadProgressContainer').hide();
             $('#uploadErrorAlert').hide().removeClass('d-flex');
             $('#uploadSuccessAlert').hide().removeClass('d-flex');
-            $('#btnSubmitUpload').prop('disabled', true);
+            $('#uploadStep2Container').hide().empty();
+            $('#uploadStep1Container').show();
+            $('#modalDialogUploadDinamis').removeClass('modal-xl').addClass('modal-lg');
+            $('#modalUploadTitle').text('Upload Berkas Excel Tabel Dinamis');
+            $('#modalUploadSubtitle').text('Impor data pengisian tabel dinamis secara otomatis');
+            $('#btnSubmitUpload').prop('disabled', true).html('<i class="bi bi-eye-fill"></i> Lanjut ke Pratinjau');
             $('#btnCancelUpload').prop('disabled', false);
         });
     }
 
-    // AJAX Form Submit
+    // Step 1: Submit Excel File ke Endpoint Pratinjau
     $('#formUploadExcelDinamis').on('submit', function(e) {
         e.preventDefault();
         var formData = new FormData(this);
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+            formData.set('file_excel', fileInput.files[0]);
+        }
+        if (currentCsrfToken && currentCsrfHash) {
+            formData.set(currentCsrfToken, currentCsrfHash);
+        }
         
         $('#uploadProgressContainer').show();
+        $('#uploadStatusText').html('<i class="spinner-border spinner-border-sm me-1"></i> Membaca & memvalidasi integritas struktur berkas...');
         $('#uploadErrorAlert').hide().removeClass('d-flex');
         $('#uploadSuccessAlert').hide().removeClass('d-flex');
         $('#btnSubmitUpload').prop('disabled', true);
         $('#btnCancelUpload').prop('disabled', true);
 
         $.ajax({
-            url: '<?= base_url("admin/upload_excel_dinamis"); ?>',
+            url: '<?= base_url("admin/preview_upload_excel_dinamis"); ?>',
             type: 'POST',
             data: formData,
             processData: false,
@@ -915,53 +1019,16 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(res) {
                 $('#uploadProgressContainer').hide();
+                if (res.csrf_token && res.csrf_hash) {
+                    updateCsrf(res.csrf_token, res.csrf_hash);
+                }
                 if (res.status === 'success') {
-                    $('#uploadSuccessMessage').html(res.message);
-                    $('#uploadSuccessAlert').show().addClass('d-flex');
-
-                    if (typeof Swal !== 'undefined') {
-                        // Sembunyikan modal bootstrap agar tidak menumpuk di latar belakang
-                        var uploadModalEl = document.getElementById('ModalUploadExcelDinamis');
-                        if (uploadModalEl) {
-                            var modalInst = bootstrap.Modal.getInstance(uploadModalEl);
-                            if (modalInst) {
-                                modalInst.hide();
-                            }
-                        }
-
-                        Swal.fire({
-                            html: `
-                                <div class="text-center pt-2 pb-1">
-                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3 shadow-xs" style="width: 56px; height: 56px; background: #ecfdf5; border: 2px solid #a7f3d0; color: #059669;">
-                                        <i class="bi bi-check-lg" style="font-size: 1.85rem;"></i>
-                                    </div>
-                                    <h5 class="fw-bold text-dark mb-2">Impor Berhasil!</h5>
-                                    <p class="text-secondary small mb-3 px-2" style="line-height: 1.55;">
-                                        Data pengisian tabel dinamis berhasil diproses dan disimpan ke database.
-                                    </p>
-                                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-success-subtle text-success border border-success-subtle text-xs fw-semibold">
-                                        <i class="bi bi-database-check"></i>
-                                        <span><b>${res.filled_cells || 0} sel data</b> berhasil diperbarui</span>
-                                    </div>
-                                </div>
-                            `,
-                            confirmButtonText: 'Selesai',
-                            width: '390px',
-                            customClass: {
-                                popup: 'rounded-4 shadow-lg border-0 p-4',
-                                htmlContainer: 'm-0 p-0',
-                                actions: 'mt-3 w-100 justify-content-center border-0 p-0',
-                                confirmButton: 'btn btn-success rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs'
-                            },
-                            buttonsStyling: false
-                        }).then(function() {
-                            window.location.reload();
-                        });
-                    } else {
-                        setTimeout(function() {
-                            window.location.reload();
-                        }, 1500);
-                    }
+                    // Transisi ke Langkah 2: Tampilkan Pratinjau Matriks
+                    $('#uploadStep1Container').hide();
+                    $('#uploadStep2Container').html(res.html_preview).show();
+                    $('#modalDialogUploadDinamis').removeClass('modal-lg').addClass('modal-xl');
+                    $('#modalUploadTitle').text('Pratinjau Impor Data Tabel Dinamis');
+                    $('#modalUploadSubtitle').text('Periksa kesesuaian data sebelum dikomit ke database');
                 } else {
                     $('#uploadErrorMessage').text(res.message || 'Terjadi kesalahan saat memproses berkas Excel.');
                     $('#uploadErrorAlert').show().addClass('d-flex');
@@ -971,6 +1038,9 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 $('#uploadProgressContainer').hide();
+                if (xhr.responseJSON && xhr.responseJSON.csrf_token && xhr.responseJSON.csrf_hash) {
+                    updateCsrf(xhr.responseJSON.csrf_token, xhr.responseJSON.csrf_hash);
+                }
                 var msg = 'Gagal menghubungi server. Pastikan koneksi stabil.';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     msg = xhr.responseJSON.message;
@@ -979,6 +1049,168 @@ $(document).ready(function() {
                 $('#uploadErrorAlert').show().addClass('d-flex');
                 $('#btnSubmitUpload').prop('disabled', false);
                 $('#btnCancelUpload').prop('disabled', false);
+            }
+        });
+    });
+
+    // Step 2: Tombol Ganti Berkas pada Pratinjau
+    $(document).on('click', '#btnPreviewBackToFile', function() {
+        $('#uploadStep2Container').hide().empty();
+        $('#uploadStep1Container').show();
+        $('#modalDialogUploadDinamis').removeClass('modal-xl').addClass('modal-lg');
+        $('#modalUploadTitle').text('Upload Berkas Excel Tabel Dinamis');
+        $('#modalUploadSubtitle').text('Impor data pengisian tabel dinamis secara otomatis');
+        $('#btnSubmitUpload').prop('disabled', false);
+        $('#btnCancelUpload').prop('disabled', false);
+    });
+
+    // Step 2: Konfirmasi & Simpan ke Database
+    $(document).on('click', '#btnPreviewConfirmCommit', function() {
+        var btn = $(this);
+        var token = btn.data('token');
+        var idTabel = $('input[name="id_tahun_tabel"]').val();
+
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan data...');
+        $('#btnPreviewBackToFile').prop('disabled', true);
+
+        var postData = {
+            upload_token: token,
+            id_tahun_tabel: idTabel
+        };
+        if (currentCsrfToken && currentCsrfHash) {
+            postData[currentCsrfToken] = currentCsrfHash;
+        }
+
+        $.ajax({
+            url: '<?= base_url("admin/confirm_upload_excel_dinamis"); ?>',
+            type: 'POST',
+            data: postData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            dataType: 'json',
+            success: function(res) {
+                if (res.csrf_token && res.csrf_hash) {
+                    updateCsrf(res.csrf_token, res.csrf_hash);
+                }
+                if (res.status === 'success') {
+                    var uploadModalEl = document.getElementById('ModalUploadExcelDinamis');
+                    if (uploadModalEl) {
+                        var modalInst = bootstrap.Modal.getInstance(uploadModalEl);
+                        if (modalInst) {
+                            modalInst.hide();
+                        }
+                    }
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            html: `
+                                <div class="text-center pt-2 pb-1">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 64px; height: 64px; background: #ecfdf5; color: #10b981; box-shadow: 0 0 0 10px #f0fdf4;">
+                                        <i class="bi bi-check-lg" style="font-size: 2.25rem;"></i>
+                                    </div>
+                                    <h4 class="fw-bold text-dark mb-1" style="font-size: 1.2rem; letter-spacing: -0.01em;">Impor Data Berhasil!</h4>
+                                    <p class="text-secondary small mb-3 px-2" style="font-size: 0.85rem; line-height: 1.5;">
+                                        Data pengisian tabel dinamis berhasil diverifikasi dan disimpan ke dalam database.
+                                    </p>
+                                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-1" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; font-size: 0.825rem; font-weight: 600;">
+                                        <i class="bi bi-database-check fs-6 text-success"></i>
+                                        <span><b>${res.filled_cells || 0} sel data</b> berhasil diperbarui</span>
+                                    </div>
+                                </div>
+                            `,
+                            confirmButtonText: '<i class="bi bi-check2 me-1"></i> Selesai',
+                            width: '390px',
+                            customClass: {
+                                popup: 'rounded-4 shadow-lg border-0 p-4',
+                                htmlContainer: 'm-0 p-0',
+                                actions: 'mt-3 w-100 justify-content-center border-0 p-0',
+                                confirmButton: 'btn rounded-pill px-5 py-2 text-xs fw-bold text-white shadow-sm'
+                            },
+                            buttonsStyling: false,
+                            didOpen: (popup) => {
+                                const btn = popup.querySelector('.swal2-confirm');
+                                if (btn) {
+                                    btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                                    btn.style.border = 'none';
+                                    btn.style.minWidth = '140px';
+                                }
+                            }
+                        }).then(function() {
+                            window.location.reload();
+                        });
+                    } else {
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                } else {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            html: `
+                                <div class="text-center pt-2 pb-1">
+                                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 60px; height: 60px; background: #fffbeb; color: #d97706; box-shadow: 0 0 0 10px #fefce8;">
+                                        <i class="bi bi-exclamation-circle-fill" style="font-size: 2rem;"></i>
+                                    </div>
+                                    <h5 class="fw-bold text-dark mb-1" style="font-size: 1.1rem;">Peringatan</h5>
+                                    <p class="text-secondary small mb-3 px-2" style="font-size: 0.85rem; line-height: 1.5;">
+                                        ${res.message || 'Gagal menyimpan data ke database.'}
+                                    </p>
+                                </div>
+                            `,
+                            confirmButtonText: 'Mengerti',
+                            width: '370px',
+                            customClass: {
+                                popup: 'rounded-4 shadow-lg border-0 p-4',
+                                htmlContainer: 'm-0 p-0',
+                                actions: 'mt-2 w-100 justify-content-center border-0 p-0',
+                                confirmButton: 'btn btn-warning rounded-pill px-4 py-2 text-xs fw-semibold text-dark shadow-xs'
+                            },
+                            buttonsStyling: false
+                        });
+                    } else {
+                        alert(res.message || 'Gagal menyimpan data ke database.');
+                    }
+                    btn.prop('disabled', false).text('Simpan ke Database');
+                    $('#btnPreviewBackToFile').prop('disabled', false);
+                }
+            },
+            error: function(xhr) {
+                if (xhr.responseJSON && xhr.responseJSON.csrf_token && xhr.responseJSON.csrf_hash) {
+                    updateCsrf(xhr.responseJSON.csrf_token, xhr.responseJSON.csrf_hash);
+                }
+                var errMsg = 'Terjadi kesalahan sistem saat menyimpan data.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errMsg = xhr.responseJSON.message;
+                }
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        html: `
+                            <div class="text-center pt-2 pb-1">
+                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 60px; height: 60px; background: #fef2f2; color: #ef4444; box-shadow: 0 0 0 10px #fff1f2;">
+                                    <i class="bi bi-x-circle-fill" style="font-size: 2rem;"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-1" style="font-size: 1.1rem;">Gagal Menyimpan</h5>
+                                <p class="text-secondary small mb-3 px-2" style="font-size: 0.85rem; line-height: 1.5;">
+                                    ${errMsg}
+                                </p>
+                            </div>
+                        `,
+                        confirmButtonText: 'Tutup',
+                        width: '370px',
+                        customClass: {
+                            popup: 'rounded-4 shadow-lg border-0 p-4',
+                            htmlContainer: 'm-0 p-0',
+                            actions: 'mt-2 w-100 justify-content-center border-0 p-0',
+                            confirmButton: 'btn btn-secondary rounded-pill px-4 py-2 text-xs fw-semibold shadow-xs'
+                        },
+                        buttonsStyling: false
+                    });
+                } else {
+                    alert(errMsg);
+                }
+                btn.prop('disabled', false).text('Simpan ke Database');
+                $('#btnPreviewBackToFile').prop('disabled', false);
             }
         });
     });

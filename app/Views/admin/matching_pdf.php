@@ -129,7 +129,7 @@
                             <i class="bi bi-book-half fs-5"></i>
                         </div>
                         <div>
-                            <h6 id="masterTitle" class="fw-bold text-success-emphasis mb-0" style="font-size: 0.95rem;">DDA Jawa Tengah <?= esc($ta ?? '2026') ?></h6>
+                            <h6 id="masterTitle" class="fw-bold text-success-emphasis mb-0" style="font-size: 0.95rem;">DDA Jawa Tengah <?= esc($ta ?? date('Y')) ?></h6>
                             <span id="masterFileSize" class="text-secondary small" style="font-size: 0.78rem;">Ukuran: <?= esc($master_data['file_size_mb'] ?? '12.4') ?> MB</span>
                         </div>
                     </div>
@@ -158,7 +158,7 @@
                 <div class="mt-4 pt-3 border-top">
                     <span class="section-title mb-2">Informasi Siklus</span>
                     <p class="text-muted small mb-0" style="font-size: 0.75rem; line-height: 1.4;">
-                        File master tersimpan permanen di server untuk Tahun Publikasi <strong><?= esc($ta ?? '2026') ?></strong>. Hasil pengecekan tersimpan abadi dan tidak akan hilang saat browser di-refresh.
+                        File master tersimpan permanen di server untuk Tahun Publikasi <strong><?= esc($ta ?? date('Y')) ?></strong>. Hasil pengecekan tersimpan abadi dan tidak akan hilang saat browser di-refresh.
                     </p>
                 </div>
 
@@ -211,6 +211,7 @@
                 <!-- KPI Cards Interaktif (Klik untuk Filter Cepat) & Export Global -->
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                     <span class="small fw-bold text-secondary"><i class="bi bi-speedometer2 me-1 text-primary"></i>Ringkasan Audit (Klik kartu untuk memfilter):</span>
+
                     <div class="d-flex align-items-center gap-1">
                         <a href="<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>" id="btnDownloadRekapGlobal" target="_blank" class="btn btn-xs btn-success text-white fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Unduh langsung Rekap Excel Multi-Sheet">
                             <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap Global (.xlsx)
@@ -219,6 +220,7 @@
                             <i class="bi bi-arrow-repeat me-1"></i> Buat Ulang
                         </button>
                     </div>
+
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-6 col-md-3">
@@ -530,7 +532,7 @@
 <script>
     let currentPdfPath = <?= json_encode($master_data['pdf_path'] ?? '') ?>;
     let currentDbJsonPath = <?= json_encode($master_data['db_json_path'] ?? '') ?>;
-    let activeYear = '<?= esc($ta ?? '2026') ?>';
+    let activeYear = '<?= esc($ta ?? date('Y')) ?>';
     let hasMasterInitial = <?= !empty($has_master) ? 'true' : 'false' ?>;
     let isBatchRunningInitial = <?= !empty($is_batch_running) ? 'true' : 'false' ?>;
     window.currentMatchedTables = <?= json_encode($master_data['matched_in_pdf'] ?? $master_data['matched_tables'] ?? []) ?>;

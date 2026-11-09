@@ -77,6 +77,7 @@ $unitkerja_nm = $tabel->unitkerja_ind ?? ($indikator->sumber ?? 'Provinsi Jawa T
 if ($unitkerja_nm === '-' || empty($unitkerja_nm)) {
     $unitkerja_nm = 'Provinsi Jawa Tengah';
 }
+$unitkerja_nm = formatInstansiName($unitkerja_nm, $tabel->id_unitkerja ?? '');
 
 // Judul lengkap untuk file export
 $full_export_title = (!empty($no_tabel) ? 'Tabel ' . $no_tabel . ' ' : '') . $cleanJudulInd;

@@ -13,13 +13,13 @@ if ($mode == "edt" || $mode == "act_edt") {
     $email      = $datpil->email;
 
     $db = \Config\Database::connect();
-    $query_unitkerja = $db->query("SELECT * from m_unitkerja where id_unitkerja='$idunitkerja' LIMIT 1")->getRow();
+    $query_unitkerja = $db->query("SELECT * FROM m_unitkerja WHERE id_unitkerja = ? LIMIT 1", [$idunitkerja])->getRow();
     if ($query_unitkerja) {
         $idunitkerja_terpilih = $query_unitkerja->id_unitkerja;
         $unitkerja_terpilih = $query_unitkerja->unitkerja_ind;
     } else {
         $idunitkerja_terpilih = $idunitkerja;
-        $unitkerja_terpilih = "Instansi Tidak Ditemukan ($idunitkerja)";
+        $unitkerja_terpilih = "Instansi Tidak Ditemukan (" . $idunitkerja . ")";
     }
 } else {
     $act        = "act_add";
@@ -52,8 +52,8 @@ if ($mode == "edt" || $mode == "act_edt") {
                 </div>
                 
                 <div class="card-body p-4 pt-3">
-                    <form action="<?php echo base_URL(); ?>index.php/admin/manage_admin/<?php echo $act; ?>" method="post" accept-charset="utf-8">
-                        <input type="hidden" name="idp" value="<?php echo $idp; ?>">
+                    <form action="<?php echo base_URL(); ?>index.php/admin/manage_admin/<?php echo esc($act); ?>" method="post" accept-charset="utf-8">
+                        <input type="hidden" name="idp" value="<?php echo esc($idp); ?>">
 
                         <div class="row g-3">
                             <!-- Left Column: Security Settings -->
@@ -64,7 +64,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Username Login</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-at text-primary-orange"></i></span>
-                                        <input type="text" name="username" required value="<?php echo $username; ?>"
+                                        <input type="text" name="username" required value="<?php echo esc($username); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Username unik" tabindex="1" autofocus>
                                     </div>
                                 </div>
@@ -75,7 +75,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                             <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Password</label>
                                             <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                                 <span class="input-group-text bg-white border-0"><i class="bi bi-key text-primary-orange"></i></span>
-                                                <input type="password" name="password" required value="<?php echo $password; ?>"
+                                                <input type="password" name="password" required value="<?php echo esc($password); ?>"
                                                     class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="••••••••" tabindex="2">
                                             </div>
                                         </div>
@@ -85,7 +85,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                             <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Confirm Password</label>
                                             <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                                 <span class="input-group-text bg-white border-0"><i class="bi bi-shield-check text-primary-orange"></i></span>
-                                                <input type="password" name="password2" required value="<?php echo $password; ?>"
+                                                <input type="password" name="password2" required value="<?php echo esc($password); ?>"
                                                     class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="••••••••" tabindex="3">
                                             </div>
                                         </div>
@@ -102,7 +102,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Email Korespondensi</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-envelope text-primary-orange"></i></span>
-                                        <input type="email" name="email" required value="<?php echo $email; ?>"
+                                        <input type="email" name="email" required value="<?php echo esc($email); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="admin@jatengprov.go.id" tabindex="4">
                                     </div>
                                 </div>
@@ -116,7 +116,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Nama Lengkap</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-person text-primary-orange"></i></span>
-                                        <input type="text" name="nama" required value="<?php echo $nama; ?>"
+                                        <input type="text" name="nama" required value="<?php echo esc($nama); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Nama lengkap beserta gelar" tabindex="5">
                                     </div>
                                 </div>
@@ -125,7 +125,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">N I P</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-upc text-primary-orange"></i></span>
-                                        <input type="text" name="nip" required value="<?php echo $nip; ?>"
+                                        <input type="text" name="nip" required value="<?php echo esc($nip); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="19XXXXXXXXXXXXXX" tabindex="6">
                                     </div>
                                 </div>
@@ -138,19 +138,19 @@ if ($mode == "edt" || $mode == "act_edt") {
                                                 <select name="unitkerja" id="unitkerja" class="form-select border-0 py-2 text-sm" tabindex="8" required>
                                                     <?php
                                                     $db = \Config\Database::connect();
-                                                    $unitkerja_data = $db->query("select * from m_unitkerja order by unitkerja_ind")->getResultArray();
+                                                    $unitkerja_data = $db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind")->getResultArray();
 
                                                     if ($mode == "edt" || $mode == "act_edt") {
-                                                        echo "<option selected value='" . $idunitkerja_terpilih . "'>" . $unitkerja_terpilih . "</option>";
+                                                        echo "<option selected value='" . esc($idunitkerja_terpilih, 'attr') . "'>" . esc($unitkerja_terpilih) . "</option>";
                                                         foreach ($unitkerja_data as $p) {
                                                             if ($p['id_unitkerja'] != $idunitkerja_terpilih) {
-                                                                echo "<option value='" . $p['id_unitkerja'] . "'>" . $p['unitkerja_ind'] . "</option>";
+                                                                echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
                                                             }
                                                         }
                                                     } else {
                                                         echo "<option selected value=''>- Pilih Instansi -</option>";
                                                         foreach ($unitkerja_data as $p) {
-                                                            echo "<option value='" . $p['id_unitkerja'] . "'>" . $p['unitkerja_ind'] . "</option>";
+                                                            echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
                                                         }
                                                     }
                                                     ?>

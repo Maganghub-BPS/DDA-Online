@@ -1079,11 +1079,11 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small mb-1">Nama Kelompok (Bahasa Indonesia) <span class="text-danger">*</span></label>
-                            <input type="text" name="nama_kelompok_ind" id="add_karakteristik_nama_ind" class="form-control" placeholder="Contoh: Sarana Farmasi & Kesehatan" required>
+                            <input type="text" name="nama_kelompok_ind" id="add_karakteristik_nama_ind" class="form-control" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small mb-1">Nama Kelompok (English)</label>
-                            <input type="text" name="nama_kelompok_en" class="form-control" placeholder="Contoh: Pharmaceutical & Health Facilities">
+                            <input type="text" name="nama_kelompok_en" class="form-control">
                         </div>
                     </div>
 
@@ -1252,40 +1252,40 @@
                                 <label class="form-label fw-bold text-dark small mb-1">
                                     <i class="bi bi-tag-fill text-primary me-1"></i>Nama Pilihan Master (Bahasa Indonesia) <span class="text-danger">*</span>
                                 </label>
-                                <input type="text" name="nama_kelompok_ind" id="add_baris_nama_ind" class="form-control form-control-sm" placeholder="Contoh: Lapangan Usaha (17 Sektor)" required>
+                                <input type="text" name="nama_kelompok_ind" id="add_baris_nama_ind" class="form-control form-control-sm" required>
                                 <div class="form-text text-xxs text-muted">Nama unik untuk pilihan dropdown generator tabel admin (tidak boleh kembar).</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
                                     <i class="bi bi-globe text-primary me-1"></i>Nama Pilihan Master (English)
                                 </label>
-                                <input type="text" name="nama_kelompok_en" id="add_baris_nama_en" class="form-control form-control-sm" placeholder="Contoh: Industry (17 Sectors)">
+                                <input type="text" name="nama_kelompok_en" id="add_baris_nama_en" class="form-control form-control-sm">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
                                     <i class="bi bi-table text-primary-orange me-1"></i>Judul Header Tabel Baris (Indonesia) <span class="text-danger">*</span>
                                 </label>
-                                <input type="text" name="judul_baris_ind" id="add_baris_judul_ind" class="form-control form-control-sm" placeholder="Contoh: Lapangan Usaha" required>
+                                <input type="text" name="judul_baris_ind" id="add_baris_judul_ind" class="form-control form-control-sm" required>
                                 <div class="form-text text-xxs text-muted">Judul di kepala baris tabel publikasi & Excel (boleh sama antar kelompok). Otomatis terisi.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
                                     <i class="bi bi-translate text-primary-orange me-1"></i>Judul Header Tabel Baris (English)
                                 </label>
-                                <input type="text" name="judul_baris_en" id="add_baris_judul_en" class="form-control form-control-sm" placeholder="Contoh: Industry">
+                                <input type="text" name="judul_baris_en" id="add_baris_judul_en" class="form-control form-control-sm">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
                                     <i class="bi bi-layout-split text-primary-orange me-1"></i>Judul Kolom Rincian / Sub-Baris (Indonesia)
                                 </label>
-                                <input type="text" name="judul_sub_baris_ind" id="add_baris_judul_sub_ind" class="form-control form-control-sm" placeholder="Contoh: Provinsi (Opsional jika 2 Kolom)">
+                                <input type="text" name="judul_sub_baris_ind" id="add_baris_judul_sub_ind" class="form-control form-control-sm">
                                 <div class="form-text text-xxs text-muted">Kosongkan jika baris biasa (1 kolom). Isi jika baris bertingkat 2 kolom (misal: Provinsi).</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
                                     <i class="bi bi-translate text-primary-orange me-1"></i>Judul Kolom Rincian / Sub-Baris (English)
                                 </label>
-                                <input type="text" name="judul_sub_baris_en" id="add_baris_judul_sub_en" class="form-control form-control-sm" placeholder="Contoh: Province">
+                                <input type="text" name="judul_sub_baris_en" id="add_baris_judul_sub_en" class="form-control form-control-sm">
                             </div>
                         </div>
                     </div>
@@ -1423,21 +1423,21 @@
                     <hr class="my-3">
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-table me-1"></i>Judul Header Tabel Baris (Bahasa Indonesia) <span class="text-danger">*</span></label>
-                        <input type="text" name="judul_baris_ind" id="edit_baris_judul_ind" class="form-control" placeholder="Contoh: Lapangan Usaha" required>
+                        <input type="text" name="judul_baris_ind" id="edit_baris_judul_ind" class="form-control" required>
                         <div class="form-text small text-muted">Teks kepala baris di web publikasi dan Excel (boleh sama antar kelompok).</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-translate me-1"></i>Judul Header Tabel Baris (English)</label>
-                        <input type="text" name="judul_baris_en" id="edit_baris_judul_en" class="form-control" placeholder="Contoh: Industry">
+                        <input type="text" name="judul_baris_en" id="edit_baris_judul_en" class="form-control">
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-layout-split me-1"></i>Judul Kolom Rincian / Sub-Baris (Bahasa Indonesia)</label>
-                        <input type="text" name="judul_sub_baris_ind" id="edit_baris_judul_sub_ind" class="form-control" placeholder="Contoh: Provinsi (Opsional jika 2 Kolom)">
+                        <input type="text" name="judul_sub_baris_ind" id="edit_baris_judul_sub_ind" class="form-control">
                         <div class="form-text small text-muted">Kosongkan jika baris biasa (1 kolom). Isi jika baris bertingkat 2 kolom (misal: Provinsi).</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-translate me-1"></i>Judul Kolom Rincian / Sub-Baris (English)</label>
-                        <input type="text" name="judul_sub_baris_en" id="edit_baris_judul_sub_en" class="form-control" placeholder="Contoh: Province">
+                        <input type="text" name="judul_sub_baris_en" id="edit_baris_judul_sub_en" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light">
@@ -1598,12 +1598,12 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small mb-1">Nama Kelompok (Bahasa Indonesia) <span class="text-danger">*</span></label>
-                            <input type="text" name="nama_kelompok_ind" id="add_periode_nama_ind" class="form-control" placeholder="Contoh: Triwulanan 2025, atau Tahunan 2021-2025" required>
+                            <input type="text" name="nama_kelompok_ind" id="add_periode_nama_ind" class="form-control" required>
                             <div class="text-xxs text-muted mt-1">Nama untuk pilihan dropdown di aplikasi.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small mb-1">Nama Kelompok (English)</label>
-                            <input type="text" name="nama_kelompok_en" id="add_periode_nama_en" class="form-control" placeholder="Contoh: Quarterly 2025, atau Annual 2021-2025">
+                            <input type="text" name="nama_kelompok_en" id="add_periode_nama_en" class="form-control">
                             <div class="text-xxs text-muted mt-1">Label kelompok bahasa Inggris (opsional).</div>
                         </div>
                     </div>
@@ -1614,14 +1614,14 @@
                             <label class="form-label fw-bold text-dark small mb-1">
                                 <i class="bi bi-table text-success me-1"></i> Judul Kolom Header (Indonesia) <span class="text-danger">*</span>
                             </label>
-                            <input type="text" name="judul_periode_ind" id="add_periode_judul_ind" class="form-control form-control-sm" value="Tahun" placeholder="Contoh: Tahun, Triwulan, Bulan" required>
+                            <input type="text" name="judul_periode_ind" id="add_periode_judul_ind" class="form-control form-control-sm" value="Tahun" required>
                             <div class="text-xxs text-muted mt-1">Teks header tabel jika periode dijadikan kolom/baris (misal: <b>Tahun</b>).</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold text-dark small mb-1">
                                 <i class="bi bi-translate text-primary me-1"></i> Judul Kolom Header (English)
                             </label>
-                            <input type="text" name="judul_periode_en" id="add_periode_judul_en" class="form-control form-control-sm" placeholder="Contoh: Year, Quarter, Month">
+                            <input type="text" name="judul_periode_en" id="add_periode_judul_en" class="form-control form-control-sm">
                             <div class="text-xxs text-muted mt-1">Label header bahasa Inggris (misal: <b>Year</b>).</div>
                         </div>
                     </div>
@@ -1703,11 +1703,11 @@
                     <div class="row g-2 p-2 rounded-3 border bg-light mb-2">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small mb-1"><i class="bi bi-table text-success me-1"></i>Judul Kolom Header (ID) <span class="text-danger">*</span></label>
-                            <input type="text" name="judul_periode_ind" id="edit_periode_judul_ind" class="form-control form-control-sm" placeholder="Contoh: Tahun" required>
+                            <input type="text" name="judul_periode_ind" id="edit_periode_judul_ind" class="form-control form-control-sm" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold small mb-1"><i class="bi bi-translate text-primary me-1"></i>Judul Kolom Header (EN)</label>
-                            <input type="text" name="judul_periode_en" id="edit_periode_judul_en" class="form-control form-control-sm" placeholder="Contoh: Year">
+                            <input type="text" name="judul_periode_en" id="edit_periode_judul_en" class="form-control form-control-sm">
                         </div>
                     </div>
                 </div>

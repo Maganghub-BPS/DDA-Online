@@ -13,7 +13,7 @@ $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0'
                         <div class="col-lg-4">
                             <h4 class="mb-1 font-weight-bolder text-dark">Laporan Rekap</h4>
                             <p class="text-sm text-secondary mb-0">
-                                <i class="bi bi-calendar-event me-1 opacity-7"></i> Tahun Anggaran <?php echo $ta; ?>
+                                <i class="bi bi-calendar-event me-1 opacity-7"></i> DDA Tahun <?php echo $ta; ?>
                             </p>
                         </div>
 
@@ -33,11 +33,6 @@ $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0'
                                             ?>
                                         </select>
                                     </div>
-
-                                    <!-- Tombol Kembali -->
-                                    <a href="<?php echo site_url('admin/'); ?>" class="btn btn-sm bg-gradient-light border-radius-lg px-3 mb-0 hover-translate-y d-flex align-items-center" style="height: 38px;">
-                                        <i class="bi bi-arrow-left me-1"></i> Kembali
-                                    </a>
                                 </div>
                             </form>
                         </div>

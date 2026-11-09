@@ -1,6 +1,5 @@
 <?php 
 $unitkerjalogin = session()->get('admin_unitkerja');
-echo session()->getFlashdata("k");
 ?>  
 
 <div class="row mb-3">
@@ -43,8 +42,8 @@ echo session()->getFlashdata("k");
                                 <tr class="opd-row">
                                     <td class="text-center forum-no"><?php echo $no;?></td>
                                     <td class="opd-name">
-                                        <a href="<?php echo base_URL()?>index.php/admin/forum_diskusi/view_topik?id=<?php echo $b->id_unitkerja ;?>" class="text-decoration-none fw-medium text-primary">
-                                            <i class="bi bi-folder2-open me-2 text-warning"></i><?php echo $b->unitkerja_ind;?>
+                                        <a href="<?php echo base_URL()?>index.php/admin/forum_diskusi/view_topik?id=<?php echo esc($b->id_unitkerja, 'url');?>" class="text-decoration-none fw-medium text-primary">
+                                            <i class="bi bi-folder2-open me-2 text-warning"></i><?php echo esc($b->unitkerja_ind);?>
                                         </a>
                                     </td>
                                 </tr>

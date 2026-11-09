@@ -18,9 +18,7 @@
 
                 <div class="card-body p-4 pt-4">
                     <form action="<?php echo base_URL(); ?>index.php/admin/profil/act_edt" method="post" accept-charset="utf-8">
-                        <input type="hidden" name="idp" value="<?php echo $datpil->id; ?>">
-                        
-                        <?php echo session()->getFlashdata("k"); ?>
+                        <input type="hidden" name="idp" value="<?php echo (int)($datpil->id ?? 0); ?>">
 
                         <div class="row g-4">
                             <!-- Field Nama Lengkap -->
@@ -28,7 +26,7 @@
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">Nama Lengkap</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                     <span class="input-group-text bg-white border-0"><i class="bi bi-person text-primary-orange"></i></span>
-                                    <input type="text" name="nama" required value="<?php echo $datpil->nama; ?>" 
+                                    <input type="text" name="nama" required value="<?php echo esc($datpil->nama ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Masukkan nama lengkap" tabindex="1">
                                 </div>
                             </div>
@@ -38,7 +36,7 @@
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">Username</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                     <span class="input-group-text bg-white border-0"><i class="bi bi-at text-primary-orange"></i></span>
-                                    <input type="text" name="username" required value="<?php echo $datpil->username; ?>" 
+                                    <input type="text" name="username" required minlength="4" value="<?php echo esc($datpil->username ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white font-weight-bold" placeholder="Username login" tabindex="2">
                                 </div>
                             </div>
@@ -48,7 +46,7 @@
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">NIP / ID Pegawai</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                     <span class="input-group-text bg-white border-0"><i class="bi bi-card-text text-primary-orange"></i></span>
-                                    <input type="text" name="nip" required value="<?php echo $datpil->nip; ?>" 
+                                    <input type="text" name="nip" required value="<?php echo esc($datpil->nip ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Masukkan NIP" tabindex="3">
                                 </div>
                             </div>
@@ -58,7 +56,7 @@
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">Alamat Email</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                     <span class="input-group-text bg-white border-0"><i class="bi bi-envelope text-primary-orange"></i></span>
-                                    <input type="email" name="email" required value="<?php echo $datpil->email; ?>" 
+                                    <input type="email" name="email" required value="<?php echo esc($datpil->email ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="nama@instansi.go.id" tabindex="4">
                                 </div>
                             </div>
@@ -71,7 +69,7 @@
                                     </div>
                                     <div>
                                         <h6 class="text-sm mb-0 fw-bold">Keamanan Akun</h6>
-                                        <p class="text-xs text-secondary mb-0">Tingkat Akses: <span class="badge bg-primary-soft text-primary-orange border-0 py-1 px-2"><?php echo strtoupper($datpil->level); ?></span></p>
+                                        <p class="text-xs text-secondary mb-0">Tingkat Akses: <span class="badge bg-primary-soft text-primary-orange border-0 py-1 px-2"><?php echo esc(strtoupper((string)($datpil->level ?? ''))); ?></span></p>
                                     </div>
                                     <div class="ms-auto">
                                         <a href="<?php echo base_url(); ?>admin/passwod" class="btn btn-outline-primary btn-xs mb-0 border-radius-md px-3">

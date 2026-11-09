@@ -98,8 +98,12 @@
     <div class="col-lg-12">
         <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 12px;">
             <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <?php
+                    $is_bps_user = (session()->get('admin_unitkerja') == 'bps') || (!empty($is_bps));
+                    $back_url = $is_bps_user ? base_url('admin/dda') : base_url('admin');
+                ?>
                 <div class="d-flex align-items-center">
-                    <a href="<?php echo base_url(); ?>admin/dda" class="btn btn-sm btn-light border-0 me-3 shadow-none bg-light-subtle" style="border-radius: 8px;"><i class="bi bi-arrow-left"></i></a>
+                    <a href="<?= $back_url; ?>" class="btn btn-sm btn-light border-0 me-3 shadow-none bg-light-subtle" style="border-radius: 8px;" title="Kembali"><i class="bi bi-arrow-left"></i></a>
                     <div>
                         <h5 class="fw-bold mb-0 text-dark" style="letter-spacing: -0.02em;">
                             Pemeriksaan Tabel DDA
@@ -108,18 +112,20 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-nowrap filter-search-container">
-                    <!-- Filter Publish Pill Buttons -->
-                    <div class="btn-group btn-group-sm bg-light p-1 rounded-3 flex-shrink-0 d-inline-flex align-items-center" role="group" id="filterPublishGroup" style="border: 1px solid #e9ecef; height: 38px;">
-                        <button type="button" class="btn btn-sm active fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="all" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
-                            Semua
-                        </button>
-                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="published" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
-                            <i class="bi bi-eye-fill text-success me-1"></i> Publik
-                        </button>
-                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="draft" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
-                            <i class="bi bi-eye-slash-fill text-secondary me-1"></i> Draft
-                        </button>
-                    </div>
+                    <?php if (can('input_dda_publish')): ?>
+                        <!-- Filter Publish Pill Buttons -->
+                        <div class="btn-group btn-group-sm bg-light p-1 rounded-3 flex-shrink-0 d-inline-flex align-items-center" role="group" id="filterPublishGroup" style="border: 1px solid #e9ecef; height: 38px;">
+                            <button type="button" class="btn btn-sm active fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="all" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                                Semua
+                            </button>
+                            <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="published" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                                <i class="bi bi-eye-fill text-success me-1"></i> Publik
+                            </button>
+                            <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="draft" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                                <i class="bi bi-eye-slash-fill text-secondary me-1"></i> Draft
+                            </button>
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Search Input -->
                     <div class="input-group input-group-sm flex-nowrap flex-shrink-0" style="width: 250px; height: 38px;">
@@ -139,16 +145,18 @@
                 <thead>
                     <tr>
                         <th width="4%" class="text-center">#</th>
-                        <th width="40%">Informasi Tabel</th>
-                        <th width="21%">Status Pengisian</th>
-                        <th width="21%">Status Verifikasi</th>
-                        <th width="14%" class="text-center">Status Tampil</th>
+                        <th width="<?= can('input_dda_publish') ? '40%' : '48%'; ?>">Informasi Tabel</th>
+                        <th width="<?= can('input_dda_publish') ? '21%' : '24%'; ?>">Status Pengisian</th>
+                        <th width="<?= can('input_dda_publish') ? '21%' : '24%'; ?>">Status Verifikasi</th>
+                        <?php if (can('input_dda_publish')): ?>
+                            <th width="14%" class="text-center">Status Tampil</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php 
                     if (empty($data)) {
-                        echo "<tr><td colspan='5' class='text-center py-5 text-muted'><i class='bi bi-info-circle me-2 d-block mb-3 display-6 opacity-25'></i>Tabel tidak ditemukan</td></tr>";
+                        echo "<tr><td colspan='" . (can('input_dda_publish') ? 5 : 4) . "' class='text-center py-5 text-muted'><i class='bi bi-info-circle me-2 d-block mb-3 display-6 opacity-25'></i>Tabel tidak ditemukan</td></tr>";
                     } else {
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
@@ -166,7 +174,8 @@
                         <td class="tabel-judul-cell">
                             <?php 
                             if ($is_dynamic) {
-                                $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id);
+                                $thTargetView = !empty($thPeriodeDda) ? $thPeriodeDda : (!empty($ta) ? ((int)$ta - 1) : (date('Y') - 1));
+                                $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id) . '?tahun=' . $thTargetView;
                             } else {
                                 $tabel_url = $b->link_tabel;
                                 if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
@@ -179,7 +188,7 @@
                             }
                             ?>
                             <div class="d-flex flex-column gap-1">
-                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary" style="font-size: 0.95rem; line-height: 1.4;">
+                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary" style="font-size: 0.95rem; line-height: 1.4;" title="Klik untuk membuka dan mengisi tabel">
                                     <?php echo htmlspecialchars($judul_bersih); ?>
                                 </a>
                                 <div class="d-flex align-items-center gap-2 mt-1">
@@ -203,6 +212,12 @@
                                             <i class="bi bi-file-spreadsheet me-1"></i> GOOGLE SHEET
                                         </a>
                                     <?php endif; ?>
+                                    <a href="<?= base_url('admin/dda/kondef?id=' . $b->id); ?>" 
+                                       class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 text-decoration-none shadow-xs d-inline-flex align-items-center" 
+                                       style="font-size: 10px; font-weight: 600; border-radius: 6px;" 
+                                       title="Lihat Konsep & Definisi">
+                                        <i class="bi bi-info-circle me-1"></i> KONDEF
+                                    </a>
                                     <span class="text-muted" style="font-size: 10px;"><i class="bi bi-hash me-1"></i>ID: <?php echo $b->id; ?></span>
                                 </div>
                             </div>
@@ -212,8 +227,8 @@
                         <td>
                             <div class="status-container">
                                 <?php 
-                                $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
-                                $is_sudah_diisi = ($is_portal) || ((int)($b->is_periksa ?? 0) === 1);
+                                $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([^\r\n]+)/iu', $b->catatan_periksa, $m));
+                                $is_sudah_diisi = ((int)($b->is_periksa ?? 0) === 1);
                                 ?>
                                 <?php if($is_sudah_diisi): ?>
                                     <span class="badge bg-success-subtle text-success border-0 align-self-start status-badge">
@@ -224,41 +239,50 @@
                                             Tersinkronisasi otomatis dengan Portal Data
                                         <?php elseif($is_dynamic && $is_dynamic_uploaded): ?>
                                             <?php
-                                            $uploader = trim($m[1]);
-                                            $waktu    = trim($m[2]);
+                                             $uploader = trim($m[1]);
+                                             $waktu    = trim($m[2]);
                                             ?>
                                             <div class="text-dark fw-semibold" style="font-size: 0.77rem; line-height: 1.35;">
                                                 <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
                                             </div>
                                             <div class="text-muted mt-1" style="font-size: 0.72rem;">
-                                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?><?= (!str_ends_with($waktu, 'WIB') ? ' WIB' : ''); ?>
                                             </div>
                                         <?php else: ?>
                                             <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? htmlspecialchars($b->catatan_periksa) : ($is_dynamic ? 'Data telah terisi di sistem' : 'Diinput melalui sheet manual'); ?>
                                         <?php endif; ?>
                                     </div>
                                     <?php if($is_dynamic): ?>
-                                        <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-2">
-                                            <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
-                                                    data-id="<?php echo $b->id; ?>" 
-                                                    data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
-                                                    data-catatan="<?php echo htmlspecialchars($b->catatan ?? '', ENT_QUOTES); ?>"
-                                                    title="Tambahkan atau Ubah Catatan untuk Walidata">
-                                                <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
-                                            </button>
-                                        </div>
-                                        <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
-                                            <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
-                                                <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
-                                                <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                        <?php if ($is_bps_user): ?>
+                                            <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-2">
+                                                <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
+                                                        data-id="<?php echo $b->id; ?>" 
+                                                        data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                                        data-catatan="<?php echo htmlspecialchars($b->catatan ?? '', ENT_QUOTES); ?>"
+                                                        title="Tambahkan atau Ubah Catatan untuk Walidata">
+                                                    <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
+                                                </button>
                                             </div>
+                                            <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
+                                                <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                                    <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
+                                                    <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning d-none" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                                    <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
+                                                    <div class="text-secondary catatan-text"></div>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php else: ?>
-                                            <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning d-none" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
-                                                <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
-                                                <div class="text-secondary catatan-text"></div>
-                                            </div>
+                                            <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
+                                                <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                                    <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-exclamation-circle-fill me-1 text-warning"></i>Catatan dari BPS / Pembina LO:</div>
+                                                    <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php endif; ?>
-                                    <?php elseif(!$is_portal): ?>
+                                    <?php elseif(!$is_portal && $is_bps_user): ?>
                                         <div class="action-group">
                                             <a href="<?php echo base_url(); ?>admin/batal_isi/<?php echo $b->id; ?>" 
                                                class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-isi" 
@@ -272,14 +296,27 @@
                                     <span class="badge bg-danger-subtle text-danger border-0 align-self-start status-badge">
                                         <i class="bi bi-dash-circle-fill me-1"></i> BELUM DIISI
                                     </span>
-                                    <div class="action-group">
-                                        <?php if($is_dynamic): ?>
-                                            <a href="<?php echo $tabel_url; ?>"
-                                               class="btn btn-action-sm btn-primary text-white shadow-sm"
-                                               title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
-                                                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Isi Data
-                                            </a>
-                                        <?php else: ?>
+                                    <?php if($is_portal): ?>
+                                        <div class="note-text text-danger mt-1" style="font-size: 0.73rem;">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Tahun data (<?= $thPeriodeDda; ?>) belum tersedia di Portal Data
+                                            <?php if(!empty($b->tahun_tersedia)): ?>
+                                                <div class="text-muted" style="font-size: 0.70rem;">(Tersedia: <?= htmlspecialchars($b->tahun_tersedia); ?>)</div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php elseif($is_dynamic): ?>
+                                        <?php if ($is_bps_user): ?>
+                                            <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
+                                                <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
+                                                        data-id="<?php echo $b->id; ?>" 
+                                                        data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                                        data-catatan="<?php echo htmlspecialchars($b->catatan ?? '', ENT_QUOTES); ?>"
+                                                        title="Tambahkan atau Ubah Catatan untuk Walidata">
+                                                    <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
+                                                </button>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
                                             <a href="javascript:;"
                                                class="btn btn-action-sm btn-warning text-white btn-isi-data shadow-sm"
                                                data-id="<?php echo $b->id; ?>"
@@ -287,8 +324,22 @@
                                                data-unit="<?php echo htmlspecialchars($b->id_unitkerja, ENT_QUOTES); ?>">
                                                 <i class="bi bi-plus-circle me-1"></i> Update Status
                                             </a>
-                                        <?php endif; ?>
-                                    </div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
+                                        <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                            <div class="fw-bold text-warning-emphasis mb-0.5">
+                                                <i class="bi <?= $is_bps_user ? 'bi-chat-left-quote-fill' : 'bi-exclamation-circle-fill text-warning'; ?> me-1"></i>
+                                                <?= $is_bps_user ? 'Catatan Anda untuk Walidata:' : 'Catatan dari BPS / Pembina LO:'; ?>
+                                            </div>
+                                            <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                        </div>
+                                    <?php elseif ($is_bps_user && $is_dynamic): ?>
+                                        <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning d-none" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                            <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
+                                            <div class="text-secondary catatan-text"></div>
+                                        </div>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </td>
@@ -303,7 +354,7 @@
                                     <div class="note-text">
                                         <i class="bi bi-chat-right-text me-1 opacity-50"></i> <?php echo (!empty($b->catatan)) ? htmlspecialchars($b->catatan) : 'Tanpa catatan'; ?>
                                     </div>
-                                    <?php if(session()->get('admin_unitkerja') == 'bps'): ?>
+                                    <?php if($is_bps_user): ?>
                                         <div class="action-group">
                                             <a href="<?php echo base_url(); ?>admin/batal_verif/<?php echo $b->id; ?>" 
                                                class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-verif" 
@@ -317,13 +368,13 @@
                                     <span class="badge bg-warning-subtle text-warning border-0 align-self-start status-badge">
                                         <i class="bi bi-clock-history me-1"></i> MENUNGGU CEK
                                     </span>
-                                    <?php if(session()->get('admin_unitkerja') == 'bps' && !empty($is_sudah_diisi)): ?>
+                                    <?php if($is_bps_user && !empty($is_sudah_diisi)): ?>
                                         <div class="action-group">
                                             <button class="btn btn-action-sm btn-info text-white konfirmasi_modal shadow-sm" id="<?php echo $b->id;?>">
                                                 <i class="bi bi-shield-check me-1"></i> Verifikasi Data
                                             </button>
                                         </div>
-                                    <?php elseif(session()->get('admin_unitkerja') == 'bps'): ?>
+                                    <?php elseif($is_bps_user): ?>
                                         <div class="note-text text-muted mt-1" style="font-size: 0.72rem;">
                                             <i class="bi bi-info-circle me-1"></i>Menunggu data diisi
                                         </div>
@@ -332,6 +383,7 @@
                             </div>
                         </td>
 
+                    <?php if (can('input_dda_publish')): ?>
                         <!-- STATUS TAMPIL (PUBLISH SWITCH) -->
                         <?php
                             $user_lvl_sess = strtolower(trim(session()->get('admin_level') ?? ''));
@@ -342,7 +394,7 @@
 
                             if (!$is_admin_or_super) {
                                 $switch_disabled = true;
-                                $switch_title = '<i class="bi bi-shield-x text-danger me-1"></i>Hanya Admin & Super Admin';
+                                $switch_title = '<i class="bi bi-shield-x text-danger me-1"></i>Hanya Admin yang berwenang mengubah status publikasi';
                                 $switch_cursor = 'not-allowed';
                             } elseif ($is_published) {
                                 // Jika tabel saat ini sedang aktif (Publik), admin dapat mematikan ke Draft kapan saja (tanpa tooltip)
@@ -411,7 +463,7 @@
                                 <div id="pub-status-label-<?= $b->id ?>" class="mt-1">
                                     <?php if (!$has_link): ?>
                                         <span class="badge bg-light text-muted border px-2 py-0.5" style="font-size: 10px; font-weight: 600;">
-                                            <i class="bi bi-link-45deg me-0.5"></i> Tanpa Link
+                                             <i class="bi bi-link-45deg me-0.5"></i> Tanpa Link
                                         </span>
                                     <?php elseif ($is_published): ?>
                                         <span class="badge bg-success-subtle text-success border-0 px-2 py-0.5" style="font-size: 10px; font-weight: 700;">
@@ -425,13 +477,14 @@
                                 </div>
                             </div>
                         </td>
+                    <?php endif; ?>
                     </tr>
                     <?php 
                         }
                     }
                     ?>
                     <tr class="no-result-row d-none" id="noResultRow">
-                        <td colspan="5" class="text-center py-5">
+                        <td colspan="<?= can('input_dda_publish') ? 5 : 4; ?>" class="text-center py-5">
                             <i class="bi bi-search-heart display-4 text-muted opacity-25 d-block mb-3"></i>
                             <span class="text-secondary fw-medium">Tidak ada tabel yang sesuai dengan kata kunci Anda</span>
                         </td>

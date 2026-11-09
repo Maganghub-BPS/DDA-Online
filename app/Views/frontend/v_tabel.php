@@ -1137,6 +1137,7 @@ if ($primary_result):
     if ($unitkerja_nm_main === '-' || empty($unitkerja_nm_main)) {
         $unitkerja_nm_main = 'Provinsi Jawa Tengah';
     }
+    $unitkerja_nm_main = formatInstansiName($unitkerja_nm_main, $primary_result['id_unitkerja'] ?? '');
 
     // --- 1. DETEKSI SEMUA TAHUN UNIK DARI DATA API ---
     $unique_years = [];
@@ -1202,7 +1203,7 @@ if ($primary_result):
         $selected_years = array_values(array_intersect(array_map('trim', $req_list), $unique_years));
     }
     if (empty($selected_years) && !empty($unique_years)) {
-        $selected_years = [max($unique_years)]; // Hanya pilih 1 tahun paling baru
+        $selected_years = $unique_years; // Default: Tampilkan semua tahun yang ada
     }
 
     // Format Judul Dinamis Standar BPS Berdasarkan Tahun Terpilih
@@ -1749,6 +1750,7 @@ if ($primary_result):
                             if ($unitkerja_nm === '-' || empty($unitkerja_nm)) {
                                 $unitkerja_nm = 'Provinsi Jawa Tengah';
                             }
+                            $unitkerja_nm = formatInstansiName($unitkerja_nm, $api_result['id_unitkerja'] ?? '');
                     ?>
                     
                     <?php if ($idx_res > 0): ?>
@@ -1888,7 +1890,7 @@ if ($primary_result):
                     <?php endif; ?>
 
                     <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;" class="table-footer-notes">
-                        <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($api_result['unitkerja_ind'] ?? '-'); ?></div>
+                        <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($unitkerja_nm); ?></div>
                     </div>
                 </div>
             <?php endforeach; ?>
