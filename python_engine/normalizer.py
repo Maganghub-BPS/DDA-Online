@@ -213,7 +213,7 @@ PROVINSI_REGISTRY = [
     ("18", "Lampung", ["lampung"]),
     ("19", "Kep. Bangka Belitung", ["bangka belitung", "babel", "kep. bangka belitung", "kepulauan bangka belitung"]),
     ("21", "Kepulauan Riau", ["kepulauan riau", "kep. riau", "kepri"]),
-    ("31", "DKI Jakarta", ["dki jakarta", "jakarta"]),
+    ("31", "DKI Jakarta", ["dki jakarta", "dki jakaarta", "jakarta"]),
     ("32", "Jawa Barat", ["jawa barat", "jabar"]),
     ("33", "Jawa Tengah", ["jawa tengah", "jateng"]),
     ("34", "DI Yogyakarta", ["yogyakarta", "d.i. yogyakarta", "diy"]),
@@ -277,6 +277,10 @@ def is_safe_fuzzy_match(s1, s2):
     grades1 = set(re.findall(r'\b[a-e]\b', str(s1).lower()))
     grades2 = set(re.findall(r'\b[a-e]\b', str(s2).lower()))
     if grades1 != grades2:
+        return False
+    p1 = find_provinsi(str(s1).rsplit(' - ', 1)[-1].rsplit(' || ', 1)[-1])
+    p2 = find_provinsi(str(s2).rsplit(' - ', 1)[-1].rsplit(' || ', 1)[-1])
+    if (p1 or p2) and p1 != p2:
         return False
     return True
 
@@ -526,7 +530,7 @@ def is_header_or_metadata_row(row):
     if any(k in ctx for k in ['laki-laki', 'perempuan', 'female', 'male', 'jenis kelamin', 'sex', 'pangkat', 'golongan', 'tingkat pendidikan']):
         if plain_nums == 0: return True
 
-    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit']):
+    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit', 'jenis pelayaran', 'ship sector', 'unit kapal', 'ship unit', 'gross tonage', 'non pelayaran', 'non-shipping', 'samudra', 'nusantara', 'tunker', 'kementerian', 'ministry', 'pagu dipa', 'realisasi']):
         if plain_nums == 0: return True
         
     return False

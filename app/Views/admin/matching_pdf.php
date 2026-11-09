@@ -211,9 +211,14 @@
                 <!-- KPI Cards Interaktif (Klik untuk Filter Cepat) & Export Global -->
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                     <span class="small fw-bold text-secondary"><i class="bi bi-speedometer2 me-1 text-primary"></i>Ringkasan Audit (Klik kartu untuk memfilter):</span>
-                    <a href="<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>" target="_blank" class="btn btn-xs btn-outline-success fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;">
-                        <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Export Rekap Global (.xls)
-                    </a>
+                    <div class="d-flex align-items-center gap-1">
+                        <a href="<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>" id="btnDownloadRekapGlobal" target="_blank" class="btn btn-xs btn-success text-white fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Unduh langsung Rekap Excel Multi-Sheet">
+                            <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap Global (.xlsx)
+                        </a>
+                        <button type="button" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" onclick="triggerGenerateRekapModal(true)" title="Generate Ulang Rekap Excel di Background">
+                            <i class="bi bi-arrow-repeat me-1"></i> Buat Ulang
+                        </button>
+                    </div>
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-6 col-md-3">
@@ -419,6 +424,69 @@
       </div>
       <div class="modal-footer border-top bg-light">
         <button type="button" class="btn btn-secondary btn-sm rounded-3 fw-bold px-4 py-2" data-bs-dismiss="modal">Tutup Laporan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Generate Rekap Global Excel (Background Worker) -->
+<div class="modal fade" id="modalExportRekap" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="modal-header bg-light border-bottom py-3">
+        <div class="d-flex align-items-center gap-2">
+          <div class="rounded-circle bg-success-subtle text-success p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+            <i class="bi bi-file-earmark-spreadsheet-fill fs-5"></i>
+          </div>
+          <div>
+            <h6 class="modal-title fw-bold text-dark mb-0">Penyusunan Rekap Global Excel</h6>
+            <div class="text-muted" style="font-size: 0.75rem;">Multi-Sheet: 1 Sheet Per Tabel (Khusus Data Selisih)</div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="btnCloseExportModal"></button>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <!-- Running state -->
+        <div id="exportRunningState">
+          <div class="spinner-border text-success mb-3" style="width: 2.5rem; height: 2.5rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <h6 class="fw-bold text-dark mb-1" id="exportProgressTitle">Memulai Background Worker...</h6>
+          <p class="text-muted small mb-3" id="exportProgressSubtitle">Mengekstrak data selisih dan menyusun format matriks berdampingan (PDF vs Database).</p>
+          
+          <div class="progress mb-2 rounded-pill" style="height: 12px; background-color: #e2e8f0;">
+            <div id="exportProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success rounded-pill" role="progressbar" style="width: 0%;"></div>
+          </div>
+          <div class="d-flex justify-content-between small text-muted px-1 mb-3">
+            <span id="exportProgressTable" class="fw-semibold text-primary">Tabel -</span>
+            <span id="exportProgressPercent" class="fw-bold text-dark">0%</span>
+          </div>
+
+          <div class="alert alert-light border small text-start py-2 px-3 text-secondary mb-3">
+            <i class="bi bi-info-circle-fill text-primary me-1"></i> <strong>Zero Freeze:</strong> Proses ini berjalan di background thread Python. Localhost dan halaman lain tetap dapat digunakan dengan lancar tanpa lag.
+          </div>
+
+          <button type="button" class="btn btn-sm btn-outline-danger px-3 rounded-pill" onclick="cancelExportWorker()">
+            <i class="bi bi-x-circle me-1"></i> Batalkan Proses
+          </button>
+        </div>
+
+        <!-- Completed state -->
+        <div id="exportCompletedState" style="display: none;">
+          <div class="rounded-circle bg-success-subtle text-success mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
+            <i class="bi bi-check-circle-fill fs-2"></i>
+          </div>
+          <h6 class="fw-bold text-dark mb-1">Rekap Global Excel Berhasil Dibuat!</h6>
+          <p class="text-muted small mb-3" id="exportCompletedInfo">File multi-sheet siap diunduh dan dibuka di Microsoft Excel.</p>
+          <div class="d-grid gap-2">
+            <a href="<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>" id="btnDownloadFinishedExcel" class="btn btn-success fw-bold py-2 rounded-pill shadow-xs">
+              <i class="bi bi-download me-1"></i> Unduh File Rekap (.xlsx)
+            </a>
+            <button type="button" class="btn btn-light text-secondary rounded-pill py-1 small" data-bs-dismiss="modal">
+              Tutup
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1589,10 +1657,14 @@
         if (!modalEl.classList.contains('show')) {
             modal.show();
         }
+        let foundItemInitial = window.currentMatchedTables ? window.currentMatchedTables.find(t => t.nomor_tabel === nomor_tabel) : null;
+        let tTitleInitial = foundItemInitial ? (foundItemInitial.judul_db || foundItemInitial.judul_pdf || '') : '';
+
         $('#diffContent').html(`
             <div class="text-center py-5">
                 <div class="spinner-border text-primary mb-3" style="width:2.5rem; height:2.5rem;" role="status"></div>
                 <h6 class="text-dark fw-bold mb-1">Menganalisa & Membandingkan Data Tabel ${nomor_tabel}...</h6>
+                ${tTitleInitial ? `<div class="text-primary fw-semibold small mb-2" style="font-size:0.95rem;">${tTitleInitial}</div>` : ''}
                 <p class="text-muted small">Sedang mengunduh sumber data terbaru dan mencocokkan setiap sel angka ${tolerance > 0 ? `(Toleransi: ±${tolerance})` : ''}.</p>
             </div>
         `);
@@ -1660,18 +1732,21 @@
                         <!-- Header Box -->
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-3 border-bottom">
                             <div>
-                                <h5 class="fw-black text-dark mb-1">
-                                    <i class="bi bi-table text-primary me-2"></i>Tabel ${nomor_tabel}
-                                    ${pagesLabel ? `<span class="badge bg-light text-secondary border ms-2 fw-normal" style="font-size:0.78rem;"><i class="bi bi-book me-1"></i>PDF ${pagesLabel}</span>` : ''}
-                                </h5>
+                                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                    <span class="badge bg-primary px-2.5 py-1 fw-bold fs-6">
+                                        <i class="bi bi-table me-1"></i>Tabel ${nomor_tabel}
+                                    </span>
+                                    ${pagesLabel ? `<span class="badge bg-light text-secondary border fw-normal" style="font-size:0.78rem;"><i class="bi bi-book me-1"></i>PDF ${pagesLabel}</span>` : ''}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill fw-semibold" style="font-size:0.75rem;">
+                                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sumber: ${res.source_type}
+                                    </span>
+                                </div>
+                                ${((foundItem && (foundItem.judul_db || foundItem.judul_pdf)) || res.judul_tabel) ? `<h5 class="fw-bold text-dark mb-1" style="font-size:1.12rem; line-height:1.4;">${(foundItem ? (foundItem.judul_db || foundItem.judul_pdf) : '') || res.judul_tabel}</h5>` : `<h5 class="fw-bold text-dark mb-1">Tabel ${nomor_tabel}</h5>`}
                                 <div class="text-muted small">
-                                    Hasil pemindaian langsung (live scan) tabel ${nomor_tabel} antara cetakan buku PDF dengan database resmi.
+                                    Hasil pemindaian langsung (live scan) antara cetakan buku PDF dengan database resmi.
                                 </div>
                             </div>
                             <div class="d-flex align-items-center flex-wrap gap-2">
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fs-6 fw-bold">
-                                    <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sumber: ${res.source_type}
-                                </span>
                                 <button type="button" onclick="togglePdfSplitView()" class="btn btn-sm btn-outline-primary fw-bold rounded-pill px-3 py-2 shadow-xs btn-toggle-split-pdf">
                                     <i class="bi bi-layout-split me-1"></i> Sandingkan PDF Asli (${pagesLabel || 'PDF'})
                                 </button>
@@ -2350,6 +2425,12 @@ ${getPdfSplitPaneHtml(pagesLabel)}
             renderAllMatchedRows();
             updateBatchCounters();
 
+            checkRekapAvailability();
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('trigger_export') === '1') {
+                triggerGenerateRekapModal(true);
+            }
+
             if (isBatchRunningInitial) {
                 window.isBatchRunning = true;
                 $('#btnBatchVerify').prop('disabled', true).addClass('opacity-50');
@@ -2705,5 +2786,134 @@ ${getPdfSplitPaneHtml(pagesLabel)}
     function escapeHtml(text) {
         if (!text) return '';
         return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // ==========================================
+    // REKAP GLOBAL EXCEL (BACKGROUND WORKER & CACHE)
+    // ==========================================
+    let exportPollTimer = null;
+
+    function checkRekapAvailability() {
+        $.ajax({
+            url: "<?= base_url('admin/ajax_check_rekap_excel') ?>",
+            type: "GET",
+            data: { ta: activeYear },
+            dataType: "json",
+            success: function(res) {
+                if (res.is_running) {
+                    openExportModal();
+                    pollExportProgress();
+                } else if (res.file_exists) {
+                    $('#btnDownloadRekapGlobal').removeClass('btn-outline-success').addClass('btn-success text-white');
+                    $('#btnDownloadRekapGlobal').attr('title', `Ukuran: ${res.filesize_kb} KB | Dibuat: ${res.updated_at}`);
+                }
+            }
+        });
+    }
+
+    function triggerGenerateRekapModal(forceRebuild = false) {
+        if (!forceRebuild) {
+            $.ajax({
+                url: "<?= base_url('admin/ajax_check_rekap_excel') ?>",
+                type: "GET",
+                data: { ta: activeYear },
+                dataType: "json",
+                success: function(res) {
+                    if (res.file_exists && !res.is_running) {
+                        window.location.href = res.download_url;
+                        return;
+                    }
+                    openExportModal();
+                    startExportWorker();
+                }
+            });
+            return;
+        }
+        openExportModal();
+        startExportWorker();
+    }
+
+    function openExportModal() {
+        $('#exportRunningState').show();
+        $('#exportCompletedState').hide();
+        $('#exportProgressBar').css('width', '0%');
+        $('#exportProgressPercent').text('0%');
+        $('#exportProgressTable').text('Menyiapkan...');
+        let myModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalExportRekap'));
+        myModal.show();
+    }
+
+    function startExportWorker() {
+        $.ajax({
+            url: "<?= base_url('admin/start_export_rekap') ?>",
+            type: "POST",
+            data: { ta: activeYear },
+            dataType: "json",
+            success: function(res) {
+                if (res.status === 'success') {
+                    pollExportProgress();
+                } else {
+                    alert("Gagal memulai export: " + (res.message || 'Error'));
+                    let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
+                    if (myModal) myModal.hide();
+                }
+            },
+            error: function() {
+                alert("Gagal terhubung ke server untuk memulai export.");
+            }
+        });
+    }
+
+    function pollExportProgress() {
+        if (exportPollTimer) clearTimeout(exportPollTimer);
+        $.ajax({
+            url: "<?= base_url('admin/get_export_progress') ?>",
+            type: "GET",
+            data: { ta: activeYear },
+            dataType: "json",
+            success: function(res) {
+                let pct = res.percent || 0;
+                let cur = res.current_table || 'Sedang memproses...';
+                $('#exportProgressBar').css('width', pct + '%');
+                $('#exportProgressPercent').text(pct + '%');
+                $('#exportProgressTable').text(cur);
+
+                if (res.file_ready && !res.is_running) {
+                    $('#exportRunningState').hide();
+                    $('#exportCompletedState').show();
+                    if (res.download_url) {
+                        $('#btnDownloadFinishedExcel').attr('href', res.download_url);
+                    }
+                    $('#btnDownloadRekapGlobal').removeClass('btn-outline-success').addClass('btn-success text-white');
+                    return;
+                }
+
+                if (res.status === 'stopped') {
+                    let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
+                    if (myModal) myModal.hide();
+                    alert("Proses rekap dibatalkan.");
+                    return;
+                }
+
+                exportPollTimer = setTimeout(pollExportProgress, 1200);
+            },
+            error: function() {
+                exportPollTimer = setTimeout(pollExportProgress, 2500);
+            }
+        });
+    }
+
+    function cancelExportWorker() {
+        $.ajax({
+            url: "<?= base_url('admin/stop_export_rekap') ?>",
+            type: "POST",
+            data: { ta: activeYear },
+            dataType: "json",
+            success: function() {
+                if (exportPollTimer) clearTimeout(exportPollTimer);
+                let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
+                if (myModal) myModal.hide();
+            }
+        });
     }
 </script>

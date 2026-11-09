@@ -65,8 +65,9 @@ def clean_footnote_markers(s):
     if not s:
         return ""
     s = s.replace('\ufffd', '-').replace('–', '-').replace('—', '-')
-    # Footnote pada tahun: 20241), 20241, 2024*), 2024a) -> 2024
+    # Footnote pada tahun: 20241), 20241, 2024*), 2024*, 2024a) -> 2024
     s = re.sub(r'\b((?:19|20)\d{2})[1-9\*\^a-zA-Z]?\)', r'\1', s)
+    s = re.sub(r'\b((?:19|20)\d{2})[\*\^]+(?=\s|[/\-,]|$)', r'\1', s)
     s = re.sub(r'\b((?:19|20)\d{2})[1-9](?:,[1-9])?(?=\s|[/\-,]|$)', r'\1', s)
     s = re.sub(r'(?<=[a-zA-Z])[1-9](?=[/\s,]|$)', '', s)
     return re.sub(r'\s+', ' ', s).strip()
@@ -93,7 +94,8 @@ def split_bilingual(text):
         if '/' in s and not re.match(r'^\d{4}/\d{4}$', s):
             low = s.lower()
             if not any(k in low for k in ['kabupaten/kota', 'desa/kelurahan', 'lereng/puncak', 'negeri/swasta', 'laki/perempuan', 'kota/kabupaten', 'u/d', 's/d']):
-                parts = [p.strip() for p in s.split('/', 1)]
+                use_rsplit = s.count('/') >= 2 and not is_english_line(s.split('/', 1)[1].split('/')[0])
+                parts = [p.strip() for p in (s.rsplit('/', 1) if use_rsplit else s.split('/', 1))]
                 if len(parts) == 2 and parts[0] and parts[1]:
                     return (parts[0], parts[1])
         return (s, s)
@@ -102,7 +104,8 @@ def split_bilingual(text):
     if '/' in joined and not re.search(r'\d{4}/\d{4}', joined):
         low = joined.lower()
         if not any(k in low for k in ['kabupaten/kota', 'desa/kelurahan', 'lereng/puncak', 'regency/municipality']):
-            parts = [p.strip() for p in joined.split('/', 1)]
+            use_rsplit = joined.count('/') >= 2 and not is_english_line(joined.split('/', 1)[1].split('/')[0])
+            parts = [p.strip() for p in (joined.rsplit('/', 1) if use_rsplit else joined.split('/', 1))]
             if len(parts) == 2 and parts[0] and parts[1]:
                 return (parts[0], parts[1])
 
@@ -146,55 +149,72 @@ def extract_table_structure_from_pdf(pdf_path, pages):
         page = doc[p - 1]
         strip_pdf_page_watermark(doc, page)
         import io, contextlib
+        def _detect_col_nums(grid_cand):
+            c_idx_found = -1
+            c_nums_found = {}
+            for r_idx, row in enumerate(grid_cand[:10]):
+                matches = 0
+                temp_map = {}
+                for c_idx, cell in enumerate(row):
+                    c_clean = clean_cell_text(cell)
+                    m = re.search(r'\((\d+)\)', c_clean)
+                    if m:
+                        matches += 1
+                        temp_map[c_idx] = int(m.group(1))
+                if matches >= 2 and 1 in temp_map.values():
+                    c_idx_found = r_idx
+                    c_nums_found = temp_map
+                    break
+            if c_idx_found == -1:
+                for r_idx, row in enumerate(grid_cand[:10]):
+                    temp_map = {}
+                    seq_vals = []
+                    for c_idx, cell in enumerate(row):
+                        c_clean = clean_cell_text(cell).strip()
+                        if c_clean.isdigit():
+                            v = int(c_clean)
+                            if 1 <= v <= 30:
+                                temp_map[c_idx] = v
+                                seq_vals.append(v)
+                    if len(seq_vals) >= 3 and 1 in seq_vals:
+                        is_seq = all(seq_vals[i] < seq_vals[i+1] for i in range(len(seq_vals)-1))
+                        if is_seq:
+                            c_idx_found = r_idx
+                            c_nums_found = temp_map
+                            break
+            if c_idx_found != -1 and c_idx_found >= len(grid_cand) - 1:
+                return -1, {}
+            return c_idx_found, c_nums_found
+
         with contextlib.redirect_stdout(io.StringIO()):
             tabs = page.find_tables()
-        if not tabs.tables:
-            continue
         extracted_tables = []
-        for t in tabs.tables:
-            try:
-                g = t.extract()
-                if g and len(g) >= 3:
-                    extracted_tables.append((len(g) * len(g[0]), g))
-            except Exception:
-                pass
-        if not extracted_tables:
-            continue
-        _, raw_grid = max(extracted_tables, key=lambda x: x[0])
-
-        col_num_idx = -1
-        col_nums = {}
-        for r_idx, row in enumerate(raw_grid[:10]):
-            matches = 0
-            temp_map = {}
-            for c_idx, cell in enumerate(row):
-                c_clean = clean_cell_text(cell)
-                m = re.search(r'\((\d+)\)', c_clean)
-                if m:
-                    matches += 1
-                    temp_map[c_idx] = int(m.group(1))
-            if matches >= 2 and 1 in temp_map.values():
-                col_num_idx = r_idx
-                col_nums = temp_map
-                break
+        if tabs and tabs.tables:
+            for t in tabs.tables:
+                try:
+                    g = t.extract()
+                    if g and len(g) >= 3:
+                        extracted_tables.append((len(g) * len(g[0]), g))
+                except Exception:
+                    pass
+        raw_grid = max(extracted_tables, key=lambda x: x[0])[1] if extracted_tables else []
+        col_num_idx, col_nums = _detect_col_nums(raw_grid) if raw_grid else (-1, {})
 
         if col_num_idx == -1:
-            for r_idx, row in enumerate(raw_grid[:10]):
-                temp_map = {}
-                seq_vals = []
-                for c_idx, cell in enumerate(row):
-                    c_clean = clean_cell_text(cell).strip()
-                    if c_clean.isdigit():
-                        v = int(c_clean)
-                        if 1 <= v <= 30:
-                            temp_map[c_idx] = v
-                            seq_vals.append(v)
-                if len(seq_vals) >= 3 and 1 in seq_vals:
-                    is_seq = all(seq_vals[i] < seq_vals[i+1] for i in range(len(seq_vals)-1))
-                    if is_seq:
-                        col_num_idx = r_idx
-                        col_nums = temp_map
-                        break
+            try:
+                try:
+                    from pdf_extractor import get_cached_page_tables
+                except ImportError:
+                    from python_engine.pdf_extractor import get_cached_page_tables
+                fb_grid = get_cached_page_tables(pdf_path, p)
+                if fb_grid and len(fb_grid) >= 3:
+                    fb_idx, fb_nums = _detect_col_nums(fb_grid)
+                    if fb_idx != -1:
+                        raw_grid = fb_grid
+                        col_num_idx = fb_idx
+                        col_nums = fb_nums
+            except Exception:
+                pass
 
         if col_num_idx == -1:
             continue
@@ -296,12 +316,19 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                 val = hr_ff[ci] if ci < len(hr_ff) else ""
                 if val and (not col_path or col_path[-1] != val):
                     col_path.append(val)
+            norm_path = tuple(re.sub(r'\s+', ' ', clean_footnote_markers(p)).strip().lower() for p in col_path)
+            existing_norm_paths = {
+                tuple(re.sub(r'\s+', ' ', clean_footnote_markers(p)).strip().lower() for p in ep)
+                for ep in data_col_headers.values()
+            }
             if cn in data_col_headers:
-                if data_col_headers[cn] != col_path and col_path:
+                if col_path and norm_path not in existing_norm_paths:
                     new_cn = max(data_col_headers.keys()) + 1
                     data_col_headers[new_cn] = col_path
             else:
-                data_col_headers[cn] = col_path
+                if not (len(page_analyze) > 1 and pa is not first_pa and norm_path in existing_norm_paths):
+                    target_cn = (max(data_col_headers.keys()) + 1) if (pa is not first_pa and data_col_headers and cn <= max(data_col_headers.keys())) else cn
+                    data_col_headers[target_cn] = col_path
 
     sorted_col_nums = sorted(data_col_headers.keys())
     if not sorted_col_nums:
@@ -313,18 +340,23 @@ def extract_table_structure_from_pdf(pdf_path, pages):
     last_col1 = ""
 
     for pa in page_analyze:
-        pa_col_nums = set([cn for ci, cn in pa["col_nums"].items() if (ci > sub_row_ci if sub_row_ci is not None else cn > 1)])
-        if pa["page"] != first_pa["page"] and pa_col_nums != first_page_col_nums:
-            continue
         grid = pa["grid"]
         c_row_idx = pa["col_num_idx"]
         if sub_row_ci is not None:
             data_c_indices = sorted([ci for ci, cn in pa["col_nums"].items() if ci > sub_row_ci])
         else:
             data_c_indices = sorted([ci for ci, cn in pa["col_nums"].items() if cn > 1])
+        if not data_c_indices:
+            continue
         first_data_ci = data_c_indices[0]
 
         for r in grid[c_row_idx + 1:]:
+            try:
+                from normalizer import is_header_or_metadata_row
+                if is_header_or_metadata_row(r):
+                    continue
+            except Exception:
+                pass
             if sub_row_ci is not None:
                 # Kolom 1 (Kategori / Jenis Komoditi)
                 col1_parts = [clean_cell_text(r[ci]) for ci in range(sub_row_ci) if ci < len(r) and clean_cell_text(r[ci])]
@@ -349,6 +381,9 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                 col1_ind, col1_en = split_bilingual(full_col1)
                 col2_ind, col2_en = split_bilingual(full_col2)
 
+                if col1_ind.lower().strip() in ('jumlah', 'total', 'jumlah/total', 'total/jumlah'):
+                    last_col1 = ""
+
                 if full_col2:
                     row_ind = f"{col1_ind} || {col2_ind}".strip()
                     row_en = f"{col1_en} || {col2_en}".strip()
@@ -365,7 +400,21 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                 norm_key = row_ind.lower()
                 if norm_key not in seen_row_keys:
                     seen_row_keys.add(norm_key)
-                    extracted_rows.append({"ind": row_ind, "en": row_en, "raw": full_label})
+                    new_item = {"ind": row_ind, "en": row_en, "raw": full_label}
+                    if full_col2:
+                        prefix_low = f"{col1_ind.lower().strip()} || "
+                        last_grp_idx = -1
+                        for idx_er, er in enumerate(extracted_rows):
+                            if er["ind"].lower().startswith(prefix_low):
+                                last_grp_idx = idx_er
+                        if last_grp_idx >= 0:
+                            extracted_rows.insert(last_grp_idx + 1, new_item)
+                        elif extracted_rows and extracted_rows[-1]["ind"].lower().strip() in ('jumlah', 'total', 'jumlah/total'):
+                            extracted_rows.insert(len(extracted_rows) - 1, new_item)
+                        else:
+                            extracted_rows.append(new_item)
+                    else:
+                        extracted_rows.append(new_item)
             else:
                 label_parts = []
                 for ci in range(first_data_ci):
@@ -394,6 +443,10 @@ def extract_table_structure_from_pdf(pdf_path, pages):
     all_last_are_periods = all(
         len(data_col_headers[cn]) >= 1 and is_period_token(data_col_headers[cn][-1])
         for cn in sorted_col_nums
+    )
+    all_first_are_periods = (
+        not all_last_are_periods and
+        all(len(data_col_headers[cn]) >= 2 and is_period_token(data_col_headers[cn][0]) for cn in sorted_col_nums)
     )
 
     periods = []
@@ -431,6 +484,32 @@ def extract_table_structure_from_pdf(pdf_path, pages):
                     karakteristik_items.append({"item_ind": kar_ind, "item_en": kar_en})
         else:
             posisi_hirarki = "periode_atas"
+    elif all_first_are_periods:
+        posisi_hirarki = "periode_atas"
+        for cn in sorted_col_nums:
+            p_tok = normalize_period_token(data_col_headers[cn][0])
+            if p_tok not in periods:
+                periods.append(p_tok)
+        seen_kar = set()
+        for cn in sorted_col_nums:
+            lower_path = data_col_headers[cn][1:]
+            if not lower_path:
+                continue
+            ind_parts = []
+            en_parts = []
+            for lp in lower_path:
+                u_ind, u_en = split_bilingual(lp)
+                clean_lp = lp.lower().replace(' ', '')
+                if ('+' in lp) and any(k in clean_lp for k in ['laki-laki+perempuan', 'laki+perempuan', 'male+female', 'pria+wanita', 'l+p', 'wni+wna', 'negeri+swasta']):
+                    u_ind = "Jumlah"
+                    u_en = "Total"
+                ind_parts.append(u_ind)
+                en_parts.append(u_en)
+            kar_ind = " || ".join(ind_parts)
+            kar_en = " || ".join(en_parts)
+            if kar_ind.lower() not in seen_kar:
+                seen_kar.add(kar_ind.lower())
+                karakteristik_items.append({"item_ind": kar_ind, "item_en": kar_en})
     else:
         posisi_hirarki = "kolom_atas"
         for cn in sorted_col_nums:

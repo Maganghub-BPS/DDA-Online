@@ -2189,11 +2189,42 @@ class M_tabeldinamis extends Model
             }
 
             $hasRenderedTotal = false;
+            $isSubRowHierarchy = (($indikator->tampilan_baris ?? '1_kolom') === '2_kolom')
+                && !in_array(strtolower(trim((string)($kelompokBaris->judul_sub_baris_ind ?? ''))), ['', 'satuan', 'unit'], true);
+            $parentHasChildren = [];
+            if ($isSubRowHierarchy) {
+                $curPId = null;
+                foreach ($itemsBaris as $bItem) {
+                    $bLvl = (int)($bItem->level_indentasi ?? 0);
+                    if ($bLvl === 0) {
+                        $curPId = (int)$bItem->id;
+                        $parentHasChildren[$curPId] = false;
+                    } elseif ($curPId !== null) {
+                        $parentHasChildren[$curPId] = true;
+                    }
+                }
+            }
+            $currentParentBaris = '';
 
             foreach ($itemsBaris as $baris) {
                 $idB = (int)$baris->id;
                 $tipeBaris = strtolower(trim($baris->tipe_baris ?? ''));
                 $namaBaris = trim((string)($baris->nama_baris_ind ?? ($baris->item_ind ?? '')));
+                if ($isSubRowHierarchy) {
+                    $lvlBaris = (int)($baris->level_indentasi ?? 0);
+                    if ($lvlBaris === 0) {
+                        if (!empty($parentHasChildren[$idB])) {
+                            $currentParentBaris = $namaBaris;
+                            continue;
+                        }
+                        $currentParentBaris = '';
+                    } else {
+                        $tipeBaris = 'data';
+                        if ($currentParentBaris !== '') {
+                            $namaBaris = $currentParentBaris . ' - ' . $namaBaris;
+                        }
+                    }
+                }
                 $lowerBaris = strtolower($namaBaris);
 
                 if (!$tipeBaris) {

@@ -125,10 +125,15 @@ def detect_active_data_cols(source_data):
                     if num_val >= 2:
                         is_unit_col = any(
                             re.search(r'\b(?:satuan|unit)\b', clean_header_text(r[col_idx]).lower())
+                            and not re.search(r'\b(?:pendidikan|kapal|kerja|usaha|rumah)\b', clean_header_text(r[col_idx]).lower())
                             for r in source_data[:bps_row_idx]
                             if isinstance(r, list) and col_idx < len(r) and r[col_idx]
                         )
-                        if not is_row_num and (is_mostly_numeric or is_empty_target_col) and not is_unit_col:
+                        has_valid_hdr = any(
+                            isinstance(r, list) and col_idx < len(r) and r[col_idx] is not None and str(r[col_idx]).strip()
+                            for r in source_data[:bps_row_idx]
+                        )
+                        if not is_row_num and (is_mostly_numeric or (is_empty_target_col and has_valid_hdr)) and not is_unit_col:
                             data_col_indices.append(col_idx)
         if data_col_indices: return data_col_indices
     
@@ -632,10 +637,16 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                 else:
                     score -= 80.0
             elif target_year and py:
-                if target_year == py:
+                if target_year == py or str(py).endswith('/' + str(target_year)) or str(py).startswith(str(target_year) + '/'):
                     score += 40.0
                 else:
                     score -= 20.0
+
+            all_valid_years = [y for y in (src_years + pdf_years) if y]
+            max_yr_in_tbl = max(all_valid_years) if all_valid_years else None
+            is_empty_s_col = all((s_vals[s_idx] is None or s_vals[s_idx] == 0.0) for s_vals in src_dict.values() if s_idx < len(s_vals)) if src_dict else False
+            if is_empty_s_col and sy and max_yr_in_tbl and sy < max_yr_in_tbl:
+                score -= 200.0
 
             # 3. SEMANTIC TOKEN MATCHING
             st = src_tokens[s_idx]
@@ -952,7 +963,7 @@ def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_tab
                 headers.append('Jumlah')
 
             grid = [headers]
-            num_data_cols = len(headers) - (len(row_keys) if row_keys else 1)
+            num_data_cols = len(cats) * len(val_keys)
             col_sums = [0.0] * num_data_cols
 
             for ent in entities:
@@ -977,7 +988,8 @@ def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_tab
                 for cs in col_sums:
                     tot_row.append(int(cs) if cs.is_integer() else cs)
                 if pivot.get('total_row', True):
-                    tot_row.append(int(sum(col_sums)) if sum(col_sums).is_integer() else sum(col_sums))
+                    grand_tot = sum(col_sums)
+                    tot_row.append(int(grand_tot) if grand_tot.is_integer() else grand_tot)
                 grid.append(tot_row)
 
             return grid

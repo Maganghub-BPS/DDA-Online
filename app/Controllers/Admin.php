@@ -3092,14 +3092,26 @@ class Admin extends BaseController
 					", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
 				}
 				if (!$dda_info && $this->db->tableExists('m_konfigurasi_api')) {
-					$dda_info = $this->db->query("
-						SELECT m.id, m.no_tabel, COALESCE(ka.tahun_tersedia, '') as periode_id, '' as periode_en, m.judul_ind, m.judul_en, ka.config_tabel, u.unitkerja_ind, u.unitkerja_en
-						FROM m_list_tabel m 
-						LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
-						LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-						WHERE ka.link_api REGEXP ? OR ka.id_api = ?
-						LIMIT 1
-					", ['id=' . $id_p . '([^0-9]|$)', $id_p])->getRow();
+					if ($table_id > 0) {
+						$dda_info = $this->db->query("
+							SELECT m.id, m.no_tabel, COALESCE(ka.tahun_tersedia, '') as periode_id, '' as periode_en, m.judul_ind, m.judul_en, ka.config_tabel, u.unitkerja_ind, u.unitkerja_en
+							FROM m_list_tabel m 
+							LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+							LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+							WHERE m.id = ?
+							LIMIT 1
+						", [$table_id])->getRow();
+					}
+					if (!$dda_info) {
+						$dda_info = $this->db->query("
+							SELECT m.id, m.no_tabel, COALESCE(ka.tahun_tersedia, '') as periode_id, '' as periode_en, m.judul_ind, m.judul_en, ka.config_tabel, u.unitkerja_ind, u.unitkerja_en
+							FROM m_list_tabel m 
+							LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+							LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+							WHERE ka.link_api REGEXP ? OR ka.id_api = ?
+							LIMIT 1
+						", ['id=' . $id_p . '([^0-9]|$)', $id_p])->getRow();
+					}
 				}
 
 				$final_res = $meta_info;
@@ -3120,6 +3132,7 @@ class Admin extends BaseController
 		$a['api_results']  = $all_results;
 		$a['api_errors']   = $api_error_msgs;
 		$a['id_api']       = $id_api;
+		$a['table_id']     = $table_id;
 		$a['page']         = "v_portal_tabel";
 
 		return view('admin/index', $a);
@@ -3743,10 +3756,13 @@ class Admin extends BaseController
 					ELSE 0 
 				END as is_dynamic,
 					ka.config_tabel,
-					m.jenis_sumber
+					m.jenis_sumber,
+					u.unitkerja_ind,
+					u.jenis_instansi
 				FROM m_list_tabel m
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
+				LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
 				WHERE m.is_active = 1
 				ORDER BY m.id ASC
 			");
@@ -3777,6 +3793,8 @@ class Admin extends BaseController
 					'link_tabel'    => $r['link_tabel'],
 					'is_dynamic'    => $isDyn,
 					'source_type'   => $sourceType,
+					'instansi'      => $r['unitkerja_ind'] ?? '',
+					'jenis_instansi'=> $r['jenis_instansi'] ?? '',
 					'config_tabel'  => $r['config_tabel'] ?? null,
 					'dynamic_empty' => $dynInfo ? (bool)$dynInfo['dynamic_empty'] : ($isDyn === 1),
 					'dynamic_grid'  => $dynInfo ? ($dynInfo['dynamic_grid'] ?? []) : [],
@@ -5244,10 +5262,22 @@ class Admin extends BaseController
 		$isAllYearNumbers = !empty($periods) && empty(array_filter($periods, function($p) {
 			return !preg_match('/^\d{4}$/', trim((string)$p));
 		}));
+		$isAllAcademicYears = !empty($periods) && empty(array_filter($periods, function($p) {
+			return !preg_match('/^(\d{4})\s*\/\s*(\d{4})$/', trim((string)$p));
+		}));
+		$tahunTampilPdf = null;
 
 		if ($isAllYearNumbers) {
 			$tipePeriode = 'tahunan';
 			$idPeriodeKelompok = null;
+			$tahunTampilPdf = implode(',', array_map('intval', $periods));
+		} elseif ($isAllAcademicYears) {
+			$tipePeriode = 'tahun_ajaran';
+			$idPeriodeKelompok = null;
+			$startYrs = array_map(function($p) {
+				return (int)substr(trim((string)$p), 0, 4);
+			}, $periods);
+			$tahunTampilPdf = implode(',', $startYrs);
 		} elseif (!empty($periods)) {
 			$targetPerNorm = array_map(function ($p) {
 				return mb_strtolower(trim((string)$p));
@@ -5380,6 +5410,7 @@ class Admin extends BaseController
 			'konfigurasi_total'         => $konfigurasiTotal,
 			'format_nomor_baris'        => 'none',
 			'desimal'                   => isset($ext['desimal']) ? (int)$ext['desimal'] : 0,
+			'tahun_tampil'              => $tahunTampilPdf,
 			'updated_at'                => $now,
 		];
 
@@ -5667,7 +5698,207 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+		$pdfMaster = $uploadPath . "dda_master_{$ta}.pdf";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
 
+		// EKSPOR MULTI-SHEET EXCEL SESUAI KERANGKA BOS ANAS:
+		// 1. 1 Sheet Per Tabel (Nama Sheet: "Tabel [nomor_tabel]")
+		// 2. Tabel Cocok 100% otomatis dikecualikan agar file fokus hanya pada data bermasalah
+		// 3. Matriks kolom berpasangan: PDF vs Database
+		// 4. INSTANT SERVE: Jika file sudah ada, langsung kirim ke browser dalam 0,05 detik!
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
+		if (file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000) {
+			return $this->response->download($canonicalExcel, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}.xlsx");
+		}
+
+		// Cek jika ada file generate sebelumnya dengan timestamp
+		$recentFiles = glob($uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}_*.xlsx");
+		if (!empty($recentFiles)) {
+			usort($recentFiles, function($a, $b) {
+				return filemtime($b) - filemtime($a);
+			});
+			$latest = $recentFiles[0];
+			if (file_exists($latest) && filesize($latest) > 5000) {
+				@copy($latest, $canonicalExcel);
+				return $this->response->download($latest, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}.xlsx");
+			}
+		}
+
+		// Jika belum ada file, arahkan ke halaman matching_pdf dengan trigger untuk generate di modal
+		return redirect()->to("admin/matching_pdf?ta={$ta}&trigger_export=1");
+	}
+
+	/**
+	 * Mengecek status ketersediaan file Rekap Global Excel (.xlsx) dan status worker background
+	 */
+	public function ajax_check_rekap_excel()
+	{
+		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
+
+		$exists = file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000;
+		$mtimeStr = $exists ? date('d M Y H:i', filemtime($canonicalExcel)) : null;
+		$fileSizeKb = $exists ? round(filesize($canonicalExcel) / 1024, 1) : 0;
+
+		$isRunning = false;
+		$percent = 0;
+		$curTable = '';
+		if (file_exists($progressJson)) {
+			$pData = json_decode(@file_get_contents($progressJson), true) ?? [];
+			$isRunning = !empty($pData['is_running']);
+			$percent = $pData['percent'] ?? 0;
+			$curTable = $pData['current_table'] ?? '';
+			if ($isRunning && !empty($pData['updated_at']) && (time() - $pData['updated_at'] > 600)) {
+				$isRunning = false;
+			}
+		}
+
+		return $this->response->setJSON([
+			'status' => 'success',
+			'file_exists' => $exists,
+			'filesize_kb' => $fileSizeKb,
+			'updated_at' => $mtimeStr,
+			'is_running' => $isRunning,
+			'percent' => $percent,
+			'current_table' => $curTable,
+			'download_url' => base_url("admin/export_rekap_matching?ta={$ta}")
+		]);
+	}
+
+	/**
+	 * Memulai background worker untuk menyusun Rekap Global Excel Multi-Sheet
+	 */
+	public function start_export_rekap()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$pdfMaster = $uploadPath . "dda_master_{$ta}.pdf";
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
+		$stopFile = $progressJson . '.stop';
+
+		if (file_exists($stopFile)) {
+			@unlink($stopFile);
+		}
+
+		if (!file_exists($pdfMaster) || !file_exists($matchedJson) || !file_exists($dbJson) || !file_exists($stateJson)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data hasil verifikasi belum lengkap']);
+		}
+
+		// Pastikan tidak ada worker duplikat yang sedang berjalan
+		if (file_exists($progressJson)) {
+			$pData = json_decode(@file_get_contents($progressJson), true) ?? [];
+			if (!empty($pData['is_running']) && !empty($pData['updated_at']) && (time() - $pData['updated_at'] < 180)) {
+				return $this->response->setJSON(['status' => 'success', 'message' => 'Worker rekap sudah berjalan', 'already_running' => true]);
+			}
+		}
+
+		// Inisialisasi status progress
+		$initProg = [
+			'status' => 'running',
+			'is_running' => true,
+			'completed' => 0,
+			'total' => 0,
+			'percent' => 0,
+			'current_table' => 'Menyiapkan proses...',
+			'updated_at' => time()
+		];
+		@file_put_contents($progressJson, json_encode($initProg));
+
+		$pyScript = FCPATH . "../python_engine/export_global_excel.py";
+		$errLog = $uploadPath . "dda_export_stderr_{$ta}.log";
+		$cmd = "start /B python " . escapeshellarg($pyScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($matchedJson) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($stateJson) . " " . escapeshellarg($canonicalExcel) . " 0.0 " . escapeshellarg($progressJson) . " > NUL 2>" . escapeshellarg($errLog);
+
+		pclose(popen($cmd, "r"));
+
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Background worker rekap excel berhasil dimulai']);
+	}
+
+	/**
+	 * Mengambil progres terkini dari background worker Rekap Global Excel
+	 */
+	public function get_export_progress()
+	{
+		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}.xlsx";
+
+		$prog = [
+			'status' => 'idle',
+			'is_running' => false,
+			'completed' => 0,
+			'total' => 0,
+			'percent' => 0,
+			'current_table' => '',
+			'file_ready' => false
+		];
+
+		if (file_exists($progressJson)) {
+			$raw = @file_get_contents($progressJson);
+			if (!empty($raw)) {
+				$parsed = json_decode($raw, true);
+				if (is_array($parsed)) {
+					$prog = array_merge($prog, $parsed);
+				}
+			}
+		}
+
+		if (file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000) {
+			$prog['file_ready'] = true;
+			$prog['download_url'] = base_url("admin/export_rekap_matching?ta={$ta}");
+			$prog['filesize_kb'] = round(filesize($canonicalExcel) / 1024, 1);
+			$prog['updated_at'] = date('d M Y H:i', filemtime($canonicalExcel));
+		}
+
+		return $this->response->setJSON($prog);
+	}
+
+	/**
+	 * Menghentikan proses background worker Rekap Global Excel
+	 */
+	public function stop_export_rekap()
+	{
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}.json";
+		$stopFile = $progressJson . '.stop';
+		@file_put_contents($stopFile, '1');
+
+		if (file_exists($progressJson)) {
+			$pData = json_decode(@file_get_contents($progressJson), true) ?? [];
+			$pData['is_running'] = false;
+			$pData['status'] = 'stopped';
+			$pData['current_table'] = 'Dibatalkan oleh pengguna';
+			@file_put_contents($progressJson, json_encode($pData));
+		}
+
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Proses rekap excel berhasil dihentikan']);
+	}
+
+	/**
+	 * Legacy Fallback HTML-Table Export (.xls)
+	 */
+	public function export_rekap_matching_legacy()
+	{
 		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
 		$uploadPath = WRITEPATH . 'uploads/';

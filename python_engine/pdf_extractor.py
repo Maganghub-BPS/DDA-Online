@@ -37,6 +37,51 @@ def strip_empty_table_columns(table):
     return table
 
 
+def extract_page_tables_robust(clean_page):
+    """Ekstraksi tabel dari halaman PDF dengan fallback unskew untuk garis/poligon yang sedikit miring."""
+    page_tables = clean_page.extract_tables()
+    if page_tables:
+        return page_tables
+    h_lines = []
+    v_lines = []
+    p_height = float(getattr(clean_page, 'height', 842.0) or 842.0)
+    for c in getattr(clean_page, 'curves', []) or []:
+        pts = c.get('pts', [])
+        path = c.get('path', [])
+        if len(pts) >= 2 and all(op[0] in ('m', 'l', 'h') for op in path):
+            for i in range(len(pts) - 1):
+                x0, y0 = pts[i]
+                x1, y1 = pts[i + 1]
+                if abs(y1 - y0) < 3.0 and abs(x1 - x0) > 5.0:
+                    ym = (y0 + y1) / 2.0
+                    h_lines.append({
+                        'x0': min(x0, x1), 'x1': max(x0, x1),
+                        'top': ym, 'bottom': ym,
+                        'y0': p_height - ym, 'y1': p_height - ym,
+                        'width': abs(x1 - x0), 'height': 0,
+                        'orientation': 'h', 'object_type': 'line'
+                    })
+                elif abs(x1 - x0) < 3.0 and abs(y1 - y0) > 5.0:
+                    xm = (x0 + x1) / 2.0
+                    v_lines.append({
+                        'x0': xm, 'x1': xm,
+                        'top': min(y0, y1), 'bottom': max(y0, y1),
+                        'y0': p_height - max(y0, y1), 'y1': p_height - min(y0, y1),
+                        'width': 0, 'height': abs(y1 - y0),
+                        'orientation': 'v', 'object_type': 'line'
+                    })
+    if h_lines and v_lines:
+        return clean_page.extract_tables({
+            'vertical_strategy': 'explicit',
+            'horizontal_strategy': 'explicit',
+            'explicit_vertical_lines': v_lines,
+            'explicit_horizontal_lines': h_lines,
+            'snap_tolerance': 3,
+            'join_tolerance': 3,
+        })
+    return []
+
+
 def get_cached_page_tables(pdf_path, page_num):
     cache_key = (pdf_path, page_num)
     with _PDF_PAGE_CACHE_LOCK:
@@ -47,7 +92,7 @@ def get_cached_page_tables(pdf_path, page_num):
         if 0 <= page_num - 1 < len(pdf.pages):
             page = pdf.pages[page_num - 1]
             clean_page = page.filter(is_valid_table_char)
-            page_tables = clean_page.extract_tables()
+            page_tables = extract_page_tables_robust(clean_page)
             res = []
             for t in page_tables:
                 res.extend(strip_empty_table_columns(t))
@@ -130,7 +175,7 @@ def stitch_table_pages(pdf_path, pages):
         if prev_cols and curr_cols:
             max_prev = max(c[1] for c in prev_cols)
             curr_data_nums = [c[1] for c in curr_cols if c[1] > 1]
-            if curr_data_nums and any(n > max_prev or n >= 5 for n in curr_data_nums):
+            if curr_data_nums and any(n > max_prev and n > max((c[1] for c in page_col_info[0][1]), default=0) for n in curr_data_nums):
                 has_horiz = True
                 break
 
@@ -153,7 +198,7 @@ def stitch_table_pages(pdf_path, pages):
         else:
             prev_num, prev_data, prev_b_idx, prev_b_cols = current_block[-1]
             prev_col_nums = [c[1] for c in prev_b_cols]
-            if any(n > max(prev_col_nums) for n in col_numbers if n > 1):
+            if any(n > max(prev_col_nums) and n > max((c[1] for c in page_col_info[0][1]), default=0) for n in col_numbers if n > 1):
                 blocks.append(current_block)
                 current_block = [(p_num, all_pages_data[p_idx], bps_idx, bps_cols)]
             else:
@@ -278,7 +323,7 @@ def extract_table_content(pdf_path, target_pdf_info):
                 if 0 <= p - 1 < len(pdf.pages):
                     page = pdf.pages[p - 1]
                     clean_page = page.filter(is_valid_table_char)
-                    tables = clean_page.extract_tables()
+                    tables = extract_page_tables_robust(clean_page)
                     p_rows = []
                     for t in tables:
                         p_rows.extend(strip_empty_table_columns(t))
