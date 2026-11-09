@@ -23,16 +23,7 @@ $unitkerjalogin = session()->get('admin_unitkerja');
                                 <option value="vertikal" <?php echo (isset($selected_jenis) && $selected_jenis == 'vertikal') ? 'selected' : ''; ?>>Organisasi Vertikal</option>
                             </select>
                             <?php endif; ?>
-                            <select name="filter_tahun" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto; min-width: 135px;">
-                                <option value="all" <?php echo (isset($selected_tahun) && $selected_tahun == 'all') ? 'selected' : ''; ?>>-- Semua Tahun --</option>
-                                <?php 
-                                for ($i = 2020; $i <= (date('Y')+1); $i++) {
-                                    $sel = (isset($selected_tahun) && $selected_tahun == $i) ? 'selected' : '';
-                                    echo "<option value='$i' $sel>$i</option>";
-                                }
-                                ?>
-                            </select>
-                            <?php if((isset($selected_tahun) && $selected_tahun != 'all') || (isset($selected_jenis) && $selected_jenis != 'all')): ?>
+                            <?php if(isset($selected_jenis) && $selected_jenis != 'all'): ?>
                                 <a href="<?php echo base_url(); ?>index.php/admin/dda?action=reset_dda" class="btn btn-sm btn-light border text-danger d-inline-flex align-items-center justify-content-center" title="Reset Filter" style="height: 31px; width: 31px;">
                                     <i class="bi bi-arrow-counterclockwise"></i>
                                 </a>

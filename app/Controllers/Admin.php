@@ -1279,6 +1279,30 @@ class Admin extends BaseController
 		$a['list_tim'] = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' AND user_wali != '-' ORDER BY user_wali ASC")->getResult();
 		$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_status_tahunan GROUP BY tahun ORDER BY tahun DESC")->getResult();
 
+		// Total tabel aktif & counter per kategori untuk dropdown filter interaktif
+		$a['total_tabel_aktif'] = (int)($this->db->query("SELECT COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1")->getRow()->cnt ?? 0);
+
+		$opdCountsRaw = $this->db->query("SELECT id_unitkerja, COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1 GROUP BY id_unitkerja")->getResult();
+		$opdMap = [];
+		foreach ($opdCountsRaw as $r) {
+			$opdMap[trim((string)$r->id_unitkerja)] = (int)$r->cnt;
+		}
+		$a['count_per_opd'] = $opdMap;
+
+		$timCountsRaw = $this->db->query("SELECT u.user_wali, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.user_wali")->getResult();
+		$timMap = [];
+		foreach ($timCountsRaw as $r) {
+			$timMap[strtolower(trim((string)$r->user_wali))] = (int)$r->cnt;
+		}
+		$a['count_per_tim'] = $timMap;
+
+		$jenisCountsRaw = $this->db->query("SELECT u.jenis_instansi, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.jenis_instansi")->getResult();
+		$jenisMap = [];
+		foreach ($jenisCountsRaw as $r) {
+			$jenisMap[strtolower(trim((string)$r->jenis_instansi))] = (int)$r->cnt;
+		}
+		$a['count_per_jenis'] = $jenisMap;
+
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 
 		//ambil variabel URL
@@ -1387,17 +1411,24 @@ class Admin extends BaseController
 			$sql_where = "WHERE ml.is_active = 1";
 
 			$params = [];
-			if ($filter_jenis != 'all' && in_array($filter_jenis, ['opd', 'vertikal'])) {
-				$sql_where .= " AND u.jenis_instansi = ? ";
-				$params[] = $filter_jenis;
+			$cleanJenis = is_array($filter_jenis) ? array_values(array_filter($filter_jenis, fn($v) => !empty($v) && $v !== 'all')) : ($filter_jenis !== 'all' ? [$filter_jenis] : []);
+			if (!empty($cleanJenis)) {
+				$sql_where .= " AND u.jenis_instansi IN (" . implode(',', array_fill(0, count($cleanJenis), '?')) . ") ";
+				foreach ($cleanJenis as $cj) $params[] = $cj;
 			}
-			if ($filter_opd != 'all') {
-				$sql_where .= " AND ml.id_unitkerja = ? ";
-				$params[] = $filter_opd;
+
+			$cleanOpd = is_array($filter_opd) 
+				? array_values(array_filter(array_map('trim', $filter_opd), fn($v) => !empty($v) && $v !== 'all')) 
+				: (($filter_opd !== 'all' && !empty($filter_opd)) ? [trim((string)$filter_opd)] : []);
+			if (!empty($cleanOpd)) {
+				$sql_where .= " AND ml.id_unitkerja IN (" . implode(',', array_fill(0, count($cleanOpd), '?')) . ") ";
+				foreach ($cleanOpd as $co) $params[] = (string)$co;
 			}
-			if ($filter_bidang != 'all') {
-				$sql_where .= " AND u.user_wali = ? ";
-				$params[] = $filter_bidang;
+
+			$cleanBidang = is_array($filter_bidang) ? array_values(array_filter($filter_bidang, fn($v) => !empty($v) && $v !== 'all')) : ($filter_bidang !== 'all' ? [$filter_bidang] : []);
+			if (!empty($cleanBidang)) {
+				$sql_where .= " AND u.user_wali IN (" . implode(',', array_fill(0, count($cleanBidang), '?')) . ") ";
+				foreach ($cleanBidang as $cb) $params[] = $cb;
 			}
 
 			$sql_where .= " AND (ml.judul_ind LIKE ? OR u.unitkerja_ind LIKE ? OR ml.no_tabel LIKE ?) ";
@@ -1822,19 +1853,24 @@ class Admin extends BaseController
 
 			$params_count = [];
 
-			if ($filter_jenis != 'all' && in_array($filter_jenis, ['opd', 'vertikal'])) {
-				$sql_where .= " AND u.jenis_instansi = ?";
-				$params_count[] = $filter_jenis;
+			$cleanJenis = is_array($filter_jenis) ? array_values(array_filter($filter_jenis, fn($v) => !empty($v) && $v !== 'all')) : ($filter_jenis !== 'all' ? [$filter_jenis] : []);
+			if (!empty($cleanJenis)) {
+				$sql_where .= " AND u.jenis_instansi IN (" . implode(',', array_fill(0, count($cleanJenis), '?')) . ")";
+				foreach ($cleanJenis as $cj) $params_count[] = $cj;
 			}
 
-			if ($filter_opd != 'all') {
-				$sql_where .= " AND ml.id_unitkerja = ?";
-				$params_count[] = $filter_opd;
+			$cleanOpd = is_array($filter_opd) 
+				? array_values(array_filter(array_map('trim', $filter_opd), fn($v) => !empty($v) && $v !== 'all')) 
+				: (($filter_opd !== 'all' && !empty($filter_opd)) ? [trim((string)$filter_opd)] : []);
+			if (!empty($cleanOpd)) {
+				$sql_where .= " AND ml.id_unitkerja IN (" . implode(',', array_fill(0, count($cleanOpd), '?')) . ")";
+				foreach ($cleanOpd as $co) $params_count[] = (string)$co;
 			}
 
-			if ($filter_bidang != 'all') {
-				$sql_where .= " AND u.user_wali = ?";
-				$params_count[] = $filter_bidang;
+			$cleanBidang = is_array($filter_bidang) ? array_values(array_filter($filter_bidang, fn($v) => !empty($v) && $v !== 'all')) : ($filter_bidang !== 'all' ? [$filter_bidang] : []);
+			if (!empty($cleanBidang)) {
+				$sql_where .= " AND u.user_wali IN (" . implode(',', array_fill(0, count($cleanBidang), '?')) . ")";
+				foreach ($cleanBidang as $cb) $params_count[] = $cb;
 			}
 
 			$total_row = (int)($this->db->query("SELECT COUNT(ml.id) as total $sql_base $sql_where", $params_count)->getRow()->total ?? 0);

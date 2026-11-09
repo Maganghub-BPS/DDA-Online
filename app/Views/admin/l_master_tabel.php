@@ -12,19 +12,19 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 ?>
 
 <!-- Kartu Kontrol & Aksi Utama (Toolbar Atas) -->
-<div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
+<div class="card border-0 shadow-lg border-radius-2xl mb-4" style="overflow: visible;">
     <div class="card-header pb-3 pt-3 px-4 bg-white border-0">
         <div class="row align-items-center g-3">
             <div class="col-xl-8 col-lg-7">
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <!-- Tombol Tambah Tabel Baru Secara Manual -->
-                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel/add" class="btn btn-primary btn-sm px-3 border-radius-lg mb-0 shadow-sm fw-bold d-inline-flex align-items-center gap-2" style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel/add" class="btn btn-primary btn-sm px-3 border-radius-lg mb-0 shadow-sm fw-bold d-inline-flex align-items-center gap-2" style="background: linear-gradient(45deg, #154679, #1e5c9e); border: none;">
                         <i class="bi bi-plus-circle fs-6"></i>
                         <span>Tambah Data</span>
                     </a>
 
                     <!-- Tombol Menuju Daftar Usulan Tabel yang Diajukan oleh OPD -->
-                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/" class="btn btn-sm px-3 border-radius-lg mb-0 shadow-none d-inline-flex align-items-center gap-2 fw-bold" style="background: #FFF4ED; color: #FF6D1F; border: 1px solid #FFD8C2;">
+                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/" class="btn btn-sm px-3 border-radius-lg mb-0 shadow-none d-inline-flex align-items-center gap-2 fw-bold" style="background: #eef4fb; color: #154679; border: 1px solid #c9dcf0;">
                         <i class="bi bi-patch-question fs-6"></i>
                         <span>Tabel Usulan</span>
                     </a>
@@ -75,49 +75,218 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 
     <!-- Area Filter dan Tabel Data -->
     <div class="card-body px-4 pt-0 pb-4">
+        <?php
+        $totalAktif = $total_tabel_aktif ?? 585;
+
+        // Selected Jenis
+        $selJenisArr = is_array($selected_jenis ?? null) ? $selected_jenis : ((!empty($selected_jenis) && $selected_jenis !== 'all') ? [$selected_jenis] : []);
+        $isJenisAll = empty($selJenisArr) || in_array('all', (array)($selected_jenis ?? []));
+
+        if ($isJenisAll || count($selJenisArr) === 0) {
+            $labelJenisTrigger = "-- Semua Jenis --";
+        } elseif (count($selJenisArr) === 1) {
+            $valJ = $selJenisArr[0];
+            $labelJenisTrigger = ($valJ === 'opd') ? 'Organisasi Perangkat Daerah' : 'Organisasi Vertikal';
+        } else {
+            $labelJenisTrigger = count($selJenisArr) . " Jenis Terpilih";
+        }
+
+        // Selected OPD
+        $selOpdArr = is_array($selected_opd ?? null) 
+            ? array_values(array_filter(array_map('trim', $selected_opd), fn($v) => !empty($v) && $v !== 'all')) 
+            : ((!empty($selected_opd) && $selected_opd !== 'all') ? [trim((string)$selected_opd)] : []);
+        $isOpdAll = empty($selOpdArr) || in_array('all', (array)($selected_opd ?? []));
+
+        if ($isOpdAll || count($selOpdArr) === 0) {
+            $labelOpdTrigger = "-- Semua Instansi --";
+        } elseif (count($selOpdArr) === 1) {
+            $firstOpdId = $selOpdArr[0];
+            $foundOpd = null;
+            if (isset($list_opd)) {
+                foreach ($list_opd as $o) {
+                    if (trim((string)$o->id_unitkerja) === $firstOpdId) {
+                        $foundOpd = $o;
+                        break;
+                    }
+                }
+            }
+            $labelOpdTrigger = $foundOpd ? $foundOpd->unitkerja_ind : '1 Instansi';
+        } else {
+            $labelOpdTrigger = count($selOpdArr) . " Instansi Terpilih";
+        }
+
+        // Selected Bidang
+        $selBidangArr = is_array($selected_bidang ?? null) ? array_map('strtolower', array_map('trim', $selected_bidang)) : ((!empty($selected_bidang) && $selected_bidang !== 'all') ? [strtolower(trim($selected_bidang))] : []);
+        $isBidangAll = empty($selBidangArr) || in_array('all', (array)($selected_bidang ?? []));
+
+        if ($isBidangAll || count($selBidangArr) === 0) {
+            $labelBidangTrigger = "-- Semua Bidang --";
+        } elseif (count($selBidangArr) === 1) {
+            $tKey = $selBidangArr[0];
+            $labelBidangTrigger = strtoupper($tKey);
+        } else {
+            $labelBidangTrigger = count($selBidangArr) . " Tim Terpilih";
+        }
+        ?>
+
         <!-- Form Filter Multi-Kategori: Bidang Tim, Instansi (OPD), dan Tahun DDA -->
         <div class="bg-light-subtle border-radius-xl p-3 mb-4 border border-light shadow-sm">
-            <form class="row g-2 align-items-end" method="GET" action="<?php echo base_url(); ?>index.php/admin/master_tabel">
-                <!-- Filter Jenis Instansi -->
+            <form id="formFilterMaster" class="row g-2 align-items-end" method="GET" action="<?php echo base_url(); ?>index.php/admin/master_tabel">
+                <!-- Filter Jenis Instansi (Custom Dropdown with Search & Checkbox) -->
                 <div class="col-md-3">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1"><i class="bi bi-diagram-3 me-1"></i>Jenis</label>
-                    <select name="filter_jenis" class="form-select border-radius-lg border-light shadow-none text-sm py-2" onchange="this.form.submit()">
-                        <option value="all">-- Semua Jenis --</option>
-                        <option value="opd" <?= (isset($selected_jenis) && $selected_jenis == 'opd') ? 'selected' : ''; ?>>Organisasi Perangkat Daerah</option>
-                        <option value="vertikal" <?= (isset($selected_jenis) && $selected_jenis == 'vertikal') ? 'selected' : ''; ?>>Organisasi Vertikal</option>
-                    </select>
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">
+                        <i class="bi bi-diagram-3 me-1"></i>Jenis
+                    </label>
+                    <div class="dropdown custom-filter-dropdown" data-filter-type="jenis">
+                        <button type="button" class="btn btn-outline-secondary w-100 border-radius-lg border-light shadow-none text-sm py-2 px-3 d-flex justify-content-between align-items-center bg-white text-dark text-start dropdown-toggle filter-trigger-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelJenisTrigger); ?>">
+                            <span class="trigger-label fw-semibold text-wrap me-2"><?= esc($labelJenisTrigger); ?></span>
+                        </button>
+                        <div class="dropdown-menu shadow-lg border border-light-subtle rounded-4 p-3 mt-1 custom-filter-menu" style="min-width: 320px; z-index: 1060;">
+                            <!-- Search Box di Atas -->
+                            <div class="mb-2">
+                                <input type="text" class="form-control dropdown-search-box" placeholder="Cari jenis instansi...">
+                            </div>
+                            <!-- Checkbox List -->
+                            <div class="dropdown-checkbox-list">
+                                <!-- Opsi Semua -->
+                                <div class="dropdown-item-check item-all py-1 px-2 rounded-2">
+                                    <label class="form-check d-flex align-items-center mb-0 w-100 cursor-pointer">
+                                        <input type="checkbox" class="form-check-input me-2 mt-0 check-all" <?= $isJenisAll ? 'checked' : ''; ?>>
+                                        <span class="text-sm item-label text-dark fw-bold">Semua</span>
+                                        <span class="text-xs text-secondary ms-auto item-count ps-2">(<?= number_format($totalAktif, 0, ',', '.'); ?>)</span>
+                                    </label>
+                                </div>
+                                <!-- Opsi OPD -->
+                                <div class="dropdown-item-check py-1 px-2 rounded-2">
+                                    <label class="form-check d-flex align-items-center mb-0 w-100 cursor-pointer">
+                                        <input type="checkbox" name="filter_jenis[]" value="opd" class="form-check-input me-2 mt-0 check-item" <?= (in_array('opd', $selJenisArr, true) || $isJenisAll) ? 'checked' : ''; ?>>
+                                        <span class="text-sm item-label text-dark">Organisasi Perangkat Daerah</span>
+                                        <span class="text-xs text-secondary ms-auto item-count ps-2">(<?= number_format($count_per_jenis['opd'] ?? 0, 0, ',', '.'); ?>)</span>
+                                    </label>
+                                </div>
+                                <!-- Opsi Vertikal -->
+                                <div class="dropdown-item-check py-1 px-2 rounded-2">
+                                    <label class="form-check d-flex align-items-center mb-0 w-100 cursor-pointer">
+                                        <input type="checkbox" name="filter_jenis[]" value="vertikal" class="form-check-input me-2 mt-0 check-item" <?= (in_array('vertikal', $selJenisArr, true) || $isJenisAll) ? 'checked' : ''; ?>>
+                                        <span class="text-sm item-label text-dark">Organisasi Vertikal</span>
+                                        <span class="text-xs text-secondary ms-auto item-count ps-2">(<?= number_format($count_per_jenis['vertikal'] ?? 0, 0, ',', '.'); ?>)</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Footer Action Buttons -->
+                            <div class="dropdown-footer d-flex justify-content-end align-items-center gap-2 pt-2 border-top border-light-subtle mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary mb-0 px-3 py-1 btn-dropdown-cancel fw-bold" style="border-radius: 8px; font-size: 12px;">Batal</button>
+                                <button type="button" class="btn btn-sm btn-primary mb-0 px-3 py-1 btn-dropdown-apply fw-bold" style="background: #154679; border: none; border-radius: 8px; font-size: 12px;">Terapkan</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Filter Instansi (OPD / Vertikal) -->
-                <div class="col-md-4">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1"><i class="bi bi-building me-1"></i>Instansi</label>
-                    <select name="filter_opd" class="form-select border-radius-lg border-light shadow-none text-sm py-2" onchange="this.form.submit()">
-                        <option value="all">-- Semua Instansi --</option>
-                        <?php
-                        if (isset($list_opd)) {
-                            foreach ($list_opd as $opd) {
-                                $selected = (isset($selected_opd) && $selected_opd == $opd->id_unitkerja) ? 'selected' : '';
-                                echo "<option value='" . esc($opd->id_unitkerja, 'attr') . "' $selected>" . esc($opd->unitkerja_ind) . "</option>";
-                            }
-                        }
-                        ?>
-                    </select>
+                <!-- Filter Instansi (Custom Dropdown with Search & Checkbox) -->
+                <div class="col-md-5">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">
+                        <i class="bi bi-building me-1"></i>Instansi
+                    </label>
+                    <div class="dropdown custom-filter-dropdown" data-filter-type="opd">
+                        <button type="button" class="btn btn-outline-secondary w-100 border-radius-lg border-light shadow-none text-sm py-2 px-3 d-flex justify-content-between align-items-center bg-white text-dark text-start dropdown-toggle filter-trigger-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelOpdTrigger); ?>">
+                            <span class="trigger-label fw-semibold text-wrap me-2"><?= esc($labelOpdTrigger); ?></span>
+                        </button>
+                        <div class="dropdown-menu shadow-lg border border-light-subtle rounded-4 p-3 mt-1 custom-filter-menu" style="min-width: 420px; max-width: 540px; z-index: 1060;">
+                            <!-- Search Box di Atas -->
+                            <div class="mb-2">
+                                <input type="text" class="form-control dropdown-search-box" placeholder="Cari instansi...">
+                            </div>
+                            <!-- Checkbox List -->
+                            <div class="dropdown-checkbox-list">
+                                <!-- Opsi Semua -->
+                                <div class="dropdown-item-check item-all py-2 px-2 rounded-2">
+                                    <label class="form-check d-flex align-items-center mb-0 w-100 cursor-pointer">
+                                        <input type="checkbox" class="form-check-input me-2 mt-0 check-all flex-shrink-0" <?= $isOpdAll ? 'checked' : ''; ?>>
+                                        <span class="text-sm item-label text-dark fw-bold">Semua</span>
+                                        <span class="text-xs text-secondary ms-auto item-count ps-2 flex-shrink-0">(<?= number_format($totalAktif, 0, ',', '.'); ?>)</span>
+                                    </label>
+                                </div>
+                                <?php
+                                if (!empty($list_opd)):
+                                    foreach ($list_opd as $opd):
+                                        $opdId = trim((string)$opd->id_unitkerja);
+                                        $opdJenis = strtolower(trim((string)($opd->jenis_instansi ?? '')));
+                                        $opdTim = strtolower(trim((string)($opd->user_wali ?? '')));
+                                        $cnt = (int)($count_per_opd[$opdId] ?? 0);
+                                        $isChk = $isOpdAll || in_array($opdId, $selOpdArr, true);
+                                ?>
+                                <div class="dropdown-item-check py-2 px-2 rounded-2" data-jenis="<?= esc($opdJenis, 'attr'); ?>" data-tim="<?= esc($opdTim, 'attr'); ?>">
+                                    <label class="form-check d-flex align-items-start mb-0 w-100 cursor-pointer">
+                                        <input type="checkbox" name="filter_opd[]" value="<?= esc($opdId, 'attr'); ?>" class="form-check-input me-2 mt-1 check-item flex-shrink-0" <?= $isChk ? 'checked' : ''; ?>>
+                                        <span class="text-sm item-label text-dark me-2" style="white-space: normal; line-height: 1.35; flex-grow: 1;" title="<?= esc($opd->unitkerja_ind); ?>"><?= esc($opd->unitkerja_ind); ?></span>
+                                        <span class="text-xs text-secondary ms-auto item-count ps-2 flex-shrink-0 mt-1">(<?= number_format($cnt, 0, ',', '.'); ?>)</span>
+                                    </label>
+                                </div>
+                                <?php
+                                    endforeach;
+                                endif;
+                                ?>
+                            </div>
+                            <!-- Footer Action Buttons -->
+                            <div class="dropdown-footer d-flex justify-content-end align-items-center gap-2 pt-2 border-top border-light-subtle mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary mb-0 px-3 py-1 btn-dropdown-cancel fw-bold" style="border-radius: 8px; font-size: 12px;">Batal</button>
+                                <button type="button" class="btn btn-sm btn-primary mb-0 px-3 py-1 btn-dropdown-apply fw-bold" style="background: #154679; border: none; border-radius: 8px; font-size: 12px;">Terapkan</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Filter Bidang -->
-                <div class="col-md-3">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1"><i class="bi bi-diagram-2 me-1"></i>Bidang / Tim</label>
-                    <select name="filter_bidang" class="form-select border-radius-lg border-light shadow-none text-sm py-2" onchange="this.form.submit()">
-                        <option value="all">-- Semua Bidang --</option>
-                        <?php
-                        if (isset($list_tim)) {
-                            foreach ($list_tim as $tim) {
-                                $sel = (isset($selected_bidang) && $selected_bidang == $tim->user_wali) ? 'selected' : '';
-                                echo "<option value='" . esc($tim->user_wali, 'attr') . "' $sel>" . esc(strtoupper((string)$tim->user_wali)) . "</option>";
-                            }
-                        }
-                        ?>
-                    </select>
+                <!-- Filter Bidang / Tim (Custom Dropdown with Search & Checkbox) -->
+                <div class="col-md-2">
+                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">
+                        <i class="bi bi-diagram-2 me-1"></i>Bidang / Tim
+                    </label>
+                    <div class="dropdown custom-filter-dropdown" data-filter-type="bidang">
+                        <button type="button" class="btn btn-outline-secondary w-100 border-radius-lg border-light shadow-none text-sm py-2 px-3 d-flex justify-content-between align-items-center bg-white text-dark text-start dropdown-toggle filter-trigger-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelBidangTrigger); ?>">
+                            <span class="trigger-label fw-semibold text-wrap me-2"><?= esc($labelBidangTrigger); ?></span>
+                        </button>
+                        <div class="dropdown-menu shadow-lg border border-light-subtle rounded-4 p-3 mt-1 custom-filter-menu" style="min-width: 320px; z-index: 1060;">
+                            <!-- Search Box di Atas -->
+                            <div class="mb-2">
+                                <input type="text" class="form-control dropdown-search-box" placeholder="Cari bidang / tim...">
+                            </div>
+                            <!-- Checkbox List -->
+                            <div class="dropdown-checkbox-list">
+                                <!-- Opsi Semua -->
+                                <div class="dropdown-item-check item-all py-1 px-2 rounded-2">
+                                    <label class="form-check d-flex align-items-center mb-0 w-100 cursor-pointer">
+                                        <input type="checkbox" class="form-check-input me-2 mt-0 check-all" <?= $isBidangAll ? 'checked' : ''; ?>>
+                                        <span class="text-sm item-label text-dark fw-bold">Semua</span>
+                                        <span class="text-xs text-secondary ms-auto item-count ps-2">(<?= number_format($totalAktif, 0, ',', '.'); ?>)</span>
+                                    </label>
+                                </div>
+                                <?php
+                                if (!empty($list_tim)):
+                                    foreach ($list_tim as $tim):
+                                        $timKey = strtolower(trim((string)$tim->user_wali));
+                                        $timName = strtoupper((string)$tim->user_wali);
+                                        $cnt = (int)($count_per_tim[$timKey] ?? 0);
+                                        $isChk = $isBidangAll || in_array($timKey, $selBidangArr, true);
+                                ?>
+                                <div class="dropdown-item-check py-1 px-2 rounded-2">
+                                    <label class="form-check d-flex align-items-center mb-0 w-100 cursor-pointer">
+                                        <input type="checkbox" name="filter_bidang[]" value="<?= esc($timKey, 'attr'); ?>" class="form-check-input me-2 mt-0 check-item" <?= $isChk ? 'checked' : ''; ?>>
+                                        <span class="text-sm item-label text-dark"><?= esc($timName); ?></span>
+                                        <span class="text-xs text-secondary ms-auto item-count ps-2">(<?= number_format($cnt, 0, ',', '.'); ?>)</span>
+                                    </label>
+                                </div>
+                                <?php
+                                    endforeach;
+                                endif;
+                                ?>
+                            </div>
+                            <!-- Footer Action Buttons -->
+                            <div class="dropdown-footer d-flex justify-content-end align-items-center gap-2 pt-2 border-top border-light-subtle mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary mb-0 px-3 py-1 btn-dropdown-cancel fw-bold" style="border-radius: 8px; font-size: 12px;">Batal</button>
+                                <button type="button" class="btn btn-sm btn-primary mb-0 px-3 py-1 btn-dropdown-apply fw-bold" style="background: #154679; border: none; border-radius: 8px; font-size: 12px;">Terapkan</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Reset & Filter Button -->
@@ -127,7 +296,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                             <i class="bi bi-x-circle me-1 text-danger"></i> Reset
                         </a>
                     <?php endif; ?>
-                    <button type="submit" class="btn btn-primary btn-sm border-radius-lg px-3 py-2 mb-0 shadow-sm fw-bold d-flex align-items-center" style="background: #154679; border: none;">
+                    <button type="submit" class="btn btn-primary btn-sm border-radius-lg px-3 py-2 mb-0 shadow-sm fw-bold d-flex align-items-center" style="background: #154679; border: none; height: 42px;">
                         <i class="bi bi-filter me-1"></i> Filter
                     </button>
                 </div>
@@ -414,6 +583,126 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
         background-color: #f8f9fa;
         color: #FF6D1F;
     }
+
+    /* ========================================================================= */
+    /* CUSTOM FILTER DROPDOWN: SEARCH & CHECKBOX LIST (MIRROR REFERENCE UI)      */
+    /* ========================================================================= */
+    .custom-filter-dropdown .filter-trigger-btn {
+        background-color: #ffffff !important;
+        border: 1px solid #d2d6da !important;
+        color: #344767 !important;
+        font-size: 0.85rem !important;
+        border-radius: 0.5rem !important;
+        padding: 0.45rem 0.75rem !important;
+        min-height: 42px;
+        height: auto;
+        transition: all 0.2s ease;
+    }
+
+    .custom-filter-dropdown .filter-trigger-btn .trigger-label {
+        white-space: normal !important;
+        line-height: 1.25 !important;
+        font-size: 0.825rem !important;
+        text-align: left;
+        flex-grow: 1;
+        word-break: normal;
+    }
+
+    .custom-filter-dropdown .filter-trigger-btn:hover,
+    .custom-filter-dropdown .filter-trigger-btn:focus {
+        border-color: #154679 !important;
+        box-shadow: 0 0 0 2px rgba(21, 70, 121, 0.12) !important;
+    }
+
+    .custom-filter-dropdown .filter-trigger-btn::after {
+        margin-left: auto;
+        color: #64748b;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+
+    .custom-filter-menu {
+        border-radius: 12px !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        border: 1px solid #e2e8f0 !important;
+        background-color: #ffffff !important;
+    }
+
+    .dropdown-search-box {
+        border-radius: 8px !important;
+        border: 1.5px solid #cbd5e1 !important;
+        font-size: 0.85rem !important;
+        padding: 0.45rem 0.75rem !important;
+        outline: none !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .dropdown-search-box:focus {
+        border-color: #154679 !important;
+        box-shadow: 0 0 0 2px rgba(21, 70, 121, 0.15) !important;
+    }
+
+    .dropdown-checkbox-list {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 3px;
+    }
+
+    /* Scrollbar modern minimalis */
+    .dropdown-checkbox-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .dropdown-checkbox-list::-webkit-scrollbar-track {
+        background: #f8fafc;
+        border-radius: 4px;
+    }
+
+    .dropdown-checkbox-list::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    .dropdown-checkbox-list::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    .dropdown-item-check {
+        transition: background-color 0.15s ease;
+    }
+
+    .dropdown-item-check:hover {
+        background-color: #f1f5f9;
+    }
+
+    .dropdown-item-check .form-check-input {
+        width: 1.1rem;
+        height: 1.1rem;
+        cursor: pointer;
+        border-color: #94a3b8;
+        border-radius: 4px;
+    }
+
+    .dropdown-item-check .form-check-input:checked {
+        background-color: #154679;
+        border-color: #154679;
+    }
+
+    .dropdown-item-check .item-label {
+        font-size: 0.835rem;
+        user-select: none;
+    }
+
+    .dropdown-item-check .item-count {
+        font-size: 0.775rem;
+        color: #64748b;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .dropdown-item-check.cascaded-out {
+        display: none !important;
+    }
 </style>
 
 <script type="text/javascript">
@@ -494,6 +783,229 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
             $(this).empty();
             $('.modal-backdrop').remove();
             $('body').removeClass('modal-open').css({ overflow: '', paddingRight: '' });
+        });
+
+        // =====================================================================
+        // CUSTOM FILTER DROPDOWN: SEARCH, CHECKBOX LIST, BATAL & TERAPKAN
+        // Mengimplementasikan perilaku filter sesuai referensi gambar:
+        // - Live search instan pada daftar item dropdown
+        // - Checkbox 'Semua' yang sinkron dengan seluruh opsi aktif
+        // - Tombol 'Batal' mengembalikan pilihan ke kondisi awal sebelum dropdown dibuka
+        // - Tombol 'Terapkan' memproses filter multi-select & submit form secara rapi
+        // - Cascading Filter: Filter Jenis & Bidang secara cerdas menyaring opsi Instansi
+        // =====================================================================
+
+        // Fungsi Sinkronisasi Cascading Filter (Jenis & Tim -> Instansi)
+        function syncCascadingFilters() {
+            var $jenisDropdown = $('.custom-filter-dropdown[data-filter-type="jenis"]');
+            var $bidangDropdown = $('.custom-filter-dropdown[data-filter-type="bidang"]');
+            var $opdDropdown = $('.custom-filter-dropdown[data-filter-type="opd"]');
+
+            if ($opdDropdown.length === 0) return;
+
+            // Evaluasi pilihan Jenis
+            var isJenisAll = $jenisDropdown.find('.check-all').is(':checked') || 
+                             $jenisDropdown.find('.check-item:checked').length === 0 || 
+                             $jenisDropdown.find('.check-item:checked').length === $jenisDropdown.find('.check-item').length;
+            var activeJenis = isJenisAll ? 'all' : $jenisDropdown.find('.check-item:checked').map(function() { return $(this).val(); }).get();
+
+            // Evaluasi pilihan Bidang / Tim
+            var isBidangAll = $bidangDropdown.find('.check-all').is(':checked') || 
+                              $bidangDropdown.find('.check-item:checked').length === 0 || 
+                              $bidangDropdown.find('.check-item:checked').length === $bidangDropdown.find('.check-item').length;
+            var activeBidang = isBidangAll ? 'all' : $bidangDropdown.find('.check-item:checked').map(function() { return $(this).val(); }).get();
+
+            var $opdItems = $opdDropdown.find('.dropdown-checkbox-list .dropdown-item-check:not(.item-all)');
+            var totalVisibleTables = 0;
+
+            $opdItems.each(function() {
+                var itemJenis = $(this).attr('data-jenis');
+                var itemTim = $(this).attr('data-tim');
+
+                var matchJenis = (activeJenis === 'all') || (activeJenis.indexOf(itemJenis) > -1);
+                var matchBidang = (activeBidang === 'all') || (activeBidang.indexOf(itemTim) > -1);
+
+                if (matchJenis && matchBidang) {
+                    $(this).removeClass('cascaded-out').show();
+                    var countMatch = $(this).find('.item-count').text().replace(/[^0-9]/g, '');
+                    totalVisibleTables += parseInt(countMatch || 0, 10);
+                } else {
+                    $(this).addClass('cascaded-out').hide();
+                    // Uncheck item yang tidak cocok dengan filter Jenis/Tim yang aktif
+                    $(this).find('.check-item').prop('checked', false);
+                }
+            });
+
+            // Update teks total counter pada opsi 'Semua' di dropdown Instansi
+            var formattedTotal = new Intl.NumberFormat('id-ID').format(totalVisibleTables);
+            $opdDropdown.find('.item-all .item-count').text('(' + formattedTotal + ')');
+
+            // Sinkronisasi status master 'Semua' pada dropdown Instansi
+            var visibleItems = $opdItems.not('.cascaded-out').length;
+            var visibleChecked = $opdItems.not('.cascaded-out').find('.check-item:checked').length;
+            $opdDropdown.find('.check-all').prop('checked', visibleItems > 0 && visibleItems === visibleChecked);
+        }
+
+        // Jalankan sinkronisasi cascading filter saat halaman dimuat
+        syncCascadingFilters();
+
+        // Hubungkan perubahan pada dropdown Jenis & Bidang ke Cascading Filter
+        $(document).on('change', '.custom-filter-dropdown[data-filter-type="jenis"] input[type="checkbox"], .custom-filter-dropdown[data-filter-type="bidang"] input[type="checkbox"]', function() {
+            syncCascadingFilters();
+        });
+
+        // Cegah tombol Enter pada kotak pencarian dropdown memicu submit form
+        $(document).on('keydown', '.dropdown-search-box', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // Simpan status checkbox saat dropdown mulai dibuka agar bisa di-revert saat 'Batal'
+        $(document).on('show.bs.dropdown', '.custom-filter-dropdown', function() {
+            var $dropdown = $(this);
+            var $menu = $dropdown.find('.custom-filter-menu');
+            var ddBtn = $dropdown.find('.filter-trigger-btn')[0];
+
+            // Pasang strategi floating 'fixed' dan auto-flip pada Popper instance
+            if (ddBtn && typeof bootstrap !== 'undefined') {
+                var dd = bootstrap.Dropdown.getInstance(ddBtn);
+                if (dd) {
+                    dd._config.popperConfig = {
+                        strategy: 'fixed',
+                        modifiers: [
+                            {
+                                name: 'flip',
+                                options: {
+                                    fallbackPlacements: ['top-start', 'top', 'bottom-start']
+                                }
+                            },
+                            {
+                                name: 'preventOverflow',
+                                options: {
+                                    boundary: 'viewport',
+                                    padding: 12
+                                }
+                            }
+                        ]
+                    };
+                }
+            }
+
+            var itemStates = [];
+            $menu.find('.check-item').each(function() {
+                itemStates.push($(this).is(':checked'));
+            });
+
+            $dropdown.data('initial-states', {
+                all: $menu.find('.check-all').is(':checked'),
+                items: itemStates
+            });
+
+            // Reset input search dan tampilkan seluruh baris yang lolos cascading filter
+            $menu.find('.dropdown-search-box').val('');
+            $menu.find('.dropdown-item-check:not(.cascaded-out)').show();
+        });
+
+        // Live filter saat mengetik di kotak pencarian dropdown
+        $(document).on('input', '.dropdown-search-box', function() {
+            var query = $(this).val().toLowerCase().trim();
+            var $list = $(this).closest('.custom-filter-menu').find('.dropdown-checkbox-list');
+
+            $list.find('.dropdown-item-check:not(.item-all)').each(function() {
+                if ($(this).hasClass('cascaded-out')) {
+                    $(this).hide();
+                    return;
+                }
+                var text = $(this).find('.item-label').text().toLowerCase();
+                if (query === '' || text.indexOf(query) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // Toggle 'Semua' master checkbox
+        $(document).on('change', '.check-all', function() {
+            var isChecked = $(this).is(':checked');
+            var $menu = $(this).closest('.custom-filter-menu');
+            $menu.find('.dropdown-item-check:not(.cascaded-out) .check-item').prop('checked', isChecked);
+        });
+
+        // Sinkronisasi status 'Semua' jika checkbox individual diubah
+        $(document).on('change', '.check-item', function() {
+            var $menu = $(this).closest('.custom-filter-menu');
+            var totalItems = $menu.find('.dropdown-item-check:not(.cascaded-out) .check-item').length;
+            var totalChecked = $menu.find('.dropdown-item-check:not(.cascaded-out) .check-item:checked').length;
+
+            $menu.find('.check-all').prop('checked', totalItems > 0 && totalItems === totalChecked);
+        });
+
+        // Tombol Batal: kembalikan state pilihan ke saat dropdown dibuka lalu tutup menu
+        $(document).on('click', '.btn-dropdown-cancel', function(e) {
+            e.preventDefault();
+            var $dropdown = $(this).closest('.custom-filter-dropdown');
+            var $menu = $dropdown.find('.custom-filter-menu');
+
+            var initialStates = $dropdown.data('initial-states');
+            if (initialStates) {
+                $menu.find('.check-item').each(function(idx) {
+                    $(this).prop('checked', initialStates.items[idx] !== undefined ? initialStates.items[idx] : true);
+                });
+                $menu.find('.check-all').prop('checked', initialStates.all);
+            }
+
+            // Bersihkan pencarian
+            $menu.find('.dropdown-search-box').val('');
+            $menu.find('.dropdown-item-check:not(.cascaded-out)').show();
+
+            // Tutup dropdown
+            var ddBtn = $dropdown.find('.filter-trigger-btn')[0];
+            if (ddBtn) {
+                var instance = bootstrap.Dropdown.getInstance(ddBtn);
+                if (instance) {
+                    instance.hide();
+                }
+            }
+
+            // Resync jika dropdown jenis atau bidang dibatalkan
+            if ($dropdown.data('filter-type') === 'jenis' || $dropdown.data('filter-type') === 'bidang') {
+                syncCascadingFilters();
+            }
+        });
+
+        // Tombol Terapkan: trigger submit pada form filter
+        $(document).on('click', '.btn-dropdown-apply', function(e) {
+            e.preventDefault();
+            $('#formFilterMaster').submit();
+        });
+
+        // Normalisasi parameter sebelum form filter disubmit agar URL tetap bersih & efisien
+        $('#formFilterMaster').on('submit', function() {
+            $('.custom-filter-dropdown').each(function() {
+                var $dropdown = $(this);
+                var filterType = $dropdown.data('filter-type');
+                var $checkAll = $dropdown.find('.check-all');
+                var $activeItems = $dropdown.find('.dropdown-item-check:not(.cascaded-out) .check-item');
+                var $checkedItems = $activeItems.filter(':checked');
+
+                // Nonaktifkan semua checkbox yang ter-filter keluar (cascaded-out) agar tidak ikut terkirim
+                $dropdown.find('.dropdown-item-check.cascaded-out .check-item').prop('disabled', true);
+
+                // Bersihkan fallback hidden input sebelumnya jika ada
+                $dropdown.find('input[type="hidden"].fallback-all').remove();
+
+                // Jika 'Semua' dicentang, atau seluruh item aktif tercentang, atau tidak ada yang tercentang:
+                // kirim filter_{type}=all dan nonaktifkan individual checkboxes agar tidak membanjiri URL query string
+                if ($checkAll.is(':checked') || $checkedItems.length === 0 || $checkedItems.length === $activeItems.length) {
+                    $activeItems.prop('disabled', true);
+                    $dropdown.append('<input type="hidden" class="fallback-all" name="filter_' + filterType + '" value="all">');
+                } else {
+                    $activeItems.prop('disabled', false);
+                }
+            });
         });
     });
 
