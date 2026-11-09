@@ -49,6 +49,10 @@ env*
 .vagrant
 Vagrantfile
 
+# Database Dumps
+*.sql
+*.sql.gz
+
 #-------------------------
 # Temporary Files
 #-------------------------
