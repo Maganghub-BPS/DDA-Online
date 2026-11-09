@@ -153,3 +153,15 @@ documentation/
 guide-book/
 .agent/
 .agents/
+AUDIT_*
+DIAGRAM_*
+DOKUMENTASI_*
+FLOW_*
+LAPORAN_AUDIT_*
+MASTER_PROMPT_*
+PLAN_AUDIT_*
+FORM_CHECKLIST_*
+IMPLEMENTASI_DRAG_*
+PANDUAN_PENGUJIAN_*
+diagram_erd_database.png
+diagram_visual.html
