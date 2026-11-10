@@ -14,9 +14,6 @@
             <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <h5 class="modal-title fw-bold text-dark mb-0"><i class="bi bi-sliders me-2 text-primary"></i> KONFIGURASI TABEL</h5>
-                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold shadow-xs" onclick="autoPivotConfig()" style="font-size: 11px;" title="Deteksi dan aktifkan pengaturan Pivot otomatis untuk tabel indikator">
-                        <i class="bi bi-magic me-1"></i> AUTO-PIVOT CERDAS
-                    </button>
                     <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold shadow-xs" onclick="resetConfigToDefault()" style="font-size: 11px;" title="Reset seluruh kolom dan pengaturan pivot kembali ke kolom asli API">
                         <i class="bi bi-arrow-counterclockwise me-1"></i> RESET KE DEFAULT API
                     </button>
