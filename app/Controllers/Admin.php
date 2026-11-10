@@ -886,7 +886,7 @@ class Admin extends BaseController
 			if (!$topikRow || ($unitkerjalogin != 'bps' && $this->session->get('admin_level') != 'kominfo' && $topikRow->id_unitkerja !== $unitkerjalogin)) {
 				return redirect()->to('admin/forum_diskusi');
 			}
-			$a['data']    = $this->db->query("SELECT * FROM forumcomment where id_topik=? LIMIT ?, ?", [$id_topik, (int)$awal, (int)$akhir])->getResult();
+			$a['data']    = $this->db->query("SELECT * FROM forumcomment WHERE id_topik = ? ORDER BY id ASC", [$id_topik])->getResult();
 			$a['page']    = "l_forum_komen";
 		} else if ($mau_ke == 'add_comment') {
 			$hariini      = date('Y-m-d');
