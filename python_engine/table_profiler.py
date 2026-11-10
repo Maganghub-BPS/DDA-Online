@@ -118,14 +118,14 @@ def detect_active_data_cols(source_data):
                     
                     first_3_digits = [re.sub(r'[^\d]', '', v) for v in non_meta[:3]]
                     is_row_num = (col_idx <= 1) and (len(first_3_digits) == 3 and first_3_digits == ['1', '2', '3'])
-                    num_count = sum(1 for v in non_meta if parse_num(v) is not None)
+                    num_count = sum(1 for v in non_meta if parse_num(v) is not None or v in ('-', '–', '—', '−'))
                     is_mostly_numeric = (num_count >= 1 and num_count >= len(non_meta) * 0.3) if non_meta else False
-                    is_empty_target_col = (not non_meta or all(v in ['', 'None', '-', 'NA', 'na', 'null'] for v in non_meta))
+                    is_empty_target_col = (not non_meta or all(v in ['', 'None', '-', '–', '—', '−', 'NA', 'na', 'null'] for v in non_meta))
                     
                     if num_val >= 2:
                         is_unit_col = any(
                             re.search(r'\b(?:satuan|unit)\b', clean_header_text(r[col_idx]).lower())
-                            and not re.search(r'\b(?:pendidikan|kapal|kerja|usaha|rumah)\b', clean_header_text(r[col_idx]).lower())
+                            and not re.search(r'\b(?:jumlah|banyaknya|total|nilai|pendidikan|kapal|kerja|usaha|rumah)\b', clean_header_text(r[col_idx]).lower())
                             for r in source_data[:bps_row_idx]
                             if isinstance(r, list) and col_idx < len(r) and r[col_idx]
                         )
@@ -547,7 +547,11 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
 
     def extract_year(text):
         if not text: return None
-        m = re.findall(r'\b(19\d{2}|20\d{2}(?:/\d{4,6})?)\b', str(text))
+        cleaned = re.sub(r'\b(19\d{2}|20\d{2})[\d\*\^rR\†\‡]+(?:\s*,\s*[\d\*\^rR\†\‡]+)?', r'\1', str(text))
+        m_range = re.findall(r'(?:19\d{2}|20\d{2})\s*[\-–—/]\s*(19\d{2}|20\d{2})', cleaned)
+        if m_range:
+            return m_range[-1]
+        m = re.findall(r'\b(19\d{2}|20\d{2}(?:/\d{4,6})?)\b', cleaned)
         if m: return m[-1]
         m_glued = re.findall(r'\b(19\d{2}|20\d{2})[\d\*\^rR\†\‡]', str(text))
         if m_glued: return m_glued[-1]
@@ -570,6 +574,12 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                 norm_toks.add('murid')
             elif any(k in t for k in ['sekolah', 'school', 'satuan']) and 'kepala' not in t_full:
                 norm_toks.add('sekolah')
+            elif t in ('pria', 'male', 'laki'):
+                norm_toks.add('laki')
+            elif t in ('wanita', 'female', 'perempuan'):
+                norm_toks.add('perempuan')
+            elif t in ('persen', 'percentage', 'persentase'):
+                norm_toks.add('persentase')
 
         if 'kepala' in raw_toks or 'pendidik' in raw_toks or 'guru' in raw_toks:
             norm_toks.add('guru')
@@ -583,6 +593,23 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
     pdf_tokens = [extract_tokens(h) for h in pdf_headers]
 
     common_w = [w for w in src_dict if w in pdf_dict and w not in ['Total Jawa Tengah', 'Provinsi Jawa Tengah']]
+
+    src_years_with_data = set()
+    if src_dict:
+        for idx_s, sy_chk in enumerate(src_years):
+            if not sy_chk:
+                continue
+            has_val = any(
+                (idx_s < len(s_vals) and s_vals[idx_s] is not None and s_vals[idx_s] != 0.0 and s_vals[idx_s] > -900000)
+                for s_vals in src_dict.values()
+            )
+            if has_val:
+                src_years_with_data.add(sy_chk)
+
+    shared_dim_tokens = {
+        tok for tok in ('laki', 'perempuan', 'masuk', 'keluar', 'negeri', 'swasta', 'persentase', 'tps')
+        if any(any(tok in w for w in ts) for ts in src_tokens) and any(any(tok in w for w in ts) for ts in pdf_tokens)
+    }
 
     score_matrix = [[0.0 for _ in range(p_len)] for _ in range(s_len)]
     
@@ -635,18 +662,20 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                 if sy == py:
                     score += 80.0
                 else:
-                    score -= 80.0
+                    score -= 200.0
             elif target_year and py:
                 if target_year == py or str(py).endswith('/' + str(target_year)) or str(py).startswith(str(target_year) + '/'):
                     score += 40.0
                 else:
                     score -= 20.0
 
-            all_valid_years = [y for y in (src_years + pdf_years) if y]
+            all_valid_years = [y for y in ((list(src_years_with_data) if src_years_with_data else src_years) + pdf_years) if y]
             max_yr_in_tbl = max(all_valid_years) if all_valid_years else None
             is_empty_s_col = all((s_vals[s_idx] is None or s_vals[s_idx] == 0.0) for s_vals in src_dict.values() if s_idx < len(s_vals)) if src_dict else False
-            if is_empty_s_col and sy and max_yr_in_tbl and sy < max_yr_in_tbl:
+            if is_empty_s_col and sy and max_yr_in_tbl and sy < max_yr_in_tbl and sy != py:
                 score -= 200.0
+            if sy and src_years_with_data and sy not in src_years_with_data and not (py and sy == py):
+                score -= 220.0
 
             # 3. SEMANTIC TOKEN MATCHING
             st = src_tokens[s_idx]
@@ -658,8 +687,8 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                     score += (overlap / union) * 40.0
                     
                 for cat_a, cat_b in [
-                    ('laki', 'perempuan'), ('negeri', 'swasta'), ('pns', 'pppk'), ('darat', 'laut'),
-                    ('guru', 'murid'), ('sekolah', 'guru'), ('sekolah', 'murid')
+                    ('laki', 'perempuan'), ('masuk', 'keluar'), ('negeri', 'swasta'), ('pns', 'pppk'), ('darat', 'laut'),
+                    ('desa', 'kelurahan'), ('guru', 'murid'), ('sekolah', 'guru'), ('sekolah', 'murid')
                 ]:
                     has_a_src = any(cat_a in w for w in st)
                     has_b_src = any(cat_b in w for w in st)
@@ -668,7 +697,13 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                     if (has_a_src and has_a_pdf) or (has_b_src and has_b_pdf):
                         score += 35.0
                     elif (has_a_src and has_b_pdf) or (has_b_src and has_a_pdf):
-                        score -= 200.0 if any(k in (cat_a, cat_b) for k in ['guru', 'murid', 'sekolah']) else 50.0
+                        score -= 250.0
+
+                for d_tok in shared_dim_tokens:
+                    has_d_src = any(d_tok in w for w in st)
+                    has_d_pdf = any(d_tok in w for w in pt)
+                    if has_d_src != has_d_pdf:
+                        score -= 250.0
 
             if s_len == p_len and s_idx == p_idx:
                 score += 1.0
@@ -778,8 +813,8 @@ def detect_table_archetype(pdf_path, target_table, target_pages, source_data):
     if p2_first_ints and p2_first_ints[0] > 20:
         return "MULTI_PAGE_ROW_CONTINUATION"
 
-    p1_jateng = sum(1 for r in p1_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] is not None)
-    p2_jateng = sum(1 for r in p2_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] is not None)
+    p1_jateng = sum(1 for r in p1_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] not in [None, '33.00', '00'])
+    p2_jateng = sum(1 for r in p2_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] not in [None, '33.00', '00'])
 
     if p1_jateng >= 5 and p2_jateng >= 5:
         return "MULTI_PAGE_COLUMN_SPLIT"
@@ -1055,7 +1090,17 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                     grid.append(row)
                 return grid
 
-        # Standar Regional: Baris = 35 Kab/Kota, Kolom = Metrik numerik
+        # Standar Regional: Baris = 35 Kab/Kota (atau Kab/Kota x Sub-Kategori), Kolom = Metrik numerik
+        is_multi_row_reg_cat = False
+        any_valid_metric = False
+        if cat_cols and pdf_rows:
+            unique_regs = len(set(str(r.get(reg_col, '')).strip() for r in api_records if r.get(reg_col)))
+            cat_vals_set = set(str(r.get(cat_cols[0], '')).strip().lower() for r in api_records if r.get(cat_cols[0]))
+            cat_in_pdf = sum(1 for v in cat_vals_set if len(v) >= 3 and v in pdf_text) >= 2
+            if pdf_has_regions and cat_in_pdf and len(api_records) > max(40, unique_regs * 1.3):
+                is_multi_row_reg_cat = True
+                any_valid_metric = any(parse_num(r.get(mk), is_pdf=False) is not None for r in api_records for mk in metric_cols)
+
         headers = ['Wilayah'] + [m.replace('_', ' ').title() for m in metric_cols]
         grid = [headers]
         brebes_seen = False
@@ -1067,10 +1112,21 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                 c_name = w_name[5:].strip()
                 if c_name in ['Magelang', 'Semarang', 'Pekalongan', 'Tegal']:
                     w_name = f"Kota {c_name}"
-            row = [w_name]
+            if is_multi_row_reg_cat:
+                c_val = str(r.get(cat_cols[0], '')).strip()
+                w_clean = re.sub(r'^Kab\.\s*', '', w_name)
+                row_lbl = f"{w_clean} - {c_val}" if c_val else w_name
+            else:
+                row_lbl = w_name
+            row = [row_lbl]
             for mk in metric_cols:
                 v = parse_num(r.get(mk), is_pdf=False)
-                row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
+                if v is not None:
+                    row.append(int(v) if isinstance(v, float) and v.is_integer() else v)
+                elif is_multi_row_reg_cat and any_valid_metric:
+                    row.append('-')
+                else:
+                    row.append(r.get(mk))
             grid.append(row)
         return grid
 
@@ -1282,7 +1338,7 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                 row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
             grid.append(row)
 
-        pdf_has_total = any(isinstance(r, list) and any(str(c).strip().lower() in ['jumlah/total', 'total/jumlah', 'jumlah', 'total'] for c in r[:2]) for r in (pdf_rows or []))
+        pdf_has_total = any(isinstance(r, list) and any(re.sub(r'[\s/]+', ' ', str(c).strip().lower()) in ['jumlah total', 'total jumlah', 'jumlah', 'total'] for c in r[:2] if c is not None) for r in (pdf_rows or []))
         if pdf_has_total:
             tot_row = ['Jumlah/Total']
             for col_i in range(1, len(grid_headers)):
