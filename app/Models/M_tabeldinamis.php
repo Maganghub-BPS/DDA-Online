@@ -601,6 +601,7 @@ class M_tabeldinamis extends Model
                     'row'       => $node['row_start'],
                     'rowspan'   => $node['rowspan'],
                     'colspan'   => $node['colspan'],
+                    'col_start' => !empty($node['leaf_cols']) ? min($node['leaf_cols']) : 0,
                     'is_leaf'   => $node['is_leaf'],
                     'item_id'   => $node['item'] ? (int)$node['item']->id : null,
                     'is_sub'    => false,

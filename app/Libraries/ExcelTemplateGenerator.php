@@ -408,8 +408,10 @@ class ExcelTemplateGenerator
                 foreach ($itemsPeriode as $p) {
                     foreach ($flatKolom as $child) {
                         $leafColumns[] = [
-                            'group_title_ind' => $p->nama_periode_ind,
-                            'group_title_en'  => $p->nama_periode_en ?? '',
+                            'group_title_ind' => $child->grup_induk_ind ?? ($child->group_title_ind ?? $p->nama_periode_ind),
+                            'group_title_en'  => $child->grup_induk_en ?? ($child->group_title_en ?? ($p->nama_periode_en ?? '')),
+                            'periode_title_ind' => $p->nama_periode_ind,
+                            'periode_title_en'  => $p->nama_periode_en ?? '',
                             'item_id'         => (int)$child->id,
                             'item_ind'        => $child->item_ind,
                             'item_en'         => $child->item_en ?? '',
@@ -742,21 +744,22 @@ class ExcelTemplateGenerator
         $fillLevelCellsExcel = function(int $lvl, int $rowNum, int $startCol, int $multiplier) use ($sheet, $groups, $flatKolom, $maxDepth, $activeLevels, $kolomStructure): int {
             $isAllLevelsActive = (count($activeLevels) === $maxDepth);
             if ($isAllLevelsActive && !empty($kolomStructure['header_rows'][$lvl])) {
-                $curCol = $startCol;
                 foreach ($kolomStructure['header_rows'][$lvl] as $cell) {
-                    $span = (int)$cell['colspan'] * $multiplier;
-                    $rowSpan = (int)$cell['rowspan'];
-                    $fromColLetter = Coordinate::stringFromColumnIndex($curCol);
-                    $toColLetter   = Coordinate::stringFromColumnIndex($curCol + $span - 1);
+                    $colOffset     = isset($cell['col_start']) ? ((int)$cell['col_start'] * $multiplier) : 0;
+                    $cellCol       = $startCol + $colOffset;
+                    $span          = (int)$cell['colspan'] * $multiplier;
+                    $rowSpan       = (int)$cell['rowspan'];
+                    $fromColLetter = Coordinate::stringFromColumnIndex($cellCol);
+                    $toColLetter   = Coordinate::stringFromColumnIndex($cellCol + $span - 1);
                     $toRow         = $rowNum + $rowSpan - 1;
                     if ($span > 1 || $rowSpan > 1) {
                         $sheet->mergeCells("{$fromColLetter}{$rowNum}:{$toColLetter}{$toRow}");
                     }
                     $text = $cell['title_ind'] . (!empty($cell['title_en']) ? "\n" . $cell['title_en'] : '');
                     $sheet->setCellValue("{$fromColLetter}{$rowNum}", $text);
-                    $curCol += $span;
                 }
-                return $curCol;
+                $totalCols = count($flatKolom) * $multiplier;
+                return $startCol + $totalCols;
             }
 
             $curCol = $startCol;
@@ -830,6 +833,8 @@ class ExcelTemplateGenerator
                                 $text = $grp['title_ind'] . (!empty($grp['title_en']) ? "\n" . $grp['title_en'] : '');
                                 $sheet->setCellValue("{$fromColLetter}{$rowNum}", $text);
                                 $curCol += $span;
+                            } else {
+                                $curCol += (1 * $multiplier);
                             }
                         }
                     }
@@ -924,6 +929,8 @@ class ExcelTemplateGenerator
                                 $text = $grp['title_ind'] . (!empty($grp['title_en']) ? "\n" . $grp['title_en'] : '');
                                 $sheet->setCellValue("{$fromColLetter}{$rowNum}", $text);
                                 $curCol += $span;
+                            } else {
+                                $curCol += (1 * $multiplier);
                             }
                         }
                     }
@@ -933,6 +940,7 @@ class ExcelTemplateGenerator
                             if (!empty($grp['subgroups'])) {
                                 foreach ($grp['subgroups'] as $sub) {
                                     if ($sub['type'] === 'standalone' && ($hasL2 || $hasL1)) {
+                                        $curCol += (1 * $multiplier);
                                         continue;
                                     }
                                     foreach ($sub['children'] as $child) {
@@ -973,6 +981,8 @@ class ExcelTemplateGenerator
                                 $text = $grp['title_ind'] . (!empty($grp['title_en']) ? "\n" . $grp['title_en'] : '');
                                 $sheet->setCellValue("{$fromColLetter}{$rowNum}", $text);
                                 $curCol += $span;
+                            } else {
+                                $curCol += (1 * $multiplier);
                             }
                         }
                     }
