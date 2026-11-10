@@ -296,14 +296,34 @@ function get_dda_label_nested($col)
 ?>
 
 <style>
+    /* Pastikan scroll vertikal mengalir bebas di luar (natural outer scroll) */
+    .main-content {
+        height: auto !important;
+        min-height: auto !important;
+        overflow-y: visible !important;
+        padding-bottom: 36px !important;
+    }
+
+    .content-body {
+        height: auto !important;
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+        overflow-y: visible !important;
+    }
+
     .dda-body {
         background: #fff;
-        padding: 20px;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         font-family: 'Arial', sans-serif;
         color: #000;
         line-height: 1.2;
         width: 100%;
         max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: hidden;
         display: block;
         box-sizing: border-box;
@@ -455,16 +475,20 @@ function get_dda_label_nested($col)
         border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
 
+    /* Kontainer Scrollable Mulus (Murni horizontal, bebas dari scroll vertikal dalam) */
     .table-responsive-dda {
         width: 100%;
-        max-width: 100%; /* Penting: Batasi lebar maksimal */
+        max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         margin-bottom: 25px;
         background: #fff;
-        border: 1px solid #f1f5f9; /* Bingkai halus */
+        border: 1px solid #f1f5f9;
         border-radius: 12px;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.02); /* Sedikit kedalaman */
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
     }
 
     /* Scrollbar style yang lebih terlihat */
@@ -770,8 +794,8 @@ function get_dda_label_nested($col)
                 </div>
             <?php endif; ?>
 
-            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm">
-                <i class="bi bi-gear-fill"></i> KONFIGURASI
+            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm" title="Buka Pengaturan Konfigurasi Tabel">
+                <i class="bi bi-sliders text-primary"></i> KONFIGURASI
             </button>
 
             <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">

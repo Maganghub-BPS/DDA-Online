@@ -21,18 +21,18 @@
 <!-- Welcome Alert -->
 <div class="alert alert-light alert-dismissible fade show border shadow-sm" role="alert" id="alert" style="border-radius: 12px;">
     <div class="d-flex align-items-center">
-        <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 42px; height: 42px; background: rgba(255,109,31,0.1); flex-shrink: 0;">
+        <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 42px; height: 42px; background: rgba(21, 70, 121, 0.08); flex-shrink: 0;">
             <i class="bi bi-hand-thumbs-up text-primary" style="font-size: 1.2rem;"></i>
         </div>
         <div>
             Selamat datang <strong><?php echo esc(session()->get('admin_nama')); ?></strong>
             <?php if (!empty($user_role_scope)): ?>
                 <?php if ($user_role_scope === 'walidata'): ?>
-                    <span class="badge border ms-1 fw-semibold" style="background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; border-color: rgba(255, 109, 31, 0.2) !important;"><i class="bi bi-building me-1"></i>Walidata</span>
+                    <span class="badge border ms-1 fw-semibold" style="background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; border-color: rgba(21, 70, 121, 0.2) !important;"><i class="bi bi-building me-1"></i>Walidata</span>
                 <?php elseif ($user_role_scope === 'lo'): ?>
-                    <span class="badge border ms-1 fw-semibold" style="background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; border-color: rgba(255, 109, 31, 0.2) !important;"><i class="bi bi-person-badge me-1"></i>LO</span>
+                    <span class="badge border ms-1 fw-semibold" style="background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; border-color: rgba(21, 70, 121, 0.2) !important;"><i class="bi bi-person-badge me-1"></i>LO</span>
                 <?php else: ?>
-                    <span class="badge border ms-1 fw-semibold" style="background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; border-color: rgba(255, 109, 31, 0.2) !important;"><i class="bi bi-shield-check me-1"></i>Admin</span>
+                    <span class="badge border ms-1 fw-semibold" style="background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; border-color: rgba(21, 70, 121, 0.2) !important;"><i class="bi bi-shield-check me-1"></i>Admin</span>
                 <?php endif; ?>
             <?php endif; ?>.
             Berikut adalah Statistik Progres Data DDA untuk <strong><?php echo esc($scope_label ?? 'Provinsi Jawa Tengah'); ?></strong> Tahun <strong><?php echo session()->get("admin_ta"); ?></strong>.

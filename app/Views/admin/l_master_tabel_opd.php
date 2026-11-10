@@ -19,7 +19,7 @@
                         <i class="bi bi-arrow-left me-1"></i> Kembali
                     </a>
                     <h5 class="fw-bold mb-0 text-dark">
-                        <i class="bi bi-patch-question me-2 text-primary-orange"></i>Review Tabel Usulan
+                        <i class="bi bi-patch-question me-2 text-primary"></i>Review Tabel Usulan
                     </h5>
                 </div>
             </div>
@@ -127,13 +127,13 @@
     .border-radius-md { border-radius: 0.4rem !important; }
     
     .bg-gray-100 { background-color: #f8f9fa !important; }
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
-    .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.2) !important; }
     .bg-success-soft { background-color: rgba(25, 135, 84, 0.1) !important; color: #198754 !important; }
     .border-success-soft { border: 1px solid rgba(25, 135, 84, 0.25) !important; }
     .bg-warning-soft { background-color: rgba(245, 158, 11, 0.12) !important; color: #b45309 !important; }
     .border-warning-soft { border: 1px solid rgba(245, 158, 11, 0.28) !important; }
-    .text-primary-orange { color: #FF6D1F !important; }
+    .text-primary-orange { color: #154679 !important; }
 
     .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }
     .table thead th { border-bottom: 0 !important; font-size: 0.75rem !important; }
@@ -143,8 +143,8 @@
     }
     .input-group-alternative:focus-within {
         background-color: #fff !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-        border-color: #FF6D1F !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
+        border-color: #154679 !important;
     }
     
     .btn-icon-only {

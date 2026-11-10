@@ -161,14 +161,34 @@ $isConfigured  = ($indikator && $dimCount >= 2);
 
 <style>
     /* Parity 100% dengan v_portal_tabel.php (View API) */
+    /* Pastikan scroll vertikal mengalir bebas di luar (natural outer scroll) */
+    .main-content {
+        height: auto !important;
+        min-height: auto !important;
+        overflow-y: visible !important;
+        padding-bottom: 36px !important;
+    }
+
+    .content-body {
+        height: auto !important;
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+        overflow-y: visible !important;
+    }
+
     .dda-body {
         background: #fff;
-        padding: 20px;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         font-family: 'Arial', sans-serif;
         color: #000;
         line-height: 1.2;
         width: 100%;
         max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: hidden;
         display: block;
         box-sizing: border-box;
@@ -321,10 +341,13 @@ $isConfigured  = ($indikator && $dimCount >= 2);
         line-height: 1.3;
     }
 
-    /* Kontainer Scrollable Mulus */
+    /* Kontainer Scrollable Mulus (Murni horizontal, bebas dari scroll vertikal dalam) */
     .table-responsive-dda {
         width: 100%;
         max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         margin-bottom: 25px;

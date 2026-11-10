@@ -60,7 +60,7 @@ if ($jenis_rekap == '0') {
         ORDER BY m.unitkerja_ind ASC
     ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 ?>
-    <div class="row align-items-center mb-4">
+    <div class="row align-items-center mb-3 flex-shrink-0">
         <div class="col">
             <h6 class="text-uppercase text-secondary font-weight-bold mb-0" style="letter-spacing: 1px; font-size: 0.85rem;">
                 Daftar Progres Berdasarkan Instansi
@@ -73,16 +73,16 @@ if ($jenis_rekap == '0') {
         </div>
     </div>
 
-    <div class="table-responsive bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0">
-        <table class="table align-items-center mb-0" id="tblInstansi">
+    <div class="table-responsive table-scroll-container flex-grow-1 bg-white rounded-3 shadow-sm border border-light p-0" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden !important;">
+        <table class="table align-items-center mb-0 table-sticky-header w-100" id="tblInstansi" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="valign-middle py-3 ps-4">Nama Instansi</th>
-                    <th class="valign-middle text-center py-3 px-2">Total</th>
-                    <th class="valign-middle text-center text-danger py-3 px-2">Belum Diisi</th>
-                    <th class="valign-middle text-center text-warning py-3 px-2">Sudah Diisi</th>
-                    <th class="valign-middle text-center text-success py-3 px-2">Validasi</th>
-                    <th class="valign-middle text-center py-3 ps-3" style="min-width: 180px;">Progress</th>
+                    <th class="valign-middle py-3 ps-3 text-start" style="width: 36%;">Nama Instansi</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 8%;">Total</th>
+                    <th class="valign-middle text-center text-danger py-3 px-1" style="width: 9%;">Belum Diisi</th>
+                    <th class="valign-middle text-center text-warning py-3 px-1" style="width: 9%;">Sudah Diisi</th>
+                    <th class="valign-middle text-center text-success py-3 px-1" style="width: 9%;">Validasi</th>
+                    <th class="valign-middle text-center py-3 px-2" style="width: 29%;">Progress</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -100,7 +100,7 @@ if ($jenis_rekap == '0') {
                         $persen_total = $persen_v + $persen_i;
                 ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="font-weight-bold ps-4 text-wrap" style="max-width: 320px; line-height: 1.6;"><?php echo $b->unitkerja_ind; ?></td>
+                            <td class="font-weight-bold ps-3 text-wrap" style="line-height: 1.5; word-break: break-word;"><?php echo $b->unitkerja_ind; ?></td>
                             <td class="text-center font-weight-bold">
                                 <span class="badge bg-light text-dark"><?php echo $b->jumlah_tabel; ?></span>
                             </td>
@@ -126,8 +126,8 @@ if ($jenis_rekap == '0') {
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <div class="d-flex align-items-center px-4">
-                                    <div class="me-2 text-end" style="min-width: 120px; line-height: 1.2;">
+                                <div class="d-flex align-items-center px-2">
+                                    <div class="me-2 text-end" style="min-width: 100px; line-height: 1.2;">
                                         <div class="text-success font-weight-bolder" style="font-size: 10px;">Sudah Validasi: <?php echo number_format($persen_v, 0); ?>%</div>
                                         <div class="text-warning font-weight-bolder" style="font-size: 10px;">Sudah Diisi: <?php echo number_format($persen_i, 0); ?>%</div>
                                     </div>
@@ -208,7 +208,7 @@ if ($jenis_rekap == '1') {
         ORDER BY u.user_wali ASC
     ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 ?>
-    <div class="row align-items-center mb-4">
+    <div class="row align-items-center mb-3 flex-shrink-0">
         <div class="col">
             <h6 class="text-uppercase text-secondary font-weight-bold mb-0" style="letter-spacing: 1px; font-size: 0.85rem;">
                 Daftar Progres Berdasarkan Tim
@@ -221,16 +221,16 @@ if ($jenis_rekap == '1') {
         </div>
     </div>
 
-    <div class="table-responsive bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0">
-        <table class="table align-items-center mb-0">
+    <div class="table-responsive table-scroll-container flex-grow-1 bg-white rounded-3 shadow-sm border border-light p-0" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden !important;">
+        <table class="table align-items-center mb-0 table-sticky-header w-100" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="valign-middle py-3 ps-4">Nama Tim</th>
-                    <th class="valign-middle text-center py-3 px-2">Total</th>
-                    <th class="valign-middle text-center text-danger py-3 px-2">Belum Diisi</th>
-                    <th class="valign-middle text-center text-warning py-3 px-2">Sudah Diisi</th>
-                    <th class="valign-middle text-center text-success py-3 px-2">Validasi</th>
-                    <th class="valign-middle text-center py-3 ps-3" style="min-width: 180px;">Progress</th>
+                    <th class="valign-middle py-3 ps-3 text-start" style="width: 36%;">Nama Tim</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 8%;">Total</th>
+                    <th class="valign-middle text-center text-danger py-3 px-1" style="width: 9%;">Belum Diisi</th>
+                    <th class="valign-middle text-center text-warning py-3 px-1" style="width: 9%;">Sudah Diisi</th>
+                    <th class="valign-middle text-center text-success py-3 px-1" style="width: 9%;">Validasi</th>
+                    <th class="valign-middle text-center py-3 px-2" style="width: 29%;">Progress</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -248,7 +248,7 @@ if ($jenis_rekap == '1') {
                         $persen_total = $persen_v + $persen_i;
                 ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="font-weight-bold text-uppercase ps-4 text-dark"><?php echo $b->user_wali; ?></td>
+                            <td class="font-weight-bold text-uppercase ps-3 text-dark text-wrap" style="line-height: 1.5; word-break: break-word;"><?php echo $b->user_wali; ?></td>
                             <td class="text-center font-weight-bold">
                                 <span class="badge bg-light text-dark"><?php echo $b->jumlah_tabel; ?></span>
                             </td>
@@ -274,8 +274,8 @@ if ($jenis_rekap == '1') {
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <div class="d-flex align-items-center px-4">
-                                    <div class="me-2 text-end" style="min-width: 120px; line-height: 1.2;">
+                                <div class="d-flex align-items-center px-2">
+                                    <div class="me-2 text-end" style="min-width: 100px; line-height: 1.2;">
                                         <div class="text-success font-weight-bolder" style="font-size: 10px;">Sudah Validasi: <?php echo number_format($persen_v, 0); ?>%</div>
                                         <div class="text-warning font-weight-bolder" style="font-size: 10px;">Sudah Diisi: <?php echo number_format($persen_i, 0); ?>%</div>
                                     </div>
@@ -299,7 +299,7 @@ if ($jenis_rekap == '1') {
 // REPORT PORTAL 
 if ($jenis_rekap == '2') {
 ?>
-    <div class="row align-items-center mb-4">
+    <div class="row align-items-center mb-3 flex-shrink-0">
         <div class="col">
             <h6 class="text-uppercase text-secondary font-weight-bold mb-0" style="letter-spacing: 1px; font-size: 0.85rem;">
                 Daftar Sinkronisasi Portal Data
@@ -307,15 +307,15 @@ if ($jenis_rekap == '2') {
         </div>
     </div>
 
-    <div class="bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0" style="width: 100%; overflow-x: hidden !important;">
-        <table class="table table-hover align-items-center mb-0 w-100" style="table-layout: fixed; width: 100%;">
+    <div class="table-responsive table-scroll-container flex-grow-1 bg-white rounded-3 shadow-sm border border-light p-0" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden !important;">
+        <table class="table table-hover align-items-center mb-0 table-sticky-header w-100" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="valign-middle py-3 ps-3 text-start" style="width: 22%; font-size: 0.78rem;">Satker</th>
+                    <th class="valign-middle py-3 ps-3 text-start" style="width: 19%; font-size: 0.78rem;">Satker</th>
                     <th class="valign-middle py-3 px-2 text-start" style="width: 32%; font-size: 0.78rem;">Judul DDA</th>
                     <th class="valign-middle py-3 px-2 text-start" style="width: 28%; font-size: 0.78rem;">Judul Portal</th>
                     <th class="valign-middle text-center py-3 px-1" style="width: 7%; font-size: 0.78rem;">Tahun</th>
-                    <th class="valign-middle text-center py-3 px-2" style="width: 11%; font-size: 0.78rem;">Status</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 14%; font-size: 0.78rem;">Status</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -361,8 +361,8 @@ if ($jenis_rekap == '2') {
                             <td class="text-center px-1 py-2.5" style="word-break: break-word;">
                                 <span class="badge bg-light text-dark font-weight-bold text-xxs px-1.5 py-0.5"><?php echo esc($tahun_display); ?></span>
                             </td>
-                            <td class="text-center px-2 py-2.5">
-                                <span class="badge border <?php echo $status_class; ?> text-uppercase fw-bold" style="font-size: 9px; padding: 3px 6px;">
+                            <td class="text-center px-1 py-2.5">
+                                <span class="badge border <?php echo $status_class; ?> text-uppercase fw-bold badge-portal-status">
                                     <?php echo $status_label; ?>
                                 </span>
                                 <div class="text-secondary" style="font-size: 9px; margin-top: 2px;">(<?php echo $thData; ?>)</div>
