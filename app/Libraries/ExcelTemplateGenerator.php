@@ -2078,7 +2078,12 @@ class ExcelTemplateGenerator
                         if (isset($existingMap[$rIdBaris][$cIdKarakteristik][$cIdPeriode])) {
                             $exVal = $existingMap[$rIdBaris][$cIdKarakteristik][$cIdPeriode];
                             if (!empty($exVal['simbol'])) {
-                                $sheet->setCellValue("{$cLetter}{$rExcel}", $exVal['simbol']);
+                                $simbStr = trim((string)$exVal['simbol']);
+                                if (preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?/', $simbStr)) {
+                                    $sheet->setCellValueExplicit("{$cLetter}{$rExcel}", $simbStr, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                                } else {
+                                    $sheet->setCellValue("{$cLetter}{$rExcel}", $exVal['simbol']);
+                                }
                             } elseif ($exVal['nilai'] !== null && $exVal['nilai'] !== '') {
                                 $sheet->setCellValue("{$cLetter}{$rExcel}", (float)$exVal['nilai']);
                             }
