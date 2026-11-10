@@ -226,6 +226,14 @@ class RbacService
                 'walidata_vertikal' => true,
                 'walidata_opd'      => true,
             ],
+            // 18. Usulan Tabel Baru (OPD & Vertikal mengajukan usulan, Admin mereview)
+            'usulan_tabel' => [
+                'superadmin'        => true,
+                'admin'             => true,
+                'lo'                => true,
+                'walidata_vertikal' => true,
+                'walidata_opd'      => true,
+            ],
         ];
 
         return $matrix[$permission][$role] ?? false;

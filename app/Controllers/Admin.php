@@ -1906,26 +1906,15 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		if (!can('master_tabel') && !can('input_dda_input')) {
+		if (!can('master_tabel') && !can('usulan_tabel') && !can('input_dda_input') && !can('view_dda')) {
 			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengakses menu Usulan Tabel.</div>');
 			return redirect()->to('admin/dda');
 		}
 
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_master_tabel_usulan")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		if (empty($awal) || $awal == 1) {
-			$awal = 0;
-		}
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/master_tabel_opd/p");
+		/* pagination dinonaktifkan: seluruh data usulan ditampilkan sekaligus dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -1949,7 +1938,9 @@ class Admin extends BaseController
 		$config['max_width']  		= '3000';
 		$config['max_height'] 		= '3000';
 		$kode						= rand(1, 1000);
-		$config['file_name'] 		= $kode . '_' . $unitkerja . '_' . $addby;
+		$safe_unit					= substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$unitkerja), 0, 15);
+		$safe_user					= substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$addby), 0, 15);
+		$config['file_name'] 		= $kode . '_' . $safe_unit . '_' . $safe_user;
 
 		$this->load->library('upload', $config);
 
@@ -1971,15 +1962,26 @@ class Admin extends BaseController
 			}
 			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "cari") {
+			$is_bps = $this->isAdminBps();
+			$unitkerja = $this->session->get('admin_unitkerja');
 			$cari = $this->input->post('q') ?: ($this->input->post('cari') ?: '');
-			$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			if ($is_bps) {
+				$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			} else {
+				$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.id_unitkerja = ? AND (l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ?) ORDER BY l.is_setujui ASC, l.id DESC", [$unitkerja, '%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			}
 			$a['offset'] = 0;
 			$a['pagi'] = "";
+			$a['is_bps'] = $is_bps;
 			$a['page'] = "l_master_tabel_opd";
 		} else if ($mau_ke == "add") {
-
+			$a['is_bps'] = $this->isAdminBps();
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "edt") {
+			if (!$this->isAdminBps()) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Admin BPS yang berwenang menelaah dan menyetujui usulan tabel.</div>");
+				return redirect()->to('admin/master_tabel_opd/');
+			}
 
 			$datpil = $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = ?", [$idu])->getRow();
 			$a['datpil']   = $datpil;
@@ -2003,11 +2005,14 @@ class Admin extends BaseController
 			date_default_timezone_set("Asia/Jakarta");
 			$waktusekarang = date("H:i");
 			if ($this->upload->do_upload('file_tabel')) {
-				$up_data	 	= $this->upload->data();
+				$up_data = $this->upload->data();
 				$this->db->query("INSERT INTO m_master_tabel_usulan VALUES (NULL, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, $up_data['file_name'], $is_setujui, $unitkerja, $addby]);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel usulan berhasil dikirim ke BPS untuk ditelaah.</div>");
+			} else {
+				$errMsg = $this->upload->display_errors() ?: 'Gagal mengunggah berkas tabel pendukung.';
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal mengirim usulan: " . esc($errMsg) . "</div>");
 			}
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel berhasil ditambahkan</div>");
-			return redirect()->to('admin/');
+			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "act_edt") {
 			if (!can('master_tabel')) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Admin BPS yang berwenang menyetujui usulan tabel.</div>");
@@ -2084,8 +2089,15 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel usulan berhasil disetujui (ACC) dan ditautkan ke Master Tabel #{$m_id} untuk DDA Tahun {$ta}</div>");
 			return redirect()->to('admin/master_tabel_opd/');
 		} else {
-			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
-			$a['offset']	= (int)$awal;
+			$is_bps = $this->isAdminBps();
+			$unitkerja = $this->session->get('admin_unitkerja');
+			if ($is_bps) {
+				$a['data'] = $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC")->getResult();
+			} else {
+				$a['data'] = $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja WHERE l.id_unitkerja = ? ORDER BY l.is_setujui ASC, l.id DESC", [$unitkerja])->getResult();
+			}
+			$a['offset']	= 0;
+			$a['is_bps']	= $is_bps;
 			$a['page']		= "l_master_tabel_opd";
 		}
 		return view('admin/index', $a);

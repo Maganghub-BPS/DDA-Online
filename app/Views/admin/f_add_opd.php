@@ -79,8 +79,8 @@ if ($mode == "edt" || $mode == "act_edt") {
                 <div class="alert bg-primary-soft text-primary border-0 rounded-4 mb-4 d-flex align-items-center">
                     <i class="bi bi-info-circle-fill fs-4 me-3"></i>
                     <div>
-                        <span class="fw-bold d-block">Peninjauan Usulan Tabel OPD</span>
-                        <small>Periksa dan lengkapi rincian tabel sebelum menyetujui usulan ini masuk ke Master Tabel DDA <b>Tahun <?php echo $ta; ?></b>.</small>
+                        <span class="fw-bold d-block"><?php echo ($mode == "edt") ? "Peninjauan Usulan Tabel OPD" : "Formulir Usulan Tabel Baru"; ?></span>
+                        <small><?php echo ($mode == "edt") ? "Periksa dan lengkapi rincian tabel sebelum menyetujui usulan ini masuk ke Master Tabel DDA <b>Tahun " . $ta . "</b>." : "Lengkapi judul tabel dalam dwibahasa dan lampirkan draf berkas tabel (Excel/Word) untuk diajukan ke BPS."; ?></small>
                     </div>
                 </div>
 

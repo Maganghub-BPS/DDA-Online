@@ -554,7 +554,7 @@
         'l_dda_periksa'  => 'Pemeriksaan Data DDA',
         'l_master_tabel' => 'Master Tabel DDA',
         'l_master_dimensi' => 'Master Dimensi Tabel Dinamis',
-        'l_master_tabel_opd' => 'Master Tabel OPD',
+        'l_master_tabel_opd' => (session()->get('admin_unitkerja') !== 'bps') ? 'Usulan Tabel Baru' : 'Review Tabel Usulan OPD',
         'l_unitkerja'    => 'Manajemen OPD',
         'f_unitkerja'    => 'Form Master OPD',
         'l_manage_admin' => 'Manajemen Admin',
@@ -606,6 +606,13 @@
                         <i class="bi bi-pencil-square"></i>
                         <span class="link-text"><?php echo (current_user_role() === 'walidata_opd') ? 'Lihat Data DDA' : 'Input Data DDA'; ?></span>
                     </a>
+
+                    <?php if (session()->get('admin_unitkerja') !== 'bps'): ?>
+                    <a href="<?php echo base_url(); ?>admin/master_tabel_opd" class="sidebar-link <?php echo (strpos($page, 'master_tabel_opd') !== false || $page === 'f_add_opd') ? 'active' : ''; ?>">
+                        <i class="bi bi-file-earmark-plus"></i>
+                        <span class="link-text">Usulan Tabel Baru</span>
+                    </a>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <?php if (can('forum_diskusi')): ?>

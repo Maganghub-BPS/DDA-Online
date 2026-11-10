@@ -180,6 +180,13 @@
                     </div>
                 <?php endif; ?>
 
+                <?php if (!$is_bps_user && (can('usulan_tabel') || can('input_dda_input') || can('view_dda'))): ?>
+                    <a href="<?= base_url('admin/master_tabel_opd/add'); ?>" class="btn btn-sm btn-primary fw-bold d-inline-flex align-items-center gap-1 shadow-none flex-shrink-0" style="height: 34px; border-radius: 8px; font-size: 0.78rem; background: linear-gradient(45deg, #154679, #1e5c9e); border: none;">
+                        <i class="bi bi-plus-circle"></i>
+                        <span class="d-none d-sm-inline">Usulkan Tabel Baru</span>
+                    </a>
+                <?php endif; ?>
+
                 <!-- Search Input -->
                 <div class="input-group input-group-sm flex-nowrap flex-shrink-0" style="width: 230px; height: 34px;">
                     <span class="input-group-text bg-light border-0 text-muted px-2.5" style="border-radius: 8px 0 0 8px; font-size: 0.8rem;"><i class="bi bi-search"></i></span>
