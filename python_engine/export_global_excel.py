@@ -16,7 +16,7 @@ from openpyxl.utils import get_column_letter
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from compare_table import compare_head_to_head
-from export_excel import populate_matrix_sheet, get_instansi_name, FONT_FAMILY, HEADER_GRAY, BORDER_THIN, PDF_COL_HDR, DB_COL_HDR, DIFF_FILL, DIFF_FONT, PDF_ONLY_FILL, PDF_ONLY_FONT, MATCH_FILL, MATCH_FONT
+from export_excel import populate_matrix_sheet, get_instansi_name, get_real_pdf_only, FONT_FAMILY, HEADER_GRAY, BORDER_THIN, PDF_COL_HDR, DB_COL_HDR, DIFF_FILL, DIFF_FONT, PDF_ONLY_FILL, PDF_ONLY_FONT, MATCH_FILL, MATCH_FONT
 
 OPD_BANNER_FILL = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
 OPD_BANNER_FONT = Font(name=FONT_FAMILY, size=11, bold=True, color="0F172A")
@@ -232,7 +232,37 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             t_no = str(entry[0].get("nomor_tabel", "")).strip()
             write_progress(progress_path, is_running=True, completed=completed_cnt, total=total, cur_table=f"Tabel {t_no} ({completed_cnt}/{total})", status="running")
 
-    computed_results = [r for r in ordered_results if r is not None]
+    raw_computed = [r for r in ordered_results if r is not None]
+    computed_results = []
+    state_modified = False
+
+    for entry in raw_computed:
+        item, st_info, res = entry
+        tnum = str(item.get("nomor_tabel", "")).strip()
+        if isinstance(res, dict) and res.get("status") == "success":
+            diffs = res.get("diffs", [])
+            matches = res.get("matches", [])
+            real_pdf_only = get_real_pdf_only(res)
+            actual_diff_cnt = len(diffs) + len(real_pdf_only)
+            res["_actual_diff_cnt"] = actual_diff_cnt
+            if actual_diff_cnt == 0 and len(matches) > 0:
+                total_match_count += 1
+                if tnum in state_data:
+                    state_data[tnum]["status"] = "match"
+                    state_data[tnum]["diff_count"] = 0
+                    state_data[tnum]["match_count"] = len(matches)
+                    state_modified = True
+                continue
+        computed_results.append(entry)
+
+    if state_modified and state_json_path:
+        try:
+            with open(state_json_path, "w", encoding="utf-8") as f_st:
+                json.dump(state_data, f_st, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    ws_idx['A2'] = f"Catatan: Ditemukan {len(computed_results)} tabel bermasalah (ada selisih angka atau data kosong di database). Sebanyak {total_match_count} tabel yang Cocok 100% sengaja dikecualikan agar tim pemeriksa fokus hanya pada data yang perlu diperbaiki."
 
     write_progress(progress_path, is_running=True, completed=total, total=total, cur_table="Menulis format Excel...", status="running")
 
@@ -410,8 +440,10 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             src_label = "Tabel Dinamis" if src_code == "dinamis" else "API Satu Data"
             pages = ", ".join(str(p) for p in item.get("pages", [])) if item.get("pages") else "-"
             st = st_info.get("status", "diff")
-            if isinstance(res, dict) and "diffs" in res:
-                diff_cnt = len(res.get("diffs", []))
+            if isinstance(res, dict) and "_actual_diff_cnt" in res:
+                diff_cnt = int(res.get("_actual_diff_cnt", 0))
+            elif isinstance(res, dict) and "diffs" in res:
+                diff_cnt = len(res.get("diffs", [])) + len(get_real_pdf_only(res))
             else:
                 try:
                     diff_cnt = int(st_info.get("diff_count", 0))

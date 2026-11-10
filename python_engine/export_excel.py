@@ -54,24 +54,47 @@ def get_instansi_name(tnum, id_db=None, preloaded_db=None):
                     return f"{inst} ({j_inst.upper()})" if j_inst else inst
     return "-"
 
-def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi=""):
-    def is_artifact_row(w):
-        if not w: return True
-        w_clean = str(w).strip().lower()
-        if w_clean in ("partai politik", "rincian", "uraian", "kabupaten/kota", "nama kabupaten/kota", 
-                       "bulan", "month", "tahun", "year", "periode", "period", "satuan", "unit", 
-                       "indikator", "variabel", "dimensi", "kategori", "none", "-", "–", "—"):
-            return True
-        if w_clean.startswith("none ") or w_clean.endswith(" none") or w_clean == "none none":
-            return True
-        if w_clean.startswith("tabel ") or w_clean.startswith("table ") or w_clean.startswith("bab ") or w_clean.startswith("chapter "):
-            return True
-        return False
+def is_artifact_row(w):
+    if not w:
+        return True
+    w_clean = str(w).strip().lower()
+    if w_clean in ("partai politik", "rincian", "uraian", "kabupaten/kota", "nama kabupaten/kota", 
+                   "bulan", "month", "tahun", "year", "periode", "period", "satuan", "unit", 
+                   "indikator", "variabel", "dimensi", "kategori", "none", "-", "–", "—", "−"):
+        return True
+    if w_clean.startswith("none ") or w_clean.endswith(" none") or w_clean == "none none":
+        return True
+    if w_clean.startswith("tabel ") or w_clean.startswith("table ") or w_clean.startswith("bab ") or w_clean.startswith("chapter "):
+        return True
+    if re.match(r'^(?:jumlah|total)\s+(?:19\d{2}|20(?:0\d|1\d|2[0-4]))$', w_clean):
+        return True
+    return False
 
+
+def get_real_pdf_only(res):
+    if not isinstance(res, dict):
+        return []
+    pdf_only = res.get("pdf_only", [])
+    diffs = res.get("diffs", [])
+    out = []
+    for p in pdf_only:
+        w = p.get("wilayah")
+        if is_artifact_row(w):
+            continue
+        w_low = str(w or "").strip().lower()
+        if not diffs and w_low in ("jawa tengah", "total jawa tengah", "provinsi jawa tengah", "jumlah", "total", "jumlah/total", "jumlah total"):
+            continue
+        note_low = str(p.get("note", "")).lower()
+        if any(k in note_low for k in ("data historis", "tahun ajaran lalu", "tidak dimuat di database", "total jawa tengah tercetak")):
+            continue
+        out.append(p)
+    return out
+
+
+def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi=""):
     diffs = res.get("diffs", [])
     matches = res.get("matches", [])
-    pdf_only = res.get("pdf_only", [])
-    real_pdf_only = [p for p in pdf_only if not is_artifact_row(p.get("wilayah")) and not any(k in str(p.get("note", "")).lower() for k in ("data historis", "tahun ajaran lalu", "tidak dimuat di database", "total jawa tengah tercetak"))]
+    real_pdf_only = get_real_pdf_only(res)
     total_diffs = len(diffs) + len(real_pdf_only)
     total_all = len(diffs) + len(matches) + len(real_pdf_only)
 
@@ -101,6 +124,9 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi=""):
     if total_diffs > 0:
         st_text = f"Status: Ditemukan {total_diffs} data berbeda (dari total {total_all} angka)"
         st_color = "991B1B"
+    elif total_all == 0:
+        st_text = "Status: Data Kosong / Strip (–) di PDF & Database"
+        st_color = "D97706"
     else:
         st_text = f"Status: Cocok 100% (Semua {total_all} angka sama persis)"
         st_color = "166534"

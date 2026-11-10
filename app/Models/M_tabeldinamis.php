@@ -1863,7 +1863,13 @@ class M_tabeldinamis extends Model
             }
         }
         if (!empty($tahunTampil)) {
-            $activeYears = array_values(array_unique(array_merge($tahunTampil, $dataYears)));
+            if (!$isRuntunWaktu && !empty($dataYears)) {
+                $dataYearsInt = array_map('intval', $dataYears);
+                $nonEmptyYears = array_values(array_intersect($tahunTampil, $dataYearsInt));
+                $activeYears = !empty($nonEmptyYears) ? $nonEmptyYears : array_values(array_unique(array_merge($tahunTampil, $dataYearsInt)));
+            } else {
+                $activeYears = array_values(array_unique(array_merge($tahunTampil, $dataYears)));
+            }
         } else {
             $activeYears = !empty($dataYears) ? $dataYears : [(int)($indikator->tahun ?? date('Y'))];
         }
@@ -2151,14 +2157,22 @@ class M_tabeldinamis extends Model
             return $cell['simbol'] ?? null;
         };
 
-        $pushCellWithCoord = function (array &$valRow, array &$tplRow, int $bId, int $cId, int $pId, ?array $cell) use (&$seq, &$cellCoords, $formatCellValue) {
+        $defaultTahunCoord = !empty($activeYears) ? (int)end($activeYears) : (int)($indikator->tahun ?? date('Y'));
+        $pushCellWithCoord = function (array &$valRow, array &$tplRow, int $bId, int $cId, int $pId, ?array $cell) use (&$seq, &$cellCoords, $formatCellValue, $defaultTahunCoord) {
             $valRow[] = $formatCellValue($cell);
             $seq++;
             $tplRow[] = -900000 - $seq;
+            $tCoord = !empty($cell['tahun_data']) ? (int)$cell['tahun_data'] : $defaultTahunCoord;
+            if ($pId > 190000000) {
+                $tCoord = intdiv($pId, 100000);
+            } elseif ($pId >= 1900 && $pId <= 2100) {
+                $tCoord = $pId;
+            }
             $cellCoords[(string)$seq] = [
                 'b' => $bId,
                 'k' => $cId,
                 'p' => $pId,
+                't' => $tCoord,
             ];
         };
 

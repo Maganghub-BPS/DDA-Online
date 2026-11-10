@@ -4623,10 +4623,15 @@ class Admin extends BaseController
 				$rawJson = @file_get_contents($dbJsonPath);
 				$listTables = json_decode($rawJson, true);
 				if (is_array($listTables)) {
+					$updated = false;
 					foreach ($listTables as &$item) {
 						$curClean = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $item['nomor_tabel'] ?? ''));
 						$curClean = rtrim($curClean, '.');
-						if ($curClean === $cleanNo && ((int)($item['id_db'] ?? 0) === (int)$rowDb->id_db || ($item['source_type'] ?? '') !== 'spreadsheet')) {
+						$isMatch = ($curClean === $cleanNo)
+							|| ((int)($item['id_db'] ?? 0) === (int)$rowDb->id_db)
+							|| (trim((string)($item['nomor_tabel'] ?? '')) === trim((string)$nomor_tabel));
+
+						if ($isMatch) {
 							$item['id_db']         = (int)$rowDb->id_db;
 							$item['id_indikator']  = $dynInfo ? ($dynInfo['id_indikator'] ?? null) : null;
 							$item['link_tabel']    = $rowDb->link_tabel;
@@ -4636,11 +4641,14 @@ class Admin extends BaseController
 							$item['dynamic_grid']  = $dynInfo ? ($dynInfo['dynamic_grid'] ?? []) : [];
 							$item['template_grid'] = $dynInfo ? ($dynInfo['template_grid'] ?? []) : [];
 							$item['cell_coords']   = $dynInfo ? ($dynInfo['cell_coords'] ?? []) : [];
+							$updated = true;
 							break;
 						}
 					}
 					unset($item);
-					@file_put_contents($dbJsonPath, json_encode($listTables, JSON_UNESCAPED_UNICODE));
+					if ($updated) {
+						@file_put_contents($dbJsonPath, json_encode($listTables, JSON_UNESCAPED_UNICODE));
+					}
 				}
 			}
 		}
@@ -4841,7 +4849,22 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Data sel atau ID Indikator Tabel Dinamis tidak valid']);
 		}
 
-		$taDefault = (int)($this->session->get('admin_ta') ?: date('Y'));
+		$mDinamis = new \App\Models\M_tabeldinamis();
+		$indObj = $this->db->table('m_indikator_tabel')->where('id', $idIndikator)->get()->getRow();
+		$availYears = $mDinamis->getAvailableYears($idIndikator);
+		$adminTa = (int)($this->session->get('admin_ta') ?: date('Y'));
+
+		if (!empty($availYears)) {
+			$taDefault = (int)end($availYears);
+		} elseif ($indObj && !empty($indObj->tahun_tampil)) {
+			$tParts = array_values(array_filter(array_map('intval', explode(',', (string)$indObj->tahun_tampil))));
+			$taDefault = !empty($tParts) ? (int)end($tParts) : ($adminTa - 1);
+		} elseif ($indObj && !empty($indObj->tahun) && (int)$indObj->tahun >= 1900) {
+			$taDefault = (int)$indObj->tahun;
+		} else {
+			$taDefault = $adminTa;
+		}
+
 		$payload = [];
 		foreach ($cells as $c) {
 			$idB = (int)($c['id_baris_item'] ?? ($c['b'] ?? 0));
@@ -4849,7 +4872,8 @@ class Admin extends BaseController
 			$idP = (int)($c['id_periode_item'] ?? ($c['p'] ?? 0));
 			$rawVal = $c['nilai'] ?? null;
 			$simbol = $c['simbol'] ?? null;
-			$tahunData = (int)($c['tahun_data'] ?? ($this->request->getPost('tahun_data') ?: $taDefault));
+			$cTahun = (int)($c['tahun_data'] ?? ($c['t'] ?? ($this->request->getPost('tahun_data') ?: 0)));
+			$tahunData = ($cTahun >= 1900 && $cTahun <= 2100) ? $cTahun : $taDefault;
 
 			if ($idP > 190000000) {
 				$tahunData = intdiv($idP, 100000);
@@ -4859,8 +4883,30 @@ class Admin extends BaseController
 				$idP       = 0;
 			}
 
+			if ($rawVal !== null && !is_numeric($rawVal) && is_string($rawVal)) {
+				$cleanRaw = trim($rawVal);
+				if (preg_match('/^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?$/', $cleanRaw)) {
+					$cleanRaw = str_replace('.', '', $cleanRaw);
+					$cleanRaw = str_replace(',', '.', $cleanRaw);
+				} elseif (preg_match('/^-?\d+,\d+$/', $cleanRaw)) {
+					$cleanRaw = str_replace(',', '.', $cleanRaw);
+				} elseif (preg_match('/^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/', $cleanRaw)) {
+					$cleanRaw = str_replace(',', '', $cleanRaw);
+				}
+				if (is_numeric($cleanRaw)) {
+					$rawVal = $cleanRaw;
+				}
+			}
+
+			$jmlDesimal = null;
 			if (is_numeric($rawVal)) {
 				$nilai = (float)$rawVal;
+				if (abs($nilai - round($nilai)) > 0.00001) {
+					$vStr = (string)$nilai;
+					$jmlDesimal = (strpos($vStr, '.') !== false) ? min(4, strlen(rtrim(explode('.', $vStr)[1], '0'))) : 2;
+				} else {
+					$jmlDesimal = 0;
+				}
 			} else {
 				$nilai = null;
 				if ($rawVal !== null && trim((string)$rawVal) !== '') {
@@ -4875,31 +4921,24 @@ class Admin extends BaseController
 				'tahun_data'            => $tahunData,
 				'nilai'                 => $nilai,
 				'simbol'                => $simbol,
+				'jumlah_desimal'        => $jmlDesimal,
 			];
 		}
 
 		// Deteksi presisi desimal jika ada data desimal pecahan
 		$maxDetectedDec = 0;
 		foreach ($payload as $pItem) {
-			if ($pItem['nilai'] !== null && abs($pItem['nilai'] - round($pItem['nilai'])) > 0.00001) {
-				$vStr = (string)$pItem['nilai'];
-				if (strpos($vStr, '.') !== false) {
-					$dLen = strlen(rtrim(explode('.', $vStr)[1], '0'));
-					if ($dLen > $maxDetectedDec) {
-						$maxDetectedDec = min(4, $dLen);
-					}
-				}
+			if (!empty($pItem['jumlah_desimal']) && (int)$pItem['jumlah_desimal'] > $maxDetectedDec) {
+				$maxDetectedDec = (int)$pItem['jumlah_desimal'];
 			}
 		}
-		if ($maxDetectedDec > 0) {
-			$indObj = $this->db->table('m_indikator_tabel')->where('id', $idIndikator)->get()->getRow();
-			if ($indObj && ((int)$indObj->desimal === 0 || (int)$indObj->desimal === -1)) {
+		if ($maxDetectedDec > 0 && $indObj) {
+			if ((int)$indObj->desimal === 0 || (int)$indObj->desimal === -1) {
 				$this->db->table('m_indikator_tabel')->where('id', $idIndikator)->update(['desimal' => $maxDetectedDec]);
 			}
 		}
 
-		$mDinamis = new \App\Models\M_tabeldinamis();
-		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload);
+		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload, $taDefault);
 
 		if ($affected > 0) {
 			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');

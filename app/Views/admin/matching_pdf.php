@@ -1586,22 +1586,57 @@
         });
     };
 
-    window.syncAllDiffsToDinamis = function() {
+    window.syncAllDiffsToDinamis = function(btnEl) {
         let res = window.lastVerifyResult;
-        if (!res || !res.id_indikator || !res.diffs) return;
+        if (!res || !res.id_indikator) {
+            alert("Data indikator tabel dinamis tidak ditemukan.");
+            return;
+        }
+
+        let allDiffItems = [];
+        if (res.diffs && Array.isArray(res.diffs)) allDiffItems.push(...res.diffs);
+        if (res.pdf_only && Array.isArray(res.pdf_only)) allDiffItems.push(...res.pdf_only);
+
         let cells = [];
-        res.diffs.forEach(d => {
-            if (d.coord) {
-                cells.push({
-                    id_baris_item: d.coord.id_baris_item,
-                    id_karakteristik_item: d.coord.id_karakteristik_item,
-                    id_periode_item: d.coord.id_periode_item,
-                    nilai: d.pdf_val
-                });
+        let missingCoordCount = 0;
+        let seenKeys = new Set();
+
+        allDiffItems.forEach(d => {
+            if (d.coord && d.coord.id_baris_item !== undefined && d.coord.id_karakteristik_item !== undefined) {
+                let cellKey = `${d.coord.id_baris_item}_${d.coord.id_karakteristik_item}_${d.coord.id_periode_item}_${d.coord.tahun_data || ''}`;
+                if (!seenKeys.has(cellKey)) {
+                    seenKeys.add(cellKey);
+                    let valToUse = d.pdf_val;
+                    if (valToUse === undefined && d.values && d.values.length > 0) {
+                        valToUse = d.values[0];
+                    }
+                    cells.push({
+                        id_baris_item: d.coord.id_baris_item,
+                        id_karakteristik_item: d.coord.id_karakteristik_item,
+                        id_periode_item: d.coord.id_periode_item,
+                        tahun_data: d.coord.tahun_data || null,
+                        nilai: valToUse
+                    });
+                }
+            } else {
+                missingCoordCount++;
             }
         });
-        if (cells.length === 0) return;
-        if (!confirm(`Perbarui ${cells.length} sel yang selisih pada Tabel ${window.currentTableNumber} agar sama dengan angka di buku PDF?`)) return;
+
+        if (cells.length === 0) {
+            alert(`Tidak ada sel yang dapat disamakan secara otomatis (${allDiffItems.length} selisih belum memiliki pemetaan sel pada template tabel).`);
+            return;
+        }
+
+        let confirmMsg = `Perbarui ${cells.length} sel yang selisih pada Tabel ${window.currentTableNumber} agar sama dengan angka di buku PDF?`;
+        if (missingCoordCount > 0) {
+            confirmMsg += `\n\n(Catatan: ${missingCoordCount} item lainnya belum memiliki pemetaan sel otomatis dan perlu dicek manual).`;
+        }
+        if (!confirm(confirmMsg)) return;
+
+        let $btn = btnEl ? $(btnEl) : $('.btn-sync-all-diffs');
+        let originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
 
         $.ajax({
             url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
@@ -1613,16 +1648,26 @@
             dataType: "json",
             success: function(syncRes) {
                 if (syncRes && syncRes.status === 'success') {
-                    verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
+                    $btn.html('<i class="bi bi-check-lg me-1"></i> Tersimpan!');
+                    setTimeout(() => {
+                        verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
+                    }, 400);
                 } else {
                     alert("Gagal menyinkronkan selisih: " + (syncRes.message || 'Unknown error'));
+                    $btn.prop('disabled', false).html(originalHtml);
                 }
+            },
+            error: function(xhr, status, error) {
+                let errMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan pada server');
+                alert("Gagal menghubungi server (" + xhr.status + "): " + errMsg);
+                $btn.prop('disabled', false).html(originalHtml);
             }
         });
     };
 
     window.syncSingleDiffCell = function(idIndikator, coord, pdfVal, btnEl) {
         let $btn = $(btnEl);
+        let origHtml = $btn.html();
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
         $.ajax({
             url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
@@ -1633,6 +1678,7 @@
                     id_baris_item: coord.id_baris_item,
                     id_karakteristik_item: coord.id_karakteristik_item,
                     id_periode_item: coord.id_periode_item,
+                    tahun_data: coord.tahun_data || null,
                     nilai: pdfVal
                 }])
             },
@@ -1642,8 +1688,13 @@
                     verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
                 } else {
                     alert("Gagal menyimpan sel: " + (syncRes.message || 'Unknown error'));
-                    $btn.prop('disabled', false).text('Gunakan Angka PDF');
+                    $btn.prop('disabled', false).html(origHtml);
                 }
+            },
+            error: function(xhr, status, error) {
+                let errMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan');
+                alert("Gagal menyimpan sel (" + xhr.status + "): " + errMsg);
+                $btn.prop('disabled', false).html(origHtml);
             }
         });
     };
@@ -1734,9 +1785,10 @@
                     let firstPage = (res.pages && res.pages.length > 0) ? res.pages[0] : 1;
                     let pagesLabel = (res.pages && res.pages.length > 0) ? `Hal. ${res.pages.join(', ')}` : '';
                     let syncAllDiffsBtn = '';
-                    if (res.source_type === 'Tabel Dinamis' && res.id_indikator && res.diffs && res.diffs.some(d => d.coord)) {
+                    let hasAnyCoord = (res.diffs && res.diffs.some(d => d.coord)) || (res.pdf_only && res.pdf_only.some(p => p.coord));
+                    if (res.source_type === 'Tabel Dinamis' && res.id_indikator && hasAnyCoord) {
                         syncAllDiffsBtn = `
-                            <button type="button" onclick="syncAllDiffsToDinamis()" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-2 shadow-xs" title="Perbarui seluruh sel yang selisih di Tabel Dinamis menggunakan angka dari PDF">
+                            <button type="button" onclick="syncAllDiffsToDinamis(this)" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-2 shadow-xs btn-sync-all-diffs" title="Perbarui seluruh sel yang selisih di Tabel Dinamis menggunakan angka dari PDF">
                                 <i class="bi bi-magic me-1"></i> Samakan Semua Selisih ke Tabel Dinamis
                             </button>`;
                     }
