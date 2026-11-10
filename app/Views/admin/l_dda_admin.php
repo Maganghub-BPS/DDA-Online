@@ -2,43 +2,41 @@
 $unitkerjalogin = session()->get('admin_unitkerja');
 ?>  
 
-<div class="row mb-3 flex-shrink-0">
-    <div class="col-lg-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body py-3">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <h5 class="fw-bold mb-0 text-primary">
-                        <i class="bi bi-building me-2"></i>Daftar Organisasi Daerah
-                    </h5>
-                    <div class="d-flex align-items-center gap-2 flex-wrap flex-md-nowrap">
-                        <div class="input-group input-group-sm" style="width: 220px;">
-                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control border-start-0 ps-0" id="searchOPD" placeholder="Cari organisasi..." autocomplete="off">
-                        </div>
-                        <form method="GET" action="<?php echo base_url(); ?>index.php/admin/dda" class="d-flex align-items-center gap-2 flex-nowrap m-0">
-                            <?php if (in_array(session()->get('admin_level'), ['Admin', 'Super Admin'])): ?>
-                            <select name="filter_jenis" id="filterJenisInstansi" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto; min-width: 175px;">
-                                <option value="all" <?php echo (isset($selected_jenis) && $selected_jenis == 'all') ? 'selected' : ''; ?>>-- Semua Organisasi --</option>
-                                <option value="opd" <?php echo (isset($selected_jenis) && $selected_jenis == 'opd') ? 'selected' : ''; ?>>Organisasi Perangkat Daerah</option>
-                                <option value="vertikal" <?php echo (isset($selected_jenis) && $selected_jenis == 'vertikal') ? 'selected' : ''; ?>>Organisasi Vertikal</option>
-                            </select>
-                            <?php endif; ?>
-                            <?php if(isset($selected_jenis) && $selected_jenis != 'all'): ?>
-                                <a href="<?php echo base_url(); ?>index.php/admin/dda?action=reset_dda" class="btn btn-sm btn-light border text-danger d-inline-flex align-items-center justify-content-center" title="Reset Filter" style="height: 31px; width: 31px;">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </a>
-                            <?php endif; ?>
-                        </form>
-                    </div>
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainDdaAdminCard" style="height: auto; max-height: calc(100vh - 82px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+    <!-- Header Toolbar: Judul, Search & Filter Jenis Organisasi -->
+    <div class="card-header pb-2 pt-3 px-4 bg-white border-0 flex-shrink-0">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <h5 class="fw-bold mb-0 text-primary">
+                <i class="bi bi-building me-2"></i>Daftar Organisasi Daerah
+            </h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap flex-md-nowrap">
+                <div class="input-group input-group-sm" style="width: 220px;">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control border-start-0 ps-0" id="searchOPD" placeholder="Cari organisasi..." autocomplete="off">
                 </div>
+                <form method="GET" action="<?php echo base_url(); ?>index.php/admin/dda" class="d-flex align-items-center gap-2 flex-nowrap m-0">
+                    <?php if (in_array(session()->get('admin_level'), ['Admin', 'Super Admin'])): ?>
+                    <select name="filter_jenis" id="filterJenisInstansi" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto; min-width: 175px;">
+                        <option value="all" <?php echo (isset($selected_jenis) && $selected_jenis == 'all') ? 'selected' : ''; ?>>-- Semua Organisasi --</option>
+                        <option value="opd" <?php echo (isset($selected_jenis) && $selected_jenis == 'opd') ? 'selected' : ''; ?>>Organisasi Perangkat Daerah</option>
+                        <option value="vertikal" <?php echo (isset($selected_jenis) && $selected_jenis == 'vertikal') ? 'selected' : ''; ?>>Organisasi Vertikal</option>
+                    </select>
+                    <?php endif; ?>
+                    <?php if(isset($selected_jenis) && $selected_jenis != 'all'): ?>
+                        <a href="<?php echo base_url(); ?>index.php/admin/dda?action=reset_dda" class="btn btn-sm btn-light border text-danger d-inline-flex align-items-center justify-content-center" title="Reset Filter" style="height: 31px; width: 31px;">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </a>
+                    <?php endif; ?>
+                </form>
             </div>
         </div>
     </div>
-</div>
-
-<div class="card border-0 shadow-sm flex-grow-1 d-flex flex-column mb-0" style="min-height: 0;">
+    
+    <hr class="horizontal dark my-0 flex-shrink-0">
+    
+    <!-- Body: Tabel Organisasi dengan Scroll Internal -->
     <div class="card-body p-0 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
-        <div class="table-responsive table-scroll-container flex-grow-1" style="height: 100%;">
+        <div class="table-responsive table-scroll-container flex-grow-1" style="height: auto; min-height: 0; overflow-y: auto; overflow-x: hidden;">
             <table class="table table-hover align-middle mb-0 table-sticky-header" id="tableOPD">
                 <thead class="table-light">
                     <tr>
@@ -83,7 +81,7 @@ $unitkerjalogin = session()->get('admin_unitkerja');
         </div>
     </div>
     <?php if(!empty($pagi)): ?>
-    <div class="card-footer bg-white text-center py-2 border-top">
+    <div class="card-footer bg-white text-center py-2 border-top flex-shrink-0">
         <div class="text-center">
             <?php echo $pagi; ?>
         </div>
@@ -129,20 +127,38 @@ $(document).ready(function() {
 </script>
 
 <style>
-/* Kontainer scroll internal agar scrollbar ada di dalam dan header tetap terlihat */
+/* Pastikan flexbox container luar tidak mengompres kartu Input Data DDA */
+.main-content {
+    min-height: auto !important;
+    padding-bottom: 12px !important;
+}
+.content-body {
+    min-height: auto !important;
+    flex: 1 0 auto !important;
+}
+#mainDdaAdminCard {
+    height: auto !important;
+    max-height: calc(100vh - 82px) !important;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0 !important;
+}
+
+/* Kontainer scroll internal Input Data DDA */
 .table-scroll-container {
-    max-height: calc(100vh - 235px);
-    min-height: 350px;
-    height: 100%;
+    height: auto !important;
+    max-height: calc(100vh - 82px - 65px) !important;
+    min-height: 0 !important;
     flex: 1 1 auto;
     overflow-y: auto;
-    overflow-x: auto;
+    overflow-x: hidden !important;
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
-/* Custom Slim Scrollbar (seperti pada Gambar 2) */
+/* Custom Slim Scrollbar 6px */
 .table-scroll-container::-webkit-scrollbar {
     width: 6px;
     height: 6px;

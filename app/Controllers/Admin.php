@@ -230,17 +230,8 @@ class Admin extends BaseController
 		}
 
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM t_admin")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		//if (empty($awal) || $awal == 1) { $awal = 0; } { $awal = $awal; }
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/manage_admin/p");
+		/* pagination dinonaktifkan: seluruh data admin ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -298,7 +289,7 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/manage_admin');
 		} else {
-			$a['data']		= $this->db->query("SELECT * FROM t_admin LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM t_admin ORDER BY id ASC")->getResult();
 			$a['page']		= "l_manage_admin";
 		}
 
@@ -1862,20 +1853,8 @@ class Admin extends BaseController
 				foreach ($cleanBidang as $cb) $params_count[] = $cb;
 			}
 
-			$total_row = (int)($this->db->query("SELECT COUNT(ml.id) as total $sql_base $sql_where", $params_count)->getRow()->total ?? 0);
-			$per_page  = 20;
-
-			$awal = $this->uri->segment(4);
-			$awal = (empty($awal) || $awal == 1) ? 0 : $awal;
-			if (empty($awal)) {
-				$awal = 0;
-			}
-
-			$a['pagi'] = _page($total_row, $per_page, 4, base_url() . "admin/master_tabel/p");
-
-			$params_data = $params_count;
-			$params_data[] = (int)$awal;
-			$params_data[] = (int)$per_page;
+			/* pagination dinonaktifkan: seluruh tabel ditampilkan sekaligus dan di-scroll di dalam kontainer */
+			$a['pagi'] = '';
 
 			$a['data'] = $this->db->query("
 				SELECT ml.id, ml.id as id_master, ml.no_tabel, ml.judul_ind, ml.judul_en, ml.id_unitkerja, ml.jenis_sumber,
@@ -1889,11 +1868,10 @@ class Admin extends BaseController
 				ORDER BY CAST(SUBSTRING_INDEX(COALESCE(ml.no_tabel, '999'), '.', 1) AS UNSIGNED) ASC, 
 				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, 
 				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, 
-				         ml.judul_ind ASC 
-				LIMIT ?, ?
-			", $params_data)->getResult();
+				         ml.judul_ind ASC
+			", $params_count)->getResult();
 
-			$a['awal'] = (int)$awal;
+			$a['awal'] = 0;
 			$a['cari'] = '';
 			$a['page'] = "l_master_tabel";
 		}
@@ -2126,17 +2104,8 @@ class Admin extends BaseController
 		}
 
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_unitkerja")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		//if (empty($awal) || $awal == 1) { $awal = 0; } { $awal = $awal; }
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/master_opd/p");
+		/* pagination dinonaktifkan: semua OPD langsung ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -2191,7 +2160,7 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/master_opd');
 		} else {
-			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 			$a['page']		= "l_unitkerja";
 		}
 

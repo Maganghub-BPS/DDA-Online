@@ -2,7 +2,7 @@
 if (empty($data)) {
     echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
 } else {
-    $no = (int)($awal ?? 0) + 1;
+    $no = 1;
     foreach ($data as $b) {
 ?>
                             <tr class="hover:bg-gray-50 transition-colors">

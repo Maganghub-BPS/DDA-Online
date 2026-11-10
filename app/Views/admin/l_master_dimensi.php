@@ -317,6 +317,58 @@
     color: #64748b;
 }
 
+/* Pastikan flexbox container luar tidak mengompres kartu Master Dimensi */
+.main-content {
+    min-height: auto !important;
+    padding-bottom: 12px !important;
+}
+.content-body {
+    min-height: auto !important;
+    flex: 1 0 auto !important;
+}
+#mainMasterDimensiCard {
+    height: calc(100vh - 82px) !important;
+    min-height: 580px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Kontainer scroll internal Master Dimensi */
+.table-scroll-container {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+/* Custom Slim Scrollbar */
+.table-scroll-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.table-scroll-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+    border-radius: 4px;
+}
+
+/* Sticky Table Header */
+.table-scroll-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8fafc !important;
+    box-shadow: inset 0 -2px 0 #e2e8f0;
+    vertical-align: middle !important;
+}
+
 /* Master Dimensi Table Styling - Readable matching other admin pages */
 .table-dimensi {
     font-size: 0.875rem;
@@ -712,11 +764,11 @@
     </div>
 
     <!-- Main Content Card -->
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; border: 1px solid #e2e8f0 !important;">
-        <div class="card-body p-3 p-md-4">
+    <div class="card border-0 shadow-sm mb-0" id="mainMasterDimensiCard" style="border-radius: 12px; border: 1px solid #e2e8f0 !important; height: calc(100vh - 82px); min-height: 580px; display: flex; flex-direction: column; overflow: visible; flex-shrink: 0;">
+        <div class="card-body p-3 p-md-4 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: visible;">
             <!-- TAB 1: KARAKTERISTIK (KOLOM & SUB-KOLOM ASIMETRIS) -->
             <?php if ($active_tab === 'karakteristik'): ?>
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 flex-shrink-0">
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Karakteristik (Dimensi Kolom)</h5>
                     </div>
@@ -740,8 +792,8 @@
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-dimensi" id="table_dimensi_karakteristik">
+                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                    <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_karakteristik">
                         <thead>
                             <tr>
                                 <th width="6%" class="text-center">No.</th>
@@ -787,8 +839,9 @@
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
                                                 <a href="<?= base_url('admin/master_dimensi/del_karakteristik/' . $k->id); ?>"
-                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi"
-                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus kelompok karakteristik ini beserta semua item kolomnya?');"
+                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi btn-del-confirm"
+                                                   data-name="<?= esc($k->nama_kelompok_ind); ?>"
+                                                   data-type="Karakteristik Kolom"
                                                    title="Hapus Kelompok">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
@@ -803,23 +856,11 @@
 
             <!-- TAB 2: JUDUL BARIS BERTINGKAT -->
             <?php elseif ($active_tab === 'baris'): ?>
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 flex-shrink-0">
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Judul Baris (Dimensi Baris)</h5>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <!-- Filter Cepat Satuan || -->
-                        <div class="filter-pipe-wrapper">
-                            <select id="filter_satuan_baris" class="form-select form-select-sm shadow-xs fw-semibold border"
-                                    style="border-radius: 10px; height: 38px; min-width: 195px; font-size: 0.82rem; cursor: pointer; background-color: #fff9f5; border-color: #fed7aa !important;">
-                                <option value="all">Semua Kelompok (<?= count($list_baris); ?>)</option>
-                                <option value="pipe" style="color: #c2410c; font-weight: bold;">
-                                    ⚡ Ada Satuan (||) (<?= $total_baris_with_pipe ?? 0; ?>)
-                                </option>
-                                <option value="no_pipe">Bersih / Tanpa (||)</option>
-                            </select>
-                        </div>
-
                         <!-- Kotak Pencarian Realtime Judul Baris -->
                         <div class="search-dimensi-wrapper">
                             <div class="search-dimensi-box shadow-xs">
@@ -839,8 +880,8 @@
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-dimensi" id="table_dimensi_baris">
+                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                    <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_baris">
                         <thead>
                             <tr>
                                 <th width="6%" class="text-center">No.</th>
@@ -919,8 +960,9 @@
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
                                                 <a href="<?= base_url('admin/master_dimensi/del_baris/' . $b->id); ?>"
-                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi"
-                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus kelompok baris ini beserta seluruh itemnya?');"
+                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi btn-del-confirm"
+                                                   data-name="<?= esc($b->nama_kelompok_ind); ?>"
+                                                   data-type="Judul Baris"
                                                    title="Hapus Kelompok">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
@@ -935,7 +977,7 @@
 
             <!-- TAB 3: PERIODE WAKTU -->
             <?php elseif ($active_tab === 'periode'): ?>
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 flex-shrink-0">
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Periode Waktu (Dimensi Waktu)</h5>
                     </div>
@@ -960,15 +1002,15 @@
                 </div>
 
                 <!-- Info Banner Dimensi Waktu Multi-Tahun -->
-                <div class="alert alert-info border-0 rounded-3 shadow-xs d-flex align-items-center gap-3 py-2 px-3 mb-3" style="background-color: #E8F4FD; color: #0C5460;">
+                <div class="alert alert-info border-0 rounded-3 shadow-xs d-flex align-items-center gap-3 py-2 px-3 mb-3 flex-shrink-0" style="background-color: #E8F4FD; color: #0C5460;">
                     <i class="bi bi-info-circle-fill fs-4 text-info"></i>
                     <div class="small">
                         <strong>Informasi Dimensi Waktu:</strong> Periode <strong>Tahunan (2020..2026+)</strong> dan <strong>Tahun Ajaran (YYYY/YYYY+1)</strong> dikelola otomatis oleh sistem secara multi-tahun. Tab ini khusus untuk melihat <strong>Periode Standar BPS</strong> (Bulanan, Triwulanan, Semesteran, dll.) serta mengelola <strong>Periode Kustom Sub-Tahunan</strong>.
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-dimensi" id="table_dimensi_periode">
+                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                    <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_periode">
                         <thead>
                             <tr>
                                 <th width="6%" class="text-center">No.</th>
@@ -992,11 +1034,7 @@
                                         <td>
                                             <div class="item-title"><?= esc($p->nama_kelompok_ind); ?></div>
                                             <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
-                                                <?php if (($p->kategori_periode ?? '') === 'standar'): ?>
-                                                    <span class="badge bg-primary-subtle text-primary border border-primary small px-2 py-0" style="font-size: 0.75rem;" title="Periode Standar BPS Bawaan Sistem">
-                                                        <i class="bi bi-star-fill me-1 text-warning"></i>Standar BPS
-                                                    </span>
-                                                <?php else: ?>
+                                                <?php if (($p->kategori_periode ?? '') !== 'standar'): ?>
                                                     <span class="badge bg-secondary-subtle text-secondary border small px-2 py-0" style="font-size: 0.75rem;" title="Periode Kustom">
                                                         <i class="bi bi-gear-fill me-1"></i>Periode Kustom
                                                     </span>
@@ -1039,8 +1077,9 @@
                                                     </button>
                                                 <?php else: ?>
                                                     <a href="<?= base_url('admin/master_dimensi/del_periode/' . $p->id); ?>"
-                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi"
-                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus kelompok periode ini beserta seluruh itemnya?');"
+                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi btn-del-confirm"
+                                                   data-name="<?= esc($p->nama_kelompok_ind); ?>"
+                                                   data-type="Periode Waktu"
                                                    title="Hapus Kelompok">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
@@ -3616,9 +3655,43 @@ $(document).ready(function() {
         });
     }
 
+    // Global Handler: SweetAlert2 Konfirmasi Hapus Kelompok Dimensi (Karakteristik, Baris, Periode)
+    $(document).on('click', '.btn-del-confirm', function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        const name = $(this).data('name') || 'kelompok dimensi ini';
+        const type = $(this).data('type') || 'Kelompok Dimensi';
+
+        Swal.fire({
+            title: 'Hapus ' + type + '?',
+            html: 'Apakah Anda yakin ingin menghapus kelompok <strong>' + $('<div>').text(name).html() + '</strong> beserta seluruh item di dalamnya?<br><span class="text-danger small mt-2 d-inline-block">Tindakan ini tidak dapat dibatalkan.</span>',
+            icon: 'warning',
+            iconColor: '#e11d48',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+            reverseButtons: true,
+            focusCancel: true,
+            width: '420px',
+            customClass: {
+                popup: 'rounded-4 shadow border-0 p-4',
+                title: 'fs-5 fw-bold text-dark mb-1',
+                htmlContainer: 'text-muted small m-0 mb-3',
+                actions: 'gap-2 mt-2 w-100 justify-content-center',
+                confirmButton: 'btn btn-danger px-4 py-2 rounded-3 fw-medium',
+                cancelButton: 'btn btn-light border px-4 py-2 rounded-3 text-secondary fw-medium'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = url;
+            }
+        });
+    });
+
     // Aktifkan pencarian di ketiga tab Master Dimensi
     initDimensiLiveSearch('#search_master_karakteristik', '#table_dimensi_karakteristik', '#clear_search_karakteristik', '#count_search_karakteristik', 'karakteristik');
-    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris', '#filter_satuan_baris');
+    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris');
     initDimensiLiveSearch('#search_master_periode', '#table_dimensi_periode', '#clear_search_periode', '#count_search_periode', 'periode');
 
     // Global keyboard shortcut '/' atau 'Ctrl+K' untuk langsung fokus ke input pencarian dimensi

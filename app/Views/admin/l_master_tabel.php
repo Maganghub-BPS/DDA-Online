@@ -9,137 +9,94 @@
 <?php
 $current_lvl = strtolower(trim((string)(session()->get('admin_level') ?? '')));
 $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
+
+$totalAktif = $total_tabel_aktif ?? 585;
+
+// Selected Jenis
+$selJenisArr = is_array($selected_jenis ?? null) ? $selected_jenis : ((!empty($selected_jenis) && $selected_jenis !== 'all') ? [$selected_jenis] : []);
+$isJenisAll = empty($selJenisArr) || in_array('all', (array)($selected_jenis ?? []));
+
+if ($isJenisAll || count($selJenisArr) === 0) {
+    $labelJenisTrigger = "Semua Jenis";
+} elseif (count($selJenisArr) === 1) {
+    $valJ = $selJenisArr[0];
+    $labelJenisTrigger = ($valJ === 'opd') ? 'OPD' : 'Vertikal';
+} else {
+    $labelJenisTrigger = count($selJenisArr) . " Jenis";
+}
+
+// Selected OPD
+$selOpdArr = is_array($selected_opd ?? null) 
+    ? array_values(array_filter(array_map('trim', $selected_opd), fn($v) => !empty($v) && $v !== 'all')) 
+    : ((!empty($selected_opd) && $selected_opd !== 'all') ? [trim((string)$selected_opd)] : []);
+$isOpdAll = empty($selOpdArr) || in_array('all', (array)($selected_opd ?? []));
+
+if ($isOpdAll || count($selOpdArr) === 0) {
+    $labelOpdTrigger = "Semua Instansi";
+} elseif (count($selOpdArr) === 1) {
+    $firstOpdId = $selOpdArr[0];
+    $foundOpd = null;
+    if (isset($list_opd)) {
+        foreach ($list_opd as $o) {
+            if (trim((string)$o->id_unitkerja) === $firstOpdId) {
+                $foundOpd = $o;
+                break;
+            }
+        }
+    }
+    $labelOpdTrigger = $foundOpd ? $foundOpd->unitkerja_ind : '1 Instansi';
+} else {
+    $labelOpdTrigger = count($selOpdArr) . " Instansi";
+}
+
+// Selected Bidang
+$selBidangArr = is_array($selected_bidang ?? null) ? array_map('strtolower', array_map('trim', $selected_bidang)) : ((!empty($selected_bidang) && $selected_bidang !== 'all') ? [strtolower(trim($selected_bidang))] : []);
+$isBidangAll = empty($selBidangArr) || in_array('all', (array)($selected_bidang ?? []));
+
+if ($isBidangAll || count($selBidangArr) === 0) {
+    $labelBidangTrigger = "Semua Tim";
+} elseif (count($selBidangArr) === 1) {
+    $tKey = $selBidangArr[0];
+    $labelBidangTrigger = strtoupper($tKey);
+} else {
+    $labelBidangTrigger = count($selBidangArr) . " Tim";
+}
 ?>
 
-<!-- Kartu Kontrol & Aksi Utama (Toolbar Atas) -->
-<div class="card border-0 shadow-lg border-radius-2xl mb-4" style="overflow: visible;">
-    <div class="card-header pb-3 pt-3 px-4 bg-white border-0">
-        <div class="row align-items-center g-3">
-            <div class="col-xl-8 col-lg-7">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <!-- Tombol Tambah Tabel Baru Secara Manual -->
-                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel/add" class="btn btn-primary btn-sm px-3 border-radius-lg mb-0 shadow-sm fw-bold d-inline-flex align-items-center gap-2" style="background: linear-gradient(45deg, #154679, #1e5c9e); border: none;">
-                        <i class="bi bi-plus-circle fs-6"></i>
-                        <span>Tambah Data</span>
-                    </a>
+<!-- Kartu Kontrol & Aksi Utama (Toolbar Atas Ringkas 1 Baris) -->
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainMasterTabelCard" style="height: auto; max-height: calc(100vh - 82px); min-height: 0; display: flex; flex-direction: column; overflow: visible; flex-shrink: 0;">
+    <div class="card-header py-2 px-3 bg-white border-0 flex-shrink-0">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <!-- Sisi Kiri: Tombol Aksi + Form Filter (Menyatu 1 Baris) -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <!-- Tombol Tambah Tabel Baru Secara Manual -->
+                <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel/add" class="btn btn-primary btn-sm px-3 mb-0 shadow-sm fw-bold d-inline-flex align-items-center gap-1" style="background: linear-gradient(45deg, #154679, #1e5c9e); border: none; height: 35px; border-radius: 8px;">
+                    <i class="bi bi-plus-circle"></i>
+                    <span>Tambah Data</span>
+                </a>
 
-                    <!-- Tombol Menuju Daftar Usulan Tabel yang Diajukan oleh OPD -->
-                    <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/" class="btn btn-sm px-3 border-radius-lg mb-0 shadow-none d-inline-flex align-items-center gap-2 fw-bold" style="background: #eef4fb; color: #154679; border: 1px solid #c9dcf0;">
-                        <i class="bi bi-patch-question fs-6"></i>
-                        <span>Tabel Usulan</span>
-                    </a>
+                <!-- Tombol Menuju Daftar Usulan Tabel yang Diajukan oleh OPD -->
+                <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/" class="btn btn-sm px-3 mb-0 shadow-none d-inline-flex align-items-center gap-1 fw-bold" style="background: #eef4fb; color: #154679; border: 1px solid #c9dcf0; height: 35px; border-radius: 8px;">
+                    <i class="bi bi-patch-question"></i>
+                    <span>Tabel Usulan</span>
+                </a>
 
-                    <!-- Tombol Sinkronisasi Massal via CSV ke Portal Data Jateng -->
-                    <button type="button" class="btn btn-sm btn-outline-secondary px-3 border-radius-lg mb-0 shadow-none d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#ModalBulkPortal">
-                        <i class="bi bi-cloud-upload fs-6"></i>
-                        <span>Bulk Portal</span>
-                    </button>
+                <!-- Tombol Sinkronisasi Massal via CSV ke Portal Data Jateng -->
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3 mb-0 shadow-none d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#ModalBulkPortal" style="height: 35px; border-radius: 8px;">
+                    <i class="bi bi-cloud-upload"></i>
+                    <span>Bulk Portal</span>
+                </button>
 
-                    <!-- Dropdown Menu Pengelolaan Tahun: Clone, Resequence, dan Reset (Hanya Super Admin) -->
-                    <?php if ($is_super_admin): ?>
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-secondary px-3 border-radius-lg mb-0 shadow-none dropdown-toggle d-inline-flex align-items-center gap-2" type="button" id="dropdownPengelolaanTahun" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-gear-wide-connected fs-6"></i>
-                            <span>Pengelolaan Tahun</span>
-                        </button>
-                        <ul class="dropdown-menu shadow border border-light border-radius-lg p-2 mt-1" aria-labelledby="dropdownPengelolaanTahun" style="min-width: 260px; z-index: 1050;">
-                            <li><h6 class="dropdown-header text-uppercase text-xxs font-weight-bolder text-secondary px-2 py-1">Operasi Penomoran</h6></li>
-                            <!-- Rapikan Penomoran Tabel yang Melompat pada Bab Tertentu -->
-                            <li>
-                                <a class="dropdown-item border-radius-md py-2 d-flex align-items-center" href="javascript:;" data-bs-toggle="modal" data-bs-target="#ModalResequence">
-                                    <div class="icon icon-shape icon-xs rounded-circle text-center me-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; background: #f1f5f9; border: 1px solid #e2e8f0;">
-                                        <i class="bi bi-sort-numeric-down text-secondary"></i>
-                                    </div>
-                                    <div>
-                                        <span class="d-block text-xs font-weight-bold text-dark">Rapikan Urutan</span>
-                                        <span class="text-xxs text-secondary">Resequence nomor urut tabel</span>
-                                    </div>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <!-- Kotak Pencarian Realtime (AJAX Live Search dengan Debounce) -->
-            <div class="col-xl-4 col-lg-5">
-                <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari">
-                    <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
-                        <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="inputSearchTabel" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Ketik untuk mencari tabel..." style="box-shadow: none;" value="<?php echo esc($cari ?? ''); ?>">
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+                <!-- Pemisah Vertikal Halus -->
+                <div class="vr mx-1 my-auto d-none d-lg-block" style="height: 22px; opacity: 0.2;"></div>
 
-    <!-- Area Filter dan Tabel Data -->
-    <div class="card-body px-4 pt-0 pb-4">
-        <?php
-        $totalAktif = $total_tabel_aktif ?? 585;
-
-        // Selected Jenis
-        $selJenisArr = is_array($selected_jenis ?? null) ? $selected_jenis : ((!empty($selected_jenis) && $selected_jenis !== 'all') ? [$selected_jenis] : []);
-        $isJenisAll = empty($selJenisArr) || in_array('all', (array)($selected_jenis ?? []));
-
-        if ($isJenisAll || count($selJenisArr) === 0) {
-            $labelJenisTrigger = "-- Semua Jenis --";
-        } elseif (count($selJenisArr) === 1) {
-            $valJ = $selJenisArr[0];
-            $labelJenisTrigger = ($valJ === 'opd') ? 'Organisasi Perangkat Daerah' : 'Organisasi Vertikal';
-        } else {
-            $labelJenisTrigger = count($selJenisArr) . " Jenis Terpilih";
-        }
-
-        // Selected OPD
-        $selOpdArr = is_array($selected_opd ?? null) 
-            ? array_values(array_filter(array_map('trim', $selected_opd), fn($v) => !empty($v) && $v !== 'all')) 
-            : ((!empty($selected_opd) && $selected_opd !== 'all') ? [trim((string)$selected_opd)] : []);
-        $isOpdAll = empty($selOpdArr) || in_array('all', (array)($selected_opd ?? []));
-
-        if ($isOpdAll || count($selOpdArr) === 0) {
-            $labelOpdTrigger = "-- Semua Instansi --";
-        } elseif (count($selOpdArr) === 1) {
-            $firstOpdId = $selOpdArr[0];
-            $foundOpd = null;
-            if (isset($list_opd)) {
-                foreach ($list_opd as $o) {
-                    if (trim((string)$o->id_unitkerja) === $firstOpdId) {
-                        $foundOpd = $o;
-                        break;
-                    }
-                }
-            }
-            $labelOpdTrigger = $foundOpd ? $foundOpd->unitkerja_ind : '1 Instansi';
-        } else {
-            $labelOpdTrigger = count($selOpdArr) . " Instansi Terpilih";
-        }
-
-        // Selected Bidang
-        $selBidangArr = is_array($selected_bidang ?? null) ? array_map('strtolower', array_map('trim', $selected_bidang)) : ((!empty($selected_bidang) && $selected_bidang !== 'all') ? [strtolower(trim($selected_bidang))] : []);
-        $isBidangAll = empty($selBidangArr) || in_array('all', (array)($selected_bidang ?? []));
-
-        if ($isBidangAll || count($selBidangArr) === 0) {
-            $labelBidangTrigger = "-- Semua Bidang --";
-        } elseif (count($selBidangArr) === 1) {
-            $tKey = $selBidangArr[0];
-            $labelBidangTrigger = strtoupper($tKey);
-        } else {
-            $labelBidangTrigger = count($selBidangArr) . " Tim Terpilih";
-        }
-        ?>
-
-        <!-- Form Filter Multi-Kategori: Bidang Tim, Instansi (OPD), dan Tahun DDA -->
-        <div class="bg-light-subtle border-radius-xl p-3 mb-4 border border-light shadow-sm">
-            <form id="formFilterMaster" class="row g-2 align-items-end" method="GET" action="<?php echo base_url(); ?>index.php/admin/master_tabel">
-                <!-- Filter Jenis Instansi (Custom Dropdown with Search & Checkbox) -->
-                <div class="col-md-3">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">
-                        <i class="bi bi-diagram-3 me-1"></i>Jenis
-                    </label>
+                <!-- Form Filter Terpadu (Inline) -->
+                <form id="formFilterMaster" class="d-flex flex-wrap align-items-center gap-2 mb-0" method="GET" action="<?php echo base_url(); ?>index.php/admin/master_tabel">
+                    <!-- Filter Jenis Instansi -->
                     <div class="dropdown custom-filter-dropdown" data-filter-type="jenis">
-                        <button type="button" class="btn btn-outline-secondary w-100 border-radius-lg border-light shadow-none text-sm py-2 px-3 d-flex justify-content-between align-items-center bg-white text-dark text-start dropdown-toggle filter-trigger-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelJenisTrigger); ?>">
-                            <span class="trigger-label fw-semibold text-wrap me-2"><?= esc($labelJenisTrigger); ?></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm border shadow-none px-2 py-1 d-flex align-items-center gap-1 bg-white text-dark dropdown-toggle filter-trigger-btn" style="height: 35px; border-radius: 8px; border-color: #cbd5e1 !important;" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelJenisTrigger); ?>">
+                            <i class="bi bi-diagram-3 text-secondary" style="font-size: 13px;"></i>
+                            <span class="trigger-label fw-semibold text-xs text-truncate" style="max-width: 120px;"><?= esc($labelJenisTrigger); ?></span>
                         </button>
                         <div class="dropdown-menu shadow-lg border border-light-subtle rounded-4 p-3 mt-1 custom-filter-menu" style="min-width: 320px; z-index: 1060;">
                             <!-- Search Box di Atas -->
@@ -180,16 +137,12 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Filter Instansi (Custom Dropdown with Search & Checkbox) -->
-                <div class="col-md-5">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">
-                        <i class="bi bi-building me-1"></i>Instansi
-                    </label>
+                    <!-- Filter Instansi -->
                     <div class="dropdown custom-filter-dropdown" data-filter-type="opd">
-                        <button type="button" class="btn btn-outline-secondary w-100 border-radius-lg border-light shadow-none text-sm py-2 px-3 d-flex justify-content-between align-items-center bg-white text-dark text-start dropdown-toggle filter-trigger-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelOpdTrigger); ?>">
-                            <span class="trigger-label fw-semibold text-wrap me-2"><?= esc($labelOpdTrigger); ?></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm border shadow-none px-2 py-1 d-flex align-items-center gap-1 bg-white text-dark dropdown-toggle filter-trigger-btn" style="height: 35px; border-radius: 8px; border-color: #cbd5e1 !important;" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelOpdTrigger); ?>">
+                            <i class="bi bi-building text-secondary" style="font-size: 13px;"></i>
+                            <span class="trigger-label fw-semibold text-xs text-truncate" style="max-width: 160px;"><?= esc($labelOpdTrigger); ?></span>
                         </button>
                         <div class="dropdown-menu shadow-lg border border-light-subtle rounded-4 p-3 mt-1 custom-filter-menu" style="min-width: 420px; max-width: 540px; z-index: 1060;">
                             <!-- Search Box di Atas -->
@@ -234,16 +187,12 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Filter Bidang / Tim (Custom Dropdown with Search & Checkbox) -->
-                <div class="col-md-2">
-                    <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">
-                        <i class="bi bi-diagram-2 me-1"></i>Bidang / Tim
-                    </label>
+                    <!-- Filter Bidang / Tim -->
                     <div class="dropdown custom-filter-dropdown" data-filter-type="bidang">
-                        <button type="button" class="btn btn-outline-secondary w-100 border-radius-lg border-light shadow-none text-sm py-2 px-3 d-flex justify-content-between align-items-center bg-white text-dark text-start dropdown-toggle filter-trigger-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelBidangTrigger); ?>">
-                            <span class="trigger-label fw-semibold text-wrap me-2"><?= esc($labelBidangTrigger); ?></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm border shadow-none px-2 py-1 d-flex align-items-center gap-1 bg-white text-dark dropdown-toggle filter-trigger-btn" style="height: 35px; border-radius: 8px; border-color: #cbd5e1 !important;" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="<?= esc($labelBidangTrigger); ?>">
+                            <i class="bi bi-diagram-2 text-secondary" style="font-size: 13px;"></i>
+                            <span class="trigger-label fw-semibold text-xs text-truncate" style="max-width: 110px;"><?= esc($labelBidangTrigger); ?></span>
                         </button>
                         <div class="dropdown-menu shadow-lg border border-light-subtle rounded-4 p-3 mt-1 custom-filter-menu" style="min-width: 320px; z-index: 1060;">
                             <!-- Search Box di Atas -->
@@ -287,24 +236,37 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Reset & Filter Button -->
-                <div class="col-md-2 text-end d-flex align-items-center justify-content-end gap-1">
+                    <!-- Tombol Filter -->
+                    <button type="submit" class="btn btn-primary btn-sm px-3 mb-0 shadow-none fw-bold d-inline-flex align-items-center gap-1" style="background: #154679; border: none; height: 35px; border-radius: 8px;">
+                        <i class="bi bi-filter"></i> <span>Filter</span>
+                    </button>
+
+                    <!-- Tombol Reset (Jika Filter Aktif) -->
                     <?php if ((isset($selected_jenis) && $selected_jenis != 'all') || (isset($selected_opd) && $selected_opd != 'all') || (isset($selected_bidang) && $selected_bidang != 'all') || !empty($cari)): ?>
-                        <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-link text-secondary text-xs mb-0 px-2 fw-bold text-decoration-none">
+                        <a href="<?php echo base_url(); ?>index.php/admin/master_tabel?action=reset" class="btn btn-link text-secondary text-xs mb-0 px-1 fw-bold text-decoration-none" title="Reset filter">
                             <i class="bi bi-x-circle me-1 text-danger"></i> Reset
                         </a>
                     <?php endif; ?>
-                    <button type="submit" class="btn btn-primary btn-sm border-radius-lg px-3 py-2 mb-0 shadow-sm fw-bold d-flex align-items-center" style="background: #154679; border: none; height: 42px;">
-                        <i class="bi bi-filter me-1"></i> Filter
-                    </button>
-                </div>
-            </form>
-        </div>
+                </form>
+            </div>
 
-        <div class="table-responsive rounded-3 border border-light">
-            <table class="table table-hover align-items-center mb-0">
+            <!-- Sisi Kanan: Kotak Pencarian Realtime -->
+            <div class="ms-auto" style="min-width: 200px; max-width: 280px; flex-shrink: 0;">
+                <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari" class="mb-0">
+                    <div class="input-group input-group-sm input-group-alternative border shadow-none px-2 py-0" style="background: #f8f9fa; height: 35px; border-radius: 8px; border-color: #cbd5e1 !important; align-items: center;">
+                        <span class="input-group-text bg-transparent border-0 py-0 ps-0 pe-2"><i class="bi bi-search text-muted" style="font-size: 13px;"></i></span>
+                        <input type="text" id="inputSearchTabel" class="form-control bg-transparent border-0 ps-0 text-xs py-1" name="q" placeholder="Ketik untuk mencari tabel..." style="box-shadow: none;" value="<?php echo esc($cari ?? ''); ?>">
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Area Filter dan Tabel Data -->
+    <div class="card-body px-3 pt-0 pb-2 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: visible;">
+        <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: auto; min-height: 0; overflow-y: auto; overflow-x: auto;">
+            <table class="table table-hover align-items-center mb-0 table-sticky-header">
                 <thead class="bg-gray-100">
                     <tr>
                         <th width="45" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">No</th>
@@ -319,7 +281,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                     if (empty($data)) {
                         echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
                     } else {
-                        $no = (int)($awal ?? 0) + 1;
+                        $no = 1;
                         foreach ($data as $b) {
                     ?>
                             <tr class="hover:bg-gray-50 transition-colors">
@@ -423,12 +385,6 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                 </tbody>
             </table>
         </div>
-
-        <?php if (!empty($pagi)): ?>
-            <div class="mt-4 pagination-container">
-                <?php echo $pagi; ?>
-            </div>
-        <?php endif; ?>
     </div>
 </div>
 
@@ -473,7 +429,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
                 </div>
                 <div class="modal-footer bg-light-subtle border-top py-3 px-4 d-flex justify-content-end gap-2">
                     <button type="button" class="btn btn-light px-4 border" style="border-radius: 8px;" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                    <button type="submit" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border: none;">
                         <i class="bi bi-cloud-upload"></i>
                         <span>Mulai Sinkronisasi</span>
                     </button>
@@ -487,6 +443,65 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 <div id="ModalDelete" class="modal fade" tabindex="-1" aria-hidden="true"></div>
 
 <style>
+    /* Pastikan flexbox container luar tidak mengompres kartu Master Tabel */
+    .main-content {
+        min-height: auto !important;
+        padding-bottom: 12px !important;
+    }
+    .content-body {
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+    }
+    #mainMasterTabelCard {
+        height: auto !important;
+        max-height: calc(100vh - 82px) !important;
+        min-height: 0 !important;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0 !important;
+    }
+
+    /* Kontainer scroll internal Master Tabel */
+    .table-scroll-container {
+        height: auto !important;
+        max-height: calc(100vh - 82px - 65px) !important;
+        min-height: 0 !important;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+    /* Custom Slim Scrollbar */
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+        border-radius: 4px;
+    }
+
+    /* Sticky Table Header */
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle !important;
+    }
+
     .ls-1 {
         letter-spacing: 0.8px;
     }
@@ -532,8 +547,8 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
     }
 
     .bg-primary-soft {
-        background-color: rgba(255, 109, 31, 0.08) !important;
-        color: #FF6D1F !important;
+        background-color: rgba(21, 70, 121, 0.08) !important;
+        color: #154679 !important;
     }
 
     .bg-success-soft {
@@ -542,7 +557,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
     }
 
     .border-primary-soft {
-        border: 1px solid rgba(255, 109, 31, 0.15) !important;
+        border: 1px solid rgba(21, 70, 121, 0.2) !important;
     }
 
     .border-success-soft {
@@ -567,8 +582,8 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 
     .input-group-alternative:focus-within {
         background-color: #fff !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
-        border-color: #FF6D1F !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
+        border-color: #154679 !important;
     }
 
     .divide-y>*+* {
@@ -581,7 +596,7 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 
     .dropdown-item:hover {
         background-color: #f8f9fa;
-        color: #FF6D1F;
+        color: #154679;
     }
 
     /* ========================================================================= */
@@ -1013,60 +1028,3 @@ $is_super_admin = in_array($current_lvl, ['super admin', 'superadmin']);
 
 </script>
 
-<?php if ($is_super_admin): ?>
-<!-- ========================================================================= -->
-<!-- MODAL: RAPAIKAN PENOMORAN TABEL (RESEQUENCE TABEL)                        -->
-<!-- Fitur ini merapikan nomor urut tabel yang bolong/melompat pada subbab     -->
-<!-- tertentu (misal setelah ada tabel yang dihapus atau disisipkan).           -->
-<!-- Contoh: jika urutannya 1.2.1, 1.2.3, maka dirapikan jadi 1.2.1, 1.2.2.     -->
-<!-- Endpoint: admin/resequence_tabel                                          -->
-<!-- ========================================================================= -->
-<!-- Modal Resequence (Rapikan Urutan) -->
-<div class="modal fade" id="ModalResequence" tabindex="-1" aria-labelledby="ModalResequenceLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-header border-0 pb-0 pt-4 px-4">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="d-flex align-items-center justify-content-center rounded-3 bg-warning-subtle text-warning-emphasis" style="width: 48px; height: 48px; font-size: 22px;">
-                        <i class="bi bi-sort-numeric-down"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0" id="ModalResequenceLabel">Rapikan Urutan Tabel</h5>
-                        <p class="text-muted small mb-0" style="font-size: 12px;">Urutkan kembali penomoran tabel yang melompat di DDA <?= $ta ?? date('Y') ?></p>
-                    </div>
-                </div>
-                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <!-- Form input prefix subbab yang ingin dirapikan -->
-            <form action="<?php echo base_url('index.php/admin/resequence_tabel'); ?>" method="post">
-                <input type="hidden" name="tahun" value="<?= esc($ta ?? session()->get('admin_ta') ?? date('Y')) ?>">
-                <div class="modal-body p-4">
-                    <div class="alert alert-warning border-0 rounded-3 p-3 mb-4 d-flex align-items-start gap-2 shadow-none" style="background: #fffbeb; border-left: 4px solid #f59e0b !important;">
-                        <i class="bi bi-info-circle-fill fs-5 text-warning mt-0 flex-shrink-0"></i>
-                        <div class="text-dark small" style="font-size: 12px; line-height: 1.5;">
-                            Fitur ini akan meratakan ulang nomor urut ujung tabel pada Subbab yang dipilih di tahun berjalan (<b><?= $ta ?? date('Y') ?></b>) secara berurutan agar tidak ada nomor yang melompat atau bolong.
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="prefix_resequence" class="form-label fw-bold text-dark small">Awalan Bab / Subbab</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-hash text-muted"></i></span>
-                            <input type="text" class="form-control border-start-0 ps-1" name="prefix" id="prefix_resequence" placeholder="Contoh: 1.2 (Subbab) atau 8, 11 (Bab 2-tingkat)" required style="border-radius: 0 8px 8px 0;">
-                        </div>
-                        <small class="text-muted" style="font-size: 11px;">Hanya tabel dengan awalan nomor ini yang urutannya dirapikan (misal 1.2.1, 1.2.2 atau 8.1, 8.2).</small>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light-subtle border-top py-3 px-4 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-light px-4 border" style="border-radius: 8px;" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-warning px-4 shadow-sm text-dark fw-bold d-inline-flex align-items-center gap-2" style="border-radius: 8px;">
-                        <i class="bi bi-check2-circle"></i>
-                        <span>Jalankan Resequence</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ========================================================================= -->
-<?php endif; ?>

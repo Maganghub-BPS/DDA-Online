@@ -1,8 +1,12 @@
-<?php echo session()->getFlashdata("k"); ?>
+<?php if (session()->getFlashdata("k")): ?>
+<div class="flex-shrink-0">
+    <?php echo session()->getFlashdata("k"); ?>
+</div>
+<?php endif; ?>
 
 <!-- Consolidated Control Card -->
-<div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
-    <div class="card-header pb-3 pt-4 px-4 bg-white border-0">
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainManageAdminCard" style="height: auto; max-height: calc(100vh - 82px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+    <div class="card-header pb-3 pt-3 px-4 bg-white border-0 flex-shrink-0">
         <div class="row align-items-center g-3">
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-3">
@@ -14,10 +18,10 @@
                     <form method="post" action="<?php echo base_URL(); ?>index.php/admin/manage_admin/cari" onsubmit="return false;" class="flex-grow-1">
                         <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                             <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" id="inputSearchAdmin" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari admin..." style="box-shadow: none;">
+                            <input type="text" id="inputSearchAdmin" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari admin..." style="box-shadow: none;" autocomplete="off">
                         </div>
                     </form>
-                    <a href="<?php echo base_URL(); ?>index.php/admin/manage_admin/add" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none d-flex align-items-center" style="height: 40px; white-space: nowrap;">
+                    <a href="<?php echo base_URL(); ?>index.php/admin/manage_admin/add" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none d-flex align-items-center" style="height: 40px; white-space: nowrap; background-color: #154679; border-color: #154679;">
                         <i class="bi bi-person-plus me-1"></i> Tambah Pengguna
                     </a>
                 </div>
@@ -25,9 +29,9 @@
         </div>
     </div>
     
-    <div class="card-body px-4 pt-0 pb-4">
-        <div class="table-responsive rounded-3 border border-light overflow-hidden">
-            <table class="table table-hover align-items-center mb-0">
+    <div class="card-body px-4 pt-0 pb-3 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+        <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: auto; min-height: 0; overflow-y: auto; overflow-x: auto;">
+            <table class="table table-hover align-middle mb-0 table-sticky-header">
                 <thead class="bg-gray-100">
                     <tr>
                         <th width="45" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">No</th>
@@ -42,12 +46,12 @@
                     if (empty($data)) {
                         echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data admin tidak ditemukan</td></tr>";
                     } else {
-                        $no = (isset($offset) ? $offset : 0) + 1;
+                        $no = 1;
                         foreach ($data as $b) {
                     ?>
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="hover:bg-gray-50 transition-colors admin-row">
                         <td class="text-center">
-                            <span class="text-secondary text-sm"><?php echo $no; ?></span>
+                            <span class="text-secondary text-sm admin-no"><?php echo $no; ?></span>
                         </td>
                         <td class="py-3">
                             <div class="d-flex align-items-center">
@@ -103,12 +107,6 @@
                 </tbody>
             </table>
         </div>
-        
-        <?php if(!empty($pagi)): ?>
-        <div class="mt-4">
-            <?php echo $pagi; ?>
-        </div>
-        <?php endif; ?>
     </div>
 </div>
 
@@ -123,13 +121,13 @@
     .border-radius-lg { border-radius: 0.6rem !important; }
     .border-radius-md { border-radius: 0.4rem !important; }
     
-    .bg-gray-100 { background-color: #f8f9fa !important; }
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
+    .bg-gray-100 { background-color: #f8fafc !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
     .bg-danger-soft { background-color: rgba(234, 6, 6, 0.08) !important; color: #ea0606 !important; }
     .bg-success-soft { background-color: rgba(45, 206, 137, 0.08) !important; color: #2dce89 !important; }
     .bg-info-soft { background-color: rgba(17, 205, 239, 0.08) !important; color: #11cdef !important; }
     
-    .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.15) !important; }
     .border-danger-soft { border: 1px solid rgba(234, 6, 6, 0.15) !important; }
     .border-success-soft { border: 1px solid rgba(45, 206, 137, 0.15) !important; }
     .border-info-soft { border: 1px solid rgba(17, 205, 239, 0.15) !important; }
@@ -151,36 +149,115 @@
         justify-content: center;
     }
     
+    .btn-outline-primary {
+        color: #154679 !important;
+        border-color: #154679 !important;
+    }
+    .btn-outline-primary:hover {
+        background-color: #154679 !important;
+        color: #fff !important;
+    }
+
     .input-group-alternative {
         transition: all 0.2s ease;
         background-color: #fff;
     }
     .input-group-alternative:focus-within {
-        border-color: #FF6D1F !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+        border-color: #154679 !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
     }
     
     .divide-y > * + * { border-top-width: 1px; }
     .divide-gray-100 > * + * { border-color: #f1f1f1; }
+
+    /* Pastikan flexbox container luar tidak mengompres kartu Manajemen Admin */
+    .main-content {
+        min-height: auto !important;
+        padding-bottom: 12px !important;
+    }
+    .content-body {
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+    }
+    #mainManageAdminCard {
+        height: auto !important;
+        max-height: calc(100vh - 82px) !important;
+        min-height: 0 !important;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0 !important;
+    }
+
+    /* Kontainer scroll internal Manajemen Admin */
+    .table-scroll-container {
+        height: auto !important;
+        max-height: calc(100vh - 82px - 65px) !important;
+        min-height: 0 !important;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+    /* Custom Slim Scrollbar */
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Sticky Table Header */
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle !important;
+    }
 </style>
 
 <script type="text/javascript">
 $(document).ready(function () {
-    // Real-time Client-side Search (Automatic)
-    $("#inputSearchAdmin").on("keyup", function() {
-        var value = $(this).val().toLowerCase();
-        $("#tableAdminBody tr").filter(function() {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+    // Instant Client-side Live Search across all loaded admin rows
+    $("#inputSearchAdmin").on("input", function() {
+        var value = $(this).val().toLowerCase().trim();
+        var $rows = $("#tableAdminBody tr.admin-row");
+        var visibleCount = 0;
+        var num = 1;
+
+        $rows.each(function() {
+            var text = $(this).text().toLowerCase();
+            if (text.indexOf(value) > -1) {
+                $(this).show();
+                $(this).find('.admin-no').text(num++);
+                visibleCount++;
+            } else {
+                $(this).hide();
+            }
         });
         
-        // Show empty state
-        var visibleRows = $("#tableAdminBody tr:visible").length;
-        if (visibleRows === 0) {
+        // Show empty state if no matches
+        if (visibleCount === 0 && value.length > 0) {
             if ($("#emptySearchState").length === 0) {
-                $("#tableAdminBody").append('<tr id="emptySearchState"><td colspan="5" class="text-center py-5 text-secondary font-weight-bold opacity-5"><i class="bi bi-search fs-2 d-block mb-2"></i>Tidak ada admin yang cocok</td></tr>');
+                $("#tableAdminBody").append('<tr id="emptySearchState"><td colspan="5" class="text-center py-5 text-secondary font-weight-bold opacity-7"><i class="bi bi-search fs-2 d-block mb-2 text-muted"></i>Tidak ada admin yang cocok dengan kata kunci</td></tr>');
+            } else {
+                $("#emptySearchState").show();
             }
         } else {
-            $("#emptySearchState").remove();
+            $("#emptySearchState").hide();
         }
     });
 });
