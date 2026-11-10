@@ -794,8 +794,8 @@ function get_dda_label_nested($col)
                 </div>
             <?php endif; ?>
 
-            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm">
-                <i class="bi bi-gear-fill"></i> KONFIGURASI
+            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm" title="Buka Pengaturan Konfigurasi Tabel">
+                <i class="bi bi-sliders text-primary"></i> KONFIGURASI
             </button>
 
             <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
