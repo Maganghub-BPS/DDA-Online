@@ -1,335 +1,187 @@
 <!-- ========================================================================= -->
 <!-- MODAL: KONFIGURASI TAMPILAN TABEL DINAMIS (modal_config_tabel.php)        -->
-<!-- Fitur manipulasi struktur dan penyajian tabel portal data:                 -->
-<!-- 1. Kolom & Label : Visibilitas, label dwibahasa, sub-header (||), format.   -->
-<!-- 2. Pivot Mode     : Memutar matriks data dengan hierarki & custom ordering. -->
-<!-- 3. Agregasi Data  : Total kelompok & grand total Jawa Tengah.              -->
+<!-- Fitur canggih untuk memanipulasi struktur dan penyajian tabel portal data:-->
+<!-- 1. Kolom & Label : Mengatur visibilitas kolom, label kustom, hierarki      -->
+<!--    header bertingkat (menggunakan delimiter '||'), dan urutan kolom.      -->
+<!-- 2. Pivot Mode     : Memutar matriks data (mentransformasikan baris/kolom) -->
+<!--    dengan hierarki multi-level dan drag-drop custom ordering.              -->
+<!-- 3. Agregasi Data  : Toggle hitung total per kelompok & grand total Jawa Tengah.-->
 <!-- ========================================================================= -->
-
-<div class="modal fade" id="configModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem; overflow: hidden;">
-            <!-- Modal Header -->
-            <div class="modal-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="avatar avatar-md border-radius-xl d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: rgba(21, 70, 121, 0.08); border: 1px solid rgba(21, 70, 121, 0.15); flex-shrink: 0;">
-                        <i class="bi bi-sliders2 fs-5" style="color: #154679;"></i>
-                    </div>
-                    <div>
-                        <h5 class="modal-title fw-bold text-dark mb-0">Konfigurasi Tampilan Tabel</h5>
-                        <p class="text-xs text-secondary mb-0">Sesuaikan kolom, label dwibahasa (ID/EN), dan struktur pivot matriks tabel</p>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold" onclick="resetConfigToDefault()" style="font-size: 11px;" title="Reset seluruh kolom dan pengaturan pivot kembali ke kolom asli API">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Default API
+<!-- Modal Konfigurasi Tabel Dinamis -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h5 class="modal-title fw-bold text-dark mb-0"><i class="bi bi-sliders me-2 text-primary"></i> KONFIGURASI TABEL</h5>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold shadow-xs" onclick="resetConfigToDefault()" style="font-size: 11px;" title="Reset seluruh kolom dan pengaturan pivot kembali ke kolom asli API">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> RESET KE DEFAULT API
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" onclick="toggleGuide()" style="font-size: 11px;">
-                        <i class="bi bi-question-circle me-1"></i> Panduan
+                        <i class="bi bi-question-circle me-1"></i> PANDUAN PENGGUNA
                     </button>
-                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             
-            <div class="modal-body p-4 bg-light-subtle">
-                <!-- Segmented Tabs -->
-                <ul class="nav nav-pills gap-2 bg-white p-1.5 rounded-3 mb-3 border border-light shadow-2xs" id="configTabs">
+            <div class="modal-body p-4">
+                <ul class="nav nav-pills mb-4 gap-2 bg-light p-2 rounded-3" id="configTabs">
                     <li class="nav-item flex-fill">
-                        <button class="nav-link active w-100 fw-bold py-2 rounded-2" data-bs-toggle="tab" data-bs-target="#cols-pane">
-                            <i class="bi bi-layout-three-columns me-1.5"></i> Kolom & Format
-                        </button>
+                        <button class="nav-link active w-100 fw-bold py-2 rounded-3" data-bs-toggle="tab" data-bs-target="#cols-pane">Kolom & Label</button>
                     </li>
                     <li class="nav-item flex-fill">
-                        <button class="nav-link w-100 fw-bold py-2 rounded-2" data-bs-toggle="tab" data-bs-target="#pivot-pane">
-                            <i class="bi bi-arrow-repeat me-1.5"></i> Mode Putar (Pivot)
-                        </button>
+                        <button class="nav-link w-100 fw-bold py-2 rounded-3" data-bs-toggle="tab" data-bs-target="#pivot-pane">Pivot Mode</button>
                     </li>
                 </ul>
 
-                <!-- Panduan Singkat (Collapsible) -->
-                <div id="guide-section" class="mb-3 p-3 rounded-3 border" style="display:none; background: #f0f7ff; border-color: rgba(21, 70, 121, 0.2) !important;">
+                <div id="guide-section" class="mb-4 bg-info bg-opacity-10 p-3 rounded-4 border border-info border-opacity-25" style="display:none">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6 class="fw-bold mb-0 text-primary" style="font-size: 12px;"><i class="bi bi-lightbulb-fill me-1.5"></i> Panduan Konfigurasi Tabel</h6>
-                        <button type="button" class="btn-close btn-close-sm" onclick="toggleGuide()" style="font-size: 9px;"></button>
+                        <h6 class="fw-bold text-info mb-0"><i class="bi bi-lightbulb-fill me-2"></i> Panduan Singkat</h6>
+                        <button type="button" class="btn-close btn-close-sm" onclick="toggleGuide()" style="font-size:10px"></button>
                     </div>
-                    <ul class="text-xs text-dark mb-0 ps-3 lh-base">
-                        <li class="mb-1"><b>Urutan Kolom:</b> Geser ikon <i class="bi bi-grip-vertical text-muted"></i> untuk memindahkan posisi kolom sesuai urutan publikasi.</li>
-                        <li class="mb-1"><b>Header Bertingkat:</b> Gunakan pemisah <code> || </code> pada label (contoh: <code>Produksi || Luas</code>) untuk membuat grouping header otomatis.</li>
-                        <li class="mb-1"><b>Mode Pivot:</b> Aktifkan jika tabel berupa format indikator mentah yang perlu diputar menjadi kolom (misal: Wilayah sebagai baris, Tahun/Indikator sebagai kolom).</li>
-                        <li><b>Terapkan:</b> Klik tombol "Terapkan & Simpan" untuk menyimpan perubahan secara permanen ke database DDA.</li>
+                    <ul class="small text-dark mb-0 ps-3">
+                        <li class="mb-1"><b>Kolom & Label:</b> Gunakan ikon <i class="bi bi-grip-vertical"></i> untuk merubah urutan kolom. Gunakan <b>||</b> untuk membuat grouping header otomatis.</li>
+                        <li class="mb-1"><b>Pivot Mode:</b> Aktifkan untuk memutar data. Pilih "Baris Tetap" (misal: Wilayah) dan "Kategori Kolom" (misal: Tahun).</li>
+                        <li class="mb-1"><b>Mapping (New):</b> Sekarang Anda bisa <b>menarik & menjatuhkan (drag-drop)</b> item di area "Sesuaikan Hasil Putar" untuk mengatur urutan baris/kolom secara manual sesuai keinginan Anda.</li>
+                        <li><b>Terapkan:</b> Klik tombol "Terapkan & Simpan" untuk memperbarui tampilan tabel di halaman utama.</li>
                     </ul>
                 </div>
 
-                <div class="tab-content">
-                    <!-- ========================================== -->
-                    <!-- TAB 1: KOLOM & FORMAT                      -->
-                    <!-- ========================================== -->
+                <div class="tab-content border rounded-4 bg-white p-3 shadow-sm" style="min-height: 400px;">
+                    <!-- TAB 1: KOLOM & LABEL -->
                     <div class="tab-pane fade show active" id="cols-pane">
-                        <div class="alert border-0 shadow-none mb-3 py-2 px-3 rounded-3 d-flex align-items-center" style="background: #f1f6fc; border-left: 3px solid #154679 !important;">
-                            <i class="bi bi-info-circle-fill me-2 fs-6" style="color: #154679; flex-shrink: 0;"></i>
-                            <div class="text-xs text-dark lh-sm">
-                                Tarik baris menggunakan ikon <i class="bi bi-grip-vertical text-muted"></i> untuk mengatur urutan. Kosongkan tanda centang untuk menyembunyikan kolom dari tampilan publikasi.
-                            </div>
+                        <div class="alert alert-warning py-2 mb-3 border-0 rounded-3 shadow-none" style="font-size: 11px;">
+                            <i class="bi bi-info-circle-fill me-1"></i> Tarik ikon <i class="bi bi-grip-vertical"></i> untuk merubah urutan. Gunakan <b>||</b> untuk header bertingkat.
                         </div>
-
-                        <!-- Daftar Kolom Dinamis -->
                         <div id="col-list-container">
-                            <!-- Kolom di-inject via JS -->
+                            <!-- Kolom di-inject JS -->
                         </div>
-
-                        <!-- Opsi Tampilan & Total Tabel -->
-                        <div class="card border border-light rounded-3 p-3 bg-white mt-3 shadow-2xs">
-                            <h6 class="text-xs text-uppercase font-weight-bold text-secondary mb-3">
-                                <i class="bi bi-toggles me-1 text-primary"></i> Pengaturan Tampilan & Agregasi Tabel
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch p-2 bg-light-subtle rounded-3 border d-flex align-items-center h-100">
-                                        <input class="form-check-input ms-1 me-3 my-0" type="checkbox" id="group-by-region" style="cursor: pointer;">
-                                        <div>
-                                            <label class="form-check-label fw-bold text-xs text-dark d-block mb-0" for="group-by-region" style="cursor: pointer;">Grup Wilayah (Kabupaten/Kota)</label>
-                                            <span class="text-xxs text-secondary">Kelompokkan baris berdasarkan kode wilayah BPS</span>
-                                        </div>
-                                    </div>
+                        <hr>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="merge-datasets" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="merge-datasets" style="cursor: pointer;">Gabungkan Dataset</label>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch p-2 bg-light-subtle rounded-3 border d-flex align-items-center h-100">
-                                        <input class="form-check-input ms-1 me-3 my-0" type="checkbox" id="config_show_total_col" style="cursor: pointer;">
-                                        <div>
-                                            <label class="form-check-label fw-bold text-xs text-dark d-block mb-0" for="config_show_total_col" style="cursor: pointer;">Tampilkan Total Jawa Tengah</label>
-                                            <span class="text-xxs text-secondary">Hitung baris agregasi total provinsi di baris terbawah</span>
-                                        </div>
-                                    </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="group-by-region" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="group-by-region" style="cursor: pointer;">Grup Wilayah (Kab/Kota)</label>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch p-2 bg-light-subtle rounded-3 border d-flex align-items-center h-100">
-                                        <input class="form-check-input ms-1 me-3 my-0" type="checkbox" id="config_show_group_total" style="cursor: pointer;">
-                                        <div>
-                                            <label class="form-check-label fw-bold text-xs text-dark d-block mb-0" for="config_show_group_total" style="cursor: pointer;">Jumlah per Kelompok Kolom</label>
-                                            <span class="text-xxs text-secondary">Tampilkan kolom subtotal horizontal untuk tiap grup</span>
-                                        </div>
-                                    </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="config_show_group_total" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="config_show_group_total" style="cursor: pointer;">Jumlah per Kelompok Kolom</label>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-check form-switch p-2 bg-light-subtle rounded-3 border d-flex align-items-center h-100">
-                                        <input class="form-check-input ms-1 me-3 my-0" type="checkbox" id="merge-datasets" style="cursor: pointer;">
-                                        <div>
-                                            <label class="form-check-label fw-bold text-xs text-dark d-block mb-0" for="merge-datasets" style="cursor: pointer;">Gabungkan Multi-Dataset</label>
-                                            <span class="text-xxs text-secondary">Satukan baris data jika tabel terdiri dari beberapa API</span>
-                                        </div>
-                                    </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch bg-light p-3 rounded-3 h-100 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" id="config_show_total_col" style="cursor: pointer;">
+                                    <label class="form-check-label fw-bold small text-dark mb-0" for="config_show_total_col" style="cursor: pointer;">Tampilkan Total (Baris JT)</label>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ========================================== -->
-                    <!-- TAB 2: PIVOT MODE                          -->
-                    <!-- ========================================== -->
+                    <!-- TAB 2: PIVOT MODE -->
                     <div class="tab-pane fade" id="pivot-pane">
-                        <!-- Master Switch Banner -->
-                        <div class="card border rounded-3 p-3 mb-3 bg-white shadow-2xs">
-                            <div class="form-check form-switch m-0 d-flex align-items-center">
-                                <input class="form-check-input ms-1 me-3 my-0 fs-5" type="checkbox" id="pivot-toggle" style="cursor: pointer;">
-                                <div>
-                                    <label class="form-check-label fw-bold text-sm text-dark mb-0" for="pivot-toggle" style="cursor: pointer;">
-                                        Aktifkan Mode Pivot (Putar Data)
-                                    </label>
-                                    <span class="text-xs text-secondary d-block">Mentransformasikan baris data indikator menjadi kolom matriks berulang</span>
-                                </div>
-                            </div>
+                        <div class="form-check form-switch mb-3 p-3 bg-light rounded-3">
+                            <input class="form-check-input ms-0 me-2" type="checkbox" id="pivot-toggle">
+                            <label class="form-check-label fw-bold" for="pivot-toggle">Aktifkan Putar Data (Pivot Mode)</label>
                         </div>
-
-                        <!-- Pivot Detail Settings -->
-                        <div id="pivot-settings" style="display:none">
-                            <!-- 3 Dimensi Pivot -->
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-4">
-                                    <div class="card border rounded-3 p-3 h-100 bg-white shadow-2xs">
-                                        <div class="d-flex align-items-center gap-1.5 mb-2">
-                                            <i class="bi bi-list-ul text-primary"></i>
-                                            <label class="text-xs fw-bold text-dark mb-0">1. Baris Tetap (Row)</label>
-                                        </div>
-                                        <div id="pivot-row-container" class="bg-light rounded-2 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;"></div>
-                                        <div id="selected-pivot-row-order" class="mt-2 p-2 border rounded-2 bg-white" style="display:none">
-                                            <span class="text-xxs text-primary font-weight-bold d-block mb-1">Urutan Baris (Tarik):</span>
-                                            <div id="pivot-row-order-list" class="d-flex flex-wrap gap-1"></div>
-                                        </div>
+                        <div id="pivot-settings" style="display:none" class="p-2">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="small fw-bold text-muted mb-1">Baris Tetap (Hierarki)</label>
+                                    <div id="pivot-row-container" class="bg-light rounded-3 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;">
+                                        <!-- Checkboxes -->
+                                    </div>
+                                    <div id="selected-pivot-row-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
+                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Baris (Tarik untuk atur):</small>
+                                        <div id="pivot-row-order-list" class="d-flex flex-wrap gap-1"></div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="card border rounded-3 p-3 h-100 bg-white shadow-2xs">
-                                        <div class="d-flex align-items-center gap-1.5 mb-2">
-                                            <i class="bi bi-layout-three-columns text-primary"></i>
-                                            <label class="text-xs fw-bold text-dark mb-0">2. Kategori Kolom (Col)</label>
-                                        </div>
-                                        <div id="pivot-col-container" class="bg-light rounded-2 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;"></div>
-                                        <div id="selected-pivot-col-order" class="mt-2 p-2 border rounded-2 bg-white" style="display:none">
-                                            <span class="text-xxs text-primary font-weight-bold d-block mb-1">Urutan Kolom (Tarik):</span>
-                                            <div id="pivot-col-order-list" class="d-flex flex-wrap gap-1"></div>
-                                        </div>
+                                <div class="col-md-6">
+                                    <label class="small fw-bold text-muted mb-1 d-block">Kategori Kolom (Hierarki)</label>
+                                    <div id="pivot-col-container" class="bg-light rounded-3 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;">
+                                        <!-- Checkboxes -->
+                                    </div>
+                                    <div id="selected-pivot-col-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
+                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Kolom (Tarik untuk atur):</small>
+                                        <div id="pivot-col-order-list" class="d-flex flex-wrap gap-1"></div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="card border rounded-3 p-3 h-100 bg-white shadow-2xs">
-                                        <div class="d-flex align-items-center gap-1.5 mb-2">
-                                            <i class="bi bi-123 text-primary"></i>
-                                            <label class="text-xs fw-bold text-dark mb-0">3. Kolom Nilai (Value)</label>
-                                        </div>
-                                        <div id="pivot-val-container" class="bg-light rounded-2 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;"></div>
-                                        <div id="selected-pivot-val-order" class="mt-2 p-2 border rounded-2 bg-white" style="display:none">
-                                            <span class="text-xxs text-primary font-weight-bold d-block mb-1">Urutan Nilai (Tarik):</span>
-                                            <div id="pivot-val-order-list" class="d-flex flex-wrap gap-1"></div>
-                                        </div>
+                                <div class="col-md-6">
+                                    <label class="small fw-bold text-muted mb-1">Kolom Nilai (Metrics)</label>
+                                    <div id="pivot-val-container" class="bg-light rounded-3 p-2 overflow-auto" style="height: 120px; border: 1px solid #eef2f7;">
+                                        <!-- Checkboxes -->
                                     </div>
+                                    <div id="selected-pivot-val-order" class="mt-2 p-2 border rounded-3 bg-white" style="display:none">
+                                        <small class="text-primary fw-bold d-block mb-1" style="font-size:9px">Urutan Nilai (Tarik untuk atur):</small>
+                                        <div id="pivot-val-order-list" class="d-flex flex-wrap gap-1"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="small fw-bold text-muted mb-1">Induk Header (ID)</label>
+                                    <input type="text" id="pivot-prefix" class="form-control form-control-sm border-0 bg-light rounded-3" placeholder="Contoh: Produksi || ">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="small fw-bold text-muted mb-1">Induk Header (EN)</label>
+                                    <input type="text" id="pivot-prefix-en" class="form-control form-control-sm border-0 bg-light rounded-3" placeholder="Example: Production || ">
                                 </div>
                             </div>
-
-                            <!-- Induk Header Kolom Pivot -->
-                            <div class="card border rounded-3 p-3 bg-white mb-3 shadow-2xs">
-                                <h6 class="text-xs text-uppercase font-weight-bold text-secondary mb-2">
-                                    <i class="bi bi-type-h1 me-1 text-primary"></i> Induk Header Kolom Pivot
-                                </h6>
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text bg-light text-secondary border-end-0 text-xxs font-weight-bold px-2" style="width: 70px;">ID (Ind)</span>
-                                            <input type="text" id="pivot-prefix" class="form-control form-control-sm border-start-0 text-xs" placeholder="Contoh: Produksi || ">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text bg-light text-secondary border-end-0 text-xxs font-weight-bold px-2" style="width: 70px;">EN (Eng)</span>
-                                            <input type="text" id="pivot-prefix-en" class="form-control form-control-sm border-start-0 text-xs" placeholder="Example: Production || ">
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="form-check form-switch mt-3 mb-1">
+                                <input class="form-check-input" type="checkbox" id="pivot-total-row" onchange="document.getElementById('pivot-only-total-wrapper').style.display = this.checked ? 'block' : 'none'" checked>
+                                <label class="form-check-label small fw-bold" for="pivot-total-row">Hitung Total Horizontal (Baris)</label>
                             </div>
-
-                            <!-- Opsi Agregasi & Orientasi Pivot -->
-                            <div class="card border rounded-3 p-3 bg-white mb-3 shadow-2xs">
-                                <h6 class="text-xs text-uppercase font-weight-bold text-secondary mb-2">
-                                    <i class="bi bi-calculator me-1 text-primary"></i> Opsi Total & Orientasi Matriks
-                                </h6>
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <div class="form-check form-switch p-2 bg-light-subtle rounded-2 border d-flex align-items-center">
-                                            <input class="form-check-input ms-1 me-2 my-0" type="checkbox" id="pivot-total-row" onchange="document.getElementById('pivot-only-total-wrapper').style.display = this.checked ? 'block' : 'none'" checked style="cursor: pointer;">
-                                            <label class="form-check-label text-xs fw-bold text-dark mb-0" for="pivot-total-row" style="cursor: pointer;">Hitung Total Horizontal (Baris)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-check form-switch p-2 bg-light-subtle rounded-2 border d-flex align-items-center">
-                                            <input class="form-check-input ms-1 me-2 my-0" type="checkbox" id="pivot-total-col" checked style="cursor: pointer;">
-                                            <label class="form-check-label text-xs fw-bold text-dark mb-0" for="pivot-total-col" style="cursor: pointer;">Hitung Total Vertikal (Jawa Tengah)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6" id="pivot-only-total-wrapper">
-                                        <div class="form-check form-switch p-2 bg-light-subtle rounded-2 border d-flex align-items-center">
-                                            <input class="form-check-input ms-1 me-2 my-0" type="checkbox" id="pivot-only-total" style="cursor: pointer;">
-                                            <label class="form-check-label text-xs text-muted mb-0" for="pivot-only-total" style="cursor: pointer;">Hanya Tampilkan Total (Sembunyikan Rincian)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-check form-switch p-2 bg-light-subtle rounded-2 border d-flex align-items-center">
-                                            <input class="form-check-input ms-1 me-2 my-0" type="checkbox" id="pivot-metric-first" style="cursor: pointer;">
-                                            <label class="form-check-label text-xs fw-bold text-primary mb-0" for="pivot-metric-first" style="cursor: pointer;">Prioritas Metrik Terlebih Dahulu (Metrik » Tahun)</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="form-check form-switch p-2 bg-light-subtle rounded-2 border d-flex align-items-center">
-                                            <input class="form-check-input ms-1 me-2 my-0" type="checkbox" id="pivot-metrics-as-row" style="cursor: pointer;">
-                                            <label class="form-check-label text-xs fw-bold text-success mb-0" for="pivot-metrics-as-row" style="cursor: pointer;">Jadikan Metrik sebagai Baris (Portrait Mode)</label>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="form-check form-switch mb-2 ms-4" id="pivot-only-total-wrapper">
+                                <input class="form-check-input" type="checkbox" id="pivot-only-total">
+                                <label class="form-check-label small text-muted" for="pivot-only-total">Sembunyikan Rincian (Hanya Tampilkan Total)</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="pivot-total-col" checked>
+                                <label class="form-check-label small fw-bold" for="pivot-total-col">Hitung Total Vertikal (Kolom - Jawa Tengah)</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="pivot-metric-first">
+                                <label class="form-check-label small fw-bold text-primary" for="pivot-metric-first"><i class="bi bi-diagram-3-fill me-1"></i> Prioritas Metrik (Metrik &raquo; Tahun)</label>
+                            </div>
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" id="pivot-metrics-as-row">
+                                <label class="form-check-label small fw-bold text-success" for="pivot-metrics-as-row"><i class="bi bi-layout-text-sidebar-reverse me-1"></i> Jadikan Metrik sebagai Baris (Portrait Mode)</label>
                             </div>
                             
                             <!-- Mapping Area -->
                             <div id="pivot-mapping-area" style="display:none">
-                                <div class="card border rounded-3 p-3 bg-white shadow-2xs">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                        <h6 class="text-xs text-uppercase font-weight-bold text-secondary mb-0">
-                                            <i class="bi bi-pencil-square me-1 text-primary"></i> Sesuaikan Label Hasil Putar (Mapping)
-                                        </h6>
-                                        <span class="text-xxs text-muted">Tarik untuk mengubah urutan kategori</span>
-                                    </div>
-                                    <div id="pivot-mapping-list"></div>
-                                </div>
+                                <label class="fw-bold small text-primary mb-2 border-top pt-3 w-100"><i class="bi bi-pencil-square me-1"></i> Sesuaikan Hasil Putar (Mapping)</label>
+                                <div id="pivot-mapping-list" class="bg-light p-3 rounded-3"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- PREVIEW AREA (Outside Tabs for visibility) -->
-                <div id="preview-area" class="mt-3 card border rounded-3 p-3 bg-white shadow-sm" style="display:none">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="fw-bold small text-primary mb-0"><i class="bi bi-eye me-1.5"></i> Pratinjau Cepat Hasil Konfigurasi (5 Baris)</h6>
-                        <button type="button" onclick="document.getElementById('preview-area').style.display='none'" class="btn btn-sm btn-light border px-2 py-0.5 text-xs text-muted">
-                            <i class="bi bi-x me-1"></i>Tutup Preview
-                        </button>
+                <div id="preview-area" class="mt-4 border-top pt-3" style="display:none">
+                    <h6 class="fw-bold small text-muted mb-2 ps-1"><i class="bi bi-eye me-1"></i> Preview Cepat (5 Baris)</h6>
+                    <div id="preview-container" class="bg-white border rounded-4 overflow-auto" style="max-height: 200px; font-size: 10px;"></div>
+                    <div class="text-center mt-2">
+                        <button type="button" onclick="document.getElementById('preview-area').style.display='none'" class="btn btn-sm btn-link text-muted text-decoration-none">Sembunyikan Preview</button>
                     </div>
-                    <div id="preview-container" class="bg-white border rounded-2 overflow-auto p-1" style="max-height: 220px; font-size: 11px;"></div>
                 </div>
             </div>
 
-            <!-- Modal Footer -->
-            <div class="modal-footer bg-white border-top border-light py-3 px-4 d-flex justify-content-between align-items-center">
-                <button type="button" onclick="showPreview()" class="btn btn-outline-secondary btn-sm px-3 rounded-pill fw-bold">
-                    <i class="bi bi-eye me-1"></i> Pratinjau Cepat
-                </button>
-                <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-light btn-sm px-4 rounded-pill text-muted fw-bold border" data-bs-dismiss="modal">Batal</button>
-                    <button type="button" onclick="applyConfiguration()" class="btn btn-primary btn-sm px-4 rounded-pill fw-bold shadow-sm d-flex align-items-center" style="background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border-color: #154679;">
-                        <i class="bi bi-check-circle me-1.5 fs-6"></i> Terapkan & Simpan
-                    </button>
+            <div class="modal-footer border-0 p-4 pt-2 d-flex justify-content-between">
+                <button type="button" class="btn btn-light px-4 fw-bold rounded-3 text-muted" data-bs-dismiss="modal">Tutup</button>
+                <div class="d-flex gap-2">
+                    <button type="button" onclick="showPreview()" class="btn btn-info text-white px-4 fw-bold rounded-pill"><i class="bi bi-eye me-1"></i> Preview</button>
+                    <button type="button" onclick="applyConfiguration()" class="btn btn-primary px-4 fw-bold rounded-pill shadow-primary"><i class="bi bi-check-circle me-1"></i> Terapkan & Simpan</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    /* Styling Tabs & Active State */
-    #configTabs .nav-link {
-        color: #64748b;
-        font-size: 0.85rem;
-        transition: all 0.2s ease;
-    }
-    #configTabs .nav-link:hover {
-        background-color: #f8fafc;
-        color: #154679;
-    }
-    #configTabs .nav-link.active {
-        background-color: #154679 !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 6px rgba(21, 70, 121, 0.2) !important;
-    }
-
-    /* Form Switch Navy BPS */
-    .form-check-input:checked {
-        background-color: #154679 !important;
-        border-color: #154679 !important;
-    }
-    .form-check-input:focus {
-        border-color: #154679 !important;
-        box-shadow: 0 0 0 0.2rem rgba(21, 70, 121, 0.15) !important;
-    }
-
-    /* Input Focus */
-    .form-control:focus,
-    .form-select:focus {
-        border-color: #154679 !important;
-        box-shadow: 0 0 0 0.2rem rgba(21, 70, 121, 0.12) !important;
-    }
-
-    /* Sortable Drag Ghost */
-    .sortable-ghost {
-        background: #f1f6fc !important;
-        opacity: 0.75 !important;
-        border: 1px dashed #154679 !important;
-    }
-</style>
 
 <script>
     function getConfigFromModal() {
@@ -379,6 +231,7 @@
         return config;
     }
 
+
     function openConfigModal() {
       try {
         const modalEl = document.getElementById('configModal');
@@ -396,11 +249,14 @@
         if (typeof currentTableConfig === 'string') {
             try {
                 currentTableConfig = JSON.parse(currentTableConfig);
-                if (typeof currentTableConfig === 'string') currentTableConfig = JSON.parse(currentTableConfig);
+                if (typeof currentTableConfig === 'string') currentTableConfig = JSON.parse(currentTableConfig); // In case double encoded
             } catch(e) {}
         }
 
         // AUTO-SCHEMA RECONCILIATION:
+        // Cek apakah kolom di currentTableConfig masih cocok dengan kolom asli API baru (baseKeys).
+        // Jika tabel baru punya skema kolom berbeda (misal clone tahun lalu atau ganti link API),
+        // otomatis reset currentTableConfig agar kolom terbaru API langsung muncul tanpa inspect console!
         if (currentTableConfig && typeof currentTableConfig === 'object' && Array.isArray(currentTableConfig.columns) && baseKeys.length > 0) {
             const cfgKeys = currentTableConfig.columns.map(c => c.key);
             const commonKeys = baseKeys.filter(k => cfgKeys.includes(k));
@@ -453,63 +309,36 @@
         });
         if (currentTableConfig.pivot.total_col === undefined) currentTableConfig.pivot.total_col = true;
 
-        // Render Kolom dengan Desain Bersih & Modern
+        // Render Kolom
         currentTableConfig.columns.forEach(col => {
             const div = document.createElement('div');
-            div.className = 'col-item bg-white p-3 rounded-3 mb-2 border transition-all';
-            div.style.borderColor = col.visible ? '#e2e8f0' : '#f1f5f9';
-            div.style.opacity = col.visible ? '1' : '0.65';
+            div.className = 'col-item d-flex align-items-center gap-3 bg-light p-2 rounded-3 mb-2 border border-light';
             div.dataset.key = col.key;
             div.innerHTML = `
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="bi bi-grip-vertical text-muted fs-5 cursor-move" title="Geser untuk ubah urutan" style="cursor: grab;"></i>
-                        <div class="form-check form-switch m-0 d-flex align-items-center">
-                            <input class="form-check-input visibility-check m-0" type="checkbox" id="vis-${col.key}" ${col.visible ? 'checked' : ''} style="cursor: pointer;" title="Tampilkan/Sembunyikan Kolom">
+                <i class="bi bi-grip-vertical text-muted fs-5 cursor-move"></i>
+                <input class="form-check-input visibility-check ms-0" type="checkbox" ${col.visible ? 'checked' : ''}>
+                <div class="flex-grow-1">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 d-flex justify-content-between align-items-center">
+                            <small class="font-monospace fw-bold text-primary">${col.key}</small>
+                            <select class="form-select form-select-sm col-format border-0 bg-white py-0 pe-4" style="width:auto; font-size:9px;">
+                                <option value="number" ${col.format === 'number' ? 'selected' : ''}>Angka</option>
+                                <option value="decimal" ${col.format === 'decimal' ? 'selected' : ''}>Desimal (0,00)</option>
+                                <option value="percent" ${col.format === 'percent' ? 'selected' : ''}>Persentase (%)</option>
+                                <option value="currency" ${col.format === 'currency' ? 'selected' : ''}>Mata Uang (Rp)</option>
+                                <option value="ribuan" ${col.format === 'ribuan' ? 'selected' : ''}>Ribuan (Val / 1.000)</option>
+                                <option value="jutaan" ${col.format === 'jutaan' ? 'selected' : ''}>Jutaan (Val / 1.000.000)</option>
+                            </select>
                         </div>
-                        <span class="font-monospace text-xs fw-bold px-2 py-0.5 rounded bg-light text-dark border">
-                            ${col.key}
-                        </span>
-                    </div>
-                    <div class="d-flex align-items-center gap-1.5">
-                        <span class="text-xxs text-secondary font-weight-bold text-uppercase me-1">Format:</span>
-                        <select class="form-select form-select-sm col-format py-1 px-2 text-xs border rounded-2" style="width: auto; height: 28px;">
-                            <option value="number" ${col.format === 'number' ? 'selected' : ''}>Angka Standar</option>
-                            <option value="decimal" ${col.format === 'decimal' ? 'selected' : ''}>Desimal (0,00)</option>
-                            <option value="percent" ${col.format === 'percent' ? 'selected' : ''}>Persentase (%)</option>
-                            <option value="currency" ${col.format === 'currency' ? 'selected' : ''}>Mata Uang (Rp)</option>
-                            <option value="ribuan" ${col.format === 'ribuan' ? 'selected' : ''}>Ribuan (/ 1.000)</option>
-                            <option value="jutaan" ${col.format === 'jutaan' ? 'selected' : ''}>Jutaan (/ 1.000.000)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-2 pt-1 border-top border-light">
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-light text-secondary border-end-0 text-xxs font-weight-bold px-2" style="width: 70px;">ID (Ind)</span>
-                            <input type="text" class="form-control form-control-sm label-id border-start-0 text-xs" value="${col.label_id}" placeholder="Label bahasa Indonesia...">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-light text-secondary border-end-0 text-xxs font-weight-bold px-2" style="width: 70px;">EN (Eng)</span>
-                            <input type="text" class="form-control form-control-sm label-en border-start-0 text-xs" value="${col.label_en}" placeholder="English label (opsional)...">
-                        </div>
+                        <div class="col-6"><input type="text" class="form-control form-control-sm label-id border-0 shadow-sm" value="${col.label_id}" placeholder="Label ID"></div>
+                        <div class="col-6"><input type="text" class="form-control form-control-sm label-en border-0 shadow-sm" value="${col.label_en}" placeholder="Label EN"></div>
                     </div>
                 </div>
             `;
-
-            // Dynamic toggle opacity when unchecked
-            const chk = div.querySelector('.visibility-check');
-            chk.addEventListener('change', function() {
-                div.style.opacity = this.checked ? '1' : '0.65';
-                div.style.borderColor = this.checked ? '#e2e8f0' : '#f1f5f9';
-            });
-
             container.appendChild(div);
         });
 
-        try { new Sortable(container, { animation: 150, handle: '.cursor-move', ghostClass: 'sortable-ghost' }); } catch(e) { console.warn('SortableJS not loaded'); }
+        try { new Sortable(container, { animation: 150, handle: '.cursor-move' }); } catch(e) { console.warn('SortableJS not loaded'); }
 
         // Restore Pivot Checklists (Row, Col, Val)
         ['row', 'col', 'val'].forEach(type => {
@@ -520,8 +349,8 @@
                 const div = document.createElement('div');
                 div.className = 'form-check small mb-1';
                 div.innerHTML = `
-                    <input class="form-check-input pivot-${type}-check" type="checkbox" value="${key}" id="chk-${type}-${key}" ${isChecked} onchange="refreshPivotOrderList('${type}')" style="cursor: pointer;">
-                    <label class="form-check-label text-dark" for="chk-${type}-${key}" style="font-size:11px; cursor: pointer;">${key}</label>
+                    <input class="form-check-input pivot-${type}-check" type="checkbox" value="${key}" id="chk-${type}-${key}" ${isChecked} onchange="refreshPivotOrderList('${type}')">
+                    <label class="form-check-label fw-bold text-dark" for="chk-${type}-${key}" style="font-size:11px;">${key}</label>
                 `;
                 container.appendChild(div);
             });
@@ -530,7 +359,6 @@
             try {
                 new Sortable(document.getElementById(`pivot-${type}-order-list`), { 
                     animation: 100, 
-                    ghostClass: 'sortable-ghost',
                     onEnd: () => { updatePivotMappingUI(); } 
                 });
             } catch(e) { console.warn('SortableJS not loaded'); }
@@ -633,6 +461,17 @@
         };
     }
 
+    function autoPivotConfig() {
+        const firstTable = rawApiResults[0];
+        const dataRows = getRowsFromApiResult(firstTable);
+        const baseKeys = (dataRows.length > 0) ? Object.keys(dataRows[0]) : [];
+        if (baseKeys.length === 0) return;
+        currentTableConfig = buildSmartPivotConfig(baseKeys, dataRows);
+        openConfigModal();
+        const pivotTabBtn = document.querySelector('button[data-bs-target="#pivot-pane"]');
+        if (pivotTabBtn) bootstrap.Tab.getOrCreateInstance(pivotTabBtn).show();
+    }
+
     function resetConfigToDefault() {
         if (!confirm("Reset semua pengaturan kolom dan pivot kembali ke format default API saat ini?")) return;
         currentTableConfig = null;
@@ -652,6 +491,7 @@
         const orderContainer = document.getElementById(`selected-pivot-${type}-order`);
         const list = document.getElementById(`pivot-${type}-order-list`);
         
+        // Use saved order if current UI list is empty (first time opening modal)
         let currentOrder = Array.from(document.querySelectorAll(`.pivot-${type}-order-item`)).map(d => d.dataset.key);
         if (currentOrder.length === 0 && currentTableConfig?.pivot?.[type]) {
             currentOrder = currentTableConfig.pivot[type];
@@ -665,10 +505,9 @@
             orderContainer.style.display = 'block';
             finalOrder.forEach(key => {
                 const badge = document.createElement('div');
-                badge.className = `pivot-${type}-order-item badge bg-primary cursor-move px-2 py-1.5 text-xs d-flex align-items-center gap-1`;
-                badge.style.backgroundColor = '#154679';
+                badge.className = `pivot-${type}-order-item badge bg-primary cursor-move p-2`;
                 badge.dataset.key = key;
-                badge.innerHTML = `<i class="bi bi-grip-vertical"></i> ${key}`;
+                badge.innerHTML = `<i class="bi bi-grip-vertical me-1"></i>${key}`;
                 list.appendChild(badge);
             });
         } else {
@@ -743,28 +582,24 @@
         allTargetCols.forEach(col => {
             let saved = currentTableConfig?.pivot?.mappings?.[col.key] || { label_id: col.key, label_en: '' };
             const div = document.createElement('div');
-            div.className = 'mapping-item p-2.5 mb-2 bg-light rounded-3 border';
+            div.className = 'mapping-item mb-3 pb-3 border-bottom border-white';
             div.dataset.key = col.key;
             div.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                <div class="d-flex justify-content-between align-items-center mb-1">
                     <div class="d-flex align-items-center gap-2">
-                        <i class="bi bi-grip-vertical text-muted cursor-move fs-6"></i>
-                        <span class="text-xs fw-bold font-monospace text-dark">${col.key}</span>
+                        <i class="bi bi-grip-vertical text-muted cursor-move" style="font-size: 16px;"></i>
+                        <span class="small fw-bold text-muted font-monospace">Key: ${col.key}</span>
                     </div>
-                    <span class="badge bg-white text-secondary border text-xxs">${col.type}</span>
+                    <span class="badge bg-white text-primary border" style="font-size:9px">${col.type}</span>
                 </div>
                 <div class="row g-2">
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-secondary border-end-0 text-xxs font-weight-bold px-2" style="width: 70px;">ID (Ind)</span>
-                            <input type="text" class="form-control form-control-sm pivot-map-id border-start-0 text-xs" data-cat="${col.key}" value="${saved.label_id}" placeholder="Label ID...">
-                        </div>
+                    <div class="col-6">
+                        <label class="d-block" style="font-size:9px; color:#aaa">Label ID (Indonesia)</label>
+                        <input type="text" class="form-control form-control-sm pivot-map-id border-0 bg-white" data-cat="${col.key}" value="${saved.label_id}" placeholder="Label ID">
                     </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-secondary border-end-0 text-xxs font-weight-bold px-2" style="width: 70px;">EN (Eng)</span>
-                            <input type="text" class="form-control form-control-sm pivot-map-en border-start-0 text-xs" value="${saved.label_en}" placeholder="English label...">
-                        </div>
+                    <div class="col-6">
+                        <label class="d-block" style="font-size:9px; color:#aaa">Label EN (English)</label>
+                        <input type="text" class="form-control form-control-sm pivot-map-en border-0 bg-white" value="${saved.label_en}" placeholder="Label EN">
                     </div>
                 </div>
             `;
@@ -832,7 +667,7 @@
         const container = document.getElementById('preview-container');
         
         area.style.display = 'block';
-        container.innerHTML = '<div class="text-center p-3 text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Menyiapkan pratinjau...</div>';
+        container.innerHTML = '<div class="text-center p-3">Menyiapkan...</div>';
         
         setTimeout(() => {
             const tempDiv = document.createElement('div');
