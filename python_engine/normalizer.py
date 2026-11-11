@@ -304,7 +304,8 @@ def is_interval_label(s):
     if not s: return False
     s_clean = clean_pdf_watermark_text(str(s))
     s_clean = re.sub(r'[\s\*]', '', s_clean)
-    return bool(re.match(r'^(?:\d+(?:[\-–—\ufffd]|s/?d|s\.d\.?)\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]=?\s*\d+)$', s_clean, re.IGNORECASE))
+    s_clean = re.sub(r'[\u2212\u2013\u2014\u2012\u2015\u2011\ufffd−–—]', '-', s_clean)
+    return bool(re.match(r'^(?:\d+(?:-|s/?d|s\.d\.?)\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]=?\s*\d+)$', s_clean, re.IGNORECASE))
 
 def parse_num(val_str, is_pdf=False):
     if val_str is None: return None
@@ -341,10 +342,16 @@ def parse_num(val_str, is_pdf=False):
     s = re.sub(r'[\r\n]+[a-z][\r\n]*', '', s)
 
     s_clean_token = s.strip().lower()
-    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', 'na', 'n.a', 'n.a.', 'na.', 'n/a', '...', '', '\ufffd', '\u2026', '…'}
+    # Simbol BPS '...' (Data belum tersedia) -> kembalikan '...'
+    dot_unavail = {'...', '\u2026', '…', 'na', 'n.a', 'n.a.', 'na.', 'n/a'}
+    if s_clean_token in dot_unavail or re.match(r'^\.{2,}$', s_clean_token):
+        return '...'
+
+    # Simbol BPS '-' (Nihil / Nol) atau sel kosong pada matriks PDF -> kembalikan 0.0
+    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', '\ufffd', ''}
     if s_clean_token in dash_nihil:
         return 0.0
-    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isalnum() for c in s):
+    if any(d in s_clean_token for d in dash_nihil) and not any(c.isalnum() for c in s_clean_token):
         return 0.0
 
     s_raw_token = s.strip()
@@ -589,7 +596,7 @@ def _candidates(v):
 def explain_mismatch(pv, sv):
     """Petunjuk (bukan pembenaran) penyebab selisih. String kosong bila tidak ada pola dikenal.
     Selisih TETAP dianggap beda; ini hanya membantu penelusuran."""
-    if pv is None or sv is None:
+    if pv is None or sv is None or not isinstance(pv, (int, float)) or not isinstance(sv, (int, float)):
         return ""
     if pv != 0 and sv != 0:
         if abs(sv - pv * 1000) <= 5.0 or abs(pv - sv * 1000) <= 5.0:
@@ -627,9 +634,25 @@ def evaluate_cell_match(pv, sv, tolerance=0.0):
 
     - Cocok bila angka sama persis, atau sama persis menurut salah satu interpretasi format
       penulisan (mis. '1.234' sebagai 1234 atau 1,234).
+    - Menangani semantik simbol BPS: '-' (nihil/0) vs '...' (data belum tersedia).
     - is_tolerance_match hanya True bila pengguna EKSPLISIT memberi tolerance > 0.
     """
-    if pv is None or sv is None:
+    # 1. Keduanya mengindikasikan data belum tersedia (None, '...', '…')
+    pv_is_dots = pv in ('...', '…') or (isinstance(pv, str) and pv.strip() in ('...', '…'))
+    sv_is_dots = sv in ('...', '…') or (isinstance(sv, str) and sv.strip() in ('...', '…'))
+    if pv_is_dots and (sv_is_dots or sv is None or sv == ''):
+        return True, False, 0.0
+    if sv_is_dots and (pv_is_dots or pv is None or pv == ''):
+        return True, False, 0.0
+
+    # 2. Penyelarasan simbol BPS '-' (Nihil / 0) dan sel kosong matriks angka dengan nilai 0
+    pv_is_zero = (isinstance(pv, (int, float)) and abs(pv) < 0.0000001) or (isinstance(pv, str) and pv.strip() in ('-', '–', '—', '−', '\u2212', '0', '0.0')) or pv is None or pv == ''
+    sv_is_zero = (isinstance(sv, (int, float)) and abs(sv) < 0.0000001) or (isinstance(sv, str) and sv.strip() in ('-', '–', '—', '−', '\u2212', '0', '0.0')) or sv is None or sv == ''
+    if pv_is_zero and sv_is_zero and not pv_is_dots and not sv_is_dots:
+        return True, False, 0.0
+
+    # Jika salah satunya kosong/belum tersedia namun yang lain memiliki angka/nilai riil non-nol
+    if pv is None or sv is None or pv == '' or sv == '' or pv_is_dots or sv_is_dots:
         return False, False, 0.0
 
     if isinstance(pv, str) or isinstance(sv, str):

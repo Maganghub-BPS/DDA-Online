@@ -166,31 +166,44 @@ Jika Anda menggunakan cPanel di mana domain utama **terkunci ke folder `public_h
 
 ---
 
-## Bagian 4: Penyesuaian Kode untuk Kompatibilitas Windows & Linux (Cross-Platform)
+## Bagian 4: Kompatibilitas Otomatis Windows & Linux (Sudah Tertanam di Kode)
 
-Di file `app/Controllers/Admin.php`, pemanggilan *background worker* Python saat ini menggunakan perintah khusus Windows (`start /B python ... > NUL`). Agar sistem berjalan otomatis baik di lokal (Windows) maupun di server produksi (Linux), gunakan pola berikut pada `Admin.php`:
+Sistem DDA-Online telah dilengkapi deteksi OS otomatis (`PHP_OS_FAMILY`) pada controller `app/Controllers/Admin.php`:
+* **Di Windows (Lokal Laptop)**: Otomatis memanggil `python` dan menjalankan *background worker* dengan perintah `start /B`.
+* **Di Linux (Server aaPanel/VPS)**: Otomatis memanggil `python3` dan menjalankan *background worker* dengan perintah `nohup ... &`.
 
-```php
-$isWindows = (PHP_OS_FAMILY === 'Windows');
-$pyBin = getenv('PYTHON_BIN') ?: ($isWindows ? 'python' : 'python3');
-
-// 1. Untuk eksekusi sinkron (compare_table.py, match_pdf.py, export_excel.py):
-$command = $pyBin . " " . escapeshellarg($pythonScript) . " ... 2>&1";
-$output = shell_exec($command);
-
-// 2. Untuk eksekusi background worker (batch_verify.py & export_global_excel.py):
-if ($isWindows) {
-    $cmd = "start /B {$pyBin} " . $args . " > NUL 2>" . escapeshellarg($errLog);
-    pclose(popen($cmd, "r"));
-} else {
-    $cmd = "nohup {$pyBin} " . $args . " > /dev/null 2>" . escapeshellarg($errLog) . " &";
-    exec($cmd);
-}
-```
+Artinya, **Anda TIDAK PERLU mengubah kode sama sekali** saat men-deploy dari laptop ke server.
 
 ---
 
-## Bagian 5: Checklist Troubleshooting Umum Saat Baru Naik Hosting
+## Bagian 5: Panduan Kilat Khusus aaPanel (Hanya Dilakukan Sekali Saat Setup Server)
+
+Jika Anda men-deploy ke server VPS yang menggunakan **aaPanel**, cukup lakukan **2 langkah mudah** berikut agar fitur Scan PDF, Verifikasi Tabel, dan Rekap Excel langsung aktif:
+
+### Langkah 1: Buka Kunci Fungsi PHP di aaPanel (Hapus dari Disabled Functions)
+Secara bawaan, aaPanel mengunci fungsi terminal PHP. Anda wajib membukanya:
+1. Login ke panel **aaPanel** ➡️ Masuk ke menu **App Store** di menu kiri.
+2. Cari versi PHP yang digunakan situs Anda (misal **PHP 8.1** atau **PHP 8.2**) ➡️ Klik tombol **Setting**.
+3. Di jendela pengaturan PHP, klik tab **Disabled functions**.
+4. Cari 4 fungsi berikut, lalu klik tombol **Delete** di samping kanannya:
+   * **`popen`**
+   * **`proc_open`**
+   * **`shell_exec`**
+   * **`exec`**
+5. Pindah ke tab **Service** di menu sebelah kiri ➡️ Klik tombol **Restart** (agar perubahan langsung aktif).
+
+### Langkah 2: Install Library Python di Server (Via Terminal SSH)
+Buka terminal SSH server Anda (bisa lewat menu **Terminal** di aaPanel atau PuTTY), lalu jalankan perintah 1 baris ini:
+
+```bash
+pip3 install pymupdf openpyxl requests --break-system-packages
+```
+
+*Keterangan: Flag `--break-system-packages` wajib disertakan pada Linux modern (Ubuntu 24.04/Debian 12) agar library terpasang secara global dan dapat langsung dibaca oleh PHP tanpa ribet setting virtual environment.*
+
+---
+
+## Bagian 6: Checklist Troubleshooting Umum Saat Baru Naik Hosting
 
 | Gejala Error | Penyebab | Solusi Cepat |
 | :--- | :--- | :--- |

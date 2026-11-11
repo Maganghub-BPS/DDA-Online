@@ -700,7 +700,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         return f"INT_{'_'.join(digits)}"
                     if '+' in c_raw:
                         return f"JAM_{c_raw.replace('+', '_PLUS')}"
-                    c_dash = re.sub(r'[\-–—\ufffd]', '_', c_raw)
+                    c_dash = re.sub(r'[\-–—−\u2212\u2011\u2012\u2015\ufffd]', '_', c_raw)
                     return f"JAM_{c_dash}"
 
                 party = match_party_name(t_raw)
@@ -788,7 +788,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if c in ['0', '01']:
                         return '0 Jam (Sementara Tidak Bekerja)'
                     digits = re.findall(r'\d+', c)
-                    c_dash = ' - '.join(digits) if digits else re.sub(r'[\-–—\ufffd]', ' - ', c)
+                    c_dash = ' - '.join(digits) if digits else re.sub(r'[\-–—−\u2212\u2011\u2012\u2015\ufffd]', ' - ', c)
                     first_r_txt = ' '.join(str(x) for x in (clean_db_rows[0] if clean_db_rows else [])).lower()
                     is_age = any(k in first_r_txt for k in ['umur', 'usia', 'sekolah', 'pendidikan']) or target_table.startswith('4.')
                     is_hours = 'jam' in first_r_txt or 'hour' in first_r_txt
@@ -2296,6 +2296,28 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         if dm_h in cand_headers and len(dm_w) >= 6:
                             if w_clean.startswith(dm_w) or (dm_w in w_clean and len(dm_w) >= 10):
                                 return dm_coord
+
+                    # Fallback 3: Fuzzy matching on wilayah (SequenceMatcher >= 0.85) dengan header cocok
+                    for (dm_w, dm_h), dm_coord in direct_map.items():
+                        if dm_h in cand_headers:
+                            sim = SequenceMatcher(None, w_clean, dm_w).ratio()
+                            if sim >= 0.85:
+                                return dm_coord
+
+                    # Fallback 4: Two-way fuzzy matching on both wilayah and header (Tier-2 Fuzzy Coordinate)
+                    best_coord = None
+                    best_score = 0.0
+                    for (dm_w, dm_h), dm_coord in direct_map.items():
+                        w_sim = SequenceMatcher(None, w_clean, dm_w).ratio()
+                        if w_sim >= 0.80:
+                            h_sim = max((SequenceMatcher(None, hc, dm_h).ratio() for hc in cand_headers), default=0.0)
+                            combo_score = (w_sim * 0.6) + (h_sim * 0.4)
+                            if combo_score > best_score and combo_score >= 0.80:
+                                best_score = combo_score
+                                best_coord = dm_coord
+                    if best_coord:
+                        return best_coord
+
                     return None
 
                 for d in results["diffs"]:
