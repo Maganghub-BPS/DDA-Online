@@ -3859,6 +3859,94 @@ class Admin extends BaseController
 	// =========================================================================
 
 	/**
+	 * Mendeteksi binary Python yang valid secara lintas-OS (Windows: python, Linux: python3/python)
+	 */
+	private function getPythonBin(): string
+	{
+		$custom = getenv('PYTHON_BIN');
+		if (!empty($custom)) {
+			return $custom;
+		}
+
+		if (PHP_OS_FAMILY === 'Windows') {
+			return 'python';
+		}
+
+		// Cache detection pada request yang sama agar tidak exec berulang
+		static $detected = null;
+		if ($detected !== null) {
+			return $detected;
+		}
+
+		if (function_exists('shell_exec')) {
+			$whichPy3 = @shell_exec('which python3 2>/dev/null');
+			if (!empty(trim((string)$whichPy3))) {
+				$detected = 'python3';
+				return $detected;
+			}
+			$whichPy = @shell_exec('which python 2>/dev/null');
+			if (!empty(trim((string)$whichPy))) {
+				$detected = 'python';
+				return $detected;
+			}
+		}
+
+		$detected = 'python3';
+		return $detected;
+	}
+
+	/**
+	 * Menjalankan background worker Python secara asinkron lintas OS (Windows / Linux)
+	 */
+	private function runBackgroundPython(string $scriptPath, array $args = [], string $errLog = ''): bool
+	{
+		$pyBin = $this->getPythonBin();
+		$escapedArgs = array_map('escapeshellarg', $args);
+		$argsStr = implode(' ', $escapedArgs);
+		$scriptEscaped = escapeshellarg($scriptPath);
+
+		if (PHP_OS_FAMILY === 'Windows') {
+			$redirectErr = !empty($errLog) ? ' 2>' . escapeshellarg($errLog) : '';
+			$cmd = "start /B {$pyBin} {$scriptEscaped} {$argsStr} > NUL{$redirectErr}";
+			if (function_exists('popen')) {
+				$p = @popen($cmd, 'r');
+				if ($p) {
+					@pclose($p);
+					return true;
+				}
+			}
+			if (function_exists('shell_exec')) {
+				@shell_exec($cmd);
+				return true;
+			}
+			if (function_exists('exec')) {
+				@exec($cmd);
+				return true;
+			}
+		} else {
+			// Linux / Unix (aaPanel, Ubuntu, CentOS, Debian, dll)
+			$redirectErr = !empty($errLog) ? ' 2>' . escapeshellarg($errLog) : ' 2>&1';
+			$cmd = "nohup {$pyBin} {$scriptEscaped} {$argsStr} > /dev/null{$redirectErr} &";
+			if (function_exists('exec')) {
+				@exec($cmd);
+				return true;
+			}
+			if (function_exists('shell_exec')) {
+				@shell_exec($cmd);
+				return true;
+			}
+			if (function_exists('popen')) {
+				$p = @popen($cmd, 'r');
+				if ($p) {
+					@pclose($p);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Merakit snapshot tabel DB untuk tahun $ta, lengkap dengan klasifikasi source_type
 	 * ('dinamis', 'api', 'spreadsheet') serta matriks 2D dari Tabel Dinamis.
 	 */
@@ -4266,7 +4354,8 @@ class Admin extends BaseController
 
 		if (file_exists($pdfMaster)) {
 			$pythonScript = FCPATH . '../python_engine/match_pdf.py';
-			$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($dbJson) . " 2>&1";
+			$pyBin = $this->getPythonBin();
+			$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($dbJson) . " 2>&1";
 			@shell_exec($command);
 			$reloaded = json_decode(@file_get_contents($matchedJson), true);
 			if (is_array($reloaded) && isset($reloaded['matched_in_pdf'])) {
@@ -4504,9 +4593,10 @@ class Admin extends BaseController
 
 		// Path ke script Python match_pdf.py
 		$pythonScript = FCPATH . '../python_engine/match_pdf.py';
+		$pyBin = $this->getPythonBin();
 		
 		// Run Python lewat shell_exec
-		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " 2>&1";
+		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " 2>&1";
 		$output = shell_exec($command);
 
 		// Prioritaskan membaca hasil yang disimpan langsung oleh Python ke dda_matched_{ta}.json
@@ -4654,7 +4744,8 @@ class Admin extends BaseController
 		}
 
 		$pythonScript = FCPATH . "../python_engine/compare_table.py";
-		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($tolerance) . " 2>&1";
+		$pyBin = $this->getPythonBin();
+		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($tolerance) . " 2>&1";
 		$output = shell_exec($command);
 
 		if (!$output) {
@@ -4788,9 +4879,15 @@ class Admin extends BaseController
 
 		$pyScript = FCPATH . '../python_engine/batch_verify.py';
 		$errLog = $uploadPath . "dda_batch_stderr_{$ta}.log";
-		$cmd = "start /B python " . escapeshellarg($pyScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($matchedJson) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($stateJson) . " " . escapeshellarg($progressJson) . " " . escapeshellarg($tolerance) . " " . escapeshellarg($sourceFilter) . " > NUL 2>" . escapeshellarg($errLog);
-
-		pclose(popen($cmd, "r"));
+		$this->runBackgroundPython($pyScript, [
+			$pdfPath,
+			$matchedJson,
+			$dbJson,
+			$stateJson,
+			$progressJson,
+			$tolerance,
+			$sourceFilter
+		], $errLog);
 
 		return $this->response->setJSON(['status' => 'success', 'message' => 'Batch worker berhasil dimulai', 'source_filter' => $sourceFilter]);
 	}
@@ -5148,10 +5245,11 @@ class Admin extends BaseController
 			$pdfMappedColumns = null;
 			if (!empty($matchedPages) && file_exists($pdfPath)) {
 				$pythonScript = FCPATH . '../python_engine/auto_config_pdf.py';
+				$pyBin = $this->getPythonBin();
 				$b64Pages = base64_encode(json_encode(array_values($matchedPages)));
 				$b64Keys  = base64_encode(json_encode(array_values($baseKeys)));
 				$targetYearArg = escapeshellarg($ta);
-				$cmd = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($b64Pages) . " " . escapeshellarg($b64Keys) . " " . $targetYearArg . " 2>&1";
+				$cmd = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($b64Pages) . " " . escapeshellarg($b64Keys) . " " . $targetYearArg . " 2>&1";
 				$rawOut = (string)@shell_exec($cmd);
 				if (preg_match('/===JSON_START===(.*?)===JSON_END===/s', $rawOut, $mJson)) {
 					$decoded = json_decode($mJson[1], true);
@@ -5401,7 +5499,8 @@ class Admin extends BaseController
 
 		// 2. Jalankan Python extractor auto_config_pdf.py
 		$pythonScript = FCPATH . '../python_engine/auto_config_pdf.py';
-		$cmd = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg(json_encode(array_values($pages))) . " 2>&1";
+		$pyBin = $this->getPythonBin();
+		$cmd = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg(json_encode(array_values($pages))) . " 2>&1";
 		$rawOut = (string)@shell_exec($cmd);
 
 		$ext = null;
@@ -5724,7 +5823,8 @@ class Admin extends BaseController
 		// 8. Jika auto_fill = 1, langsung ekstrak angka dari PDF dan simpan ke t_nilai_dinamis
 		if ($autoFill === 1 && file_exists($dbJsonPath)) {
 			$compareScript = FCPATH . '../python_engine/compare_table.py';
-			$cmdVerify = "python " . escapeshellarg($compareScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($cleanNo) . " 0.0 2>&1";
+			$pyBin = $this->getPythonBin();
+			$cmdVerify = "{$pyBin} " . escapeshellarg($compareScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($cleanNo) . " 0.0 2>&1";
 			$outVerify = @shell_exec($cmdVerify);
 			$verRes = $outVerify ? json_decode(mb_convert_encoding($outVerify, 'UTF-8', 'UTF-8'), true) : null;
 
@@ -5898,7 +5998,8 @@ class Admin extends BaseController
 
 		if (!file_exists($cacheFile) || filesize($cacheFile) === 0) {
 			$pythonScript = FCPATH . '../python_engine/render_pdf_page.py';
-			$cmd = "python " . escapeshellarg($pythonScript) . " --pdf " . escapeshellarg($pdfPath) . " --page " . (int)$page . " --output " . escapeshellarg($cacheFile) . " --dpi " . (int)$dpi . " 2>&1";
+			$pyBin = $this->getPythonBin();
+			$cmd = "{$pyBin} " . escapeshellarg($pythonScript) . " --pdf " . escapeshellarg($pdfPath) . " --page " . (int)$page . " --output " . escapeshellarg($cacheFile) . " --dpi " . (int)$dpi . " 2>&1";
 			$out = shell_exec($cmd);
 
 			if (!file_exists($cacheFile) || filesize($cacheFile) === 0) {
@@ -6072,9 +6173,16 @@ class Admin extends BaseController
 
 		$pyScript = FCPATH . "../python_engine/export_global_excel.py";
 		$errLog = $uploadPath . "dda_export_stderr_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".log";
-		$cmd = "start /B python " . escapeshellarg($pyScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($matchedJson) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($stateJson) . " " . escapeshellarg($canonicalExcel) . " 0.0 " . escapeshellarg($progressJson) . " " . escapeshellarg($source) . " > NUL 2>" . escapeshellarg($errLog);
-
-		pclose(popen($cmd, "r"));
+		$this->runBackgroundPython($pyScript, [
+			$pdfMaster,
+			$matchedJson,
+			$dbJson,
+			$stateJson,
+			$canonicalExcel,
+			'0.0',
+			$progressJson,
+			$source
+		], $errLog);
 
 		return $this->response->setJSON(['status' => 'success', 'message' => 'Background worker rekap excel berhasil dimulai', 'source' => $source]);
 	}
@@ -6383,7 +6491,8 @@ class Admin extends BaseController
 		$outputPath = WRITEPATH . "uploads/" . $outputFileName;
 
 		$pythonScript = FCPATH . "../python_engine/export_excel.py";
-		$command = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($outputPath) . " " . escapeshellarg($tolerance) . " 2>&1";
+		$pyBin = $this->getPythonBin();
+		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($outputPath) . " " . escapeshellarg($tolerance) . " 2>&1";
 		$output = shell_exec($command);
 
 		if (file_exists($outputPath)) {
