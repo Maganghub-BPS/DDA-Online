@@ -1,6 +1,6 @@
 <!-- Consolidated Control Card (Format 1: Serasi dengan Master OPD) -->
-<div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
-    <div class="card-header pb-3 pt-4 px-4 bg-white border-0">
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainMasterTimCard" style="height: auto; max-height: calc(100vh - 82px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+    <div class="card-header pb-3 pt-3 px-4 bg-white border-0 flex-shrink-0">
         <div class="row align-items-center g-3">
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-3">
@@ -16,7 +16,7 @@
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none d-flex align-items-center" 
-                            data-bs-toggle="modal" data-bs-target="#modalTambahTim" style="height: 40px; white-space: nowrap;">
+                            data-bs-toggle="modal" data-bs-target="#modalTambahTim" style="height: 40px; white-space: nowrap; background-color: #154679; border-color: #154679;">
                         <i class="bi bi-plus-circle me-1"></i> Tambah Tim
                     </button>
                 </div>
@@ -24,9 +24,9 @@
         </div>
     </div>
     
-    <div class="card-body px-4 pt-0 pb-4">
-        <div class="table-responsive rounded-3 border border-light overflow-hidden">
-            <table class="table table-hover align-items-center mb-0">
+    <div class="card-body px-4 pt-0 pb-3 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+        <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: auto; min-height: 0; overflow-y: auto; overflow-x: auto;">
+            <table class="table table-hover align-middle mb-0 table-sticky-header">
                 <thead class="bg-gray-100">
                     <tr>
                         <th width="60" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">No</th>
@@ -318,8 +318,8 @@
         background-color: #fff;
     }
     .input-group-alternative:focus-within {
-        border-color: #0d6efd !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+        border-color: #154679 !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
     }
     
     .btn-icon-only {
@@ -333,6 +333,64 @@
 
     .divide-y > * + * { border-top-width: 1px; }
     .divide-gray-100 > * + * { border-color: #f1f1f1; }
+
+    /* Pastikan flexbox container luar tidak mengompres kartu Master Tim */
+    .main-content {
+        min-height: auto !important;
+        padding-bottom: 12px !important;
+    }
+    .content-body {
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+    }
+    #mainMasterTimCard {
+        height: auto !important;
+        max-height: calc(100vh - 82px) !important;
+        min-height: 0 !important;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0 !important;
+    }
+
+    /* Kontainer scroll internal Master Tim */
+    .table-scroll-container {
+        height: auto !important;
+        max-height: calc(100vh - 82px - 65px) !important;
+        min-height: 0 !important;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+    /* Custom Slim Scrollbar */
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Sticky Table Header */
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle !important;
+    }
 </style>
 
 <script type="text/javascript">
@@ -343,17 +401,31 @@ $(document).ready(function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Real-time Client-side Search untuk Tabel Tim
+    // Instant Client-Side Live Search untuk Tabel Tim (Adaptif & Otomatis Menciut)
     $('#inputSearchTim').on('input', function() {
         var keyword = $(this).val().toLowerCase().trim();
-        $('.tim-row').each(function() {
+        var $rows = $('#tableTimBody tr.tim-row');
+        var visibleCount = 0;
+
+        $rows.each(function() {
             var rowText = $(this).text().toLowerCase();
             if (keyword === '' || rowText.indexOf(keyword) > -1) {
                 $(this).removeClass('d-none').show();
+                visibleCount++;
             } else {
                 $(this).addClass('d-none').hide();
             }
         });
+
+        if (visibleCount === 0 && keyword.length > 0) {
+            if ($("#noDataRowTim").length === 0) {
+                $("#tableTimBody").append('<tr id="noDataRowTim"><td colspan="6" class="text-center py-5 text-secondary font-weight-bold opacity-7"><i class="bi bi-search fs-2 d-block mb-2 text-muted"></i>Tidak ada tim yang sesuai dengan kata kunci</td></tr>');
+            } else {
+                $("#noDataRowTim").show();
+            }
+        } else {
+            $("#noDataRowTim").hide();
+        }
     });
 });
 </script>

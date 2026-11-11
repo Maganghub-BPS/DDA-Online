@@ -485,21 +485,31 @@
         });
         const hasVisibleApiTotal = finalCols.some(c => !c.hidden && !c.isRow && (((c.label_id || c.key || '').toLowerCase().includes('jumlah')) || ((c.label_id || c.key || '').toLowerCase().includes('total'))));
         const showTotal = (config.show_total_col || (config.pivot && config.pivot.enabled && config.pivot.total_row)) && !hasVisibleApiTotal;
-        let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#ffffff;">`;
-        html += '<thead style="background:#154679; color:#ffffff;">';
+        const thBg = isPreview ? '#ffffff' : '#154679';
+        const thColor = isPreview ? '#212529' : '#ffffff';
+        const thBorder = isPreview ? '1px solid #dee2e6' : '1px solid rgba(255,255,255,0.25)';
+        const thPadding = isPreview ? '5px 8px' : '8px 6px';
+        const thEnStyle = isPreview ? 'color:#6c757d; font-weight:normal; font-size:9.5px; font-style:italic;' : 'color:#e0edfd; font-weight:normal; font-size:0.85em;';
+        const numRowStyle = isPreview ? 'background:#ffffff; color:#6c757d; font-size:9.5px;' : 'background:#154679; color:#ffffff; font-size:11px;';
+        const numThStyle = isPreview
+            ? 'border:1px solid #dee2e6; text-align:center; background:#ffffff; color:#6c757d; font-weight:normal; padding:3px 6px; font-size:9.5px;'
+            : 'border:1px solid rgba(255,255,255,0.25); text-align:center; background:#154679; color:#ffffff; font-weight:600; padding:6px 6px;';
+
+        let html = `<table class="${isPreview ? 'table table-bordered table-sm' : 'main-table dda-table-item'}" style="width:100%; border-collapse: collapse; background:#ffffff;${isPreview ? ' font-size:11px; margin-bottom:0; border:1px solid #dee2e6;' : ''}">`;
+        html += `<thead style="background:${thBg}; color:${thColor};">`;
         headerRows.forEach((row, rIdx) => {
             html += '<tr>';
-            if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid rgba(255,255,255,0.25); width:45px; background:#154679; color:#ffffff; text-align:center; vertical-align:middle; font-weight:700;">No.</th>`;
+            if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" class="${isPreview ? 'col-nomor' : ''}" style="${thBorder}; width:45px; background:${thBg}; color:${thColor}; text-align:center; vertical-align:middle; font-weight:700; padding:${thPadding};">No.</th>`;
             row.forEach(cell => {
                 const isEnDiff = cell.label_en && cell.label_en.trim() !== '';
-                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid rgba(255,255,255,0.25); padding:8px 6px; text-align:center; background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">${cell.label}${isEnDiff ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${cell.label_en}</i>` : ''}</th>`;
+                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="${thBorder}; padding:${thPadding}; text-align:center; background:${thBg}; color:${thColor}; vertical-align:middle; font-weight:700;">${cell.label}${isEnDiff ? `<br><i style="${thEnStyle}">${cell.label_en}</i>` : ''}</th>`;
             });
-            if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid rgba(255,255,255,0.25); background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">Jumlah<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">Total</i></th>`;
+            if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="${thBorder}; padding:${thPadding}; text-align:center; background:${thBg}; color:${thColor}; vertical-align:middle; font-weight:700;">Jumlah<br><i style="${thEnStyle}">Total</i></th>`;
             html += '</tr>';
         });
-        html += '<tr style="background:#154679; color:#ffffff; font-size:11px;">';
-        finalCols.filter(c => !c.hidden).forEach((c, idx) => html += `<th style="border:1px solid rgba(255,255,255,0.25); text-align:center; background:#154679; color:#ffffff; font-weight:600; padding:6px 6px;">(${idx + 1})</th>`);
-        if (showTotal) html += `<th style="border:1px solid rgba(255,255,255,0.25); text-align:center; background:#154679; color:#ffffff; font-weight:600; padding:6px 6px;">(${finalCols.filter(c => !c.hidden).length + 1})</th>`;
+        html += `<tr class="num-row" style="${numRowStyle}">`;
+        finalCols.filter(c => !c.hidden).forEach((c, idx) => html += `<th style="${numThStyle}">(${idx + 1})</th>`);
+        if (showTotal) html += `<th style="${numThStyle}">(${finalCols.filter(c => !c.hidden).length + 1})</th>`;
         html += '</tr></thead><tbody>';
         let lastTipe = null; 
         let lastLevel1 = null; 
@@ -515,7 +525,9 @@
             const isKotaRow = (curCodeInt >= 3371 && curCodeInt <= 3376);
             const tipeLabel = (fullCode === '9999') ? null : (isKotaRow ? 'Kota / Municipality' : 'Kabupaten / Regency');
             if (config.group_by_region && tipeLabel && tipeLabel !== lastTipe) {
-                html += `<tr class="row-category" style="background:#f1f6fc; font-weight:bold; color:#0f2d59;"><td colspan="${finalCols.length + 2}" style="padding:10px 15px; border:1px solid #e2e8f0; font-size:12.5px; background:#f1f6fc; font-weight:bold; color:#0f2d59;">${tipeLabel}</td></tr>`;
+                const catTrStyle = isPreview ? 'background:#f8fafc; font-weight:bold; color:#334155;' : 'background:#f1f6fc; font-weight:bold; color:#0f2d59;';
+                const catTdStyle = isPreview ? 'padding:6px 10px; border:1px solid #dee2e6; font-size:11px; background:#f8fafc; font-weight:bold; color:#334155;' : 'padding:10px 15px; border:1px solid #e2e8f0; font-size:12.5px; background:#f1f6fc; font-weight:bold; color:#0f2d59;';
+                html += `<tr class="row-category category-row" style="${catTrStyle}"><td colspan="${finalCols.length + 2}" style="${catTdStyle}">${tipeLabel}</td></tr>`;
                 lastTipe = tipeLabel; sectionIdx = 0;
             }
             sectionIdx++;
@@ -523,7 +535,7 @@
             let rowHtml = "";
             let isOdd = (sectionIdx % 2 === 1);
             let isWhiteFirst = Boolean(config.group_by_region);
-            let rowBg = isWhiteFirst ? (isOdd ? '#ffffff' : '#f1f6fc') : (isOdd ? '#f1f6fc' : '#ffffff');
+            let rowBg = isPreview ? '#ffffff' : (isWhiteFirst ? (isOdd ? '#ffffff' : '#f1f6fc') : (isOdd ? '#f1f6fc' : '#ffffff'));
             let rowClass = `background:${rowBg};`;
             
             // --- NEW: Row Hierarchy Logic (Optimized) ---
@@ -551,14 +563,14 @@
 
                 // Handle Level 1 Header (Master Divider)
                 if (level1 !== lastLevel1) {
-                    html += `<tr style="background:#e9ecef; font-weight:bold; color:#1a252f;"><td colspan="${totalColSpan}" style="padding:10px 15px; border:1px solid #dee2e6; border-left:5px solid #6c757d;">${level1}</td></tr>`;
+                    html += `<tr style="background:${isPreview ? '#f8fafc' : '#e9ecef'}; font-weight:bold; color:${isPreview ? '#334155' : '#1a252f'};"><td colspan="${totalColSpan}" style="padding:${isPreview ? '6px 10px' : '10px 15px'}; border:1px solid #dee2e6; ${isPreview ? '' : 'border-left:5px solid #6c757d;'}">${level1}</td></tr>`;
                     lastLevel1 = level1;
                     lastLevel2 = null; // Reset level 2 when level 1 changes
                 }
 
                 // Handle Level 2 Sub-Header (Sub-Category Row)
                 if (level2 && level2 !== lastLevel2) {
-                    html += `<tr style="background:#fcfcfc; font-weight:bold;"><td colspan="${totalColSpan}" style="padding:8px 15px; border:1px solid #eee; border-left:2px solid #adb5bd;">${level2}</td></tr>`;
+                    html += `<tr style="background:${isPreview ? '#f8fafc' : '#fcfcfc'}; font-weight:bold;"><td colspan="${totalColSpan}" style="padding:${isPreview ? '5px 10px' : '8px 15px'}; border:1px solid ${isPreview ? '#dee2e6' : '#eee'}; ${isPreview ? '' : 'border-left:2px solid #adb5bd;'}">${level2}</td></tr>`;
                     lastLevel2 = level2;
                 }
             } else {
@@ -570,7 +582,10 @@
             html += `<tr style="${rowClass}">`;
             const firstRowCol = rowHeaderCols[0]?.key;
             const noRowspan = firstRowCol ? rowspanMap[firstRowCol + '-' + r_idx] : 1;
-            if (noRowspan !== 0) html += `<td ${noRowspan > 1 ? `rowspan="${noRowspan}"` : ''} style="border:1px solid #e2e8f0; text-align:center; border-left:2px solid #154679; vertical-align:top; padding-top:8px; background:${rowBg}; color:#1e293b;">${config.group_by_region ? sectionIdx : r_idx + 1}.</td>`;
+            const noTdStyle = isPreview
+                ? 'border:1px solid #dee2e6; text-align:center; vertical-align:middle; padding:5px 8px; background:#ffffff; color:#212529;'
+                : `border:1px solid #e2e8f0; text-align:center; border-left:2px solid #154679; vertical-align:top; padding-top:8px; background:${rowBg}; color:#1e293b;`;
+            if (noRowspan !== 0) html += `<td ${noRowspan > 1 ? `rowspan="${noRowspan}"` : ''} class="${isPreview ? 'col-nomor' : ''}" style="${noTdStyle}">${config.group_by_region ? sectionIdx : r_idx + 1}.</td>`;
             let rowSum = 0;
             finalCols.forEach((col, c_idx) => {
                 const rsValue = rowspanMap[col.key + '-' + r_idx];
@@ -645,28 +660,40 @@
                 else if (isTimeVal) align = 'center'; // (baru) perataan tengah untuk format waktu JJ:MM:DD
                 else if ((isNumeric || isFormattedNum || displayVal === '-') && !isTahunCol) align = 'right'; // (baru) untuk rata kanan bagian kolom angka
 
-                html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #e2e8f0; padding:7px 10px; text-align:${align}; color:#1e293b; background:${rowBg}; ${col.isRow || c_idx === 0 ? 'font-weight:600;' : ''}">${displayVal}</td>`;
+                const cellStyle = isPreview
+                    ? `border:1px solid #dee2e6; padding:5px 8px; text-align:${align}; color:#212529; background:#ffffff;`
+                    : `border:1px solid #e2e8f0; padding:7px 10px; text-align:${align}; color:#1e293b; background:${rowBg}; ${col.isRow || c_idx === 0 ? 'font-weight:600;' : ''}`;
+                html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="${cellStyle}">${displayVal}</td>`;
             });
-            if (showTotal) html += `<td style="border:1px solid #e2e8f0; text-align:right; font-weight:bold; background:${rowBg}; color:#154679; padding:7px 10px;">${formatVal(rowSum, 'number')}</td>`;
+            const rowTotalTdStyle = isPreview
+                ? 'border:1px solid #dee2e6; text-align:right; font-weight:bold; background:#ffffff; color:#212529; padding:5px 8px;'
+                : `border:1px solid #e2e8f0; text-align:right; font-weight:bold; background:${rowBg}; color:#154679; padding:7px 10px;`;
+            if (showTotal) html += `<td style="${rowTotalTdStyle}">${formatVal(rowSum, 'number')}</td>`;
             html += '</tr>';
         });
         if (config.pivot.total_col) {
             const jtMapping = config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: 'Central Java' };
-            html += `<tr class="row-total" style="background: #154679; color: #ffffff; font-weight: bold;"><td colspan="2" style="padding:10px 12px; border:1px solid rgba(255,255,255,0.25); color:#ffffff; vertical-align:middle; background:#154679;">${jtMapping.label_id}${jtMapping.label_en ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${jtMapping.label_en}</i>` : ''}</td>`;
+            const totBg = isPreview ? '#f8fafc' : '#154679';
+            const totColor = isPreview ? '#212529' : '#ffffff';
+            const totBorder = isPreview ? '1px solid #dee2e6' : '1px solid rgba(255,255,255,0.25)';
+            const totPad = isPreview ? '6px 10px' : '10px 12px';
+            const totValPad = isPreview ? '5px 8px' : '7px 10px';
+            const totEnStyle = isPreview ? 'color:#6c757d; font-weight:normal; font-size:9.5px; font-style:italic;' : 'color:#e0edfd; font-weight:normal; font-size:0.85em;';
+            html += `<tr class="row-total total-row" style="background: ${totBg}; color: ${totColor}; font-weight: bold;"><td colspan="2" style="padding:${totPad}; border:${totBorder}; color:${totColor}; vertical-align:middle; background:${totBg};">${jtMapping.label_id}${jtMapping.label_en ? `<br><i style="${totEnStyle}">${jtMapping.label_en}</i>` : ''}</td>`;
             let grandTotal = 0;
             finalCols.forEach((col, c_idx) => {
                 if (c_idx === 0 || col.hidden) return;
-                if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:1px solid rgba(255,255,255,0.25); background:#154679;"></td>`;
+                if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:${totBorder}; background:${totBg};"></td>`;
                 else {
                     const sum = verticalTotals[col.key];
                     const colLabel = (col.label_id || col.key || '').toLowerCase();
                     if (!(colLabel.includes('jumlah') || colLabel.includes('total')) && sum !== undefined) grandTotal += sum;
                     const displayTotal = (sum === undefined || sum === null) ? '-' : formatVal(sum, col.format || 'number');
-                    html += `<td style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${displayTotal}</td>`;
+                    html += `<td style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${displayTotal}</td>`;
                 }
             });
             if (showTotal) 
-                html += `<th style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${formatVal(grandTotal, 'number')}</th>`;
+                html += `<th style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${formatVal(grandTotal, 'number')}</th>`;
             html += '</tr>';
         }
         html += '</tbody></table>';
