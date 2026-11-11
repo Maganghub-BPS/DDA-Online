@@ -2754,7 +2754,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
         let theadHtml = '';
         headerRows.forEach((rowCells) => {
             let trTh = rowCells.map(cell => {
-                let isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || '').trim().toLowerCase();
+                let isEnDiff = cell.label_en && cell.label_en.trim() !== '';
                 let enHtml = isEnDiff ? `<br><i class="fw-normal text-light opacity-75" style="font-size:0.75rem;">${escapeHtml(cell.label_en)}</i>` : '';
                 return `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" class="bg-primary text-white text-center py-2 px-3 fw-semibold small text-nowrap" style="border: 1px solid rgba(255,255,255,0.25); vertical-align:middle;">${escapeHtml(cell.label)}${enHtml}</th>`;
             }).join('');

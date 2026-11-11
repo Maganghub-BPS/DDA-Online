@@ -2179,14 +2179,14 @@ $(document).ready(function() {
             if (isBarisDuaKolom && !isMultiBaris) {
                 let html = '<th rowspan="' + rowspan + '" class="th-freeze-col text-start">';
                 html += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
-                if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
+                if (isBilingual && titleBarisEn && titleBarisEn.trim() !== '') {
                     html += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
                 }
                 html += '</th>';
 
                 html += '<th rowspan="' + rowspan + '" class="th-freeze-col-2 text-start">';
                 html += '<span>' + escapeHtml(cleanTitleSubInd) + '</span>';
-                if (isBilingual && cleanTitleSubEn && cleanTitleSubEn.trim().toLowerCase() !== cleanTitleSubInd.trim().toLowerCase()) {
+                if (isBilingual && cleanTitleSubEn && cleanTitleSubEn.trim() !== '') {
                     html += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(cleanTitleSubEn) + '</span>';
                 }
                 html += '</th>';
@@ -2196,7 +2196,7 @@ $(document).ready(function() {
             if (isMultiBaris && !titleCol2Ind) {
                 let th = '<th rowspan="' + rowspan + '" colspan="2" class="th-freeze-col text-center" style="vertical-align: middle;">';
                 th += '<span>' + escapeHtml(titleCol1Ind) + '</span>';
-                if (isBilingual && titleCol1En && titleCol1En.trim().toLowerCase() !== titleCol1Ind.trim().toLowerCase()) {
+                if (isBilingual && titleCol1En && titleCol1En.trim() !== '') {
                     th += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleCol1En) + '</span>';
                 }
                 th += '</th>';
@@ -2205,7 +2205,7 @@ $(document).ready(function() {
 
             let th = '<th rowspan="' + rowspan + '" class="th-freeze-col text-start">';
             th += '<span>' + escapeHtml(titleCol1Ind) + '</span>';
-            if (isBilingual && titleCol1En && titleCol1En.trim().toLowerCase() !== titleCol1Ind.trim().toLowerCase()) {
+            if (isBilingual && titleCol1En && titleCol1En.trim() !== '') {
                 th += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleCol1En) + '</span>';
             }
             th += '</th>';
@@ -2213,7 +2213,7 @@ $(document).ready(function() {
             if (isMultiBaris) {
                 th += '<th rowspan="' + rowspan + '" class="th-freeze-col-2 text-center">';
                 th += '<span>' + escapeHtml(titleCol2Ind) + '</span>';
-                if (isBilingual && titleCol2En && titleCol2En.trim().toLowerCase() !== titleCol2Ind.trim().toLowerCase()) {
+                if (isBilingual && titleCol2En && titleCol2En.trim() !== '') {
                     th += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleCol2En) + '</span>';
                 }
                 th += '</th>';
@@ -2441,7 +2441,7 @@ $(document).ready(function() {
             if (hasMultiPeriode) {
                 theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-center" style="vertical-align: middle;">';
                 theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
-                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim() !== '') {
                     theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
                 }
                 theadHtml += '</th>';
@@ -2455,7 +2455,7 @@ $(document).ready(function() {
             } else {
                 theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-center" style="vertical-align: middle;">';
                 theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
-                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim() !== '') {
                     theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
                 }
                 theadHtml += '</th>';
@@ -2484,7 +2484,7 @@ $(document).ready(function() {
                 periodeGroups.forEach(function(g) {
                     theadHtml += '<th colspan="' + g.children.length + '" class="th-group-col text-center" style="font-weight: bold;">';
                     theadHtml += '<span>' + escapeHtml(g.parentInd) + '</span>';
-                    if (isBilingual && g.parentEn && g.parentEn !== g.parentInd) {
+                    if (isBilingual && g.parentEn && g.parentEn.trim() !== '') {
                         theadHtml += '<span class="th-en">' + escapeHtml(g.parentEn) + '</span>';
                     }
                     theadHtml += '</th>';
@@ -2496,7 +2496,7 @@ $(document).ready(function() {
                 parsedPeriode.forEach(function(p) {
                     theadHtml += '<th class="th-data-col text-center">';
                     theadHtml += '<span>' + escapeHtml(p.childInd) + '</span>';
-                    if (isBilingual && p.childEn && p.childEn !== p.childInd) {
+                    if (isBilingual && p.childEn && p.childEn.trim() !== '') {
                         theadHtml += '<span class="th-en">' + escapeHtml(p.childEn) + '</span>';
                     }
                     theadHtml += '</th>';
@@ -2509,7 +2509,7 @@ $(document).ready(function() {
                 periodeItems.forEach(function(p) {
                     theadHtml += '<th class="th-data-col text-center">';
                     theadHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
-                    if (isBilingual && p.nama_periode_en && p.nama_periode_en !== p.nama_periode_ind) {
+                    if (isBilingual && p.nama_periode_en && p.nama_periode_en.trim() !== '') {
                         theadHtml += '<span class="th-en">' + escapeHtml(p.nama_periode_en) + '</span>';
                     }
                     theadHtml += '</th>';
@@ -2547,7 +2547,7 @@ $(document).ready(function() {
                 theadHtml += '<tr>';
                 theadHtml += '<th rowspan="' + totalHeaderRows + '" colspan="2" class="th-freeze-col text-start">';
                 theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
-                if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
+                if (isBilingual && titleBarisEn && titleBarisEn.trim() !== '') {
                     theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
                 }
                 theadHtml += '</th>';
@@ -2570,7 +2570,7 @@ $(document).ready(function() {
                     // MODE GABUNG HEADER: Kolom 1 & 2 disatukan (1 kesatuan kolom seperti Tabel 4.6.1)
                     theadHtml += '<th rowspan="' + totalHeaderRows + '" colspan="2" class="th-freeze-col text-start">';
                     theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
-                    if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
+                    if (isBilingual && titleBarisEn && titleBarisEn.trim() !== '') {
                         theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
                     }
                     theadHtml += '</th>';
@@ -2578,14 +2578,14 @@ $(document).ready(function() {
                     // MODE PISAH HEADER: Dua kolom stub dengan judul masing-masing
                     theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col text-start">';
                     theadHtml += '<span>' + escapeHtml(cleanTitleInd) + '</span>';
-                    if (isBilingual && titleBarisEn && titleBarisEn.trim().toLowerCase() !== cleanTitleInd.trim().toLowerCase()) {
+                    if (isBilingual && titleBarisEn && titleBarisEn.trim() !== '') {
                         theadHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.78rem; font-weight: normal;">/ ' + escapeHtml(titleBarisEn) + '</span>';
                     }
                     theadHtml += '</th>';
 
                     theadHtml += '<th rowspan="' + totalHeaderRows + '" class="th-freeze-col-2 text-center">';
                     theadHtml += '<span>' + escapeHtml(cleanTitlePeriode) + '</span>';
-                    if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim().toLowerCase() !== cleanTitlePeriode.trim().toLowerCase()) {
+                    if (isBilingual && cleanTitlePeriodeEn && cleanTitlePeriodeEn.trim() !== '') {
                         theadHtml += '<span class="th-en">' + escapeHtml(cleanTitlePeriodeEn) + '</span>';
                     }
                     theadHtml += '</th>';
@@ -2801,7 +2801,7 @@ $(document).ready(function() {
                     tbodyHtml += '<tr class="' + rowClass + '">';
                     tbodyHtml += '<td colspan="' + parentColspan + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #154679 !important;">';
                     tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
-                    if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                    if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
                         tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                     }
                     tbodyHtml += '</td>';
@@ -2833,21 +2833,21 @@ $(document).ready(function() {
                                 if (col2Ind) {
                                     tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col ' + indentClass + textClass + '" style="vertical-align: middle;">';
                                     tbodyHtml += '<span>' + escapeHtml(col1Ind) + '</span>';
-                                    if (isBilingual && col1En && col1En.trim().toLowerCase() !== col1Ind.trim().toLowerCase()) {
+                                    if (isBilingual && col1En && col1En.trim() !== '') {
                                         tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(col1En) + '</span>';
                                     }
                                     tbodyHtml += '</td>';
 
                                     tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col-2 text-center ' + textClass + '" style="vertical-align: middle; font-size: 0.82rem;">';
                                     tbodyHtml += '<span>' + escapeHtml(col2Ind) + '</span>';
-                                    if (isBilingual && col2En && col2En.trim().toLowerCase() !== col2Ind.trim().toLowerCase()) {
+                                    if (isBilingual && col2En && col2En.trim() !== '') {
                                         tbodyHtml += '<span class="th-en" style="font-size: 0.72rem;">' + escapeHtml(col2En) + '</span>';
                                     }
                                     tbodyHtml += '</td>';
                                 } else {
                                     tbodyHtml += '<td rowspan="' + pCount + '" colspan="2" class="td-freeze-col ' + indentClass + textClass + '" style="vertical-align: middle;">';
                                     tbodyHtml += '<span>' + escapeHtml(col1Ind) + '</span>';
-                                    if (isBilingual && col1En && col1En.trim().toLowerCase() !== col1Ind.trim().toLowerCase()) {
+                                    if (isBilingual && col1En && col1En.trim() !== '') {
                                         tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(col1En) + '</span>';
                                     }
                                     tbodyHtml += '</td>';
@@ -2858,7 +2858,7 @@ $(document).ready(function() {
                             if (pIdx === 0) {
                                 tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col ' + indentClass + textClass + '" style="vertical-align: middle;">';
                                 tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
-                                if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                                if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
                                     tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                                 }
                                 tbodyHtml += '</td>';
@@ -2954,6 +2954,7 @@ $(document).ready(function() {
             let currentParentInd = '';
             let currentParentEn = '';
             let currentParentRowspan = 1;
+            let currentParentIsBold = false;
             let isFirstChildOfParent = false;
 
             barisItems.forEach(function(baris, bIdx) {
@@ -3034,7 +3035,7 @@ $(document).ready(function() {
                         if (pIdx === 0) {
                             tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col fw-bold" style="vertical-align: middle; border-right: 1px solid rgba(255,255,255,0.25);">';
                             tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
-                            if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                            if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
                                 tbodyHtml += ' <span class="fst-italic opacity-75" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                             }
                             tbodyHtml += '</td>';
@@ -3059,6 +3060,7 @@ $(document).ready(function() {
                         currentParentInd = namaBarisInd;
                         currentParentEn = namaBarisEn;
                         currentParentRowspan = childCountMap[bIdx];
+                        currentParentIsBold = (parseInt(baris.is_bold) === 1);
                         isFirstChildOfParent = true;
                         return; // Induk tidak membuat baris tr sendiri, melainkan di-rowspan pada anak pertama di Kolom 1
                     } else if (level > 0) {
@@ -3066,9 +3068,10 @@ $(document).ready(function() {
 
                         // Sel Kolom 1 (Induk): hanya dirender pada anak pertama dengan rowspan
                         if (isFirstChildOfParent) {
-                            tbodyHtml += '<td rowspan="' + currentParentRowspan + '" class="td-freeze-col fw-bold text-dark" style="vertical-align: middle; background-color: #ffffff;">';
+                            let parentBoldClass = currentParentIsBold ? ' fw-bold' : '';
+                            tbodyHtml += '<td rowspan="' + currentParentRowspan + '" class="td-freeze-col text-dark' + parentBoldClass + '" style="vertical-align: middle; background-color: #ffffff;">';
                             tbodyHtml += '<span>' + escapeHtml(currentParentInd) + '</span>';
-                            if (isBilingual && currentParentEn && currentParentEn.trim().toLowerCase() !== currentParentInd.trim().toLowerCase()) {
+                            if (isBilingual && currentParentEn && currentParentEn.trim() !== '') {
                                 tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(currentParentEn) + '</span>';
                             }
                             tbodyHtml += '</td>';
@@ -3078,7 +3081,7 @@ $(document).ready(function() {
                         // Sel Kolom 2 (Rincian Anak, misal: coba / Provinsi)
                         tbodyHtml += '<td class="td-freeze-col-2' + textClass + '" style="vertical-align: middle;">';
                         tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
-                        if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                        if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
                             tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                         }
                         tbodyHtml += '</td>';
@@ -3092,12 +3095,22 @@ $(document).ready(function() {
                     } else {
                         // Level 0 mandiri atau baris total tanpa anak: bentang penuh 2 kolom stub
                         tbodyHtml += '<tr class="' + rowClass + '">';
-                        tbodyHtml += '<td colspan="2" class="td-freeze-col ' + indentClass + textClass + '">';
-                        tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
-                        if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
-                            tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
+                        if (tipe === 'total') {
+                            tbodyHtml += '<td colspan="2" class="td-freeze-col ' + indentClass + textClass + '">';
+                            tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
+                            if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
+                                tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
+                            }
+                            tbodyHtml += '</td>';
+                        } else {
+                            tbodyHtml += '<td class="td-freeze-col ' + indentClass + textClass + '">';
+                            tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
+                            if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
+                                tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
+                            }
+                            tbodyHtml += '</td>';
+                            tbodyHtml += '<td class="td-freeze-col-2 text-center"></td>';
                         }
-                        tbodyHtml += '</td>';
 
                         for (let i = 0; i < totalLeafCols; i++) {
                             tbodyHtml += '<td class="cell-numeric-placeholder">' + formatSampleCell() + '</td>';
@@ -3113,7 +3126,7 @@ $(document).ready(function() {
                     tbodyHtml += '<tr class="' + rowClass + '">';
                     tbodyHtml += '<td colspan="' + parentColspan + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #154679 !important;">';
                     tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
-                    if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                    if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
                         tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                     }
                     tbodyHtml += '</td>';
@@ -3143,7 +3156,7 @@ $(document).ready(function() {
                                 let spanAttr = col1RowspanMap[bIdx] ? (' rowspan="' + col1RowspanMap[bIdx] + '" style="vertical-align: middle;"') : '';
                                 tbodyHtml += '<td class="td-freeze-col ' + indentClass + textClass + '"' + spanAttr + '>';
                                 tbodyHtml += '<span>' + escapeHtml(col1Ind) + '</span>';
-                                if (isBilingual && col1En && col1En.trim().toLowerCase() !== col1Ind.trim().toLowerCase()) {
+                                if (isBilingual && col1En && col1En.trim() !== '') {
                                     tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(col1En) + '</span>';
                                 }
                                 tbodyHtml += '</td>';
@@ -3151,14 +3164,14 @@ $(document).ready(function() {
 
                             tbodyHtml += '<td class="td-freeze-col-2 text-center ' + textClass + '" style="font-size: 0.82rem; vertical-align: middle;">';
                             tbodyHtml += '<span>' + escapeHtml(col2Ind) + '</span>';
-                            if (isBilingual && col2En && col2En.trim().toLowerCase() !== col2Ind.trim().toLowerCase()) {
+                            if (isBilingual && col2En && col2En.trim() !== '') {
                                 tbodyHtml += '<span class="th-en" style="font-size: 0.72rem;">' + escapeHtml(col2En) + '</span>';
                             }
                             tbodyHtml += '</td>';
                         } else {
                             tbodyHtml += '<td colspan="2" class="td-freeze-col ' + indentClass + textClass + '">';
                             tbodyHtml += '<span>' + escapeHtml(col1Ind) + '</span>';
-                            if (isBilingual && col1En && col1En.trim().toLowerCase() !== col1Ind.trim().toLowerCase()) {
+                            if (isBilingual && col1En && col1En.trim() !== '') {
                                 tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(col1En) + '</span>';
                             }
                             tbodyHtml += '</td>';
@@ -3168,7 +3181,7 @@ $(document).ready(function() {
                         const colSpanAttr = isRuntunWaktu ? ' colspan="2"' : '';
                         tbodyHtml += '<td' + colSpanAttr + ' class="td-freeze-col ' + indentClass + textClass + '">';
                         tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
-                        if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
+                        if (isBilingual && namaBarisEn && namaBarisEn.trim() !== '') {
                             tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                         }
                         tbodyHtml += '</td>';

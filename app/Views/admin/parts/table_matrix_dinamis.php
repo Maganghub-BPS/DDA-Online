@@ -1020,7 +1020,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 if ($lowerBaris === 'kabupaten') $catEn = 'Regency';
                                 elseif ($lowerBaris === 'kota') $catEn = 'Municipality';
                             }
-                            $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
+                            $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false);
                         ?>
                             <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
                                 <td colspan="<?= ($hasNoCol ? 1 : 0) + ($portraitSplitCol ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
@@ -1230,6 +1230,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $currentParentEn         = '';
                 $currentParentRowspan    = 1;
                 $currentParentId         = null;
+                $currentParentIsBold     = false;
                 $isFirstChildOfParent    = false;
                 $remainingChildrenOfParent = 0;
 
@@ -1260,7 +1261,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                 if ($lowerBaris === 'kabupaten') $catEn = 'Regency';
                                 elseif ($lowerBaris === 'kota') $catEn = 'Municipality';
                             }
-                            $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false) && (strcasecmp(trim($catLabel), trim($catEn)) !== 0);
+                            $isBilingualCat = !empty($catEn) && (strpos($catLabel, '/') === false);
                         ?>
                             <tr class="category-row row-category" style="background: <?= $catRowBg; ?>; font-weight: bold; color: <?= $catRowColor; ?>;">
                                 <td colspan="<?= ($hasNoCol ? 1 : 0) + (($isBarisDuaKolom || $isRuntunWaktuTotal) ? 2 : 1) + count($visibleLeafColumns); ?>" style="padding: 10px 15px; border: 1px solid <?= $catRowBorder; ?>; font-size: 12px; background: <?= $catRowBg; ?>; color: <?= $catRowColor; ?>;">
@@ -1307,6 +1308,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $currentParentEn         = $namaBarisEn;
                             $currentParentRowspan    = $childCountMap[$bIdx];
                             $currentParentId         = (int)$baris->id;
+                            $currentParentIsBold     = !empty($baris->is_bold);
                             $isFirstChildOfParent    = true;
                             $remainingChildrenOfParent = $childCountMap[$bIdx];
                             continue;
@@ -1388,9 +1390,9 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     <?php if ($isFirstChildOfParent): 
 
                                     ?>
-                                        <td rowspan="<?= $currentParentRowspan; ?>" class="col-wilayah fw-bold" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
+                                        <td rowspan="<?= $currentParentRowspan; ?>" class="col-wilayah<?= ($currentParentIsBold ? ' fw-bold' : ''); ?>" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;">
                                             <div><?= esc($currentParentInd); ?></div>
-                                            <?php if (!empty($currentParentEn) && strcasecmp(trim($currentParentEn), trim($currentParentInd)) !== 0): ?>
+                                            <?php if (!empty($currentParentEn)): ?>
                                                 <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($currentParentEn); ?></div>
                                             <?php endif; ?>
                                         </td>
@@ -1398,23 +1400,33 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                                     <?php endif; ?>
                                     <td class="col-rincian text-center" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
                                         <div><?= esc($displayBarisLabel); ?></div>
-                                        <?php if (!empty($namaBarisEn) && strcasecmp(trim($namaBarisEn), trim($displayBarisLabel)) !== 0): ?>
+                                        <?php if (!empty($namaBarisEn)): ?>
                                             <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($namaBarisEn); ?></div>
                                         <?php endif; ?>
                                     </td>
                                 <?php else: ?>
-                                    <td colspan="2" class="col-wilayah" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
-                                        <div><?= esc($displayBarisLabel); ?></div>
-                                        <?php if (!empty($namaBarisEn) && strcasecmp(trim($namaBarisEn), trim($displayBarisLabel)) !== 0): ?>
-                                            <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($namaBarisEn); ?></div>
-                                        <?php endif; ?>
-                                    </td>
+                                    <?php if ($isTotalRow): ?>
+                                        <td colspan="2" class="col-wilayah fw-bold" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; color: #ffffff !important;">
+                                            <div><?= esc($displayBarisLabel); ?></div>
+                                            <?php if (!empty($namaBarisEn)): ?>
+                                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($namaBarisEn); ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php else: ?>
+                                        <td class="col-wilayah" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px;">
+                                            <div><?= esc($displayBarisLabel); ?></div>
+                                            <?php if (!empty($namaBarisEn)): ?>
+                                                <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85;"><?= esc($namaBarisEn); ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="col-rincian text-center" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px; font-size: 12px;"></td>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             <?php endif; ?>
                         <?php else: ?>
                             <td <?= ($isRuntunWaktuTotal ? 'colspan="2"' : ''); ?> class="col-wilayah" style="border: 1px solid #ffffff; vertical-align: middle; padding: 6px 12px 6px <?= $indentPadding; ?>px; font-size: 12px; <?= ($isTotalRow ? 'color: #ffffff !important;' : ''); ?>">
                                 <div><?= esc($displayBarisLabel); ?></div>
-                                <?php if (!empty($namaBarisEn) && strcasecmp(trim($namaBarisEn), trim($displayBarisLabel)) !== 0): ?>
+                                <?php if (!empty($namaBarisEn)): ?>
                                     <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; <?= ($isTotalRow ? 'color: #ffffff;' : ''); ?>"><?= esc($namaBarisEn); ?></div>
                                 <?php endif; ?>
                             </td>
@@ -1572,7 +1584,7 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                         $totalLabelEn = $dbTotalRowObj->nama_baris_en;
                     }
                 }
-                $isBilingualTotal = !empty($totalLabelEn) && (strtolower(trim($totalLabelInd)) !== strtolower(trim($totalLabelEn)));
+                $isBilingualTotal = !empty($totalLabelEn);
 
                 foreach ($runtunYears as $rIdx => $hYr):
                     $hYrLabel = $formatTahunLabel($hYr);
@@ -1652,21 +1664,21 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     <?php if ($portraitMode && $portraitSplitCol): ?>
                         <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
                             <div><?= esc($grandLabel); ?></div>
-                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                            <?php if (!empty($grandLabelEn)): ?>
                                 <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
                             <?php endif; ?>
                         </td>
                     <?php elseif ($isBarisDuaKolom && !$portraitMode): ?>
                         <td colspan="2" class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
                             <div><?= esc($grandLabel); ?></div>
-                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                            <?php if (!empty($grandLabelEn)): ?>
                                 <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
                             <?php endif; ?>
                         </td>
                     <?php else: ?>
                         <td <?= ($isRuntunWaktuTotal ? 'colspan="2"' : ''); ?> class="fw-bold" style="border: 1px solid #ffffff; padding: 8px 12px; font-size: 12px; color: #ffffff;">
                             <div><?= esc($grandLabel); ?></div>
-                            <?php if (!empty($grandLabelEn) && strcasecmp(trim($grandLabelEn), trim($grandLabel)) !== 0): ?>
+                            <?php if (!empty($grandLabelEn)): ?>
                                 <div class="header-subtitle" style="font-size: 11px; font-weight: normal; font-style: italic; opacity: 0.85; color: #ffffff;"><?= esc($grandLabelEn); ?></div>
                             <?php endif; ?>
                         </td>
