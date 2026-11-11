@@ -1864,12 +1864,12 @@ class M_tabeldinamis extends Model
             }
         }
         if (!empty($tahunTampil)) {
-            if (!$isRuntunWaktu && !empty($dataYears)) {
+            // Pertahankan seluruh tahun yang dikonfigurasi di tahun_tampil (misal multi-tahun atau tahun ajaran)
+            // agar template kolom dan koordinat sel tetap lengkap meski data salah satu tahun belum terisi.
+            $activeYears = $tahunTampil;
+            if (!empty($dataYears)) {
                 $dataYearsInt = array_map('intval', $dataYears);
-                $nonEmptyYears = array_values(array_intersect($tahunTampil, $dataYearsInt));
-                $activeYears = !empty($nonEmptyYears) ? $nonEmptyYears : array_values(array_unique(array_merge($tahunTampil, $dataYearsInt)));
-            } else {
-                $activeYears = array_values(array_unique(array_merge($tahunTampil, $dataYears)));
+                $activeYears = array_values(array_unique(array_merge($activeYears, $dataYearsInt)));
             }
         } else {
             $activeYears = !empty($dataYears) ? $dataYears : [(int)($indikator->tahun ?? date('Y'))];

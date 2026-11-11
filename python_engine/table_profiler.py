@@ -634,17 +634,20 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                         if isinstance(pv, (int, float)) and pv <= -900000:
                             continue
                         total_cnt += 1
-                        if abs(sv - pv) < 0.0001:
-                            match_cnt += 1
-                        elif pv != 0 and abs(sv - pv) / abs(pv) < 0.0001:
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(sv * 1000 - pv) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01):
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(pv * 1000 - sv) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01):
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(sv * 1000000 - pv) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01):
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(pv * 1000000 - sv) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01):
+                        if isinstance(sv, (int, float)) and isinstance(pv, (int, float)):
+                            if abs(sv - pv) < 0.0001:
+                                match_cnt += 1
+                            elif pv != 0 and abs(sv - pv) / abs(pv) < 0.0001:
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(sv * 1000 - pv) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01):
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(pv * 1000 - sv) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01):
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(sv * 1000000 - pv) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01):
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(pv * 1000000 - sv) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01):
+                                match_cnt += 1
+                        elif sv == pv or (sv in (0, 0.0, '-') and pv in (0, 0.0, '-')) or (sv in (None, '...', 'na') and pv in (None, '...', 'na')):
                             match_cnt += 1
                 if total_cnt >= 5:
                     ratio = match_cnt / total_cnt

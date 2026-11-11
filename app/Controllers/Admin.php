@@ -5068,10 +5068,45 @@ class Admin extends BaseController
 
 			$indRow = $mDinamis->find($idIndikator);
 			if ($indRow && !empty($indRow->id_tabel)) {
-				$mDinamis->upsertStatusTahunan((int)$indRow->id_tabel, $taDefault, [
+				$idMasterTabel = (int)$indRow->id_tabel;
+				$mDinamis->upsertStatusTahunan($idMasterTabel, $taDefault, [
 					'is_periksa'      => 1,
 					'catatan_periksa' => $catatan
 				]);
+
+				// Perbarui snapshot dda_db_{ta}.json secara real-time agar verifikasi langsung membaca data baru
+				$targetYears = array_unique([$adminTa, $taDefault]);
+				$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idMasterTabel);
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', (string)($indRow->no_tabel ?? '')));
+				$cleanNo = rtrim($cleanNo, '.');
+
+				foreach ($targetYears as $ty) {
+					$dbJsonPath = WRITEPATH . "uploads/dda_db_{$ty}.json";
+					if (file_exists($dbJsonPath)) {
+						$rawJson = @file_get_contents($dbJsonPath);
+						$dbList = json_decode($rawJson, true);
+						if (is_array($dbList) && $dynInfoAfter) {
+							$updated = false;
+							foreach ($dbList as &$dbItem) {
+								$curClean = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $dbItem['nomor_tabel'] ?? ''));
+								$curClean = rtrim($curClean, '.');
+								if ((int)($dbItem['id_db'] ?? 0) === $idMasterTabel || ($cleanNo !== '' && $curClean === $cleanNo)) {
+									$dbItem['dynamic_empty'] = false;
+									$dbItem['dynamic_grid']  = $dynInfoAfter['dynamic_grid'] ?? [];
+									$dbItem['template_grid'] = $dynInfoAfter['template_grid'] ?? [];
+									$dbItem['cell_coords']   = $dynInfoAfter['cell_coords'] ?? [];
+									$dbItem['cell_count']    = $dynInfoAfter['cell_count'] ?? count($dynInfoAfter['cell_coords'] ?? []);
+									$updated = true;
+									break;
+								}
+							}
+							unset($dbItem);
+							if ($updated) {
+								@file_put_contents($dbJsonPath, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+							}
+						}
+					}
+				}
 			}
 		}
 
