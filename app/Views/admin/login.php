@@ -103,10 +103,11 @@
         }
 
         .brand-logo-icon {
-            width: 38px;
-            height: 38px;
+            width: 54px;
+            height: 54px;
             object-fit: contain;
             flex-shrink: 0;
+            transition: transform 0.2s ease;
         }
 
         .brand-logo-text {
@@ -452,13 +453,13 @@
 
     <!-- 1. TOP HEADER NAVBAR (Hanya Logo & Instansi, Tanpa Tombol Kembali) -->
     <header class="top-navbar">
-        <a href="<?php echo base_url(); ?>" class="brand-logo-link" title="AKSARA: Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat">
-            <img src="<?php echo base_url('aset/images/logo-aksara.png'); ?>" 
+        <a href="<?php echo base_url(); ?>" class="brand-logo-link" title="AKSARA: Akses Data Provinsi Jawa Tengah Dalam Angka">
+            <img src="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>" 
                  alt="Logo AKSARA" 
                  class="brand-logo-icon">
             <div class="brand-logo-text">
                 <span class="brand-logo-title">AKSARA</span>
-                <span class="brand-logo-sub">Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat</span>
+                <span class="brand-logo-sub">Akses Data Provinsi Jawa Tengah Dalam Angka</span>
             </div>
         </a>
     </header>

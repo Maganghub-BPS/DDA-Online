@@ -583,10 +583,10 @@
         <!-- ===== SIDEBAR ===== -->
         <aside id="sidebar">
             <div class="sidebar-header">
-                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png" alt="Logo AKSARA" style="width: 38px; height: 38px; object-fit: contain;">
+                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png?v=<?= time() ?>" alt="Logo AKSARA" style="width: 48px; height: 48px; object-fit: contain;">
                 <div>
                     <div class="brand-text">AKSARA</div>
-                    <div class="brand-sub" title="Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat">Jateng Dalam Angka</div>
+                    <div class="brand-sub" title="Akses Data Provinsi Jawa Tengah Dalam Angka">Jateng Dalam Angka</div>
                 </div>
             </div>
 

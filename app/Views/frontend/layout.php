@@ -125,10 +125,11 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
             text-decoration: none;
         }
         .navbar-brand-logo-img {
-            width: 42px;
-            height: 42px;
+            width: 54px;
+            height: 54px;
             object-fit: contain;
             flex-shrink: 0;
+            transition: transform 0.2s ease;
         }
         .navbar-brand .brand-title {
             font-weight: 800;
@@ -309,8 +310,8 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 padding: 12px 0 !important;
             }
             .navbar-brand-logo-img {
-                width: 36px !important;
-                height: 36px !important;
+                width: 44px !important;
+                height: 44px !important;
             }
             .navbar-brand .brand-title {
                 font-size: 1.3rem !important;
@@ -689,11 +690,11 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
 
     <nav class="navbar navbar-expand-lg navbar-custom <?= !$isHome ? 'scrolled' : '' ?>" id="mainNavbar">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="<?= base_url() ?>" title="AKSARA: Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat">
-                <img src="<?= base_url('aset/images/logo-aksara.png') ?>" alt="Logo AKSARA" class="navbar-brand-logo-img me-2">
+            <a class="navbar-brand d-flex align-items-center" href="<?= base_url() ?>" title="AKSARA: Akses Data Provinsi Jawa Tengah Dalam Angka">
+                <img src="<?= base_url('aset/images/logo-aksara.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" class="navbar-brand-logo-img me-2">
                 <div class="d-flex flex-column">
                     <div class="brand-title">AKSARA</div>
-                    <span class="brand-subtitle">Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat</span>
+                    <span class="brand-subtitle">Akses Data Provinsi Jawa Tengah Dalam Angka</span>
                 </div>
             </a>
             <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -737,19 +738,19 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 <!-- Kolom 1: Profil / Brand -->
                 <div class="col-12 col-lg-5 pe-lg-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <img src="<?= base_url('aset/images/logo-aksara-white.png') ?>" alt="Logo AKSARA" width="48" height="48" class="footer-logo-img">
+                        <img src="<?= base_url('aset/images/logo-aksara-white.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" width="54" height="54" class="footer-logo-img">
                         <div>
                             <div class="footer-brand-title">
                                 AKSARA
                             </div>
                             <div class="footer-brand-subtitle" style="color: #cbd5e1;">
-                                Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat
+                                Akses Data Provinsi Jawa Tengah Dalam Angka
                             </div>
                         </div>
                     </div>
                     
                     <p class="footer-desc mb-4">
-                        Portal resmi AKSARA (Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat) yang menyediakan akses cepat, akurat, dan terstruktur ke basis data indikator statistik se-Jawa Tengah untuk mendukung perumusan kebijakan berbasis data.
+                        Portal resmi AKSARA (Akses Data Provinsi Jawa Tengah Dalam Angka) yang menyediakan akses cepat, akurat, dan terstruktur ke basis data indikator statistik se-Jawa Tengah untuk mendukung perumusan kebijakan berbasis data.
                     </p>
                     
                     <div class="social-links">
