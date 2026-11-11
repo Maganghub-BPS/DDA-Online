@@ -304,21 +304,31 @@ if ($isBidangAll || count($selBidangArr) === 0) {
                                         $id_gen_url = (int)$b->id;
                                         $api_uuid = trim((string)($b->id_api ?? ''));
                                         $api_link = trim((string)($b->link_api ?? ($b->link_tabel ?? '')));
+                                        $is_portal = (!empty($api_uuid) || (!empty($api_link) && (stripos($api_link, 'portal') !== false || stripos($api_link, 'satudata') !== false || stripos($api_link, 'view_portal_tabel') !== false)));
+                                        $is_sheet = (!empty($api_link) && (stripos($api_link, 'docs.google.com') !== false || stripos($api_link, 'spreadsheet') !== false));
                                         if ($is_dyn): 
                                         ?>
                                             <a href="<?php echo base_url('admin/generator_tabel/' . $id_gen_url); ?>" class="badge badge-sm text-white border-0 align-self-start fw-bold shadow-xs text-decoration-none" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px;" title="Klik untuk mengelola matriks dinamis">
                                                 <i class="bi bi-boxes me-1"></i> TABEL DINAMIS
                                             </a>
-                                        <?php elseif (!empty($api_uuid) || !empty($api_link)): ?>
+                                        <?php elseif ($is_portal): ?>
                                             <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold" style="font-size: 10px;">
                                                 <i class="bi bi-cloud-check me-1"></i> API
                                             </span>
                                             <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 190px;" title="<?php echo esc($api_uuid ?: $api_link); ?>"><?php echo esc($api_uuid ?: str_replace('index.php/admin/', '', $api_link)); ?></code>
+                                        <?php elseif ($is_sheet): ?>
+                                            <a href="<?php echo esc($api_link); ?>" target="_blank" class="badge badge-sm bg-success-soft text-success border-success-soft align-self-start fw-bold text-decoration-none" style="font-size: 10px;" title="Buka Spreadsheet">
+                                                <i class="bi bi-file-spreadsheet me-1"></i> SPREADSHEET
+                                            </a>
+                                        <?php elseif (!empty($api_link)): ?>
+                                            <a href="<?php echo esc($api_link); ?>" target="_blank" class="badge badge-sm bg-info-soft text-info border-info-soft align-self-start fw-bold text-decoration-none" style="font-size: 10px;" title="Buka Link">
+                                                <i class="bi bi-link-45deg me-1"></i> LINK
+                                            </a>
                                         <?php else: ?>
-                                            <span class="badge badge-sm bg-light text-secondary border align-self-start fw-semibold" style="font-size: 10px;">
-                                                <i class="bi bi-dash-circle me-1"></i> API (BELUM DIISI)
+                                            <span class="badge badge-sm bg-secondary-subtle text-secondary border border-secondary-subtle align-self-start fw-semibold" style="font-size: 10px;">
+                                                <i class="bi bi-gear me-1"></i> BELUM DIKONFIGURASI
                                             </span>
-                                            <span class="text-xxs text-muted fst-italic mt-1">Belum ada UUID API</span>
+                                            <span class="text-xxs text-muted fst-italic mt-1">Belum diatur (Dinamis / API)</span>
                                         <?php endif; ?>
                                     </div>
                                 </td>

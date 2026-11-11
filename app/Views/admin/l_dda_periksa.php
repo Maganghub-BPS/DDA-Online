@@ -227,7 +227,9 @@
                                           stripos($b->link_tabel, 'satudata') !== false || 
                                           (isset($b->id_api) && !empty($b->id_api)));
                             $is_published = ((int)($b->is_publish ?? 0) === 1);
-                            $has_link = !empty(trim($b->link_tabel ?? '')) || $is_dynamic;
+                            $has_real_link = !empty(trim($b->link_tabel ?? ''));
+                            $has_link = $has_real_link || $is_dynamic;
+                            $is_sheet = $has_real_link && (stripos($b->link_tabel, 'docs.google.com') !== false || stripos($b->link_tabel, 'spreadsheet') !== false);
                     ?>
                     <tr class="tabel-periksa-row" id="row-<?php echo $b->id; ?>" data-published="<?= $is_published ? '1' : '0' ?>" data-has-link="<?= $has_link ? '1' : '0' ?>">
                         <td class="text-center text-muted fw-bold row-no" style="font-size: 0.78rem;"><?php echo $no++; ?></td>
@@ -236,7 +238,8 @@
                             if ($is_dynamic) {
                                 $thTargetView = !empty($thPeriodeDda) ? $thPeriodeDda : (!empty($ta) ? ((int)$ta - 1) : (date('Y') - 1));
                                 $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id) . '?tahun=' . $thTargetView;
-                            } else {
+                                $link_title = "Klik untuk membuka dan mengisi tabel dinamis";
+                            } elseif ($is_portal) {
                                 $tabel_url = $b->link_tabel;
                                 if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
                                     $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
@@ -245,10 +248,26 @@
                                 if (!empty($b->id) && (stripos($tabel_url, 'portal') !== false || stripos($tabel_url, 'satudata') !== false)) {
                                     $tabel_url .= (strpos($tabel_url, '?') !== false ? '&' : '?') . 'table_id=' . $b->id;
                                 }
+                                $link_title = "Klik untuk membuka dan memeriksa data portal";
+                            } elseif ($has_real_link) {
+                                $tabel_url = $b->link_tabel;
+                                if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
+                                    $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
+                                    $tabel_url = base_url($clean_tabel);
+                                }
+                                $link_title = "Klik untuk membuka tautan tabel";
+                            } else {
+                                if ($is_bps_user) {
+                                    $tabel_url = base_url('admin/master_tabel/edt/' . $b->id);
+                                    $link_title = "Tabel belum dikonfigurasi. Klik untuk mengatur sumber data di Master Tabel";
+                                } else {
+                                    $tabel_url = "javascript:void(0);";
+                                    $link_title = "Sumber data tabel ini belum dikonfigurasi oleh Admin BPS";
+                                }
                             }
                             ?>
                             <div class="d-flex flex-column gap-1">
-                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary tabel-judul-link" title="Klik untuk membuka dan mengisi tabel">
+                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary tabel-judul-link" title="<?php echo esc($link_title); ?>">
                                     <?php echo htmlspecialchars($judul_bersih); ?>
                                 </a>
                                 <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
@@ -262,15 +281,33 @@
                                     <?php elseif($is_portal): ?>
                                         <a href="<?php echo $tabel_url; ?>" 
                                            class="badge bg-info-subtle text-info border-0 text-decoration-none d-inline-flex align-items-center" 
-                                           style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;">
+                                           style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                           title="Buka Data Portal">
                                             <i class="bi bi-cloud-check-fill me-1"></i> PORTAL DATA
                                         </a>
-                                    <?php else: ?>
+                                    <?php elseif($has_real_link): ?>
                                         <a href="<?php echo $tabel_url; ?>" 
+                                           target="_blank"
                                            class="badge bg-success-subtle text-success border-0 text-decoration-none d-inline-flex align-items-center" 
-                                           style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;">
-                                            <i class="bi bi-file-spreadsheet me-1"></i> GOOGLE SHEET
+                                           style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                           title="Buka Tautan Tabel">
+                                            <i class="bi <?= $is_sheet ? 'bi-file-spreadsheet' : 'bi-link-45deg'; ?> me-1"></i> <?= $is_sheet ? 'GOOGLE SHEET' : 'LINK EKSTERNAL'; ?>
                                         </a>
+                                    <?php else: ?>
+                                        <?php if ($is_bps_user): ?>
+                                            <a href="<?php echo $tabel_url; ?>" 
+                                               class="badge bg-secondary-subtle text-secondary border border-secondary-subtle text-decoration-none d-inline-flex align-items-center" 
+                                               style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                               title="Klik untuk mengatur sumber data di Master Tabel">
+                                                <i class="bi bi-gear me-1"></i> BELUM DIKONFIGURASI
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle d-inline-flex align-items-center" 
+                                                  style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                                  title="Sumber data tabel ini belum dikonfigurasi oleh Admin BPS">
+                                                <i class="bi bi-gear me-1"></i> BELUM DIKONFIGURASI
+                                            </span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
                                     <a href="<?= base_url('admin/dda/kondef?id=' . $b->id); ?>" 
                                        class="badge bg-secondary-subtle text-secondary border border-secondary-subtle text-decoration-none shadow-xs d-inline-flex align-items-center" 
@@ -373,6 +410,19 @@
                                                         title="Tambahkan atau Ubah Catatan untuk Walidata">
                                                     <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
                                                 </button>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php elseif(!$has_real_link): ?>
+                                        <div class="note-text text-muted mt-1" style="font-size: 0.73rem;">
+                                            <i class="bi bi-info-circle me-1"></i> Sumber data belum diatur
+                                        </div>
+                                        <?php if ($is_bps_user): ?>
+                                            <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
+                                                <a href="<?= base_url('admin/master_tabel/edt/' . $b->id); ?>"
+                                                   class="btn btn-action-sm btn-outline-secondary border shadow-xs"
+                                                   title="Atur format/sumber data di Master Tabel">
+                                                    <i class="bi bi-gear me-1"></i> Konfigurasi Sumber
+                                                </a>
                                             </div>
                                         <?php endif; ?>
                                     <?php else: ?>
