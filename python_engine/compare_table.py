@@ -700,7 +700,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         return f"INT_{'_'.join(digits)}"
                     if '+' in c_raw:
                         return f"JAM_{c_raw.replace('+', '_PLUS')}"
-                    c_dash = re.sub(r'[\-–—\ufffd]', '_', c_raw)
+                    c_dash = re.sub(r'[\-–—−\u2212\u2011\u2012\u2015\ufffd]', '_', c_raw)
                     return f"JAM_{c_dash}"
 
                 party = match_party_name(t_raw)
@@ -788,7 +788,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if c in ['0', '01']:
                         return '0 Jam (Sementara Tidak Bekerja)'
                     digits = re.findall(r'\d+', c)
-                    c_dash = ' - '.join(digits) if digits else re.sub(r'[\-–—\ufffd]', ' - ', c)
+                    c_dash = ' - '.join(digits) if digits else re.sub(r'[\-–—−\u2212\u2011\u2012\u2015\ufffd]', ' - ', c)
                     first_r_txt = ' '.join(str(x) for x in (clean_db_rows[0] if clean_db_rows else [])).lower()
                     is_age = any(k in first_r_txt for k in ['umur', 'usia', 'sekolah', 'pendidikan']) or target_table.startswith('4.')
                     is_hours = 'jam' in first_r_txt or 'hour' in first_r_txt

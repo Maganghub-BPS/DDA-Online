@@ -304,7 +304,8 @@ def is_interval_label(s):
     if not s: return False
     s_clean = clean_pdf_watermark_text(str(s))
     s_clean = re.sub(r'[\s\*]', '', s_clean)
-    return bool(re.match(r'^(?:\d+(?:[\-–—\ufffd]|s/?d|s\.d\.?)\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]=?\s*\d+)$', s_clean, re.IGNORECASE))
+    s_clean = re.sub(r'[\u2212\u2013\u2014\u2012\u2015\u2011\ufffd−–—]', '-', s_clean)
+    return bool(re.match(r'^(?:\d+(?:-|s/?d|s\.d\.?)\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]=?\s*\d+)$', s_clean, re.IGNORECASE))
 
 def parse_num(val_str, is_pdf=False):
     if val_str is None: return None
