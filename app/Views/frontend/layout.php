@@ -10,12 +10,11 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= isset($title) ? $title . ' - ' : '' ?>DDA Jawa Tengah</title>
+    <title><?= isset($title) ? $title . ' - ' : '' ?>AKSARA Jawa Tengah</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="<?= base_url('aset/images/logo-dda.svg') ?>">
-    <link rel="alternate icon" type="image/png" href="<?= base_url('aset/images/logo-dda.png') ?>">
-    <link rel="shortcut icon" href="<?= base_url('favicon.ico') ?>">
-    <link rel="apple-touch-icon" href="<?= base_url('aset/images/logo-dda.png') ?>">
+    <link rel="icon" type="image/png" href="<?= base_url('aset/images/logo-aksara.png') ?>">
+    <link rel="shortcut icon" href="<?= base_url('aset/images/logo-aksara.png') ?>">
+    <link rel="apple-touch-icon" href="<?= base_url('aset/images/logo-aksara.png') ?>">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -690,11 +689,11 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
 
     <nav class="navbar navbar-expand-lg navbar-custom <?= !$isHome ? 'scrolled' : '' ?>" id="mainNavbar">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="<?= base_url() ?>">
-                <img src="<?= base_url('aset/images/logo-dda.svg') ?>" alt="Logo DDA Online" class="navbar-brand-logo-img me-2">
+            <a class="navbar-brand d-flex align-items-center" href="<?= base_url() ?>" title="AKSARA: Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat">
+                <img src="<?= base_url('aset/images/logo-aksara.png') ?>" alt="Logo AKSARA" class="navbar-brand-logo-img me-2">
                 <div class="d-flex flex-column">
-                    <div class="brand-title">DDA<span class="brand-accent">Online</span></div>
-                    <span class="brand-subtitle">Provinsi Jawa Tengah</span>
+                    <div class="brand-title">AKSARA</div>
+                    <span class="brand-subtitle">Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat</span>
                 </div>
             </a>
             <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -738,19 +737,19 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 <!-- Kolom 1: Profil / Brand -->
                 <div class="col-12 col-lg-5 pe-lg-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <img src="<?= base_url('aset/images/logo-dda.svg') ?>" alt="Logo DDA Online" width="48" height="48" class="footer-logo-img">
+                        <img src="<?= base_url('aset/images/logo-aksara-white.png') ?>" alt="Logo AKSARA" width="48" height="48" class="footer-logo-img">
                         <div>
                             <div class="footer-brand-title">
-                                DDA<span style="color: var(--bps-orange);">Online</span>
+                                AKSARA
                             </div>
-                            <div class="footer-brand-subtitle">
-                                Provinsi Jawa Tengah
+                            <div class="footer-brand-subtitle" style="color: #cbd5e1;">
+                                Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat
                             </div>
                         </div>
                     </div>
                     
                     <p class="footer-desc mb-4">
-                        Portal resmi Daerah Dalam Angka yang menyediakan akses cepat, akurat, dan terstruktur ke basis data indikator statistik se-Jawa Tengah untuk mendukung perumusan kebijakan berbasis data.
+                        Portal resmi AKSARA (Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat) yang menyediakan akses cepat, akurat, dan terstruktur ke basis data indikator statistik se-Jawa Tengah untuk mendukung perumusan kebijakan berbasis data.
                     </p>
                     
                     <div class="social-links">
