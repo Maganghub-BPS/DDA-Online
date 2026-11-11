@@ -567,7 +567,7 @@ class ExcelTemplateGenerator
         if ($isMultiBaris) {
             // Kolom A: Judul Kolom 1
             $sheet->mergeCells("A{$startHeaderRow}:A" . ($numRow - 1));
-            $cellTitleCol1 = $titleCol1Ind . (!empty($titleCol1En) && strtolower($titleCol1En) !== strtolower($titleCol1Ind) ? "\n" . $titleCol1En : "");
+            $cellTitleCol1 = $titleCol1Ind . (!empty($titleCol1En) ? "\n" . $titleCol1En : "");
             $sheet->setCellValue("A{$startHeaderRow}", $cellTitleCol1);
 
             $sheet->getStyle("A{$startHeaderRow}:A" . ($numRow - 1))->applyFromArray([
@@ -590,7 +590,7 @@ class ExcelTemplateGenerator
 
             // Kolom B: Judul Kolom 2
             $sheet->mergeCells("B{$startHeaderRow}:B" . ($numRow - 1));
-            $cellTitleCol2 = $titleCol2Ind . (!empty($titleCol2En) && strtolower($titleCol2En) !== strtolower($titleCol2Ind) ? "\n" . $titleCol2En : "");
+            $cellTitleCol2 = $titleCol2Ind . (!empty($titleCol2En) ? "\n" . $titleCol2En : "");
             $sheet->setCellValue("B{$startHeaderRow}", $cellTitleCol2);
 
             $sheet->getStyle("B{$startHeaderRow}:B" . ($numRow - 1))->applyFromArray([
@@ -708,7 +708,7 @@ class ExcelTemplateGenerator
             } elseif ($isBarisDuaKolom) {
                 // Kolom B: Judul Sub-Baris (Rincian Anak, misal: Provinsi / Province)
                 $sheet->mergeCells("B{$startHeaderRow}:B" . ($numRow - 1));
-                $cellTitleSub = $cleanTitleSubInd . (!empty($titleSubBarisEn) && strtolower($titleSubBarisEn) !== strtolower($cleanTitleSubInd) ? "\n" . $titleSubBarisEn : "");
+                $cellTitleSub = $cleanTitleSubInd . (!empty($titleSubBarisEn) ? "\n" . $titleSubBarisEn : "");
                 $sheet->setCellValue("B{$startHeaderRow}", $cellTitleSub);
 
                 $sheet->getStyle("B{$startHeaderRow}:B" . ($numRow - 1))->applyFromArray([
@@ -1003,7 +1003,7 @@ class ExcelTemplateGenerator
                     if ($span > 1) {
                         $sheet->mergeCells("{$fromLetter}{$startHeaderRow}:{$toLetter}{$startHeaderRow}");
                     }
-                    $text = $g['parentInd'] . (!empty($g['parentEn']) && $g['parentEn'] !== $g['parentInd'] ? "\n" . $g['parentEn'] : '');
+                    $text = $g['parentInd'] . (!empty($g['parentEn']) ? "\n" . $g['parentEn'] : '');
                     $sheet->setCellValue("{$fromLetter}{$startHeaderRow}", $text);
                     $curCol += $span;
                 }
@@ -1013,7 +1013,7 @@ class ExcelTemplateGenerator
                 $rowChild = $startHeaderRow + 1;
                 foreach ($parsedPeriode as $p) {
                     $pLetter = Coordinate::stringFromColumnIndex($curCol);
-                    $pText   = $p->childInd . (!empty($p->childEn) && $p->childEn !== $p->childInd ? "\n" . $p->childEn : '');
+                    $pText   = $p->childInd . (!empty($p->childEn) ? "\n" . $p->childEn : '');
                     $sheet->setCellValue("{$pLetter}{$rowChild}", $pText);
                     $curCol++;
                 }
@@ -1083,7 +1083,7 @@ class ExcelTemplateGenerator
                             if ($span > 1) {
                                 $sheet->mergeCells("{$fromLetter}{$rP1}:{$toLetter}{$rP1}");
                             }
-                            $text = $g['parentInd'] . (!empty($g['parentEn']) && $g['parentEn'] !== $g['parentInd'] ? "\n" . $g['parentEn'] : '');
+                            $text = $g['parentInd'] . (!empty($g['parentEn']) ? "\n" . $g['parentEn'] : '');
                             $sheet->setCellValue("{$fromLetter}{$rP1}", $text);
                             $c += $span;
                         }
@@ -1095,7 +1095,7 @@ class ExcelTemplateGenerator
                     foreach ($flatKolom as $child) {
                         foreach ($parsedPeriode as $p) {
                             $pLetter = Coordinate::stringFromColumnIndex($c);
-                            $pText   = $p->childInd . (!empty($p->childEn) && $p->childEn !== $p->childInd ? "\n" . $p->childEn : '');
+                            $pText   = $p->childInd . (!empty($p->childEn) ? "\n" . $p->childEn : '');
                             $sheet->setCellValue("{$pLetter}{$rP2}", $pText);
                             $c++;
                         }
@@ -1338,6 +1338,7 @@ class ExcelTemplateGenerator
             }
             $currentParentInd = '';
             $currentParentRowspan = 1;
+            $currentParentIsBold = false;
             $isFirstChildOfParent = false;
 
             foreach ($itemsBaris as $bIdx => $baris) {
@@ -1700,6 +1701,7 @@ class ExcelTemplateGenerator
                     if ($level === 0 && !empty($childCountMap[$bIdx])) {
                         $currentParentInd = $namaBaris;
                         $currentParentRowspan = $childCountMap[$bIdx];
+                        $currentParentIsBold = !empty($baris->is_bold);
                         $isFirstChildOfParent = true;
                         continue; // Induk Level 0 tidak dirender baris tersendiri karena selnya dimerge vertikal pada rincian anak
                     }
@@ -1729,7 +1731,7 @@ class ExcelTemplateGenerator
                                 ]);
                             }
                             $sheet->getStyle("A{$curRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER)->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                            $sheet->getStyle("A{$curRow}")->getFont()->setBold(true)->setSize(9.5)->setName('Arial');
+                            $sheet->getStyle("A{$curRow}")->getFont()->setBold($currentParentIsBold)->setSize(9.5)->setName('Arial');
                             $isFirstChildOfParent = false;
                         }
 
@@ -1772,8 +1774,13 @@ class ExcelTemplateGenerator
                         'nama'      => $namaBaris,
                     ];
 
-                    $sheet->mergeCells("A{$curRow}:B{$curRow}");
-                    $sheet->setCellValue("A{$curRow}", $namaBaris);
+                    if ($tipeBaris === 'total') {
+                        $sheet->mergeCells("A{$curRow}:B{$curRow}");
+                        $sheet->setCellValue("A{$curRow}", $namaBaris);
+                    } else {
+                        $sheet->setCellValue("A{$curRow}", $namaBaris);
+                        $sheet->setCellValue("B{$curRow}", "");
+                    }
                     $sheet->getStyle("A{$curRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
                     if ($isBold) {
                         $sheet->getStyle("A{$curRow}")->getFont()->setBold(true);

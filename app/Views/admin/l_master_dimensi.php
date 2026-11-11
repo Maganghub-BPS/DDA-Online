@@ -1839,7 +1839,7 @@ $(document).ready(function() {
         en  = en || '';
         if (mode === 'en') return en || ind;
         if (mode === 'ind') return ind;
-        if (en && en.trim().toLowerCase() !== ind.trim().toLowerCase()) {
+        if (en && en.trim() !== '') {
             return '<div class="bilingual-label d-inline-block align-middle">' +
                    '  <div class="label-ind lh-sm text-dark">' + ind + '</div>' +
                    '  <div class="label-en text-secondary small fst-italic lh-sm mt-1" style="font-weight: normal; font-size: 0.85em;">' + en + '</div>' +
@@ -1854,7 +1854,7 @@ $(document).ready(function() {
         en  = en || '';
         if (mode === 'en') return escapeHtml(en || ind);
         if (mode === 'ind') return escapeHtml(ind);
-        if (en && en.trim().toLowerCase() !== ind.trim().toLowerCase()) {
+        if (en && en.trim() !== '') {
             return '<span class="text-dark">' + escapeHtml(ind) + '</span> ' +
                    '<span class="text-secondary small fst-italic" style="font-size: 0.88em; font-weight: normal;">/ ' + escapeHtml(en) + '</span>';
         }
