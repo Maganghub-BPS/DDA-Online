@@ -802,10 +802,6 @@
                     <?php echo view('admin/' . $page); ?>
                 </div>
             </div>
-            <!-- Footer -->
-            <footer class="footer">
-                <strong>BPS Jateng</strong> &copy; BPS Provinsi Jawa Tengah — AKSARA
-            </footer>
         </main>
     </div>
 
