@@ -600,7 +600,7 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
             if not sy_chk:
                 continue
             has_val = any(
-                (idx_s < len(s_vals) and s_vals[idx_s] is not None and s_vals[idx_s] != 0.0 and s_vals[idx_s] > -900000)
+                (idx_s < len(s_vals) and s_vals[idx_s] is not None and s_vals[idx_s] != 0.0 and ((isinstance(s_vals[idx_s], (int, float)) and s_vals[idx_s] > -900000) or isinstance(s_vals[idx_s], str)))
                 for s_vals in src_dict.values()
             )
             if has_val:

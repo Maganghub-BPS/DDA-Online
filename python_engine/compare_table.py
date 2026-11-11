@@ -610,7 +610,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         has_duplicate_regions = has_dup_prov or has_dup_jateng
 
         is_provincial_table = (prov_matches >= 3)
-        is_univ_table = any(k in str(headers).lower() for k in ['perguruan tinggi', 'universitas', 'dosen']) or target_table in ['4.1.20', '4.1.21']
+        is_univ_table = (target_table in ['4.1.20', '4.1.21'])
         is_regional = (prov_matches >= 3 or jateng_matches >= 3) and not is_univ_table and not has_duplicate_regions
         is_categorical = (not is_regional and (archetype in ["MULTI_PAGE_ROW_CONTINUATION", "MULTI_PAGE_SECTION_PER_PAGE", "SINGLE_PAGE_CATEGORICAL", "MULTI_PAGE_COLUMN_SPLIT"])) or has_duplicate_regions
 
@@ -1879,7 +1879,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if idx <= 3 and re.match(r'^33\.\d{2}$', c_str):
                                 continue
                             if c_str in ('...', '…', '..'):
-                                nums.append(0.0)
+                                nums.append('...')
                                 continue
 
                             val = parse_num(c_str, is_pdf=True)
