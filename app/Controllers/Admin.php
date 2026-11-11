@@ -4986,8 +4986,23 @@ class Admin extends BaseController
 				$idP       = 0;
 			}
 
-			if ($rawVal !== null && !is_numeric($rawVal) && is_string($rawVal)) {
-				$cleanRaw = trim($rawVal);
+			$rawStr = is_string($rawVal) ? trim($rawVal) : (is_numeric($rawVal) ? (string)$rawVal : '');
+			$dashTokens = ['-', '–', '—', '−', "\u{2212}", "\u{2011}", "\u{2015}"];
+			$dotTokens  = ['...', '…', "\u{2026}", 'na', 'n.a', 'n.a.', 'n/a'];
+
+			if (in_array($rawStr, $dashTokens, true)) {
+				// Simbol BPS '-' (Nihil / Nol) -> simpan nilai = 0.0, simbol = '-'
+				$nilai = 0.0;
+				$simbol = '-';
+				$jmlDesimal = 0;
+			} elseif (in_array($rawStr, $dotTokens, true) || $rawStr === '') {
+				// Simbol BPS '...' (Data belum tersedia) -> simpan nilai = null, simbol = '...'
+				$nilai = null;
+				$simbol = '...';
+				$jmlDesimal = null;
+			} else {
+				// Cek format angka riil
+				$cleanRaw = $rawStr;
 				if (preg_match('/^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?$/', $cleanRaw)) {
 					$cleanRaw = str_replace('.', '', $cleanRaw);
 					$cleanRaw = str_replace(',', '.', $cleanRaw);
@@ -4996,24 +5011,28 @@ class Admin extends BaseController
 				} elseif (preg_match('/^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/', $cleanRaw)) {
 					$cleanRaw = str_replace(',', '', $cleanRaw);
 				}
-				if (is_numeric($cleanRaw)) {
-					$rawVal = $cleanRaw;
-				}
-			}
 
-			$jmlDesimal = null;
-			if (is_numeric($rawVal)) {
-				$nilai = (float)$rawVal;
-				if (abs($nilai - round($nilai)) > 0.00001) {
-					$vStr = (string)$nilai;
-					$jmlDesimal = (strpos($vStr, '.') !== false) ? min(4, strlen(rtrim(explode('.', $vStr)[1], '0'))) : 2;
+				if (is_numeric($cleanRaw)) {
+					$nilai = (float)$cleanRaw;
+					if (abs($nilai) < 0.0000001) {
+						// Angka riil 0 -> Simbol BPS '-'
+						$nilai = 0.0;
+						$simbol = '-';
+						$jmlDesimal = 0;
+					} else {
+						// Angka riil non-nol -> simbol dibersihkan (null)
+						$simbol = null;
+						if (abs($nilai - round($nilai)) > 0.00001) {
+							$vStr = (string)$nilai;
+							$jmlDesimal = (strpos($vStr, '.') !== false) ? min(4, strlen(rtrim(explode('.', $vStr)[1], '0'))) : 2;
+						} else {
+							$jmlDesimal = 0;
+						}
+					}
 				} else {
-					$jmlDesimal = 0;
-				}
-			} else {
-				$nilai = null;
-				if ($rawVal !== null && trim((string)$rawVal) !== '') {
-					$simbol = trim((string)$rawVal);
+					$nilai = null;
+					$simbol = $rawStr !== '' ? $rawStr : null;
+					$jmlDesimal = null;
 				}
 			}
 
@@ -5849,13 +5868,38 @@ class Admin extends BaseController
 						$pId           = 0;
 					}
 					if ($bId >= 0 && $kId >= 0) {
+						$cRaw = $ac['nilai'] ?? null;
+						$cRawStr = is_string($cRaw) ? trim($cRaw) : (is_numeric($cRaw) ? (string)$cRaw : '');
+						$dashTokens = ['-', '–', '—', '−', "\u{2212}", "\u{2011}", "\u{2015}"];
+						$dotTokens  = ['...', '…', "\u{2026}", 'na', 'n.a', 'n.a.', 'n/a'];
+
+						if (in_array($cRawStr, $dashTokens, true)) {
+							$cVal = 0.0;
+							$cSimb = '-';
+						} elseif (in_array($cRawStr, $dotTokens, true) || $cRawStr === '') {
+							$cVal = null;
+							$cSimb = '...';
+						} elseif (is_numeric($cRaw)) {
+							$cNum = (float)$cRaw;
+							if (abs($cNum) < 0.0000001) {
+								$cVal = 0.0;
+								$cSimb = '-';
+							} else {
+								$cVal = $cNum;
+								$cSimb = null;
+							}
+						} else {
+							$cVal = null;
+							$cSimb = $cRawStr !== '' ? $cRawStr : null;
+						}
+
 						$upsertCells[] = [
 							'id_baris_item'         => $bId,
 							'id_karakteristik_item' => $kId,
 							'id_periode_item'       => $pId > 0 ? $pId : 0,
 							'tahun_data'            => $tahunDataCell,
-							'nilai'                 => $ac['nilai'] ?? 0,
-							'simbol'                => null,
+							'nilai'                 => $cVal,
+							'simbol'                => $cSimb,
 						];
 					}
 				}

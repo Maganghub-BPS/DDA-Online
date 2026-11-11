@@ -73,9 +73,13 @@ class TestParseNum(unittest.TestCase):
         self.assertEqual(parse_num("—10.5"), -10.5)  # em-dash \u2014
 
     def test_dash_nihil_zero_representations(self):
-        for s in ["-", "–", "—", "−", "na", "n.a.", "n/a", "...", ""]:
+        for s in ["-", "–", "—", "−", "\u2212"]:
             val = parse_num(s)
-            self.assertTrue(val is None or val == 0.0, f"Failed for '{s}' -> {val}")
+            self.assertEqual(val, 0.0, f"Dash should return 0.0 for '{s}'")
+        for s in ["...", "…", "na", "n.a.", "n/a"]:
+            val = parse_num(s)
+            self.assertEqual(val, "...", f"Dots/NA should return '...' for '{s}'")
+        self.assertIsNone(parse_num(""))
 
     def test_accounting_dash_suffix(self):
         self.assertEqual(parse_num("100,-"), 100.0)
@@ -104,6 +108,35 @@ class TestEvaluateCellMatch(unittest.TestCase):
         is_m, is_tol, diff = evaluate_cell_match(0.0, 0.0)
         self.assertTrue(is_m)
         self.assertFalse(is_tol)
+
+    def test_bps_symbols_matching(self):
+        # 1. Dash vs 0.0 -> COCOK (keduanya bernilai 0 / nihil)
+        is_m, _, _ = evaluate_cell_match(0.0, 0.0)
+        self.assertTrue(is_m)
+        is_m, _, _ = evaluate_cell_match("-", 0.0)
+        self.assertTrue(is_m)
+        is_m, _, _ = evaluate_cell_match(0.0, "-")
+        self.assertTrue(is_m)
+
+        # 2. Dots vs Dots / None -> COCOK (keduanya data belum tersedia)
+        is_m, _, _ = evaluate_cell_match("...", "...")
+        self.assertTrue(is_m)
+        is_m, _, _ = evaluate_cell_match("...", None)
+        self.assertTrue(is_m)
+        is_m, _, _ = evaluate_cell_match(None, "...")
+        self.assertTrue(is_m)
+
+        # 3. Dash (0.0) vs Dots (...) -> BEDA NILAI (nihil != belum ada data)
+        is_m, _, _ = evaluate_cell_match(0.0, "...")
+        self.assertFalse(is_m)
+        is_m, _, _ = evaluate_cell_match("...", 0.0)
+        self.assertFalse(is_m)
+
+        # 4. Angka riil vs Dots (...) -> BEDA NILAI
+        is_m, _, _ = evaluate_cell_match(1234.0, "...")
+        self.assertFalse(is_m)
+        is_m, _, _ = evaluate_cell_match("...", 1234.0)
+        self.assertFalse(is_m)
 
     def test_strict_mismatch_detected_even_small(self):
         # Selisih 0.01 HARUS dilaporkan sebagai TIDAK COCOK bila tolerance=0.0

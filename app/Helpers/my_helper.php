@@ -205,11 +205,27 @@ function formatDynamicTableTitle(string $baseTitle, array $selectedYears, string
  */
 function formatDynamicCellValue($nilai, $simbol = null, int $settingDesimal = -1, ?int $cellDesimal = null): string
 {
+    // 1. Tangani Simbol Statistik BPS secara eksplisit
     if ($simbol !== null && $simbol !== '') {
-        return (string)$simbol;
+        $simbolTrim = trim((string)$simbol);
+        // Simbol dash/strip -> BPS nihil (0)
+        if (in_array($simbolTrim, ['-', '–', '—', '−', "\u{2212}"])) {
+            return '-';
+        }
+        // Simbol titik-titik -> BPS data belum tersedia
+        if (in_array($simbolTrim, ['...', '…', "\u{2026}", 'na', 'n.a', 'n.a.', 'n/a'])) {
+            return '...';
+        }
+        return $simbolTrim;
     }
 
+    // 2. Jika nilai null / kosong (dan tidak ada simbol) -> BPS data belum tersedia
     if ($nilai === null || $nilai === '') {
+        return '...';
+    }
+
+    // 3. Jika nilai adalah 0 / nihil -> tampilkan '-' sesuai standar publikasi BPS
+    if (is_numeric($nilai) && abs((float)$nilai) < 0.0000001) {
         return '-';
     }
 
