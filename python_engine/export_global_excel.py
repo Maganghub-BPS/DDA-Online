@@ -242,7 +242,11 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
         if isinstance(res, dict) and res.get("status") == "success":
             diffs = res.get("diffs", [])
             matches = res.get("matches", [])
-            real_pdf_only = get_real_pdf_only(res)
+            # Sesuai arahan Bos Anas: Data yang hanya ada di PDF tidak dihitung sebagai selisih rekapan jika tabel memiliki data pembanding
+            if not diffs and not matches:
+                real_pdf_only = get_real_pdf_only(res)
+            else:
+                real_pdf_only = []
             actual_diff_cnt = len(diffs) + len(real_pdf_only)
             res["_actual_diff_cnt"] = actual_diff_cnt
             if actual_diff_cnt == 0 and len(matches) > 0:
@@ -443,7 +447,7 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             if isinstance(res, dict) and "_actual_diff_cnt" in res:
                 diff_cnt = int(res.get("_actual_diff_cnt", 0))
             elif isinstance(res, dict) and "diffs" in res:
-                diff_cnt = len(res.get("diffs", [])) + len(get_real_pdf_only(res))
+                diff_cnt = len(res.get("diffs", [])) + (len(get_real_pdf_only(res)) if not res.get("diffs") and not res.get("matches") else 0)
             else:
                 try:
                     diff_cnt = int(st_info.get("diff_count", 0))
