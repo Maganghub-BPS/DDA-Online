@@ -6,7 +6,7 @@
                 <!-- Header Card -->
                 <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
                     <div class="d-flex align-items-center">
-                        <div class="icon icon-shape bg-primary-orange shadow-primary text-center border-radius-md me-3" style="width: 46px; height: 46px;">
+                        <div class="icon icon-shape text-center border-radius-md me-3" style="width: 46px; height: 46px; background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%) !important; box-shadow: 0 4px 12px rgba(21, 70, 121, 0.25);">
                             <i class="bi bi-person-bounding-box text-white fs-4"></i>
                         </div>
                         <div>
@@ -25,7 +25,7 @@
                             <div class="col-md-6">
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">Nama Lengkap</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                    <span class="input-group-text bg-white border-0"><i class="bi bi-person text-primary-orange"></i></span>
+                                    <span class="input-group-text bg-white border-0"><i class="bi bi-person text-primary"></i></span>
                                     <input type="text" name="nama" required value="<?php echo esc($datpil->nama ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Masukkan nama lengkap" tabindex="1">
                                 </div>
@@ -35,7 +35,7 @@
                             <div class="col-md-6">
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">Username</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                    <span class="input-group-text bg-white border-0"><i class="bi bi-at text-primary-orange"></i></span>
+                                    <span class="input-group-text bg-white border-0"><i class="bi bi-at text-primary"></i></span>
                                     <input type="text" name="username" required minlength="4" value="<?php echo esc($datpil->username ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white font-weight-bold" placeholder="Username login" tabindex="2">
                                 </div>
@@ -45,7 +45,7 @@
                             <div class="col-md-6">
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">NIP / ID Pegawai</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                    <span class="input-group-text bg-white border-0"><i class="bi bi-card-text text-primary-orange"></i></span>
+                                    <span class="input-group-text bg-white border-0"><i class="bi bi-card-text text-primary"></i></span>
                                     <input type="text" name="nip" required value="<?php echo esc($datpil->nip ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Masukkan NIP" tabindex="3">
                                 </div>
@@ -55,7 +55,7 @@
                             <div class="col-md-6">
                                 <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 ls-1 text-uppercase">Alamat Email</label>
                                 <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                    <span class="input-group-text bg-white border-0"><i class="bi bi-envelope text-primary-orange"></i></span>
+                                    <span class="input-group-text bg-white border-0"><i class="bi bi-envelope text-primary"></i></span>
                                     <input type="email" name="email" required value="<?php echo esc($datpil->email ?? ''); ?>" 
                                            class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="nama@instansi.go.id" tabindex="4">
                                 </div>
@@ -65,11 +65,11 @@
                             <div class="col-12 mt-4">
                                 <div class="bg-light-subtle rounded-4 p-3 border border-light border-radius-lg d-flex align-items-center">
                                     <div class="icon-circle bg-white border border-light me-3 shadow-sm">
-                                        <i class="bi bi-shield-lock text-primary-orange"></i>
+                                        <i class="bi bi-shield-lock text-primary"></i>
                                     </div>
                                     <div>
                                         <h6 class="text-sm mb-0 fw-bold">Keamanan Akun</h6>
-                                        <p class="text-xs text-secondary mb-0">Tingkat Akses: <span class="badge bg-primary-soft text-primary-orange border-0 py-1 px-2"><?php echo esc(strtoupper((string)($datpil->level ?? ''))); ?></span></p>
+                                        <p class="text-xs text-secondary mb-0">Tingkat Akses: <span class="badge bg-primary-soft text-primary border border-primary-soft py-1 px-2"><?php echo esc(strtoupper((string)($datpil->level ?? ''))); ?></span></p>
                                     </div>
                                     <div class="ms-auto">
                                         <a href="<?php echo base_url(); ?>admin/passwod" class="btn btn-outline-primary btn-xs mb-0 border-radius-md px-3">
@@ -85,7 +85,7 @@
                             <a href="<?php echo base_URL(); ?>index.php/admin" class="btn btn-link text-secondary text-sm mb-0 px-0 shadow-none">
                                 <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
                             </a>
-                            <button type="submit" class="btn bg-primary-orange text-white btn-sm border-radius-lg px-5 mb-0 shadow-primary transition-all hover:scale-105" tabindex="5">
+                            <button type="submit" class="btn text-white btn-sm border-radius-lg px-5 mb-0 transition-all hover:scale-105" style="background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border: none; box-shadow: 0 4px 12px rgba(21, 70, 121, 0.25);" tabindex="5">
                                 <i class="bi bi-check-circle me-2"></i> Perbarui Profil
                             </button>
                         </div>
@@ -107,10 +107,11 @@
     .border-radius-lg { border-radius: 0.8rem !important; }
     .border-radius-md { border-radius: 0.5rem !important; }
     
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
-    .text-primary-orange { color: #FF6D1F !important; }
-    .bg-primary-orange { background-color: #FF6D1F !important; }
-    .shadow-primary { box-shadow: 0 4px 6px rgba(255, 109, 31, 0.11), 0 1px 3px rgba(255, 109, 31, 0.08) !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.2) !important; }
+    .text-primary-orange { color: #154679 !important; }
+    .bg-primary-orange { background-color: #154679 !important; }
+    .shadow-primary { box-shadow: 0 4px 12px rgba(21, 70, 121, 0.25) !important; }
     
     .icon-shape {
         display: flex;
@@ -132,8 +133,8 @@
         background-color: #fff;
     }
     .input-group-alternative:focus-within {
-        border-color: #FF6D1F !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+        border-color: #154679 !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.1) !important;
     }
     
     .form-control:focus {

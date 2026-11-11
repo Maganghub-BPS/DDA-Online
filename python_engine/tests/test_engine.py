@@ -133,6 +133,19 @@ class TestEvaluateCellMatch(unittest.TestCase):
         hint = explain_mismatch(1.5, 1500.0)
         self.assertIn("ribuan", hint)
 
+    def test_time_format_crime_clock(self):
+        # Format waktu Crime Clock (e.g. '05:23:46')
+        pv = parse_num("05:23:46", is_pdf=True)
+        self.assertEqual(pv, "05:23:46")
+        is_m, is_tol, diff = evaluate_cell_match(pv, "05:23:46")
+        self.assertTrue(is_m)
+        self.assertFalse(is_tol)
+        self.assertEqual(diff, 0.0)
+
+        # Mismatch waktu
+        is_m_diff, _, _ = evaluate_cell_match(pv, "18:56:28")
+        self.assertFalse(is_m_diff)
+
         # Pola selisih x1.000.000
         hint_juta = explain_mismatch(2.0, 2000000.0)
         self.assertIn("jutaan", hint_juta)

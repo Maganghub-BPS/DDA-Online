@@ -79,8 +79,8 @@ if ($mode == "edt" || $mode == "act_edt") {
                 <div class="alert bg-primary-soft text-primary border-0 rounded-4 mb-4 d-flex align-items-center">
                     <i class="bi bi-info-circle-fill fs-4 me-3"></i>
                     <div>
-                        <span class="fw-bold d-block">Peninjauan Usulan Tabel OPD</span>
-                        <small>Periksa dan lengkapi rincian tabel sebelum menyetujui usulan ini masuk ke Master Tabel DDA <b>Tahun <?php echo $ta; ?></b>.</small>
+                        <span class="fw-bold d-block"><?php echo ($mode == "edt") ? "Peninjauan Usulan Tabel OPD" : "Formulir Usulan Tabel Baru"; ?></span>
+                        <small><?php echo ($mode == "edt") ? "Periksa dan lengkapi rincian tabel sebelum menyetujui usulan ini masuk ke Master Tabel DDA <b>Tahun " . $ta . "</b>." : "Lengkapi judul tabel dalam dwibahasa dan lampirkan draf berkas tabel (Excel/Word) untuk diajukan ke BPS."; ?></small>
                     </div>
                 </div>
 
@@ -188,7 +188,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                     <a href="<?php echo base_url(); ?>index.php/admin/master_tabel_opd" class="btn btn-light border-0 shadow-none bg-light-subtle px-4 py-2" style="border-radius: 10px;">
                         Batal
                     </a>
-                    <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 10px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                    <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 10px; background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border: none;">
                         <i class="bi bi-check-lg me-2"></i> <?php echo ($mode == "edt") ? "Setujui & Daftarkan ke Master Tabel" : "Kirim Usulan Tabel"; ?>
                     </button>
                 </div>
@@ -304,7 +304,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                 <button type="button" class="btn btn-light px-4 border" style="border-radius: 8px;" data-bs-dismiss="modal">
                     Batal
                 </button>
-                <button type="button" id="btn_confirm_conflict" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                <button type="button" id="btn_confirm_conflict" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border: none;">
                     <i class="bi bi-check2-circle"></i>
                     <span>Terapkan & Simpan</span>
                 </button>
@@ -319,8 +319,8 @@ if ($mode == "edt" || $mode == "act_edt") {
     .text-xxs { font-size: 0.75rem !important; }
     .border-radius-2xl { border-radius: 1.25rem !important; }
     .border-radius-lg { border-radius: 0.8rem !important; }
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
-    .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.2) !important; }
     
     /* Conflict Option Cards */
     .conflict-card-option {
@@ -335,13 +335,13 @@ if ($mode == "edt" || $mode == "act_edt") {
         transform: translateY(-1px);
     }
     .conflict-card-option.active {
-        border-color: #FF6D1F !important;
-        background: rgba(255, 109, 31, 0.04) !important;
-        box-shadow: 0 3px 10px rgba(255, 109, 31, 0.1) !important;
+        border-color: #154679 !important;
+        background: rgba(21, 70, 121, 0.04) !important;
+        box-shadow: 0 3px 10px rgba(21, 70, 121, 0.12) !important;
     }
     .conflict-card-option .form-check-input:checked {
-        background-color: #FF6D1F;
-        border-color: #FF6D1F;
+        background-color: #154679;
+        border-color: #154679;
     }
 </style>
 
@@ -550,7 +550,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                             '    <i class="bi bi-check-circle me-1"></i>Siap dipakai' +
                                             '  </span>';
                                 } else {
-                                    html += '  <button type="button" class="btn btn-xs rounded-pill mb-0 py-1 px-2 btn-apply-no-tabel-opd text-white fw-bold shadow-none" data-next="' + res.next_no + '" style="font-size: 10px; background: #FF6D1F; border: none; white-space: nowrap;">' +
+                                    html += '  <button type="button" class="btn btn-xs rounded-pill mb-0 py-1 px-2 btn-apply-no-tabel-opd text-white fw-bold shadow-none" data-next="' + res.next_no + '" style="font-size: 10px; background: #154679; border: none; white-space: nowrap;">' +
                                             '    <i class="bi bi-plus me-1"></i>Gunakan ' + res.next_no +
                                             '  </button>';
                                 }

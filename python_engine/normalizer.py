@@ -350,6 +350,14 @@ def parse_num(val_str, is_pdf=False):
 
     s_raw_token = s.strip()
 
+    # Deteksi Cerdas Format Waktu (e.g. '05:23:46' atau '18:56:28' atau '1:09:06')
+    m_time = re.match(r'^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?$', s_raw_token)
+    if m_time:
+        hh = m_time.group(1).zfill(2)
+        mm = m_time.group(2)
+        ss = m_time.group(3) if m_time.group(3) else '00'
+        return f"{hh}:{mm}:{ss}"
+
     # Cek kata alfabet bermakna >= 2 huruf SEBELUM stripping agar label teks seperti '1.1 Pajak Daerah' tidak terkonversi ke 1.1
     s_cleaned_no_wm = re.sub(r'(?i)\b(?:km[23]?|m[23]?|cm[23]?|dm[23]?|mm[23]?|ha|kg|ton|jiwa|orang|rupiah|persen|ribu|juta|miliar|triliun|sm)\b', '', s_raw_token)
     if re.search(r'[a-zA-Z]{2,}', s_cleaned_no_wm):
@@ -624,6 +632,10 @@ def evaluate_cell_match(pv, sv, tolerance=0.0):
     """
     if pv is None or sv is None:
         return False, False, 0.0
+
+    if isinstance(pv, str) or isinstance(sv, str):
+        is_same = str(pv).strip() == str(sv).strip()
+        return is_same, False, (0.0 if is_same else None)
 
     diff_val = round(sv - pv, 3)
 

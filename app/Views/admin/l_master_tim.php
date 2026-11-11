@@ -305,8 +305,8 @@
     .border-radius-md { border-radius: 0.4rem !important; }
     
     .bg-gray-100 { background-color: #f8f9fa !important; }
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
-    .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.2) !important; }
     .bg-info-soft { background-color: rgba(13, 202, 240, 0.08) !important; color: #0dcaf0 !important; }
     .border-info-soft { border: 1px solid rgba(13, 202, 240, 0.2) !important; }
 

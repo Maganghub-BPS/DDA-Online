@@ -230,17 +230,8 @@ class Admin extends BaseController
 		}
 
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM t_admin")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		//if (empty($awal) || $awal == 1) { $awal = 0; } { $awal = $awal; }
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/manage_admin/p");
+		/* pagination dinonaktifkan: seluruh data admin ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -298,7 +289,7 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/manage_admin');
 		} else {
-			$a['data']		= $this->db->query("SELECT * FROM t_admin LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM t_admin ORDER BY id ASC")->getResult();
 			$a['page']		= "l_manage_admin";
 		}
 
@@ -820,19 +811,8 @@ class Admin extends BaseController
 
 		$ta = $this->session->get('admin_ta');
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_unitkerja")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		if (empty($awal) || $awal == 1) {
-			$awal = 0;
-		}
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/forum_diskusi/p");
+		/* pagination dinonaktifkan: semua OPD langsung ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -845,10 +825,10 @@ class Admin extends BaseController
 		if ($mau_ke == 'view_topik') {
 			$id_unitkerja = $this->input->get('id');
 			if ($unitkerjalogin == 'bps' || $this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$id_unitkerja, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? ORDER BY id_topik DESC", [$id_unitkerja])->getResult();
 				$a['page']		= "l_forum_topik";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? ORDER BY id_topik DESC", [$unitkerjalogin])->getResult();
 				$a['page']		= "l_forum_topik";
 			}
 		} else if ($mau_ke == 'add_topik') {
@@ -906,7 +886,7 @@ class Admin extends BaseController
 			if (!$topikRow || ($unitkerjalogin != 'bps' && $this->session->get('admin_level') != 'kominfo' && $topikRow->id_unitkerja !== $unitkerjalogin)) {
 				return redirect()->to('admin/forum_diskusi');
 			}
-			$a['data']    = $this->db->query("SELECT * FROM forumcomment where id_topik=? LIMIT ?, ?", [$id_topik, (int)$awal, (int)$akhir])->getResult();
+			$a['data']    = $this->db->query("SELECT * FROM forumcomment WHERE id_topik = ? ORDER BY id ASC", [$id_topik])->getResult();
 			$a['page']    = "l_forum_komen";
 		} else if ($mau_ke == 'add_comment') {
 			$hariini      = date('Y-m-d');
@@ -956,7 +936,7 @@ class Admin extends BaseController
 			if ($unitkerjalogin == 'bps') {
 				$level = $this->session->get('admin_level');
 				if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
 					$user_level = strtolower(trim((string)$this->session->get('admin_level')));
@@ -979,11 +959,11 @@ class Admin extends BaseController
 				}
 				$a['page']		= "l_forum";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja=?", [$unitkerjalogin])->getResult();
 				$a['page']		= "l_forum";
 			}
 			if ($this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 				$a['page']		= "l_forum";
 			}
 		}
@@ -1279,6 +1259,30 @@ class Admin extends BaseController
 		$a['list_tim'] = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' AND user_wali != '-' ORDER BY user_wali ASC")->getResult();
 		$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_status_tahunan GROUP BY tahun ORDER BY tahun DESC")->getResult();
 
+		// Total tabel aktif & counter per kategori untuk dropdown filter interaktif
+		$a['total_tabel_aktif'] = (int)($this->db->query("SELECT COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1")->getRow()->cnt ?? 0);
+
+		$opdCountsRaw = $this->db->query("SELECT id_unitkerja, COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1 GROUP BY id_unitkerja")->getResult();
+		$opdMap = [];
+		foreach ($opdCountsRaw as $r) {
+			$opdMap[trim((string)$r->id_unitkerja)] = (int)$r->cnt;
+		}
+		$a['count_per_opd'] = $opdMap;
+
+		$timCountsRaw = $this->db->query("SELECT u.user_wali, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.user_wali")->getResult();
+		$timMap = [];
+		foreach ($timCountsRaw as $r) {
+			$timMap[strtolower(trim((string)$r->user_wali))] = (int)$r->cnt;
+		}
+		$a['count_per_tim'] = $timMap;
+
+		$jenisCountsRaw = $this->db->query("SELECT u.jenis_instansi, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.jenis_instansi")->getResult();
+		$jenisMap = [];
+		foreach ($jenisCountsRaw as $r) {
+			$jenisMap[strtolower(trim((string)$r->jenis_instansi))] = (int)$r->cnt;
+		}
+		$a['count_per_jenis'] = $jenisMap;
+
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 
 		//ambil variabel URL
@@ -1387,17 +1391,24 @@ class Admin extends BaseController
 			$sql_where = "WHERE ml.is_active = 1";
 
 			$params = [];
-			if ($filter_jenis != 'all' && in_array($filter_jenis, ['opd', 'vertikal'])) {
-				$sql_where .= " AND u.jenis_instansi = ? ";
-				$params[] = $filter_jenis;
+			$cleanJenis = is_array($filter_jenis) ? array_values(array_filter($filter_jenis, fn($v) => !empty($v) && $v !== 'all')) : ($filter_jenis !== 'all' ? [$filter_jenis] : []);
+			if (!empty($cleanJenis)) {
+				$sql_where .= " AND u.jenis_instansi IN (" . implode(',', array_fill(0, count($cleanJenis), '?')) . ") ";
+				foreach ($cleanJenis as $cj) $params[] = $cj;
 			}
-			if ($filter_opd != 'all') {
-				$sql_where .= " AND ml.id_unitkerja = ? ";
-				$params[] = $filter_opd;
+
+			$cleanOpd = is_array($filter_opd) 
+				? array_values(array_filter(array_map('trim', $filter_opd), fn($v) => !empty($v) && $v !== 'all')) 
+				: (($filter_opd !== 'all' && !empty($filter_opd)) ? [trim((string)$filter_opd)] : []);
+			if (!empty($cleanOpd)) {
+				$sql_where .= " AND ml.id_unitkerja IN (" . implode(',', array_fill(0, count($cleanOpd), '?')) . ") ";
+				foreach ($cleanOpd as $co) $params[] = (string)$co;
 			}
-			if ($filter_bidang != 'all') {
-				$sql_where .= " AND u.user_wali = ? ";
-				$params[] = $filter_bidang;
+
+			$cleanBidang = is_array($filter_bidang) ? array_values(array_filter($filter_bidang, fn($v) => !empty($v) && $v !== 'all')) : ($filter_bidang !== 'all' ? [$filter_bidang] : []);
+			if (!empty($cleanBidang)) {
+				$sql_where .= " AND u.user_wali IN (" . implode(',', array_fill(0, count($cleanBidang), '?')) . ") ";
+				foreach ($cleanBidang as $cb) $params[] = $cb;
 			}
 
 			$sql_where .= " AND (ml.judul_ind LIKE ? OR u.unitkerja_ind LIKE ? OR ml.no_tabel LIKE ?) ";
@@ -1822,35 +1833,28 @@ class Admin extends BaseController
 
 			$params_count = [];
 
-			if ($filter_jenis != 'all' && in_array($filter_jenis, ['opd', 'vertikal'])) {
-				$sql_where .= " AND u.jenis_instansi = ?";
-				$params_count[] = $filter_jenis;
+			$cleanJenis = is_array($filter_jenis) ? array_values(array_filter($filter_jenis, fn($v) => !empty($v) && $v !== 'all')) : ($filter_jenis !== 'all' ? [$filter_jenis] : []);
+			if (!empty($cleanJenis)) {
+				$sql_where .= " AND u.jenis_instansi IN (" . implode(',', array_fill(0, count($cleanJenis), '?')) . ")";
+				foreach ($cleanJenis as $cj) $params_count[] = $cj;
 			}
 
-			if ($filter_opd != 'all') {
-				$sql_where .= " AND ml.id_unitkerja = ?";
-				$params_count[] = $filter_opd;
+			$cleanOpd = is_array($filter_opd) 
+				? array_values(array_filter(array_map('trim', $filter_opd), fn($v) => !empty($v) && $v !== 'all')) 
+				: (($filter_opd !== 'all' && !empty($filter_opd)) ? [trim((string)$filter_opd)] : []);
+			if (!empty($cleanOpd)) {
+				$sql_where .= " AND ml.id_unitkerja IN (" . implode(',', array_fill(0, count($cleanOpd), '?')) . ")";
+				foreach ($cleanOpd as $co) $params_count[] = (string)$co;
 			}
 
-			if ($filter_bidang != 'all') {
-				$sql_where .= " AND u.user_wali = ?";
-				$params_count[] = $filter_bidang;
+			$cleanBidang = is_array($filter_bidang) ? array_values(array_filter($filter_bidang, fn($v) => !empty($v) && $v !== 'all')) : ($filter_bidang !== 'all' ? [$filter_bidang] : []);
+			if (!empty($cleanBidang)) {
+				$sql_where .= " AND u.user_wali IN (" . implode(',', array_fill(0, count($cleanBidang), '?')) . ")";
+				foreach ($cleanBidang as $cb) $params_count[] = $cb;
 			}
 
-			$total_row = (int)($this->db->query("SELECT COUNT(ml.id) as total $sql_base $sql_where", $params_count)->getRow()->total ?? 0);
-			$per_page  = 20;
-
-			$awal = $this->uri->segment(4);
-			$awal = (empty($awal) || $awal == 1) ? 0 : $awal;
-			if (empty($awal)) {
-				$awal = 0;
-			}
-
-			$a['pagi'] = _page($total_row, $per_page, 4, base_url() . "admin/master_tabel/p");
-
-			$params_data = $params_count;
-			$params_data[] = (int)$awal;
-			$params_data[] = (int)$per_page;
+			/* pagination dinonaktifkan: seluruh tabel ditampilkan sekaligus dan di-scroll di dalam kontainer */
+			$a['pagi'] = '';
 
 			$a['data'] = $this->db->query("
 				SELECT ml.id, ml.id as id_master, ml.no_tabel, ml.judul_ind, ml.judul_en, ml.id_unitkerja, ml.jenis_sumber,
@@ -1864,11 +1868,10 @@ class Admin extends BaseController
 				ORDER BY CAST(SUBSTRING_INDEX(COALESCE(ml.no_tabel, '999'), '.', 1) AS UNSIGNED) ASC, 
 				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, 
 				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, 
-				         ml.judul_ind ASC 
-				LIMIT ?, ?
-			", $params_data)->getResult();
+				         ml.judul_ind ASC
+			", $params_count)->getResult();
 
-			$a['awal'] = (int)$awal;
+			$a['awal'] = 0;
 			$a['cari'] = '';
 			$a['page'] = "l_master_tabel";
 		}
@@ -1903,26 +1906,15 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		if (!can('master_tabel') && !can('input_dda_input')) {
+		if (!can('master_tabel') && !can('usulan_tabel') && !can('input_dda_input') && !can('view_dda')) {
 			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengakses menu Usulan Tabel.</div>');
 			return redirect()->to('admin/dda');
 		}
 
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_master_tabel_usulan")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		if (empty($awal) || $awal == 1) {
-			$awal = 0;
-		}
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/master_tabel_opd/p");
+		/* pagination dinonaktifkan: seluruh data usulan ditampilkan sekaligus dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -1946,7 +1938,9 @@ class Admin extends BaseController
 		$config['max_width']  		= '3000';
 		$config['max_height'] 		= '3000';
 		$kode						= rand(1, 1000);
-		$config['file_name'] 		= $kode . '_' . $unitkerja . '_' . $addby;
+		$safe_unit					= substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$unitkerja), 0, 15);
+		$safe_user					= substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$addby), 0, 15);
+		$config['file_name'] 		= $kode . '_' . $safe_unit . '_' . $safe_user;
 
 		$this->load->library('upload', $config);
 
@@ -1968,15 +1962,26 @@ class Admin extends BaseController
 			}
 			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "cari") {
+			$is_bps = $this->isAdminBps();
+			$unitkerja = $this->session->get('admin_unitkerja');
 			$cari = $this->input->post('q') ?: ($this->input->post('cari') ?: '');
-			$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			if ($is_bps) {
+				$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			} else {
+				$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.id_unitkerja = ? AND (l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ?) ORDER BY l.is_setujui ASC, l.id DESC", [$unitkerja, '%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			}
 			$a['offset'] = 0;
 			$a['pagi'] = "";
+			$a['is_bps'] = $is_bps;
 			$a['page'] = "l_master_tabel_opd";
 		} else if ($mau_ke == "add") {
-
+			$a['is_bps'] = $this->isAdminBps();
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "edt") {
+			if (!$this->isAdminBps()) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Admin BPS yang berwenang menelaah dan menyetujui usulan tabel.</div>");
+				return redirect()->to('admin/master_tabel_opd/');
+			}
 
 			$datpil = $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = ?", [$idu])->getRow();
 			$a['datpil']   = $datpil;
@@ -2000,11 +2005,14 @@ class Admin extends BaseController
 			date_default_timezone_set("Asia/Jakarta");
 			$waktusekarang = date("H:i");
 			if ($this->upload->do_upload('file_tabel')) {
-				$up_data	 	= $this->upload->data();
+				$up_data = $this->upload->data();
 				$this->db->query("INSERT INTO m_master_tabel_usulan VALUES (NULL, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, $up_data['file_name'], $is_setujui, $unitkerja, $addby]);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel usulan berhasil dikirim ke BPS untuk ditelaah.</div>");
+			} else {
+				$errMsg = $this->upload->display_errors() ?: 'Gagal mengunggah berkas tabel pendukung.';
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal mengirim usulan: " . esc($errMsg) . "</div>");
 			}
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel berhasil ditambahkan</div>");
-			return redirect()->to('admin/');
+			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "act_edt") {
 			if (!can('master_tabel')) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Admin BPS yang berwenang menyetujui usulan tabel.</div>");
@@ -2081,8 +2089,15 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel usulan berhasil disetujui (ACC) dan ditautkan ke Master Tabel #{$m_id} untuk DDA Tahun {$ta}</div>");
 			return redirect()->to('admin/master_tabel_opd/');
 		} else {
-			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
-			$a['offset']	= (int)$awal;
+			$is_bps = $this->isAdminBps();
+			$unitkerja = $this->session->get('admin_unitkerja');
+			if ($is_bps) {
+				$a['data'] = $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC")->getResult();
+			} else {
+				$a['data'] = $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja WHERE l.id_unitkerja = ? ORDER BY l.is_setujui ASC, l.id DESC", [$unitkerja])->getResult();
+			}
+			$a['offset']	= 0;
+			$a['is_bps']	= $is_bps;
 			$a['page']		= "l_master_tabel_opd";
 		}
 		return view('admin/index', $a);
@@ -2101,17 +2116,8 @@ class Admin extends BaseController
 		}
 
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_unitkerja")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		//if (empty($awal) || $awal == 1) { $awal = 0; } { $awal = $awal; }
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/master_opd/p");
+		/* pagination dinonaktifkan: semua OPD langsung ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -2166,7 +2172,7 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/master_opd');
 		} else {
-			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 			$a['page']		= "l_unitkerja";
 		}
 

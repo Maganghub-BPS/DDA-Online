@@ -1,8 +1,12 @@
-<?php echo session()->getFlashdata("k"); ?>
+<?php if (session()->getFlashdata("k")): ?>
+<div class="flex-shrink-0">
+    <?php echo session()->getFlashdata("k"); ?>
+</div>
+<?php endif; ?>
 
 <!-- Consolidated Control Card -->
-<div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
-    <div class="card-header pb-3 pt-4 px-4 bg-white border-0">
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainMasterOpdCard" style="height: auto; max-height: calc(100vh - 82px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+    <div class="card-header pb-3 pt-3 px-4 bg-white border-0 flex-shrink-0">
         <div class="row align-items-center g-3">
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-3">
@@ -11,13 +15,13 @@
             </div>
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-2">
-                    <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" class="flex-grow-1">
+                    <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" class="flex-grow-1" onsubmit="return false;">
                         <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                             <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari OPD..." style="box-shadow: none;">
+                            <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari OPD..." style="box-shadow: none;" autocomplete="off">
                         </div>
                     </form>
-                    <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/add" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none d-flex align-items-center" style="height: 40px; white-space: nowrap;">
+                    <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/add" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none d-flex align-items-center" style="height: 40px; white-space: nowrap; background-color: #154679; border-color: #154679;">
                         <i class="bi bi-plus-circle me-1"></i> Tambah OPD
                     </a>
                 </div>
@@ -25,9 +29,9 @@
         </div>
     </div>
     
-    <div class="card-body px-4 pt-0 pb-4">
-        <div class="table-responsive rounded-3 border border-light overflow-hidden">
-            <table class="table table-hover align-items-center mb-0">
+    <div class="card-body px-4 pt-0 pb-3 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+        <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: auto; min-height: 0; overflow-y: auto; overflow-x: auto;">
+            <table class="table table-hover align-middle mb-0 table-sticky-header">
                 <thead class="bg-gray-100">
                     <tr>
                         <th width="120" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Kode OPD</th>
@@ -46,7 +50,7 @@
                         foreach ($data as $b) {
                             $isOpd = (($b->jenis_instansi ?? 'vertikal') === 'opd');
                     ?>
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="hover:bg-gray-50 transition-colors opd-row">
                         <td class="text-center">
                             <span class="badge badge-sm bg-gray-100 text-dark font-weight-bold px-3 py-2 border-radius-md border border-light"><?php echo esc($b->id_unitkerja); ?></span>
                         </td>
@@ -90,12 +94,6 @@
                 </tbody>
             </table>
         </div>
-        
-        <?php if(!empty($pagi)): ?>
-        <div class="mt-4 pagination-container">
-            <?php echo $pagi; ?>
-        </div>
-        <?php endif; ?>
     </div>
 </div>
 
@@ -111,11 +109,11 @@
     .border-radius-md { border-radius: 0.4rem !important; }
     
     .bg-gray-50 { background-color: #fcfcfc !important; }
-    .bg-gray-100 { background-color: #f8f9fa !important; }
+    .bg-gray-100 { background-color: #f8fafc !important; }
     
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
     .bg-info-soft { background-color: rgba(17, 205, 239, 0.08) !important; color: #11cdef !important; }
-    .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.15) !important; }
     .border-info-soft { border: 1px solid rgba(17, 205, 239, 0.15) !important; }
 
     .bg-success-subtle { background-color: #d1fae5 !important; }
@@ -129,13 +127,22 @@
     .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }
     .table thead th { border-bottom: 0 !important; font-size: 0.75rem !important; }
     
+    .btn-outline-primary {
+        color: #154679 !important;
+        border-color: #154679 !important;
+    }
+    .btn-outline-primary:hover {
+        background-color: #154679 !important;
+        color: #fff !important;
+    }
+
     .input-group-alternative {
         transition: all 0.2s ease;
     }
     .input-group-alternative:focus-within {
         background-color: #fff !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-        border-color: #FF6D1F !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
+        border-color: #154679 !important;
     }
     
     .btn-icon-only {
@@ -152,48 +159,95 @@
     
     .dropdown-item:hover {
         background-color: #f8f9fa;
-        color: #FF6D1F;
+        color: #154679;
+    }
+
+    /* Pastikan flexbox container luar tidak mengompres kartu Master OPD */
+    .main-content {
+        min-height: auto !important;
+        padding-bottom: 12px !important;
+    }
+    .content-body {
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+    }
+    #mainMasterOpdCard {
+        height: auto !important;
+        max-height: calc(100vh - 82px) !important;
+        min-height: 0 !important;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0 !important;
+    }
+
+    /* Kontainer scroll internal Master OPD */
+    .table-scroll-container {
+        height: auto !important;
+        max-height: calc(100vh - 82px - 65px) !important;
+        min-height: 0 !important;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+    /* Custom Slim Scrollbar */
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Sticky Table Header */
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle !important;
     }
 </style>
 
 <script type="text/javascript">
 $(document).ready(function () {
-    // AJAX Live Search with Debounce
-    var searchTimer;
-    $("#inputSearchOPD").on("keyup", function() {
-        var value = $(this).val();
-        clearTimeout(searchTimer);
-        
-        // Local Filter (for instant feedback on current viewport)
-        var lowerValue = value.toLowerCase();
-        $("#tableOPDBody tr").filter(function() {
-            $(this).toggle($(this).text().toLowerCase().indexOf(lowerValue) > -1)
+    // Instant Client-Side Live Search across all loaded OPD rows
+    $("#inputSearchOPD").on("input", function() {
+        var value = $(this).val().toLowerCase().trim();
+        var $rows = $("#tableOPDBody tr.opd-row");
+        var visibleCount = 0;
+
+        $rows.each(function() {
+            var text = $(this).text().toLowerCase();
+            if (text.indexOf(value) > -1) {
+                $(this).show();
+                visibleCount++;
+            } else {
+                $(this).hide();
+            }
         });
 
-        // AJAX Global Search (after 400ms delay)
-        searchTimer = setTimeout(function() {
-            if (value.length >= 2 || value.length == 0) {
-                // Show loading indicator in table
-                if (value.length > 0) {
-                    $(".pagination-container").hide(); 
-                }
-
-                $.ajax({
-                    url: "<?php echo base_URL(); ?>index.php/admin/master_opd/cari",
-                    type: "POST",
-                    data: { q: value },
-                    success: function(response) {
-                        $("#tableOPDBody").html(response);
-                        // Hide pagination if searching
-                        if (value.length > 0) {
-                            $(".pagination-container").hide();
-                        } else {
-                            location.reload(); // Reload to restore pagination and original data
-                        }
-                    }
-                });
+        if (visibleCount === 0 && value.length > 0) {
+            if ($("#noDataRow").length === 0) {
+                $("#tableOPDBody").append('<tr id="noDataRow"><td colspan="6" class="text-center py-5 text-secondary font-weight-bold opacity-7"><i class="bi bi-search fs-2 d-block mb-2 text-muted"></i>Tidak ada OPD yang sesuai dengan kata kunci</td></tr>');
+            } else {
+                $("#noDataRow").show();
             }
-        }, 400);
+        } else {
+            $("#noDataRow").hide();
+        }
     });
 });
 </script>

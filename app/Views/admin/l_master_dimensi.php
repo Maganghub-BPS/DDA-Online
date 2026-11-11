@@ -51,7 +51,7 @@
 /* Level 0 (Utama) */
 .tree-item-row.level-0 {
     margin-left: 0;
-    border-left: 4px solid #FF6D1F;
+    border-left: 4px solid #154679;
 }
 .tree-item-row.level-0.theme-baris {
     border-left: 4px solid #2563EB;
@@ -317,6 +317,58 @@
     color: #64748b;
 }
 
+/* Pastikan flexbox container luar tidak mengompres kartu Master Dimensi */
+.main-content {
+    min-height: auto !important;
+    padding-bottom: 12px !important;
+}
+.content-body {
+    min-height: auto !important;
+    flex: 1 0 auto !important;
+}
+#mainMasterDimensiCard {
+    height: calc(100vh - 82px) !important;
+    min-height: 580px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Kontainer scroll internal Master Dimensi */
+.table-scroll-container {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+/* Custom Slim Scrollbar */
+.table-scroll-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.table-scroll-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+    border-radius: 4px;
+}
+
+/* Sticky Table Header */
+.table-scroll-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8fafc !important;
+    box-shadow: inset 0 -2px 0 #e2e8f0;
+    vertical-align: middle !important;
+}
+
 /* Master Dimensi Table Styling - Readable matching other admin pages */
 .table-dimensi {
     font-size: 0.875rem;
@@ -419,7 +471,7 @@
     background-color: #ffffff;
 }
 .btn-prefix-generate {
-    background: linear-gradient(135deg, #FF6D1F, #ff8c42);
+    background: linear-gradient(135deg, #154679, #1e5c9e);
     border: none;
     color: #ffffff;
     font-size: 0.75rem;
@@ -435,7 +487,7 @@
 }
 .btn-prefix-generate:hover,
 .btn-prefix-generate:active {
-    background: linear-gradient(135deg, #e55a10, #ff7a26);
+    background: linear-gradient(135deg, #0f355c, #154679);
     color: #ffffff;
 }
 .btn-prefix-clean {
@@ -475,8 +527,8 @@
     transition: all 0.2s ease;
 }
 .search-dimensi-box:focus-within {
-    border-color: #FF6D1F;
-    box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.15);
+    border-color: #154679;
+    box-shadow: 0 0 0 3px rgba(21, 70, 121, 0.15);
 }
 .search-dimensi-input {
     font-size: 0.84rem;
@@ -612,7 +664,7 @@
                                 <div class="text-secondary" style="font-size: 0.8rem;">Kolom & Sub-kolom Asimetris</div>
                             </div>
                             <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" 
-                                 style="background: #FFF4ED; color: #FF6D1F; width: 42px; height: 42px;">
+                                 style="background: #eef4fb; color: #154679; width: 42px; height: 42px;">
                                 <i class="bi bi-layout-three-columns fs-5"></i>
                             </div>
                         </div>
@@ -623,7 +675,7 @@
                     </div>
                     <div class="pt-2 border-top mt-2">
                         <?php if ($active_tab === 'karakteristik'): ?>
-                            <button type="button" class="btn btn-sm text-white w-100 fw-semibold py-1.5 shadow-xs" style="background: #FF6D1F; border: none; border-radius: 8px; font-size: 0.84rem;" disabled>
+                            <button type="button" class="btn btn-sm text-white w-100 fw-semibold py-1.5 shadow-xs" style="background: #154679; border: none; border-radius: 8px; font-size: 0.84rem;" disabled>
                                 <i class="bi bi-check2-circle me-1"></i> Sedang Ditampilkan
                             </button>
                         <?php else: ?>
@@ -649,7 +701,7 @@
                                 <div class="text-secondary" style="font-size: 0.8rem;">Hierarki & Klasifikasi Baris</div>
                             </div>
                             <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" 
-                                 style="background: #FFF4ED; color: #FF6D1F; width: 42px; height: 42px;">
+                                 style="background: #eef4fb; color: #154679; width: 42px; height: 42px;">
                                 <i class="bi bi-list-nested fs-5"></i>
                             </div>
                         </div>
@@ -660,7 +712,7 @@
                     </div>
                     <div class="pt-2 border-top mt-2">
                         <?php if ($active_tab === 'baris'): ?>
-                            <button type="button" class="btn btn-sm text-white w-100 fw-semibold py-1.5 shadow-xs" style="background: #FF6D1F; border: none; border-radius: 8px; font-size: 0.84rem;" disabled>
+                            <button type="button" class="btn btn-sm text-white w-100 fw-semibold py-1.5 shadow-xs" style="background: #154679; border: none; border-radius: 8px; font-size: 0.84rem;" disabled>
                                 <i class="bi bi-check2-circle me-1"></i> Sedang Ditampilkan
                             </button>
                         <?php else: ?>
@@ -686,7 +738,7 @@
                                 <div class="text-secondary" style="font-size: 0.8rem;">Tahun, Triwulan, & Seri Waktu</div>
                             </div>
                             <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" 
-                                 style="background: #FFF4ED; color: #FF6D1F; width: 42px; height: 42px;">
+                                 style="background: #eef4fb; color: #154679; width: 42px; height: 42px;">
                                 <i class="bi bi-calendar3 fs-5"></i>
                             </div>
                         </div>
@@ -697,7 +749,7 @@
                     </div>
                     <div class="pt-2 border-top mt-2">
                         <?php if ($active_tab === 'periode'): ?>
-                            <button type="button" class="btn btn-sm text-white w-100 fw-semibold py-1.5 shadow-xs" style="background: #FF6D1F; border: none; border-radius: 8px; font-size: 0.84rem;" disabled>
+                            <button type="button" class="btn btn-sm text-white w-100 fw-semibold py-1.5 shadow-xs" style="background: #154679; border: none; border-radius: 8px; font-size: 0.84rem;" disabled>
                                 <i class="bi bi-check2-circle me-1"></i> Sedang Ditampilkan
                             </button>
                         <?php else: ?>
@@ -712,11 +764,11 @@
     </div>
 
     <!-- Main Content Card -->
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; border: 1px solid #e2e8f0 !important;">
-        <div class="card-body p-3 p-md-4">
+    <div class="card border-0 shadow-sm mb-0" id="mainMasterDimensiCard" style="border-radius: 12px; border: 1px solid #e2e8f0 !important; height: calc(100vh - 82px); min-height: 580px; display: flex; flex-direction: column; overflow: visible; flex-shrink: 0;">
+        <div class="card-body p-3 p-md-4 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: visible;">
             <!-- TAB 1: KARAKTERISTIK (KOLOM & SUB-KOLOM ASIMETRIS) -->
             <?php if ($active_tab === 'karakteristik'): ?>
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 flex-shrink-0">
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Karakteristik (Dimensi Kolom)</h5>
                     </div>
@@ -733,15 +785,15 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
-                                style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
+                                style="background: linear-gradient(45deg, #154679, #1e5c9e); border: none;"
                                 data-bs-toggle="modal" data-bs-target="#modalAddKarakteristik">
                             <i class="bi bi-plus-circle me-1"></i> Tambah Kelompok Kolom
                         </button>
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-dimensi" id="table_dimensi_karakteristik">
+                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                    <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_karakteristik">
                         <thead>
                             <tr>
                                 <th width="6%" class="text-center">No.</th>
@@ -769,7 +821,7 @@
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-center">
-                                            <span class="badge rounded-pill item-badge <?= $k->total_items > 0 ? 'bg-primary-soft text-primary-orange border border-warning' : 'bg-light text-secondary border'; ?>">
+                                            <span class="badge rounded-pill item-badge <?= $k->total_items > 0 ? 'bg-primary-soft text-primary border' : 'bg-light text-secondary border'; ?>">
                                                 <i class="bi bi-columns-gap me-1"></i> <?= $k->total_items; ?> Kolom
                                             </span>
                                         </td>
@@ -787,8 +839,9 @@
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
                                                 <a href="<?= base_url('admin/master_dimensi/del_karakteristik/' . $k->id); ?>"
-                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi"
-                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus kelompok karakteristik ini beserta semua item kolomnya?');"
+                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi btn-del-confirm"
+                                                   data-name="<?= esc($k->nama_kelompok_ind); ?>"
+                                                   data-type="Karakteristik Kolom"
                                                    title="Hapus Kelompok">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
@@ -803,23 +856,11 @@
 
             <!-- TAB 2: JUDUL BARIS BERTINGKAT -->
             <?php elseif ($active_tab === 'baris'): ?>
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 flex-shrink-0">
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Judul Baris (Dimensi Baris)</h5>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <!-- Filter Cepat Satuan || -->
-                        <div class="filter-pipe-wrapper">
-                            <select id="filter_satuan_baris" class="form-select form-select-sm shadow-xs fw-semibold border"
-                                    style="border-radius: 10px; height: 38px; min-width: 195px; font-size: 0.82rem; cursor: pointer; background-color: #fff9f5; border-color: #fed7aa !important;">
-                                <option value="all">Semua Kelompok (<?= count($list_baris); ?>)</option>
-                                <option value="pipe" style="color: #c2410c; font-weight: bold;">
-                                    ⚡ Ada Satuan (||) (<?= $total_baris_with_pipe ?? 0; ?>)
-                                </option>
-                                <option value="no_pipe">Bersih / Tanpa (||)</option>
-                            </select>
-                        </div>
-
                         <!-- Kotak Pencarian Realtime Judul Baris -->
                         <div class="search-dimensi-wrapper">
                             <div class="search-dimensi-box shadow-xs">
@@ -832,15 +873,15 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
-                                style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
+                                style="background: linear-gradient(45deg, #154679, #1e5c9e); border: none;"
                                 data-bs-toggle="modal" data-bs-target="#modalAddBaris">
                             <i class="bi bi-plus-circle me-1"></i> Tambah Kelompok Baris
                         </button>
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-dimensi" id="table_dimensi_baris">
+                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                    <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_baris">
                         <thead>
                             <tr>
                                 <th width="6%" class="text-center">No.</th>
@@ -919,8 +960,9 @@
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
                                                 <a href="<?= base_url('admin/master_dimensi/del_baris/' . $b->id); ?>"
-                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi"
-                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus kelompok baris ini beserta seluruh itemnya?');"
+                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi btn-del-confirm"
+                                                   data-name="<?= esc($b->nama_kelompok_ind); ?>"
+                                                   data-type="Judul Baris"
                                                    title="Hapus Kelompok">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
@@ -935,7 +977,7 @@
 
             <!-- TAB 3: PERIODE WAKTU -->
             <?php elseif ($active_tab === 'periode'): ?>
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 flex-shrink-0">
                     <div>
                         <h5 class="fw-bold mb-0 text-dark">Daftar Kelompok Periode Waktu (Dimensi Waktu)</h5>
                     </div>
@@ -952,7 +994,7 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm px-3 py-2 rounded-3 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
-                                style="background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;"
+                                style="background: linear-gradient(45deg, #154679, #1e5c9e); border: none;"
                                 data-bs-toggle="modal" data-bs-target="#modalAddPeriode">
                             <i class="bi bi-plus-circle me-1"></i> Tambah Kelompok Periode
                         </button>
@@ -960,15 +1002,15 @@
                 </div>
 
                 <!-- Info Banner Dimensi Waktu Multi-Tahun -->
-                <div class="alert alert-info border-0 rounded-3 shadow-xs d-flex align-items-center gap-3 py-2 px-3 mb-3" style="background-color: #E8F4FD; color: #0C5460;">
+                <div class="alert alert-info border-0 rounded-3 shadow-xs d-flex align-items-center gap-3 py-2 px-3 mb-3 flex-shrink-0" style="background-color: #E8F4FD; color: #0C5460;">
                     <i class="bi bi-info-circle-fill fs-4 text-info"></i>
                     <div class="small">
                         <strong>Informasi Dimensi Waktu:</strong> Periode <strong>Tahunan (2020..2026+)</strong> dan <strong>Tahun Ajaran (YYYY/YYYY+1)</strong> dikelola otomatis oleh sistem secara multi-tahun. Tab ini khusus untuk melihat <strong>Periode Standar BPS</strong> (Bulanan, Triwulanan, Semesteran, dll.) serta mengelola <strong>Periode Kustom Sub-Tahunan</strong>.
                     </div>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 table-dimensi" id="table_dimensi_periode">
+                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                    <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_periode">
                         <thead>
                             <tr>
                                 <th width="6%" class="text-center">No.</th>
@@ -992,11 +1034,7 @@
                                         <td>
                                             <div class="item-title"><?= esc($p->nama_kelompok_ind); ?></div>
                                             <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
-                                                <?php if (($p->kategori_periode ?? '') === 'standar'): ?>
-                                                    <span class="badge bg-primary-subtle text-primary border border-primary small px-2 py-0" style="font-size: 0.75rem;" title="Periode Standar BPS Bawaan Sistem">
-                                                        <i class="bi bi-star-fill me-1 text-warning"></i>Standar BPS
-                                                    </span>
-                                                <?php else: ?>
+                                                <?php if (($p->kategori_periode ?? '') !== 'standar'): ?>
                                                     <span class="badge bg-secondary-subtle text-secondary border small px-2 py-0" style="font-size: 0.75rem;" title="Periode Kustom">
                                                         <i class="bi bi-gear-fill me-1"></i>Periode Kustom
                                                     </span>
@@ -1039,8 +1077,9 @@
                                                     </button>
                                                 <?php else: ?>
                                                     <a href="<?= base_url('admin/master_dimensi/del_periode/' . $p->id); ?>"
-                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi"
-                                                   onclick="return confirm('Apakah Anda yakin ingin menghapus kelompok periode ini beserta seluruh itemnya?');"
+                                                   class="btn btn-sm btn-outline-danger rounded-3 btn-action-dimensi btn-del-confirm"
+                                                   data-name="<?= esc($p->nama_kelompok_ind); ?>"
+                                                   data-type="Periode Waktu"
                                                    title="Hapus Kelompok">
                                                     <i class="bi bi-trash"></i>
                                                 </a>
@@ -1065,9 +1104,9 @@
 <div class="modal fade" id="modalAddKarakteristik" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow" style="border-radius: 16px;">
-            <div class="modal-header border-bottom py-3 px-4" style="background: #FFF4ED;">
+            <div class="modal-header border-bottom py-3 px-4" style="background: #eef4fb;">
                 <div>
-                    <h5 class="modal-title fw-bold text-dark mb-0"><i class="bi bi-plus-circle-fill text-primary-orange me-2"></i>Tambah Kelompok Karakteristik (Kolom)</h5>
+                    <h5 class="modal-title fw-bold text-dark mb-0"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Tambah Kelompok Karakteristik (Kolom)</h5>
                     <div class="small text-muted">Input nama kelompok, sub-kolom dwibahasa, dan pantau Live Preview struktur tabelnya secara real-time</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -1091,9 +1130,9 @@
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <label class="form-label fw-bold text-dark small mb-0">
-                                <i class="bi bi-layout-three-columns text-primary-orange me-1"></i> Item Karakteristik Kolom
+                                <i class="bi bi-layout-three-columns text-primary me-1"></i> Item Karakteristik Kolom
                             </label>
-                            <span class="badge bg-primary-soft text-primary-orange border" id="add_kolom_count">0 Kolom</span>
+                            <span class="badge bg-primary-soft text-primary border" id="add_kolom_count">0 Kolom</span>
                         </div>
                         <div class="tree-builder-card">
                             <div class="tree-builder-header d-flex justify-content-between align-items-center">
@@ -1118,7 +1157,7 @@
                     <div class="border rounded-3 p-3 bg-light shadow-inner">
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <div class="fw-bold text-dark small"><i class="bi bi-eye-fill text-primary me-1"></i> Live Visual Header Preview (Real-Time)</div>
-                            <span class="badge bg-primary-soft text-primary-orange border small px-2 py-1"><i class="bi bi-translate me-1"></i> Dwibahasa (ID / EN)</span>
+                            <span class="badge bg-primary-soft text-primary border small px-2 py-1"><i class="bi bi-translate me-1"></i> Dwibahasa (ID / EN)</span>
                         </div>
                         <div class="table-responsive bg-white rounded-2 border" style="min-height: 120px; overflow-x: auto;">
                             <table class="table table-bordered text-center align-middle mb-0" id="table_preview_add_kolom">
@@ -1131,7 +1170,7 @@
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light">
                     <button type="button" class="btn btn-secondary btn-sm px-3 rounded-3" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #FF6D1F; border: none;">Simpan Kelompok</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #154679; border: none;">Simpan Kelompok</button>
                 </div>
             </form>
         </div>
@@ -1187,9 +1226,9 @@
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <label class="form-label fw-bold text-dark small mb-0">
-                                <i class="bi bi-layout-three-columns text-primary-orange me-1"></i> Item Karakteristik Kolom
+                                <i class="bi bi-layout-three-columns text-primary me-1"></i> Item Karakteristik Kolom
                             </label>
-                            <span class="badge bg-primary-soft text-primary-orange border" id="manage_kolom_count">0 Kolom</span>
+                            <span class="badge bg-primary-soft text-primary border" id="manage_kolom_count">0 Kolom</span>
                         </div>
                         <div class="tree-builder-card">
                             <div class="tree-builder-header d-flex justify-content-between align-items-center">
@@ -1211,7 +1250,7 @@
                     <div class="border rounded-3 p-3 bg-light shadow-inner">
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                             <h6 class="fw-bold text-dark mb-0"><i class="bi bi-eye-fill text-primary me-1"></i> Live Visual Header Preview</h6>
-                            <span class="badge bg-primary-soft text-primary-orange border small px-2 py-1"><i class="bi bi-translate me-1"></i> Dwibahasa (ID / EN)</span>
+                            <span class="badge bg-primary-soft text-primary border small px-2 py-1"><i class="bi bi-translate me-1"></i> Dwibahasa (ID / EN)</span>
                         </div>
                         <div class="border rounded-2 p-2 bg-white table-responsive" style="min-height: 120px; overflow-x: auto;">
                             <table class="table table-bordered text-center align-middle mb-0" id="preview_table_kolom">
@@ -1222,7 +1261,7 @@
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary btn-sm px-4 rounded-3" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #FF6D1F; border: none;">
+                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #154679; border: none;">
                         <i class="bi bi-check2-circle me-1"></i> Simpan Kolom
                     </button>
                 </div>
@@ -1263,27 +1302,27 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
-                                    <i class="bi bi-table text-primary-orange me-1"></i>Judul Header Tabel Baris (Indonesia) <span class="text-danger">*</span>
+                                    <i class="bi bi-table text-primary me-1"></i>Judul Header Tabel Baris (Indonesia) <span class="text-danger">*</span>
                                 </label>
                                 <input type="text" name="judul_baris_ind" id="add_baris_judul_ind" class="form-control form-control-sm" required>
                                 <div class="form-text text-xxs text-muted">Judul di kepala baris tabel publikasi & Excel (boleh sama antar kelompok). Otomatis terisi.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
-                                    <i class="bi bi-translate text-primary-orange me-1"></i>Judul Header Tabel Baris (English)
+                                    <i class="bi bi-translate text-primary me-1"></i>Judul Header Tabel Baris (English)
                                 </label>
                                 <input type="text" name="judul_baris_en" id="add_baris_judul_en" class="form-control form-control-sm">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
-                                    <i class="bi bi-layout-split text-primary-orange me-1"></i>Judul Kolom Rincian / Sub-Baris (Indonesia)
+                                    <i class="bi bi-layout-split text-primary me-1"></i>Judul Kolom Rincian / Sub-Baris (Indonesia)
                                 </label>
                                 <input type="text" name="judul_sub_baris_ind" id="add_baris_judul_sub_ind" class="form-control form-control-sm">
                                 <div class="form-text text-xxs text-muted">Kosongkan jika baris biasa (1 kolom). Isi jika baris bertingkat 2 kolom (misal: Provinsi).</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold text-dark small mb-1">
-                                    <i class="bi bi-translate text-primary-orange me-1"></i>Judul Kolom Rincian / Sub-Baris (English)
+                                    <i class="bi bi-translate text-primary me-1"></i>Judul Kolom Rincian / Sub-Baris (English)
                                 </label>
                                 <input type="text" name="judul_sub_baris_en" id="add_baris_judul_sub_en" class="form-control form-control-sm">
                             </div>
@@ -1392,7 +1431,7 @@
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light">
                     <button type="button" class="btn btn-secondary btn-sm px-3 rounded-3" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #FF6D1F; border: none;">Simpan Kelompok Baris</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #154679; border: none;">Simpan Kelompok Baris</button>
                 </div>
             </form>
         </div>
@@ -1422,21 +1461,21 @@
                     </div>
                     <hr class="my-3">
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-table me-1"></i>Judul Header Tabel Baris (Bahasa Indonesia) <span class="text-danger">*</span></label>
+                        <label class="form-label fw-bold small text-primary"><i class="bi bi-table me-1"></i>Judul Header Tabel Baris (Bahasa Indonesia) <span class="text-danger">*</span></label>
                         <input type="text" name="judul_baris_ind" id="edit_baris_judul_ind" class="form-control" required>
                         <div class="form-text small text-muted">Teks kepala baris di web publikasi dan Excel (boleh sama antar kelompok).</div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-translate me-1"></i>Judul Header Tabel Baris (English)</label>
+                        <label class="form-label fw-bold small text-primary"><i class="bi bi-translate me-1"></i>Judul Header Tabel Baris (English)</label>
                         <input type="text" name="judul_baris_en" id="edit_baris_judul_en" class="form-control">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-layout-split me-1"></i>Judul Kolom Rincian / Sub-Baris (Bahasa Indonesia)</label>
+                        <label class="form-label fw-bold small text-primary"><i class="bi bi-layout-split me-1"></i>Judul Kolom Rincian / Sub-Baris (Bahasa Indonesia)</label>
                         <input type="text" name="judul_sub_baris_ind" id="edit_baris_judul_sub_ind" class="form-control">
                         <div class="form-text small text-muted">Kosongkan jika baris biasa (1 kolom). Isi jika baris bertingkat 2 kolom (misal: Provinsi).</div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-primary-orange"><i class="bi bi-translate me-1"></i>Judul Kolom Rincian / Sub-Baris (English)</label>
+                        <label class="form-label fw-bold small text-primary"><i class="bi bi-translate me-1"></i>Judul Kolom Rincian / Sub-Baris (English)</label>
                         <input type="text" name="judul_sub_baris_en" id="edit_baris_judul_sub_en" class="form-control">
                     </div>
                 </div>
@@ -1478,7 +1517,7 @@
                                 <i class="bi bi-lightning-charge-fill text-warning fs-5"></i>
                                 <span>Terdeteksi <strong><span id="manage_baris_satuan_count">0</span> item</strong> baris memiliki format satuan (<code>||</code>). Ingin dipisahkan otomatis ke Sub-Baris?</span>
                             </div>
-                            <button type="button" class="btn btn-sm btn-primary fw-bold" id="btn_alert_split_satuan" style="background: #FF6D1F; border: none;">
+                            <button type="button" class="btn btn-sm btn-primary fw-bold" id="btn_alert_split_satuan" style="background: #154679; border: none;">
                                 <i class="bi bi-magic me-1"></i> Pisahkan Sekarang
                             </button>
                         </div>
@@ -1571,7 +1610,7 @@
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary btn-sm px-4 rounded-3" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #FF6D1F; border: none;">
+                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #154679; border: none;">
                         <i class="bi bi-check2-circle me-1"></i> Simpan Baris
                     </button>
                 </div>
@@ -1673,7 +1712,7 @@
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light">
                     <button type="button" class="btn btn-secondary btn-sm px-3 rounded-3" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #FF6D1F; border: none;">Simpan Kelompok Periode</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #154679; border: none;">Simpan Kelompok Periode</button>
                 </div>
             </form>
         </div>
@@ -1779,7 +1818,7 @@
                 </div>
                 <div class="modal-footer border-top px-4 py-3 bg-light d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary btn-sm px-4 rounded-3" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #FF6D1F; border: none;">
+                    <button type="submit" class="btn btn-primary btn-sm px-4 rounded-3 fw-bold" style="background: #154679; border: none;">
                         <i class="bi bi-check2-circle me-1"></i> Simpan Daftar Periode
                     </button>
                 </div>
@@ -3461,7 +3500,7 @@ $(document).ready(function() {
                     icon: 'warning',
                     title: 'Judul Sudah Ada!',
                     text: 'Judul kelompok dimensi ini sudah digunakan. Silakan gunakan judul lain.',
-                    confirmButtonColor: '#ff6d1f'
+                    confirmButtonColor: '#154679'
                 });
                 return false;
             }
@@ -3616,9 +3655,43 @@ $(document).ready(function() {
         });
     }
 
+    // Global Handler: SweetAlert2 Konfirmasi Hapus Kelompok Dimensi (Karakteristik, Baris, Periode)
+    $(document).on('click', '.btn-del-confirm', function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        const name = $(this).data('name') || 'kelompok dimensi ini';
+        const type = $(this).data('type') || 'Kelompok Dimensi';
+
+        Swal.fire({
+            title: 'Hapus ' + type + '?',
+            html: 'Apakah Anda yakin ingin menghapus kelompok <strong>' + $('<div>').text(name).html() + '</strong> beserta seluruh item di dalamnya?<br><span class="text-danger small mt-2 d-inline-block">Tindakan ini tidak dapat dibatalkan.</span>',
+            icon: 'warning',
+            iconColor: '#e11d48',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+            reverseButtons: true,
+            focusCancel: true,
+            width: '420px',
+            customClass: {
+                popup: 'rounded-4 shadow border-0 p-4',
+                title: 'fs-5 fw-bold text-dark mb-1',
+                htmlContainer: 'text-muted small m-0 mb-3',
+                actions: 'gap-2 mt-2 w-100 justify-content-center',
+                confirmButton: 'btn btn-danger px-4 py-2 rounded-3 fw-medium',
+                cancelButton: 'btn btn-light border px-4 py-2 rounded-3 text-secondary fw-medium'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = url;
+            }
+        });
+    });
+
     // Aktifkan pencarian di ketiga tab Master Dimensi
     initDimensiLiveSearch('#search_master_karakteristik', '#table_dimensi_karakteristik', '#clear_search_karakteristik', '#count_search_karakteristik', 'karakteristik');
-    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris', '#filter_satuan_baris');
+    initDimensiLiveSearch('#search_master_baris', '#table_dimensi_baris', '#clear_search_baris', '#count_search_baris', 'judul baris');
     initDimensiLiveSearch('#search_master_periode', '#table_dimensi_periode', '#clear_search_periode', '#count_search_periode', 'periode');
 
     // Global keyboard shortcut '/' atau 'Ctrl+K' untuk langsung fokus ke input pencarian dimensi
