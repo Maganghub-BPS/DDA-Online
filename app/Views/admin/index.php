@@ -583,10 +583,10 @@
         <!-- ===== SIDEBAR ===== -->
         <aside id="sidebar">
             <div class="sidebar-header">
-                <img src="<?php echo base_url(); ?>aset/favicon.png" alt="Logo">
+                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png" alt="Logo AKSARA" style="width: 38px; height: 38px; object-fit: contain;">
                 <div>
-                    <div class="brand-text">DDA Online</div>
-                    <div class="brand-sub">Jateng Dalam Angka</div>
+                    <div class="brand-text">AKSARA</div>
+                    <div class="brand-sub" title="Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat">Jateng Dalam Angka</div>
                 </div>
             </div>
 
@@ -802,6 +802,10 @@
                     <?php echo view('admin/' . $page); ?>
                 </div>
             </div>
+            <!-- Footer -->
+            <footer class="footer">
+                <strong>BPS Jateng</strong> &copy; BPS Provinsi Jawa Tengah — AKSARA
+            </footer>
         </main>
     </div>
 

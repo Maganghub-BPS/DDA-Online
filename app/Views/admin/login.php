@@ -3,7 +3,7 @@
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>.:: Jateng Dalam Angka — Login ::.</title>
+    <title>AKSARA — Login Pengelola</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
 
@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="<?php echo base_url('aset/images/logo-dda.svg'); ?>">
+    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>">
     <link rel="alternate icon" type="image/png" href="<?php echo base_url('aset/favicon.png'); ?>">
 
     <style>
@@ -103,9 +103,10 @@
         }
 
         .brand-logo-icon {
-            width: 26px;
-            height: 26px;
+            width: 38px;
+            height: 38px;
             object-fit: contain;
+            flex-shrink: 0;
         }
 
         .brand-logo-text {
@@ -114,22 +115,20 @@
         }
 
         .brand-logo-title {
-            font-size: 1.25rem;
+            font-size: 1.45rem;
             font-weight: 800;
             color: var(--brand-navy);
-            letter-spacing: -0.3px;
-            line-height: 1.2;
-        }
-
-        .brand-logo-title span {
-            color: var(--primary-orange);
+            letter-spacing: -0.4px;
+            line-height: 1.15;
         }
 
         .brand-logo-sub {
-            font-size: 0.74rem;
+            font-size: 0.80rem;
             color: var(--text-muted);
             font-weight: 600;
             letter-spacing: 0.2px;
+            line-height: 1.25;
+            margin-top: 2px;
         }
 
         /* -------------------------------------------------------------
@@ -156,13 +155,14 @@
         }
 
         .headline-text {
-            font-size: clamp(2.3rem, 3.8vw, 3.1rem);
+            font-size: clamp(2.1rem, 3.4vw, 2.75rem);
             font-weight: 800;
-            line-height: 1.16;
+            line-height: 1.22;
             letter-spacing: -0.03em;
             color: var(--brand-navy);
             margin-bottom: 20px;
             transform: none !important;
+            text-wrap: balance;
         }
 
         .headline-text span.text-orange {
@@ -173,11 +173,13 @@
         }
 
         .headline-description {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             color: var(--text-slate);
-            line-height: 1.65;
+            line-height: 1.7;
             margin-bottom: 0;
             font-weight: 500;
+            text-align: justify;
+            text-justify: inter-word;
             transform: none !important;
         }
 
@@ -450,16 +452,13 @@
 
     <!-- 1. TOP HEADER NAVBAR (Hanya Logo & Instansi, Tanpa Tombol Kembali) -->
     <header class="top-navbar">
-        <a href="<?php echo base_url(); ?>" class="brand-logo-link">
-            <div class="brand-logo-badge">
-                <img src="<?php echo base_url('aset/images/logo-dda.svg'); ?>" 
-                     alt="Logo DDA Online" 
-                     class="brand-logo-icon"
-                     onerror="this.onerror=null; this.src='<?php echo base_url('aset/images/logo-dda.png'); ?>';">
-            </div>
+        <a href="<?php echo base_url(); ?>" class="brand-logo-link" title="AKSARA: Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat">
+            <img src="<?php echo base_url('aset/images/logo-aksara.png'); ?>" 
+                 alt="Logo AKSARA" 
+                 class="brand-logo-icon">
             <div class="brand-logo-text">
-                <span class="brand-logo-title">DDA <span>Online</span></span>
-                <span class="brand-logo-sub">Provinsi Jawa Tengah</span>
+                <span class="brand-logo-title">AKSARA</span>
+                <span class="brand-logo-sub">Akses Kumpulan Statistik, Angka, dan Rekapitulasi Akurat</span>
             </div>
         </a>
     </header>
@@ -470,8 +469,7 @@
         <section class="hero-left-section">
             <!-- Judul Utama -->
             <h1 class="headline-text">
-                Satu Data,<br>
-                <span class="text-orange">Daerah Dalam Angka.</span>
+                Satu Data, <span class="text-orange">Daerah Dalam Angka.</span>
             </h1>
 
             <!-- Subjudul Deskripsi -->
@@ -567,7 +565,7 @@
 
     <!-- 3. FOOTER -->
     <footer class="page-footer">
-        DDA Online &copy; <?php echo date('Y'); ?> 
+        AKSARA &copy; <?php echo date('Y'); ?> 
         <a href="http://jateng.bps.go.id" target="_blank" rel="noopener">BPS Provinsi Jawa Tengah</a>
     </footer>
 
