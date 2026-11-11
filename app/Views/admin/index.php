@@ -12,8 +12,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts Preconnect & Stylesheet -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=optional" rel="stylesheet">
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="<?php echo base_url(); ?>aset/favicon.png">
 
@@ -61,7 +63,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            font-family: 'Public Sans', sans-serif;
+            font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: var(--content-bg);
         }
 
@@ -152,6 +154,53 @@
 
         .pagination .page-link:focus {
             box-shadow: 0 0 0 0.25rem rgba(21, 70, 121, 0.1) !important;
+        }
+
+        /* ===== CORE ADMIN TYPOGRAPHY & TABLE UTILITIES (MENCEGAH FOUC / LAYOUT JUMP) ===== */
+        .ls-1 { letter-spacing: 0.8px; }
+        .text-xxs { font-size: 0.75rem !important; }
+        .text-xs { font-size: 0.82rem !important; }
+        .text-sm { font-size: 0.92rem !important; }
+        .font-weight-bolder { font-weight: 800 !important; }
+
+        .border-radius-2xl { border-radius: 1.25rem !important; }
+        .border-radius-lg { border-radius: 0.6rem !important; }
+        .border-radius-md { border-radius: 0.4rem !important; }
+
+        /* Global Sticky Header & Slim Scrollbar untuk Tabel Admin */
+        .table-scroll-container {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            overflow-x: auto;
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        .table-scroll-container thead th,
+        .table-sticky-header thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f8fafc !important;
+            box-shadow: inset 0 -2px 0 #e2e8f0;
+            vertical-align: middle !important;
+        }
+
+        .table-scroll-container::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .table-scroll-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .table-scroll-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .table-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
 
         /* ===== WRAPPER LAYOUT ===== */
@@ -807,7 +856,26 @@
 
     <!-- Sidebar Toggle & Global UI Handler Script -->
     <script>
+        // Nonaktifkan pemulihan scroll otomatis bawaan browser agar saat refresh (F5) selalu mulai dari paling atas
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+
+        window.addEventListener('beforeunload', function() {
+            var content = document.getElementById('content');
+            if (content) content.scrollTop = 0;
+            document.querySelectorAll('.table-scroll-container').forEach(function(el) {
+                el.scrollTop = 0;
+            });
+        });
+
         $(document).ready(function() {
+            var content = document.getElementById('content');
+            if (content) {
+                content.scrollTop = 0;
+            }
+            $('.table-scroll-container').scrollTop(0);
+
             // Global CSRF Protection Setup for AJAX & Forms
             var csrfTokenName = '<?= csrf_token() ?>';
             var csrfHash = '<?= csrf_hash() ?>';

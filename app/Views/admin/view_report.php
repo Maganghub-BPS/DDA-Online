@@ -1,3 +1,195 @@
+<style>
+    .text-sm {
+        font-size: 0.875rem !important;
+    }
+
+    .text-md {
+        font-size: 1rem !important;
+    }
+
+    .text-lg {
+        font-size: 1.125rem !important;
+    }
+
+    .ls-1 {
+        letter-spacing: 0.8px;
+    }
+
+    .text-xxs {
+        font-size: 0.75rem !important;
+    }
+
+    .text-xs {
+        font-size: 0.82rem !important;
+    }
+
+    .text-sm {
+        font-size: 0.92rem !important;
+    }
+
+    .font-weight-bolder {
+        font-weight: 800 !important;
+    }
+
+    .border-radius-2xl {
+        border-radius: 1.25rem !important;
+    }
+
+    .border-radius-lg {
+        border-radius: 0.6rem !important;
+    }
+
+    .border-radius-md {
+        border-radius: 0.4rem !important;
+    }
+
+    .bg-gray-100 {
+        background-color: #f8f9fa !important;
+    }
+
+    .bg-primary-soft {
+        background-color: rgba(255, 109, 31, 0.08) !important;
+        color: #FF6D1F !important;
+    }
+
+    .bg-danger-soft {
+        background-color: rgba(234, 6, 6, 0.08) !important;
+        color: #ea0606 !important;
+    }
+
+    .bg-success-soft {
+        background-color: rgba(45, 206, 137, 0.08) !important;
+        color: #2dce89 !important;
+    }
+
+    .bg-info-soft {
+        background-color: rgba(17, 205, 239, 0.08) !important;
+        color: #11cdef !important;
+    }
+
+    .border-primary-soft {
+        border: 1px solid rgba(255, 109, 31, 0.15) !important;
+    }
+
+    .border-danger-soft {
+        border: 1px solid rgba(234, 6, 6, 0.15) !important;
+    }
+
+    .border-success-soft {
+        border: 1px solid rgba(45, 206, 137, 0.15) !important;
+    }
+
+    .border-info-soft {
+        border: 1px solid rgba(17, 205, 239, 0.15) !important;
+    }
+
+    .table td,
+    .table th {
+        border-color: #f1f1f1 !important;
+        vertical-align: middle !important;
+        font-size: 0.95rem !important;
+    }
+
+    .table thead th {
+        border-bottom: 0 !important;
+        font-size: 0.75rem !important;
+    }
+
+    .table th {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-size: 0.85rem !important;
+        color: #344767 !important;
+        background-color: #f8f9fa !important;
+    }
+
+    .table td {
+        vertical-align: middle !important;
+        padding-top: 1.25rem !important;
+        padding-bottom: 1.25rem !important;
+        font-size: 1rem !important;
+        color: #444 !important;
+    }
+
+    .progress-wrapper {
+        min-width: 130px;
+    }
+
+    .badge {
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        padding: 0.55em 1em !important;
+        border-radius: 6px !important;
+    }
+
+    .bg-gray-100 {
+        background-color: #f8f9fa !important;
+    }
+
+    .divide-y>*+* {
+        border-top-width: 1px;
+    }
+
+    .divide-gray-100>*+* {
+        border-color: #f1f1f1;
+    }
+
+    .hover\:bg-gray-50:hover {
+        background-color: #fafafa;
+    }
+
+    .transition-colors {
+        transition: background-color 0.2s ease;
+    }
+
+    .bg-danger-soft {
+        background-color: rgba(234, 6, 6, 0.05) !important;
+    }
+
+    .bg-warning-soft {
+        background-color: rgba(251, 207, 51, 0.1) !important;
+    }
+
+    .bg-success-soft {
+        background-color: rgba(45, 206, 137, 0.1) !important;
+    }
+
+    .progress-bar.bg-info {
+        background-color: #11cdef !important;
+    }
+
+    .progress-bar.bg-danger {
+        background: linear-gradient(310deg, #ea0606 0%, #ff667c 100%) !important;
+    }
+
+    .progress-bar.bg-warning {
+        background: linear-gradient(310deg, #fbcf33 0%, #fbe07d 100%) !important;
+    }
+
+    .progress-bar.bg-success {
+        background: linear-gradient(310deg, #2dce89 0%, #2dcecc 100%) !important;
+    }
+
+    .badge {
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        padding: 0.35em 0.65em;
+    }
+
+    .border-radius-lg {
+        border-radius: 0.5rem;
+    }
+
+    .opacity-3 {
+        opacity: 0.3;
+    }
+
+    .opacity-5 {
+        opacity: 0.5;
+    }
+</style>
+
 <?php
 $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0';
 
@@ -378,195 +570,3 @@ if ($jenis_rekap == '2') {
 <?php
 }
 ?>
-
-<style>
-    .text-sm {
-        font-size: 0.875rem !important;
-    }
-
-    .text-md {
-        font-size: 1rem !important;
-    }
-
-    .text-lg {
-        font-size: 1.125rem !important;
-    }
-
-    .ls-1 {
-        letter-spacing: 0.8px;
-    }
-
-    .text-xxs {
-        font-size: 0.75rem !important;
-    }
-
-    .text-xs {
-        font-size: 0.82rem !important;
-    }
-
-    .text-sm {
-        font-size: 0.92rem !important;
-    }
-
-    .font-weight-bolder {
-        font-weight: 800 !important;
-    }
-
-    .border-radius-2xl {
-        border-radius: 1.25rem !important;
-    }
-
-    .border-radius-lg {
-        border-radius: 0.6rem !important;
-    }
-
-    .border-radius-md {
-        border-radius: 0.4rem !important;
-    }
-
-    .bg-gray-100 {
-        background-color: #f8f9fa !important;
-    }
-
-    .bg-primary-soft {
-        background-color: rgba(255, 109, 31, 0.08) !important;
-        color: #FF6D1F !important;
-    }
-
-    .bg-danger-soft {
-        background-color: rgba(234, 6, 6, 0.08) !important;
-        color: #ea0606 !important;
-    }
-
-    .bg-success-soft {
-        background-color: rgba(45, 206, 137, 0.08) !important;
-        color: #2dce89 !important;
-    }
-
-    .bg-info-soft {
-        background-color: rgba(17, 205, 239, 0.08) !important;
-        color: #11cdef !important;
-    }
-
-    .border-primary-soft {
-        border: 1px solid rgba(255, 109, 31, 0.15) !important;
-    }
-
-    .border-danger-soft {
-        border: 1px solid rgba(234, 6, 6, 0.15) !important;
-    }
-
-    .border-success-soft {
-        border: 1px solid rgba(45, 206, 137, 0.15) !important;
-    }
-
-    .border-info-soft {
-        border: 1px solid rgba(17, 205, 239, 0.15) !important;
-    }
-
-    .table td,
-    .table th {
-        border-color: #f1f1f1 !important;
-        vertical-align: middle !important;
-        font-size: 0.95rem !important;
-    }
-
-    .table thead th {
-        border-bottom: 0 !important;
-        font-size: 0.75rem !important;
-    }
-
-    .table th {
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        font-size: 0.85rem !important;
-        color: #344767 !important;
-        background-color: #f8f9fa !important;
-    }
-
-    .table td {
-        vertical-align: middle !important;
-        padding-top: 1.25rem !important;
-        padding-bottom: 1.25rem !important;
-        font-size: 1rem !important;
-        color: #444 !important;
-    }
-
-    .progress-wrapper {
-        min-width: 130px;
-    }
-
-    .badge {
-        font-size: 0.85rem !important;
-        font-weight: 700 !important;
-        padding: 0.55em 1em !important;
-        border-radius: 6px !important;
-    }
-
-    .bg-gray-100 {
-        background-color: #f8f9fa !important;
-    }
-
-    .divide-y>*+* {
-        border-top-width: 1px;
-    }
-
-    .divide-gray-100>*+* {
-        border-color: #f1f1f1;
-    }
-
-    .hover\:bg-gray-50:hover {
-        background-color: #fafafa;
-    }
-
-    .transition-colors {
-        transition: background-color 0.2s ease;
-    }
-
-    .bg-danger-soft {
-        background-color: rgba(234, 6, 6, 0.05) !important;
-    }
-
-    .bg-warning-soft {
-        background-color: rgba(251, 207, 51, 0.1) !important;
-    }
-
-    .bg-success-soft {
-        background-color: rgba(45, 206, 137, 0.1) !important;
-    }
-
-    .progress-bar.bg-info {
-        background-color: #11cdef !important;
-    }
-
-    .progress-bar.bg-danger {
-        background: linear-gradient(310deg, #ea0606 0%, #ff667c 100%) !important;
-    }
-
-    .progress-bar.bg-warning {
-        background: linear-gradient(310deg, #fbcf33 0%, #fbe07d 100%) !important;
-    }
-
-    .progress-bar.bg-success {
-        background: linear-gradient(310deg, #2dce89 0%, #2dcecc 100%) !important;
-    }
-
-    .badge {
-        font-weight: 500;
-        letter-spacing: 0.02em;
-        padding: 0.35em 0.65em;
-    }
-
-    .border-radius-lg {
-        border-radius: 0.5rem;
-    }
-
-    .opacity-3 {
-        opacity: 0.3;
-    }
-
-    .opacity-5 {
-        opacity: 0.5;
-    }
-</style>
