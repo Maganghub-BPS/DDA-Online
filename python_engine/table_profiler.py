@@ -600,7 +600,7 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
             if not sy_chk:
                 continue
             has_val = any(
-                (idx_s < len(s_vals) and s_vals[idx_s] is not None and s_vals[idx_s] != 0.0 and s_vals[idx_s] > -900000)
+                (idx_s < len(s_vals) and s_vals[idx_s] is not None and s_vals[idx_s] != 0.0 and ((isinstance(s_vals[idx_s], (int, float)) and s_vals[idx_s] > -900000) or isinstance(s_vals[idx_s], str)))
                 for s_vals in src_dict.values()
             )
             if has_val:
@@ -634,17 +634,20 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                         if isinstance(pv, (int, float)) and pv <= -900000:
                             continue
                         total_cnt += 1
-                        if abs(sv - pv) < 0.0001:
-                            match_cnt += 1
-                        elif pv != 0 and abs(sv - pv) / abs(pv) < 0.0001:
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(sv * 1000 - pv) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01):
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(pv * 1000 - sv) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01):
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(sv * 1000000 - pv) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01):
-                            match_cnt += 1
-                        elif pv != 0 and sv != 0 and (abs(pv * 1000000 - sv) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01):
+                        if isinstance(sv, (int, float)) and isinstance(pv, (int, float)):
+                            if abs(sv - pv) < 0.0001:
+                                match_cnt += 1
+                            elif pv != 0 and abs(sv - pv) / abs(pv) < 0.0001:
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(sv * 1000 - pv) <= 2.0 or abs(pv - round(sv / 1000.0, 2)) < 0.01):
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(pv * 1000 - sv) <= 2.0 or abs(sv - round(pv / 1000.0, 2)) < 0.01):
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(sv * 1000000 - pv) <= 2000.0 or abs(pv - round(sv / 1000000.0, 2)) < 0.01):
+                                match_cnt += 1
+                            elif pv != 0 and sv != 0 and (abs(pv * 1000000 - sv) <= 2000.0 or abs(sv - round(pv / 1000000.0, 2)) < 0.01):
+                                match_cnt += 1
+                        elif sv == pv or (sv in (0, 0.0, '-') and pv in (0, 0.0, '-')):
                             match_cnt += 1
                 if total_cnt >= 5:
                     ratio = match_cnt / total_cnt
@@ -688,7 +691,9 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                     
                 for cat_a, cat_b in [
                     ('laki', 'perempuan'), ('masuk', 'keluar'), ('negeri', 'swasta'), ('pns', 'pppk'), ('darat', 'laut'),
-                    ('desa', 'kelurahan'), ('guru', 'murid'), ('sekolah', 'guru'), ('sekolah', 'murid')
+                    ('desa', 'kelurahan'), ('guru', 'murid'), ('sekolah', 'guru'), ('sekolah', 'murid'),
+                    ('dosen', 'mahasiswa'), ('dosen', 'perguruan'), ('mahasiswa', 'perguruan'),
+                    ('dosen', 'universitas'), ('mahasiswa', 'universitas')
                 ]:
                     has_a_src = any(cat_a in w for w in st)
                     has_b_src = any(cat_b in w for w in st)

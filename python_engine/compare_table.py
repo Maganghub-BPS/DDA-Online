@@ -77,6 +77,7 @@ def format_display_val(val):
         if isinstance(val, float):
             return round(val, 3)
         return val
+    return val
 _OPD_ALIAS_MAP = {
     'SETDA': 'SEKRETARIAT_DAERAH',
     'SEKRETARIAT DAERAH': 'SEKRETARIAT_DAERAH',
@@ -610,7 +611,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         has_duplicate_regions = has_dup_prov or has_dup_jateng
 
         is_provincial_table = (prov_matches >= 3)
-        is_univ_table = any(k in str(headers).lower() for k in ['perguruan tinggi', 'universitas', 'dosen']) or target_table in ['4.1.20', '4.1.21']
+        is_univ_table = (target_table in ['4.1.20', '4.1.21'])
         is_regional = (prov_matches >= 3 or jateng_matches >= 3) and not is_univ_table and not has_duplicate_regions
         is_categorical = (not is_regional and (archetype in ["MULTI_PAGE_ROW_CONTINUATION", "MULTI_PAGE_SECTION_PER_PAGE", "SINGLE_PAGE_CATEGORICAL", "MULTI_PAGE_COLUMN_SPLIT"])) or has_duplicate_regions
 
@@ -715,7 +716,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if p:
                     if p == 'Jawa Tengah' and not is_provincial_table:
                         return 'TOTAL'
-                    return f"PROV_{re.sub(r'[^\w]', '', p.upper())}"
+                    return "PROV_" + re.sub(r'[^\w]', '', p.upper())
 
                 s = re.sub(r'(\b(?:19|20)\d{2})\d+\b', r'\1', t_raw).upper()
                 if 'CURAH HUJAN' in s or 'PRECIP' in s:
@@ -1879,7 +1880,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if idx <= 3 and re.match(r'^33\.\d{2}$', c_str):
                                 continue
                             if c_str in ('...', '…', '..'):
-                                nums.append(0.0)
+                                nums.append('...')
                                 continue
 
                             val = parse_num(c_str, is_pdf=True)
@@ -1891,9 +1892,13 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if not any(v is not None for v in raw_vals) and not is_dynamic:
                                 continue
                             for c_idx in active_cols:
-                                c_str = str(r[c_idx]).strip() if c_idx < len(r) else ''
-                                v = parse_num(c_str, is_pdf=False)
-                                nums.append(0.0 if v is None else v)
+                                raw_c = r[c_idx] if c_idx < len(r) else None
+                                if raw_c is None or str(raw_c).strip().lower() in ('', 'none', 'null'):
+                                    nums.append(None)
+                                else:
+                                    c_str = str(raw_c).strip()
+                                    v = parse_num(c_str, is_pdf=False)
+                                    nums.append(v)
                         elif w in ('Total Jawa Tengah', 'Jawa Tengah', 'Provinsi Jawa Tengah') and common_first_data_col is not None:
                             first_data_col = common_first_data_col
                         else:
@@ -1931,12 +1936,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             else:
                                 row_data = r[first_data_col: first_data_col + expected_len]
                                 for c in row_data:
-                                    c_str = str(c).strip()
-                                    if not c_str:
-                                        nums.append(0.0)
+                                    if c is None or str(c).strip().lower() in ('', 'none', 'null'):
+                                        nums.append(None)
                                     else:
+                                        c_str = str(c).strip()
                                         v = parse_num(c_str, is_pdf=False)
-                                        nums.append(0.0 if v is None else v)
+                                        nums.append(v)
 
                     if nums:
                         if w not in out:
