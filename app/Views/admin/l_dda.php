@@ -5,6 +5,7 @@
         $tab = segment_safe(3);
     }
     $username = session()->get('admin_user');
+    $ta = session()->get('admin_ta') ?: date('Y');
 ?>
 
 <style>
@@ -46,8 +47,6 @@
 @media (max-width: 991.98px) { .tabel-judul-cell { min-width: 250px; } }
 </style>
 
-<?php echo session()->getFlashdata("k"); ?>
-
 <!-- Toolbar -->
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-3">
@@ -55,9 +54,9 @@
             <h5 class="fw-bold mb-0">
                 <i class="bi bi-journal-text me-2 text-primary"></i>Tabel Jawa Tengah Dalam Angka
             </h5>
-            <?php if(session()->get('admin_unitkerja') != 'bps' || session()->get('admin_unitkerja') != ''): ?>
+            <?php if (can('input_dda_input') && session()->get('admin_unitkerja') !== 'bps' && session()->get('admin_unitkerja') !== ''): ?>
             <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/add" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-circle me-1"></i> Tambah Tabel
+                <i class="bi bi-plus-circle me-1"></i> Usulkan Tabel Baru
             </a>
             <?php endif; ?>
         </div>
@@ -138,7 +137,8 @@ if (empty($data)) {
 } else {
     $no = 1;
     foreach ($data as $b) {
-        $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, $b->periode_id ?? $b->periode ?? ""));
+        $thPeriodeDda = $b->periode_id ?? $b->periode ?? (!empty($b->tahun) ? (int)$b->tahun - 1 : ((int)$ta - 1));
+        $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, (string)$thPeriodeDda));
 ?>
 <tr class="tabel-row">
     <td class="text-center tabel-row-number fw-semi-bold text-muted"><?php echo $no++; ?></td>
@@ -151,18 +151,24 @@ if (empty($data)) {
                        (isset($b->id_api) && !empty($b->id_api)));
 
         if ($is_dynamic) {
-            $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id);
+            $thDataDda = (int)$ta - 1;
+            $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id . '?tahun=' . $thDataDda);
             $target = '';
         } elseif ($is_portal) {
             $tabel_url = $b->link_tabel;
             if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
-                $tabel_url = base_url() . $tabel_url;
+                $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
+                $tabel_url = base_url($clean_tabel);
+            }
+            if (!empty($b->id)) {
+                $tabel_url .= (strpos($tabel_url, '?') !== false ? '&' : '?') . 'table_id=' . $b->id;
             }
             $target = '';
         } else {
             $tabel_url = $b->link_tabel;
             if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
-                $tabel_url = base_url() . $tabel_url;
+                $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
+                $tabel_url = base_url($clean_tabel);
             }
             $target = 'target="_blank"';
         }
@@ -185,8 +191,8 @@ if (empty($data)) {
         $is_portal = (stripos($b->link_tabel, 'portal') !== false || 
                       stripos($b->link_tabel, 'satudata') !== false || 
                       (isset($b->id_api) && !empty($b->id_api)));
-        $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
-        $is_sudah_diisi = ($is_portal) || ($is_dynamic ? ($b->is_periksa == '1' && $is_dynamic_uploaded) : ($b->is_periksa == '1'));
+        $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([^\r\n]+)/iu', $b->catatan_periksa, $m));
+        $is_sudah_diisi = ($b->is_periksa == '1');
 
         if ($is_sudah_diisi) { ?>
             <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Sudah Diisi</span>
@@ -204,7 +210,7 @@ if (empty($data)) {
                             <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
                         </span>
                         <span class="d-block text-muted mt-1" style="font-style: normal; font-size: 0.72rem;">
-                            <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                            <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?><?= (!str_ends_with($waktu, 'WIB') ? ' WIB' : ''); ?>
                         </span>
                     <?php else: ?>
                         <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? 'Catatan: '.htmlspecialchars($b->catatan_periksa) : 'Input Manual/Sheet'; ?>
@@ -251,10 +257,17 @@ if (empty($data)) {
                 <?php if($is_dynamic): ?>
                     <a href="<?php echo $tabel_url; ?>"
                        class="btn btn-sm btn-primary shadow-sm align-self-start border-0 text-white"
-                       title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
-                        <i class="bi bi-cloud-arrow-up-fill me-1"></i>Isi Data
+                       title="<?= can('input_dda_input') ? 'Buka Viewer Tabel Dinamis untuk Mengisi Data' : 'Buka Viewer Tabel Dinamis untuk Melihat Data'; ?>">
+                        <i class="bi <?= can('input_dda_input') ? 'bi-cloud-arrow-up-fill' : 'bi-eye'; ?> me-1"></i><?= can('input_dda_input') ? 'Isi Data' : 'Lihat Data'; ?> (<?= esc($thDataDda ?? ((int)$ta - 1)); ?>)
                     </a>
-                <?php else: ?>
+                    <?php $thDataDda = (int)$ta - 1; ?>
+                    <a href="<?= base_url('admin/download_template_tabel/' . $b->id . '/' . $thDataDda); ?>"
+                       class="btn btn-xs btn-outline-success shadow-xs align-self-start mt-1 fw-semibold"
+                       style="font-size: 11px;"
+                       title="Unduh Template Excel Data Tahun <?= esc($thDataDda); ?>">
+                        <i class="bi bi-download me-1"></i>Template (<?= esc($thDataDda); ?>)
+                    </a>
+                <?php elseif(can('input_dda_input')): ?>
                     <a href="javascript:;"
                        class="btn btn-sm btn-primary btn-isi-data shadow-sm align-self-start border-0" style="background: #FF6D1F;"
                        data-id="<?php echo $b->id; ?>"
@@ -279,7 +292,7 @@ if (empty($data)) {
             }
         }
 
-        if(session()->get('admin_unitkerja') == 'bps') {
+        if(can('input_dda_verif')) {
             if($b->is_confirm != '1') {
                 $id_konfirm = $b->id;
         ?>

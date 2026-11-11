@@ -2,16 +2,21 @@
 
 function gli($tabel, $field_kunci, $pad) {
 	$db = \Config\Database::connect();
-	$nama = $db->query("SELECT max($field_kunci) AS last FROM $tabel")->getRow();
-	$data = (intval($nama->last)) + 1;
-	$last = str_pad($data, $pad, '0', STR_PAD_LEFT);
+	$tabel_clean = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$tabel);
+	$field_clean = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$field_kunci);
+	$nama = $db->query("SELECT MAX(`$field_clean`) AS last FROM `$tabel_clean`")->getRow();
+	$data = (intval($nama->last ?? 0)) + 1;
+	$last = str_pad((string)$data, (int)$pad, '0', STR_PAD_LEFT);
 	return $last;
 }
 
 function gval($tabel, $field_kunci, $diambil, $where) {
-	$db = \Config\Database::connect();	
-	$nama = $db->query("SELECT $diambil FROM $tabel WHERE $field_kunci = '$where'")->getRow();
-	$data = empty($nama) ? "-" : $nama->$diambil;
+	$db = \Config\Database::connect();
+	$tabel_clean   = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$tabel);
+	$field_clean   = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$field_kunci);
+	$diambil_clean = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$diambil);
+	$nama = $db->query("SELECT `$diambil_clean` FROM `$tabel_clean` WHERE `$field_clean` = ?", [$where])->getRow();
+	$data = empty($nama) ? "-" : ($nama->$diambil_clean ?? "-");
 	return $data;
 }
 
@@ -114,3 +119,183 @@ function segment_safe($n) {
 function _print_pdf($file, $data) {
     // mock
 }
+
+/**
+ * Merakit judul tabel dinamis secara cerdas dengan akhiran tahun/periode
+ * 
+ * @param string $baseTitle
+ * @param array $selectedYears
+ * @param string $lang 'id' atau 'en'
+ * @param string $tipePeriode 'tahunan', 'tahun_ajaran', dll.
+ * @return string
+ */
+function formatDynamicTableTitle(string $baseTitle, array $selectedYears, string $lang = 'id', string $tipePeriode = 'tahunan'): string
+{
+    // 1. Bersihkan akhiran tahun lama jika ada
+    $title = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', $baseTitle);
+    $title = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $title);
+    $title = trim(rtrim($title, ','));
+
+    // 2. Normalisasi dan urutkan tahun
+    $years = [];
+    foreach ($selectedYears as $y) {
+        $yi = (int)$y;
+        if ($yi > 1900 && $yi < 2100) {
+            $years[] = $yi;
+        }
+    }
+    $years = array_values(array_unique($years));
+    sort($years);
+
+    if (empty($years)) {
+        return $title;
+    }
+
+    $isEn = (strtolower($lang) === 'en');
+    $conj = $isEn ? ' and ' : ' dan ';
+    $count = count($years);
+
+    // Format per item (misal YYYY atau YYYY/YYYY+1)
+    $isAkademik = ($tipePeriode === 'tahun_ajaran');
+    $formatYearItem = function (int $y) use ($isAkademik): string {
+        return $isAkademik ? "{$y}/" . ($y + 1) : (string)$y;
+    };
+
+    if ($count === 1) {
+        $yearStr = $formatYearItem($years[0]);
+    } elseif ($count === 2) {
+        $yearStr = $formatYearItem($years[0]) . $conj . $formatYearItem($years[1]);
+    } else {
+        // Cek apakah tahun berurutan penuh tanpa loncat
+        $isConsecutive = true;
+        for ($i = 1; $i < $count; $i++) {
+            if ($years[$i] !== $years[$i - 1] + 1) {
+                $isConsecutive = false;
+                break;
+            }
+        }
+
+        if ($isConsecutive) {
+            $yearStr = $formatYearItem($years[0]) . '–' . $formatYearItem(end($years));
+        } else {
+            // Loncat-loncat: list dipisah koma dengan konjungsi di ujung
+            $lastYear = array_pop($years);
+            $formattedList = array_map($formatYearItem, $years);
+            $oxfordConj = $isEn ? ', and ' : ', dan ';
+            $yearStr = implode(', ', $formattedList) . $oxfordConj . $formatYearItem($lastYear);
+        }
+    }
+
+    // Jika judul mengandung placeholder [PERIODE] / [periode]
+    if (stripos($title, '[PERIODE]') !== false) {
+        return str_ireplace('[PERIODE]', $yearStr, $title);
+    }
+
+    return $title . ', ' . $yearStr;
+}
+
+/**
+ * Format nilai sel tabel dinamis sesuai presisi desimal & simbol statistik BPS
+ * 
+ * @param mixed $nilai
+ * @param mixed $simbol
+ * @param int $settingDesimal Konfigurasi indikator: -1 (otomatis), 0, 1, 2, 3
+ * @param int|null $cellDesimal Presisi desimal asli sel Excel jika ada
+ * @return string
+ */
+function formatDynamicCellValue($nilai, $simbol = null, int $settingDesimal = -1, ?int $cellDesimal = null): string
+{
+    if ($simbol !== null && $simbol !== '') {
+        return (string)$simbol;
+    }
+
+    if ($nilai === null || $nilai === '') {
+        return '-';
+    }
+
+    $num = (float)$nilai;
+
+    // Presisi ditentukan eksplisit (> 0)
+    if ($settingDesimal > 0) {
+        return number_format($num, $settingDesimal, ',', '.');
+    }
+
+    if ($settingDesimal === 0) {
+        // Jika angka murni bulat (tidak ada pecahan), format dengan 0 desimal
+        if (abs($num - round($num)) < 0.00001) {
+            return number_format($num, 0, ',', '.');
+        }
+        // Jika nilai memiliki pecahan desimal asli (misal 106.88), jangan pangkas paksa ke 0 desimal
+        if ($cellDesimal !== null && $cellDesimal > 0) {
+            return number_format($num, $cellDesimal, ',', '.');
+        }
+        $valStr = (string)$nilai;
+        if (strpos($valStr, '.') !== false) {
+            $parts = explode('.', $valStr);
+            $decimals = strlen(rtrim($parts[1], '0'));
+            if ($decimals > 0) {
+                return number_format($num, min(4, $decimals), ',', '.');
+            }
+        }
+        return number_format($num, 0, ',', '.');
+    }
+
+    // Otomatis: gunakan desimal dari file Excel jika tersedia
+    if ($cellDesimal !== null && $cellDesimal >= 0) {
+        return number_format($num, $cellDesimal, ',', '.');
+    }
+
+    // Deteksi desimal signifikan dari nilai numerik
+    $valStr = (string)$nilai;
+    if (strpos($valStr, '.') !== false) {
+        $parts = explode('.', $valStr);
+        $decimals = strlen(rtrim($parts[1], '0'));
+        return number_format($num, $decimals, ',', '.');
+    }
+
+    return number_format($num, 0, ',', '.');
+}
+
+if (!function_exists('formatInstansiName')) {
+    /**
+     * Format nama instansi khusus untuk tampilan frontend (menambahkan prefix BPS untuk 4 tim BPS)
+     *
+     * @param string|null $name
+     * @param string $id
+     * @return string
+     */
+    function formatInstansiName($name, $id = ''): string
+    {
+        if (empty($name)) {
+            return (string)$name;
+        }
+
+        $nameStr = trim((string)$name);
+        $idLower = strtolower(trim((string)$id));
+        $nameLower = strtolower($nameStr);
+
+        // Jika sudah mengandung kata BPS, tidak perlu diubah lagi
+        if (stripos($nameStr, 'BPS') !== false) {
+            return $nameStr;
+        }
+
+        // Pengecualian: jangan format jika OPD seperti Dinas Sosial
+        if (strpos($nameLower, 'dinas') !== false) {
+            return $nameStr;
+        }
+
+        $bps_ids = ['nerwilis', 'distribusi', 'produksi', 'sosial'];
+        $isBpsTeam = in_array($idLower, $bps_ids) ||
+                     strpos($nameLower, 'tim neraca') !== false ||
+                     strpos($nameLower, 'tim statistik distribusi') !== false ||
+                     strpos($nameLower, 'tim statistik produksi') !== false ||
+                     strpos($nameLower, 'tim statistik sosial') !== false;
+
+        if ($isBpsTeam) {
+            return 'BPS (' . $nameStr . ')';
+        }
+
+        return $nameStr;
+    }
+}
+

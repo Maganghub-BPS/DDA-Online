@@ -1,8 +1,9 @@
 <?php 
 if (empty($data)) {
-    echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
+    echo "<tr><td colspan='6' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Data tidak ditemukan</td></tr>";
 } else {
     foreach ($data as $b) {
+        $isOpd = (($b->jenis_instansi ?? 'vertikal') === 'opd');
 ?>
 <tr class="hover:bg-gray-50 transition-colors">
     <td class="text-center">
@@ -13,6 +14,17 @@ if (empty($data)) {
     </td>
     <td>
         <p class="text-xs text-secondary mb-0 font-italic text-wrap" style="line-height: 1.4;"><?php echo $b->unitkerja_en; ?></p>
+    </td>
+    <td class="text-center">
+        <?php if ($isOpd): ?>
+            <span class="badge badge-sm bg-success-subtle text-success border border-success-subtle font-weight-bold px-2 py-1 border-radius-md" title="Organisasi Perangkat Daerah (Read-Only)">
+                <i class="bi bi-bank me-1"></i> OPD Pemprov
+            </span>
+        <?php else: ?>
+            <span class="badge badge-sm bg-info-subtle text-info border border-info-subtle font-weight-bold px-2 py-1 border-radius-md" title="Organisasi Vertikal (Upload Excel Mandiri)">
+                <i class="bi bi-building me-1"></i> Vertikal
+            </span>
+        <?php endif; ?>
     </td>
     <td class="text-center">
         <span class="badge badge-sm bg-primary-soft text-primary font-weight-bold px-3 py-2 border-radius-md border-primary-soft">

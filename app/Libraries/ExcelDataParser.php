@@ -30,7 +30,7 @@ class ExcelDataParser
      * @return array Hasil parsing terstruktur
      * @throws \Exception
      */
-    public function parse(string $filePath, int $expectedIdTahunTabel): array
+    public function parse(string $filePath, int $expectedIdTahunTabel, ?int $tahunInputOverride = null): array
     {
         if (!file_exists($filePath)) {
             throw new \Exception("Berkas Excel tidak ditemukan di server.");
@@ -65,40 +65,107 @@ class ExcelDataParser
             $metaPayload = [
                 'id_tahun_tabel' => (int)$metaSheet->getCell('B3')->getValue(),
                 'id_indikator'   => (int)$metaSheet->getCell('B4')->getValue(),
+                'tahun'          => (int)$metaSheet->getCell('B6')->getValue(),
                 'data_start_row' => (int)$metaSheet->getCell('B10')->getValue(),
                 'data_end_row'   => (int)$metaSheet->getCell('B11')->getValue(),
                 'checksum'       => (string)$metaSheet->getCell('B14')->getValue(),
             ];
         }
 
-        $idTahunTabelExcel = (int)($metaPayload['id_tahun_tabel'] ?? 0);
-        $idIndikatorExcel  = (int)($metaPayload['id_indikator'] ?? 0);
+        $idTahunTabelExcel = (int)($metaPayload['id_tahun_tabel'] ?? ($metaSheet->getCell('B3')->getValue() ?: 0));
+        $idIndikatorExcel  = (int)($metaPayload['id_indikator'] ?? ($metaSheet->getCell('B4')->getValue() ?: 0));
+        $idMasterExcel     = (int)($metaPayload['id_master_tabel'] ?? 0);
+        $tahunExcel        = (int)($metaPayload['tahun_data'] ?? ($metaPayload['tahun'] ?? ($metaSheet->getCell('B16')->getValue() ?: $metaSheet->getCell('B6')->getValue())));
+        $dataStartRowExcel = (int)($metaPayload['data_start_row'] ?? ($metaSheet->getCell('B10')->getValue() ?: 0));
+        $dataEndRowExcel   = (int)($metaPayload['data_end_row'] ?? ($metaSheet->getCell('B11')->getValue() ?: 0));
+        $checksumExcel     = trim((string)($metaPayload['checksum'] ?? ($metaSheet->getCell('B14')->getValue() ?: '')));
 
-        // 4. Validasi Kesesuaian Target Tabel
-        if ($idTahunTabelExcel !== $expectedIdTahunTabel) {
-            // Ambil info nama tabel yang salah diunggah untuk pesan error yang ramah pengguna
-            $infoSalah = $this->db->table('t_tahun_tabel')
-                ->select('t_tahun_tabel.no_tabel, m_list_tabel.judul_ind')
-                ->join('m_list_tabel', 't_tahun_tabel.id_tabel = m_list_tabel.id', 'left')
-                ->where('t_tahun_tabel.id', $idTahunTabelExcel)
-                ->get()->getRow();
-
-            $namaTabelSalah = $infoSalah ? ($infoSalah->no_tabel ? 'Tabel ' . $infoSalah->no_tabel . ' ' : '') . $infoSalah->judul_ind : "ID {$idTahunTabelExcel}";
-
-            throw new \Exception("Berkas Excel yang diunggah tidak cocok! Berkas ini merupakan template untuk: [{$namaTabelSalah}]. Mohon unggah berkas template yang sesuai.");
+        // Hitung total kolom data (leaf columns)
+        $totalCols = (int)($metaPayload['total_cols'] ?? (isset($metaPayload['leaf_columns']) ? count($metaPayload['leaf_columns']) : 0));
+        if ($totalCols <= 0) {
+            $colStartStr = trim((string)$metaSheet->getCell('B12')->getValue());
+            $colEndStr   = trim((string)$metaSheet->getCell('B13')->getValue());
+            if ($colStartStr !== '' && $colEndStr !== '') {
+                $totalCols = Coordinate::columnIndexFromString($colEndStr) - Coordinate::columnIndexFromString($colStartStr) + 1;
+            }
         }
 
-        // 5. Validasi Konfigurasi Indikator di Database
-        $indikator = $this->db->table('m_indikator_tabel')
-            ->where('id_tahun_tabel', $expectedIdTahunTabel)
-            ->get()->getRow();
+        // 3. Verifikasi Keamanan Hash Checksum (Anti-Tampering Integrity Check)
+        if (empty($checksumExcel)) {
+            throw new \Exception("Token keamanan (Checksum) pada lembar metadata tidak ditemukan. Pastikan Anda mengunggah berkas template resmi yang diunduh dari sistem DDA Online.");
+        }
+
+        $v1Payload = $idTahunTabelExcel . '|' . $idIndikatorExcel . '|' . $dataStartRowExcel . '|' . $dataEndRowExcel . '|' . $totalCols;
+        $v1Hash    = hash('sha256', $v1Payload . '|' . self::SECRET_SALT);
+
+        $v2Payload = $v1Payload . '|' . $tahunExcel;
+        $v2Hash    = hash('sha256', $v2Payload . '|' . self::SECRET_SALT);
+
+        if (!hash_equals($v1Hash, $checksumExcel) && !hash_equals($v2Hash, $checksumExcel)) {
+            throw new \Exception("Checksum keamanan berkas template Excel tidak valid! Lembar metadata tersembunyi telah dimodifikasi atau rusak. Pengunggahan ditolak demi integritas data.");
+        }
+
+        $activeTa = (int)date('Y');
+        if (PHP_SAPI !== 'cli' && function_exists('session')) {
+            try {
+                $sess = session();
+                if ($sess) {
+                    $activeTa = (int)($sess->get('admin_ta') ?: ($sess->get('tahun') ?: $activeTa));
+                }
+            } catch (\Throwable $eSess) {}
+        }
+        $defaultTargetYear = $activeTa - 1;
+        $targetTahun = ($tahunInputOverride !== null && (int)$tahunInputOverride > 0) ? (int)$tahunInputOverride : ($tahunExcel > 0 ? $tahunExcel : $defaultTargetYear);
+
+        // Validasi Opsi 1: Cek integritas metadata tahun data pada template Excel
+        if ($tahunExcel <= 0) {
+            throw new \Exception("Metadata tahun data pada berkas template Excel tidak valid atau tidak ditemukan. Pastikan Anda mengunggah berkas template resmi yang diunduh dari sistem DDA Online.");
+        }
+
+        // Validasi Opsi 1: Strict Match - Tolak jika tahun template Excel tidak sama dengan target tahun data
+        if ($tahunInputOverride !== null && (int)$tahunInputOverride > 0 && $tahunExcel !== (int)$tahunInputOverride) {
+            throw new \Exception("Tahun data pada berkas template Excel ({$tahunExcel}) tidak sesuai dengan tahun data target ({$targetTahun}) pada DDA {$activeTa}. Pengunggahan dibatalkan untuk mencegah kesalahan data lintas tahun. Harap gunakan berkas template resmi untuk data tahun {$targetTahun}.");
+        }
+
+        $tahunData = $targetTahun;
+
+        // 4. Resolusi Konteks Tabel Target
+        $context = $this->mTabelDinamis->resolveTableContext($expectedIdTahunTabel, $tahunData, true);
+        $tabel = $context['tabel'];
+        $indikator = $context['indikator'];
+        $tahunTabel = $context['tahun_tabel'];
+
+        if (!$indikator) {
+            $indikator = $this->db->table('m_indikator_tabel')
+                ->where('id_tabel', (int)$expectedIdTahunTabel)
+                ->get()->getRow();
+        }
 
         if (!$indikator) {
             throw new \Exception("Konfigurasi dimensi tabel ini tidak ditemukan di sistem.");
         }
 
-        if ((int)$indikator->id !== $idIndikatorExcel) {
-            throw new \Exception("Konfigurasi indikator pada berkas Excel sudah kedaluwarsa karena struktur dimensi tabel telah diperbarui ulang oleh Admin BPS. Silakan unduh template Excel terbaru.");
+        // 5. Validasi Kesesuaian Target Tabel (Resilien terhadap Master ID maupun Tahun Tabel ID)
+        $isMatch = false;
+        if ($idIndikatorExcel > 0 && (int)$indikator->id === $idIndikatorExcel) {
+            $isMatch = true;
+        } elseif ($idMasterExcel > 0 && $tabel && (int)$tabel->id === $idMasterExcel) {
+            $isMatch = true;
+        } elseif ($idTahunTabelExcel === (int)$expectedIdTahunTabel || ($tabel && $idTahunTabelExcel === (int)$tabel->id)) {
+            $isMatch = true;
+        }
+
+        if (!$isMatch && $idIndikatorExcel > 0) {
+            // Ambil info nama tabel yang salah diunggah untuk pesan error yang ramah pengguna
+            $lookupId = $idMasterExcel > 0 ? $idMasterExcel : $idTahunTabelExcel;
+            $infoSalah = $this->db->table('m_list_tabel')
+                ->select('no_tabel, judul_ind')
+                ->where('id', $lookupId)
+                ->get()->getRow();
+
+            $namaTabelSalah = $infoSalah ? ($infoSalah->no_tabel ? 'Tabel ' . $infoSalah->no_tabel . ' ' : '') . $infoSalah->judul_ind : "ID {$lookupId}";
+
+            throw new \Exception("Berkas Excel yang diunggah tidak cocok! Berkas ini merupakan template untuk: [{$namaTabelSalah}]. Mohon unggah berkas template yang sesuai.");
         }
 
         // 6. Ambil Lembar Data Utama ('Data')
@@ -121,7 +188,14 @@ class ExcelDataParser
             $itemsKolom     = $id_karakteristik > 0 ? $this->mTabelDinamis->getKarakteristikItems($id_karakteristik) : [];
             $kolomStructure = $this->mTabelDinamis->buildColumnStructure($itemsKolom);
             $itemsBaris     = $id_baris > 0 ? $this->mTabelDinamis->getBarisItems($id_baris) : [];
-            $itemsPeriode   = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeItems($id_periode) : [];
+            $tipePeriode    = $indikator->tipe_periode ?? 'tahunan';
+            if (in_array($tipePeriode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahunan_jumlah_rata', 'tahun_ajaran'], true)) {
+                $labelPeriode = ($tipePeriode === 'tahun_ajaran') ? "{$tahunData}/" . ($tahunData + 1) : (string)$tahunData;
+                $itemsPeriode = [(object)['id' => 0, 'id_kelompok' => 0, 'nama_periode_ind' => $labelPeriode, 'nama_periode_en' => $labelPeriode, 'tipe_item' => 'periode', 'no_urut' => 1]];
+                $id_periode = 0;
+            } else {
+                $itemsPeriode = $id_periode > 0 ? $this->mTabelDinamis->getPeriodeItems($id_periode) : [];
+            }
 
             $rawHasGroups   = !empty($kolomStructure['has_groups']);
             $maxDepth       = !empty($kolomStructure['max_depth']) ? (int)$kolomStructure['max_depth'] : (!empty($kolomStructure['has_groups']) ? 2 : 1);
@@ -298,6 +372,7 @@ class ExcelDataParser
                         $leafColumns[] = [
                             'excel_col'  => $colLetter,
                             'item_id'    => (int)$ch->id,
+                            'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                             'periode_id' => 0,
                         ];
                         $colIdx++;
@@ -381,6 +456,7 @@ class ExcelDataParser
                     $leafColumns[] = [
                         'excel_col'  => $colLetter,
                         'item_id'    => (int)$ch->id,
+                        'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                         'periode_id' => 0,
                     ];
                     $colIdx++;
@@ -389,9 +465,10 @@ class ExcelDataParser
                 foreach ($itemsPeriode as $p) {
                     $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                     $leafColumns[] = [
-                        'excel_col'  => $colLetter,
-                        'item_id'    => 0,
-                        'periode_id' => (int)$p->id,
+                        'excel_col'   => $colLetter,
+                        'item_id'     => 0,
+                        'periode_id'  => (int)$p->id,
+                        'periode_ind' => $p->nama_periode_ind ?? ($p->nama_periode_en ?? ''),
                     ];
                     $colIdx++;
                 }
@@ -401,6 +478,7 @@ class ExcelDataParser
                     $leafColumns[] = [
                         'excel_col'  => $colLetter,
                         'item_id'    => (int)$ch->id,
+                        'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                         'periode_id' => 0,
                     ];
                     $colIdx++;
@@ -412,6 +490,7 @@ class ExcelDataParser
                         $leafColumns[] = [
                             'excel_col'  => $colLetter,
                             'item_id'    => (int)$ch->id,
+                            'item_ind'   => $ch->item_ind ?? ($ch->item_en ?? ''),
                             'periode_id' => 0,
                         ];
                         $colIdx++;
@@ -421,9 +500,11 @@ class ExcelDataParser
                         foreach ($flatKolom as $ch) {
                             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                             $leafColumns[] = [
-                                'excel_col'  => $colLetter,
-                                'item_id'    => (int)$ch->id,
-                                'periode_id' => (int)$p->id,
+                                'excel_col'   => $colLetter,
+                                'item_id'     => (int)$ch->id,
+                                'item_ind'    => $ch->item_ind ?? ($ch->item_en ?? ''),
+                                'periode_id'  => (int)$p->id,
+                                'periode_ind' => $p->nama_periode_ind ?? ($p->nama_periode_en ?? ''),
                             ];
                             $colIdx++;
                         }
@@ -433,9 +514,11 @@ class ExcelDataParser
                         foreach ($itemsPeriode as $p) {
                             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
                             $leafColumns[] = [
-                                'excel_col'  => $colLetter,
-                                'item_id'    => (int)$ch->id,
-                                'periode_id' => (int)$p->id,
+                                'excel_col'   => $colLetter,
+                                'item_id'     => (int)$ch->id,
+                                'item_ind'    => $ch->item_ind ?? ($ch->item_en ?? ''),
+                                'periode_id'  => (int)$p->id,
+                                'periode_ind' => $p->nama_periode_ind ?? ($p->nama_periode_en ?? ''),
                             ];
                             $colIdx++;
                         }
@@ -463,8 +546,7 @@ class ExcelDataParser
                 $hasRenderedTotalFallback = false;
                 $idPeriodeAktif = 0;
                 if (!empty($itemsPeriode)) {
-                    $tabelInfo = $this->db->table('t_tahun_tabel')->where('id', $expectedIdTahunTabel)->get()->getRow();
-                    $tahunAktif = $tabelInfo->tahun ?? '';
+                    $tahunAktif = !empty($tahunData) ? (string)$tahunData : '';
                     foreach ($itemsPeriode as $p) {
                         if (!empty($tahunAktif) && trim((string)$p->nama_periode_ind) === trim((string)$tahunAktif)) {
                             $idPeriodeAktif = (int)$p->id;
@@ -589,6 +671,168 @@ class ExcelDataParser
             }
         }
 
+        // =====================================================================
+        // 7.5. VALIDASI INTEGRITAS STRUKTUR BARIS (ROW ANCHOR INTEGRITY CHECK)
+        // Memastikan tidak ada baris yang disisipkan atau dihapus oleh pengguna
+        // Setiap baris data dicocokkan dengan teks label wilayah/indikator di kolom A/B
+        // =====================================================================
+        $cleanAnchorStr = function(string $str): string {
+            $str = mb_strtolower($str, 'UTF-8');
+            $str = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $str);
+            return trim(preg_replace('/\s+/', ' ', $str));
+        };
+
+        foreach ($rowItems as $rItem) {
+            $rowIdx       = (int)($rItem['excel_row'] ?? 0);
+            $expectedName = trim((string)($rItem['nama'] ?? ''));
+            $rTipe        = $rItem['tipe'] ?? 'data';
+
+            // Validasi difokuskan pada baris data aktual yang menampung sel angka
+            if ($rowIdx <= 0 || empty($expectedName) || $rTipe === 'kategori') {
+                continue;
+            }
+
+            $valA       = trim((string)$dataSheet->getCell("A{$rowIdx}")->getValue());
+            $valB       = trim((string)$dataSheet->getCell("B{$rowIdx}")->getValue());
+            $actualText = trim($valA . ' ' . $valB);
+
+            $cExp    = $cleanAnchorStr($expectedName);
+            $cActA   = $cleanAnchorStr($valA);
+            $cActB   = $cleanAnchorStr($valB);
+            $cActAll = $cleanAnchorStr($actualText);
+
+            $isRowMatched = false;
+            if ($cActAll === $cExp || $cActA === $cExp || $cActB === $cExp) {
+                $isRowMatched = true;
+            } elseif (!empty($cExp) && !empty($cActAll) && (strpos($cActAll, $cExp) !== false || strpos($cExp, $cActAll) !== false)) {
+                $isRowMatched = true;
+            } elseif (!empty($cExp) && !empty($cActA) && (strpos($cActA, $cExp) !== false || (mb_strlen($cActA) >= 3 && strpos($cExp, $cActA) !== false))) {
+                $isRowMatched = true;
+            } elseif (!empty($cExp) && !empty($cActB) && (strpos($cActB, $cExp) !== false || (mb_strlen($cActB) >= 3 && strpos($cExp, $cActB) !== false))) {
+                $isRowMatched = true;
+            }
+
+            if (!$isRowMatched) {
+                $ditemukan = !empty($actualText) ? "'{$actualText}'" : "(Baris Kosong)";
+                throw new \Exception(
+                    "Perubahan struktur template terdeteksi pada baris ke-{$rowIdx}! " .
+                    "Diharapkan baris data untuk '{$expectedName}', namun ditemukan {$ditemukan}. " .
+                    "Kemungkinan terdapat baris baru yang disisipkan atau dihapus. " .
+                    "Pengunggahan ditolak demi mencegah pergeseran data. " .
+                    "Mohon gunakan berkas template resmi tanpa menambah atau menghapus baris."
+                );
+            }
+        }
+
+        // =====================================================================
+        // 7.6. VALIDASI INTEGRITAS STRUKTUR KOLOM (COLUMN ANCHOR INTEGRITY CHECK)
+        // Memastikan tidak ada kolom yang disisipkan atau dihapus oleh pengguna
+        // Setiap kolom data (leaf column) diverifikasi teks judul headernya
+        // =====================================================================
+        $firstDataRow = $dataStartRowExcel > 0 ? $dataStartRowExcel : (!empty($rowItems) ? (int)$rowItems[0]['excel_row'] : 7);
+        $minHeaderRow = max(1, $firstDataRow - 5);
+
+        foreach ($leafColumns as $colItem) {
+            $colLetter = trim((string)($colItem['excel_col'] ?? ''));
+            if (empty($colLetter)) {
+                continue;
+            }
+
+            // Kumpulkan calon teks label yang diharapkan untuk kolom ini
+            $candidates = [];
+            if (!empty($colItem['periode_ind']))     $candidates[] = trim((string)$colItem['periode_ind']);
+            if (!empty($colItem['periode_en']))      $candidates[] = trim((string)$colItem['periode_en']);
+            if (!empty($colItem['item_ind']))        $candidates[] = trim((string)$colItem['item_ind']);
+            if (!empty($colItem['item_en']))         $candidates[] = trim((string)$colItem['item_en']);
+            if (!empty($colItem['group_title_ind'])) $candidates[] = trim((string)$colItem['group_title_ind']);
+            if (!empty($colItem['group_title_en']))  $candidates[] = trim((string)$colItem['group_title_en']);
+
+            // Jika tidak ada kandidat nama di metadata, lewati pemeriksaan spesifik
+            if (empty($candidates)) {
+                continue;
+            }
+
+            $primaryExpectedLabel = $candidates[0];
+
+            // Baca seluruh teks di kolom ini pada rentang baris header (di atas baris data pertama)
+            $headerTexts = [];
+            for ($r = $minHeaderRow; $r < $firstDataRow; $r++) {
+                $valCell = trim((string)$dataSheet->getCell("{$colLetter}{$r}")->getValue());
+                if ($valCell !== '') {
+                    $headerTexts[] = $valCell;
+                }
+            }
+            $actualHeaderCombined = trim(implode(' ', $headerTexts));
+
+            // Kasus 1: Kolom kosong total pada area header (seperti kolom kosong yang baru disisipkan oleh pengguna)
+            if (empty($actualHeaderCombined)) {
+                throw new \Exception(
+                    "Perubahan struktur template terdeteksi pada Kolom {$colLetter}! " .
+                    "Kolom ini kosong dan tidak memiliki judul header (diharapkan kolom untuk '{$primaryExpectedLabel}'). " .
+                    "Terdeteksi adanya kolom baru yang disisipkan di berkas Excel. " .
+                    "Pengunggahan ditolak demi mencegah pergeseran data. Mohon gunakan berkas template resmi tanpa menambah kolom."
+                );
+            }
+
+            // Kasus 2: Periksa apakah teks header di kolom ini memuat salah satu kandidat nama yang diharapkan
+            $cAct = $cleanAnchorStr($actualHeaderCombined);
+            $isColMatched = false;
+
+            foreach ($candidates as $cand) {
+                $cExp = $cleanAnchorStr($cand);
+                if (empty($cExp)) continue;
+
+                if (strpos($cAct, $cExp) !== false || strpos($cExp, $cAct) !== false) {
+                    $isColMatched = true;
+                    break;
+                }
+            }
+
+            if (!$isColMatched) {
+                throw new \Exception(
+                    "Perubahan struktur template terdeteksi pada Kolom {$colLetter}! " .
+                    "Diharapkan kolom untuk '{$primaryExpectedLabel}', namun ditemukan header '{$actualHeaderCombined}'. " .
+                    "Kemungkinan terdapat kolom yang disisipkan atau dihapus sehingga posisi kolom bergeser. " .
+                    "Pengunggahan ditolak demi mencegah pergeseran data. Mohon gunakan berkas template resmi tanpa mengubah kolom."
+                );
+            }
+        }
+
+        // =====================================================================
+        // 7.7. DETEKSI DATA KOLOM BERLEBIH (RIGHT-BOUNDARY OVERFLOW CHECK)
+        // Memastikan tidak ada data di sebelah kanan kolom data resmi terakhir
+        // =====================================================================
+        if (!empty($leafColumns)) {
+            $lastColMeta = end($leafColumns);
+            $lastColLetter = $lastColMeta['excel_col'] ?? '';
+            if (!empty($lastColLetter)) {
+                $lastColIndex = Coordinate::columnIndexFromString($lastColLetter);
+                $overflowColLetter = Coordinate::stringFromColumnIndex($lastColIndex + 1);
+
+                $overflowFound = false;
+                foreach ($rowItems as $rItem) {
+                    $rIdx = (int)($rItem['excel_row'] ?? 0);
+                    $rTipe = $rItem['tipe'] ?? 'data';
+                    if ($rIdx <= 0 || $rTipe === 'kategori') continue;
+
+                    $overVal = trim((string)$dataSheet->getCell("{$overflowColLetter}{$rIdx}")->getValue());
+                    if ($overVal !== '') {
+                        $overflowFound = true;
+                        break;
+                    }
+                }
+
+                if ($overflowFound) {
+                    throw new \Exception(
+                        "Perubahan struktur template terdeteksi! Ditemukan data pada Kolom {$overflowColLetter} " .
+                        "yang berada di luar batas kolom template resmi (kolom data terakhir: {$lastColLetter}). " .
+                        "Kemungkinan terdapat kolom baru yang disisipkan di sebelah kiri sehingga data bergeser ke kanan. " .
+                        "Pengunggahan ditolak demi integritas data."
+                    );
+                }
+            }
+        }
+
         // 8. Ekstraksi Sel Data dari Lembar 'Data'
         $cellsToUpsert    = [];
         $totalCells       = 0;
@@ -618,14 +862,56 @@ class ExcelDataParser
                 $cell = $dataSheet->getCell($cellCoord);
 
                 // Dapatkan nilai sel (jika berupa formula, ambil nilai hasil perhitungannya)
-                try {
-                    $rawVal = $cell ? $cell->getCalculatedValue() : null;
-                } catch (\Throwable $e) {
-                    $rawVal = $cell ? $cell->getValue() : null;
+                $rawVal = null;
+                $formattedVal = '';
+                if ($cell) {
+                    try {
+                        $rawVal = $cell->getCalculatedValue();
+                    } catch (\Throwable $e) {
+                        $rawVal = $cell->getValue();
+                    }
+                    try {
+                        $formattedVal = (string)$cell->getFormattedValue();
+                    } catch (\Throwable $e) {
+                        $formattedVal = '';
+                    }
+
+                    // Deteksi cerdas sel berformat waktu bawaan Excel (mis. 05:23:46 yang disimpan sebagai serial waktu float)
+                    if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)) {
+                        try {
+                            $dtObj = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($rawVal);
+                            $timeCandidate = $dtObj->format('H:i:s');
+                            // Jika nilai < 1.0 (waktu murni dalam satu hari) atau formattedVal cocok format waktu
+                            if ((is_numeric($rawVal) && (float)$rawVal < 1.0) || preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', trim($formattedVal))) {
+                                $rawVal = (!empty($formattedVal) && preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', trim($formattedVal)))
+                                    ? trim($formattedVal)
+                                    : $timeCandidate;
+                            }
+                        } catch (\Throwable $e) {
+                            if (!empty($formattedVal) && preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', trim($formattedVal))) {
+                                $rawVal = trim($formattedVal);
+                            }
+                        }
+                    }
                 }
 
                 $sanitized = $this->sanitizeValue($rawVal, $expectedDecimals);
                 $totalCells++;
+
+                // Ekstraksi jumlah desimal asli sel Excel jika bernilai numerik
+                $numDecimals = null;
+                if ($sanitized['nilai'] !== null) {
+                    if (preg_match('/[.,](\d+)/', $formattedVal, $mDec)) {
+                        $numDecimals = strlen($mDec[1]);
+                    } else {
+                        $valStr = (string)$rawVal;
+                        if (preg_match('/[.,](\d+)/', $valStr, $mDec)) {
+                            $numDecimals = strlen(rtrim($mDec[1], '0'));
+                        } else {
+                            $numDecimals = 0;
+                        }
+                    }
+                }
 
                 if ($sanitized['nilai'] !== null || $sanitized['simbol'] !== null) {
                     $filledCells++;
@@ -642,6 +928,8 @@ class ExcelDataParser
                     'id_periode_item'       => $idPeriode,
                     'nilai'                 => $sanitized['nilai'],
                     'simbol'                => $sanitized['simbol'],
+                    'tahun_data'            => (int)$tahunData,
+                    'jumlah_desimal'        => $numDecimals,
                 ];
             }
         }
@@ -650,6 +938,7 @@ class ExcelDataParser
             'status'            => 'success',
             'id_tahun_tabel'    => $expectedIdTahunTabel,
             'id_indikator'      => (int)$indikator->id,
+            'tahun_data'        => (int)$tahunData,
             'total_cells'       => $totalCells,
             'filled_cells'      => $filledCells,
             'empty_cells'       => $emptyCells,
@@ -701,6 +990,38 @@ class ExcelDataParser
         // '...' / '…': Data belum/tidak dapat ditampilkan
         if ($str === '...' || $str === '…') {
             return ['nilai' => null, 'simbol' => '...'];
+        }
+
+        // Deteksi Cerdas Format Waktu (HH:mm:ss atau H:mm:ss atau HH:mm) e.g. "05:23:46"
+        if (preg_match('/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?$/', $str, $mTime)) {
+            $hh = str_pad($mTime[1], 2, '0', STR_PAD_LEFT);
+            $mm = $mTime[2];
+            $ss = isset($mTime[3]) ? str_pad($mTime[3], 2, '0', STR_PAD_LEFT) : '00';
+            return [
+                'nilai'  => null,
+                'simbol' => "{$hh}:{$mm}:{$ss}"
+            ];
+        }
+
+        // Deteksi Format Waktu dengan simbol catatan statistik e.g. "05:23:46*" atau "05:23:46e"
+        if (preg_match('/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\s*([\*e])$/i', $str, $mTimeSym)) {
+            $hh = str_pad($mTimeSym[1], 2, '0', STR_PAD_LEFT);
+            $mm = $mTimeSym[2];
+            $ss = isset($mTimeSym[3]) ? str_pad($mTimeSym[3], 2, '0', STR_PAD_LEFT) : '00';
+            $sym = $mTimeSym[4];
+            return [
+                'nilai'  => null,
+                'simbol' => "{$hh}:{$mm}:{$ss}{$sym}"
+            ];
+        }
+
+        // Toleransi format waktu notasi titik khas Indonesia (HH.mm.ss) e.g. "05.23.46" atau "01.09.06"
+        if (preg_match('/^([0-1]?[0-9]|2[0-3])\.([0-5][0-9])\.([0-5][0-9])$/', $str, $mTimeDot)) {
+            $hh = str_pad($mTimeDot[1], 2, '0', STR_PAD_LEFT);
+            return [
+                'nilai'  => null,
+                'simbol' => "{$hh}:{$mTimeDot[2]}:{$mTimeDot[3]}"
+            ];
         }
 
         // Teks dengan angka estimasi e.g. "125e" atau "e125"

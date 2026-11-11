@@ -20,6 +20,40 @@ if (empty($api_results)) {
     }
 }
 
+if (!function_exists('parse_portal_api_error')) {
+    function parse_portal_api_error($raw_msg, $id_api = '') {
+        $info = [
+            'code'        => 'ERROR',
+            'badge_class' => 'bg-danger-subtle text-danger border-danger-subtle',
+            'title'       => 'Gagal Memuat Data dari Portal',
+            'desc'        => 'Terjadi kendala saat menghubungi server Portal Satu Data Jawa Tengah.',
+            'raw'         => $raw_msg
+        ];
+
+        if (stripos($raw_msg, 'HTTP_ERROR_404') !== false || stripos($raw_msg, 'No query results') !== false) {
+            $info['code']        = 'HTTP 404 (Not Found)';
+            $info['title']       = 'Dataset Tidak Ditemukan di Portal';
+            $info['desc']        = 'Dataset dengan ID tersebut tidak ditemukan di server Portal Satu Data Jawa Tengah. Kemungkinan ID belum sesuai atau dataset telah dihapus/diubah oleh walidata di portal.';
+        } elseif (stripos($raw_msg, 'HTTP_ERROR_500') !== false || stripos($raw_msg, 'Server Error') !== false) {
+            $info['code']        = 'HTTP 500 (Server Error)';
+            $info['title']       = 'Gangguan Server Portal / Format ID Lama';
+            $info['desc']        = 'Server Portal Satu Data Jawa Tengah merespons dengan kendala internal (Server Error). Jika ID berupa format UUID lama, server baru memerlukan pemetaan ke ID numerik portal.';
+        } elseif (stripos($raw_msg, 'HTTP_ERROR_401') !== false || stripos($raw_msg, 'HTTP_ERROR_403') !== false || stripos($raw_msg, 'MISSING_TOKEN') !== false) {
+            $info['code']        = 'Autentikasi Gagal';
+            $info['badge_class'] = 'bg-warning-subtle text-warning border-warning-subtle';
+            $info['title']       = 'Akses Token API Ditolak';
+            $info['desc']        = 'Token otorisasi API ke Portal Satu Data Jawa Tengah tidak valid atau belum dikonfigurasi.';
+        } elseif (stripos($raw_msg, 'CURL_FAIL') !== false || stripos($raw_msg, 'timeout') !== false) {
+            $info['code']        = 'Koneksi Terputus';
+            $info['badge_class'] = 'bg-secondary-subtle text-secondary border-secondary-subtle';
+            $info['title']       = 'Gagal Terhubung ke Server Portal';
+            $info['desc']        = 'Koneksi ke server satudata.jatengprov.go.id mengalami waktu habis (timeout) atau jaringan sedang tidak stabil.';
+        }
+
+        return $info;
+    }
+}
+
 
 // -------------------------------------------------------------------------
 // TEMPLATE CONFIGURATION (Hardcoded for specific res_id or Titles)
@@ -296,14 +330,34 @@ function get_dda_label_nested($col)
 ?>
 
 <style>
+    /* Pastikan scroll vertikal mengalir bebas di luar (natural outer scroll) */
+    .main-content {
+        height: auto !important;
+        min-height: auto !important;
+        overflow-y: visible !important;
+        padding-bottom: 36px !important;
+    }
+
+    .content-body {
+        height: auto !important;
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+        overflow-y: visible !important;
+    }
+
     .dda-body {
         background: #fff;
-        padding: 20px;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         font-family: 'Arial', sans-serif;
         color: #000;
         line-height: 1.2;
         width: 100%;
         max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: hidden;
         display: block;
         box-sizing: border-box;
@@ -399,40 +453,76 @@ function get_dda_label_nested($col)
     }
 
     .main-table thead th {
-        border: 1px solid #000;
+        border: 1px solid rgba(255, 255, 255, 0.25);
         padding: 8px 4px;
         font-size: 12px;
         font-weight: bold;
         text-align: center;
         vertical-align: middle;
+        background: #154679;
+        color: white;
+    }
+
+    .main-table thead th i {
+        display: block !important;
+        font-style: italic !important;
+        font-weight: normal !important;
+        font-size: 0.85em !important;
+        margin-top: 2px !important;
+        line-height: 1.25 !important;
+        opacity: 0.95 !important;
+        color: #e0edfd !important;
     }
 
     .main-table thead tr.num-row th {
-        font-weight: normal;
-        padding: 2px;
-        background: #fff;
-        font-size: 10px;
+        font-weight: bold;
+        padding: 6px 4px;
+        background: #154679;
+        font-size: 11px;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.25);
     }
 
     .main-table tbody td {
-        border: 1px solid #ccc;
-        border-left: 1px solid #000;
-        border-right: 1px solid #000;
-        padding: 6px 8px;
+        border: 1px solid #e2e8f0;
+        padding: 7px 10px;
         font-size: 12px;
-        vertical-align: top;
+        vertical-align: middle;
+        color: #1e293b;
     }
 
+    .main-table tbody tr.row-odd,
+    .main-table tbody tr.row-odd td {
+        background-color: #f1f6fc !important;
+    }
+
+    .main-table tbody tr.row-even,
+    .main-table tbody tr.row-even td {
+        background-color: #ffffff !important;
+    }
+
+    .main-table tbody tr.row-total,
+    .main-table tbody tr.row-total td {
+        background-color: #154679 !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    }
+
+    /* Kontainer Scrollable Mulus (Murni horizontal, bebas dari scroll vertikal dalam) */
     .table-responsive-dda {
         width: 100%;
-        max-width: 100%; /* Penting: Batasi lebar maksimal */
+        max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         margin-bottom: 25px;
         background: #fff;
-        border: 1px solid #f1f5f9; /* Bingkai halus */
+        border: 1px solid #f1f5f9;
         border-radius: 12px;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.02); /* Sedikit kedalaman */
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
     }
 
     /* Scrollbar style yang lebih terlihat */
@@ -521,23 +611,23 @@ function get_dda_label_nested($col)
 
     .btn-back-modern:hover {
         background: #fff;
-        color: #ff6d1f;
-        border-color: #ff6d1f;
+        color: #154679;
+        border-color: #154679;
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(255, 109, 31, 0.1);
+        box-shadow: 0 6px 12px rgba(21, 70, 121, 0.15);
         text-decoration: none;
     }
 
     .export-btn-modern {
-        background: #FF6D1F;
+        background: #154679;
         color: #fff;
     }
 
     .export-btn-modern:hover {
-        background: #e05e15;
+        background: #0f355c;
         color: #fff;
         transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(255, 109, 31, 0.25);
+        box-shadow: 0 8px 15px rgba(21, 70, 121, 0.25);
     }
 
     /* Progress Bar Styles */
@@ -641,9 +731,9 @@ function get_dda_label_nested($col)
     }
 
     #configModal .nav-link.active {
-        background: #FF6D1F;
+        background: #154679;
         color: #fff;
-        border-color: #FF6D1F;
+        border-color: #154679;
     }
 
     .col-item {
@@ -682,7 +772,8 @@ function get_dda_label_nested($col)
 
 <div class="dda-body">
     <?php
-    $fallback_url = base_url() . 'admin/dda';
+    $id_unitkerja = $api_results[0]['id_unitkerja'] ?? 0;
+    $fallback_url = !empty($id_unitkerja) ? base_url('admin/dda/view_tabel?id=' . $id_unitkerja) : (base_url() . 'admin/dda');
     $back_url = $fallback_url;
     if (isset($_SERVER['HTTP_REFERER'])) {
         $referer = $_SERVER['HTTP_REFERER'];
@@ -716,26 +807,29 @@ function get_dda_label_nested($col)
             <?php if (!empty($unique_years)): ?>
                 <div class="dropdown">
                     <button class="btn-rounded-modern btn-back-modern shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                        <i class="bi bi-calendar-event me-1"></i> <span id="year-filter-label">Tahun</span>
+                        <i class="bi bi-calendar-event me-1"></i> <span id="year-filter-label">Tahun (<?php echo count($unique_years); ?>)</span>
                     </button>
-                    <div class="dropdown-menu p-3 shadow-lg border-0" style="border-radius: 1rem; min-width: 200px;">
-                        <h6 class="dropdown-header px-0 mb-2">Pilih Tahun</h6>
-                        <div id="year-checklist-container">
+                    <div class="dropdown-menu p-3 shadow-lg border-0" style="border-radius: 1rem; min-width: 220px;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="dropdown-header px-0 mb-0 fw-bold text-dark" style="font-size: 11px;">PILIH TAHUN</h6>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary fw-semibold" style="font-size: 11px;" onclick="toggleAllYears()">Pilih Semua</button>
+                        </div>
+                        <div id="year-checklist-container" style="max-height: 220px; overflow-y: auto;">
                             <?php foreach ($unique_years as $yr): ?>
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input year-filter-check" type="checkbox" value="<?php echo $yr; ?>" id="yr-<?php echo $yr; ?>" onchange="filterByYear()">
+                                    <input class="form-check-input year-filter-check" type="checkbox" value="<?php echo $yr; ?>" id="yr-<?php echo $yr; ?>" checked onchange="filterByYear()">
                                     <label class="form-check-label small fw-bold" for="yr-<?php echo $yr; ?>">Tahun <?php echo $yr; ?></label>
                                 </div>
                             <?php endforeach; ?>
                         </div>
                         <hr class="my-2">
-                        <button type="button" onclick="resetYearFilter()" class="btn btn-sm btn-link text-muted p-0 text-decoration-none small">Reset</button>
+                        <button type="button" onclick="resetYearFilter()" class="btn btn-sm btn-link text-muted p-0 text-decoration-none small">Reset ke Default</button>
                     </div>
                 </div>
             <?php endif; ?>
 
-            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm">
-                <i class="bi bi-gear-fill"></i> KONFIGURASI
+            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm" title="Buka Pengaturan Konfigurasi Tabel">
+                <i class="bi bi-sliders text-primary"></i> KONFIGURASI
             </button>
 
             <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
@@ -760,7 +854,7 @@ function get_dda_label_nested($col)
         }
 
         .filter-box-modern:hover {
-            border-color: #FF6D1F;
+            border-color: #154679;
         }
 
         .form-select-modern {
@@ -777,17 +871,90 @@ function get_dda_label_nested($col)
     </style>
 
     <script>
+        function formatDynamicTitleJs(baseTitle, selectedYears, lang) {
+            if (!baseTitle) return '';
+            const years = selectedYears.map(y => parseInt(y, 10)).filter(y => y > 1900 && y < 2100);
+            years.sort((a, b) => a - b);
+            const uniqueYears = Array.from(new Set(years));
+            if (uniqueYears.length === 0) return baseTitle;
+
+            const isEn = (lang === 'en');
+            const conj = isEn ? ' and ' : ' dan ';
+            let yearStr = '';
+
+            if (uniqueYears.length === 1) {
+                yearStr = uniqueYears[0].toString();
+            } else if (uniqueYears.length === 2) {
+                yearStr = uniqueYears[0] + conj + uniqueYears[1];
+            } else {
+                let isConsecutive = true;
+                for (let i = 1; i < uniqueYears.length; i++) {
+                    if (uniqueYears[i] !== uniqueYears[i - 1] + 1) {
+                        isConsecutive = false;
+                        break;
+                    }
+                }
+                if (isConsecutive) {
+                    yearStr = uniqueYears[0] + '–' + uniqueYears[uniqueYears.length - 1];
+                } else {
+                    const lastYear = uniqueYears[uniqueYears.length - 1];
+                    const otherYears = uniqueYears.slice(0, -1);
+                    const oxford = isEn ? ', and ' : ', dan ';
+                    yearStr = otherYears.join(', ') + oxford + lastYear;
+                }
+            }
+
+            if (baseTitle.toLowerCase().includes('[periode]')) {
+                return baseTitle.replace(/\[periode\]/gi, yearStr);
+            }
+            return baseTitle + ', ' + yearStr;
+        }
+
         function filterByYear() {
             const checkedYears = Array.from(document.querySelectorAll('.year-filter-check:checked')).map(cb => cb.value);
+
+            if (checkedYears.length === 0) {
+                alert('Pilih minimal 1 tahun untuk ditampilkan.');
+                document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = true);
+                filterByYear();
+                return;
+            }
+
             currentSelectedYears = checkedYears; // Update global state
 
+            const totalYears = document.querySelectorAll('.year-filter-check').length;
             const label = document.getElementById('year-filter-label');
-            if (checkedYears.length === 0) label.innerText = "Tahun";
-            else if (checkedYears.length === 1) label.innerText = "Tahun " + checkedYears[0];
-            else label.innerText = checkedYears.length + " Tahun";
+            if (checkedYears.length === totalYears) {
+                label.innerText = "Tahun (" + checkedYears.length + ")";
+            } else if (checkedYears.length === 1) {
+                label.innerText = "Tahun " + checkedYears[0];
+            } else {
+                label.innerText = "Tahun (" + checkedYears.length + ")";
+            }
 
             const tables = document.querySelectorAll('.table-wrapper');
             tables.forEach((wrapper, idx) => {
+                // Perbarui judul tabel secara dinamis sesuai pilihan checkbox tahun
+                const titleBox = wrapper.querySelector('.title-box');
+                if (titleBox) {
+                    const titleIdSpan = titleBox.querySelector('.title-id');
+                    const titleEnSpan = titleBox.querySelector('.title-en');
+
+                    if (checkedYears.length === 0) {
+                        if (titleIdSpan && titleBox.dataset.defaultId) titleIdSpan.textContent = titleBox.dataset.defaultId;
+                        if (titleEnSpan && titleBox.dataset.defaultEn) titleEnSpan.textContent = titleBox.dataset.defaultEn;
+                    } else {
+                        const baseId = titleBox.dataset.baseId || '';
+                        const baseEn = titleBox.dataset.baseEn || '';
+                        if (titleIdSpan && baseId) {
+                            titleIdSpan.textContent = formatDynamicTitleJs(baseId, checkedYears, 'id');
+                        }
+                        if (titleEnSpan && baseEn) {
+                            titleEnSpan.textContent = formatDynamicTitleJs(baseEn, checkedYears, 'en');
+                        }
+                    }
+                }
+
                 const customTable = wrapper.querySelector('.main-table');
                 if (customTable && (currentTableConfig || customTable.innerHTML.includes('style='))) {
                     let config = currentTableConfig;
@@ -814,7 +981,7 @@ function get_dda_label_nested($col)
                     let hasVisibleRow = false;
                     rows.forEach(row => {
                         const rowYear = row.getAttribute('data-tahun');
-                        if (checkedYears.length === 0 || checkedYears.includes(rowYear)) {
+                        if (checkedYears.includes(rowYear)) {
                             row.style.display = "";
                             hasVisibleRow = true;
                         } else {
@@ -826,16 +993,94 @@ function get_dda_label_nested($col)
             });
         }
 
+        function toggleAllYears() {
+            const checkboxes = document.querySelectorAll('.year-filter-check');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+            filterByYear();
+        }
+
         function resetYearFilter() {
-            document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = true);
             filterByYear();
         }
     </script>
 
     <?php echo view('admin/parts/js_export_excel'); ?>
 
+    <?php 
+    $target_year_found = !empty($th_target_data) && in_array((string)$th_target_data, array_map('strval', $unique_years));
+    if (!$hasError && !empty($th_target_data) && !$target_year_found): 
+    ?>
+        <div class="alert border-0 shadow-xs d-flex align-items-center mb-3 p-3" style="background: #ffffff; border: 1px solid #fed7aa !important; border-left: 4px solid #f59e0b !important; border-radius: 10px; box-shadow: 0 2px 10px -2px rgba(245, 158, 11, 0.08) !important;">
+            <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0 me-3" style="width: 40px; height: 40px; background: #fff7ed; color: #d97706; border: 1px solid #fde68a; border-radius: 10px;">
+                <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.15rem;"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                    <span class="fw-bold text-dark" style="font-size: 0.925rem; letter-spacing: -0.01em;">
+                        Data Tahun <?= htmlspecialchars((string)$th_target_data); ?> Belum Tersedia
+                    </span>
+                    <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-0.5 fw-bold" style="font-size: 10px; letter-spacing: 0.3px;">
+                        BELUM DIISI
+                    </span>
+                </div>
+                <div class="text-muted" style="font-size: 0.835rem; line-height: 1.5;">
+                    Publikasi DDA <?= htmlspecialchars((string)($ta ?? ((int)$th_target_data + 1))); ?> memerlukan data tahun <strong><?= htmlspecialchars((string)$th_target_data); ?></strong>. 
+                    Tahun data tersedia saat ini: 
+                    <?php if (!empty($unique_years)): ?>
+                        <?php foreach ($unique_years as $yr): ?>
+                            <span class="badge bg-light text-dark border px-2 py-0.5 fw-semibold me-1" style="font-size: 11px;"><?= htmlspecialchars((string)$yr); ?></span>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <span class="text-secondary fst-italic">Belum ada data</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php if ($hasError): ?>
-        <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
+        <div class="card border-0 shadow-xs rounded-4 mb-4" style="background: #ffffff; border-left: 5px solid #ef4444 !important; border: 1px solid #fee2e2;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0" 
+                         style="width: 48px; height: 48px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 12px;">
+                        <i class="bi bi-exclamation-octagon-fill fs-4"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <?php 
+                        $errList = !empty($api_errors) ? $api_errors : [$errorMsg];
+                        foreach ($errList as $singleErr): 
+                            $parsed = parse_portal_api_error($singleErr, $id_api ?? '');
+                        ?>
+                            <div class="mb-3">
+                                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                    <span class="badge <?= $parsed['badge_class']; ?> border px-2 py-0.5 fw-bold" style="font-size: 11px;">
+                                        <?= htmlspecialchars($parsed['code']); ?>
+                                    </span>
+                                    <h6 class="fw-bold text-dark mb-0" style="font-size: 0.95rem;">
+                                        <?= htmlspecialchars($parsed['title']); ?>
+                                    </h6>
+                                </div>
+                                <p class="text-secondary small mb-2" style="line-height: 1.5;">
+                                    <?= htmlspecialchars($parsed['desc']); ?>
+                                </p>
+                                
+                                <details class="mt-2">
+                                    <summary class="text-muted small fw-semibold cursor-pointer" style="font-size: 0.75rem; user-select: none;">
+                                        <i class="bi bi-code-slash me-1"></i> Detail Respons Teknis API
+                                    </summary>
+                                    <div class="bg-light p-2.5 rounded-3 mt-1.5 border" style="font-family: monospace; font-size: 0.75rem; word-break: break-all; color: #475569;">
+                                        <?= htmlspecialchars($parsed['raw']); ?>
+                                    </div>
+                                </details>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
     <?php else: ?>
         <div id="dda-container-all" style="padding: 20px;">
             <?php foreach ($api_results as $idx_res => $api_result):
@@ -844,6 +1089,8 @@ function get_dda_label_nested($col)
                 $dda_title = $api_result['dda_title'] ?? '';
                 $dda_title_en = $api_result['dda_title_en'] ?? '';
                 $no_tabel = $api_result['no_tabel'] ?? '';
+                $base_title_ind = $api_result['base_title_ind'] ?? ($dda_title ?: $portal_title);
+                $base_title_en  = $api_result['base_title_en'] ?? ($dda_title_en ?: ($api_result['title_en'] ?? ''));
 
                 if (empty($no_tabel) && preg_match('/^(\d+(?:\.\d+)+(?:[a-zA-Z])?)\s+(.*)$/u', $dda_title ?: $portal_title, $m_num)) {
                     $no_tabel = $m_num[1];
@@ -853,7 +1100,18 @@ function get_dda_label_nested($col)
                     $dda_title = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $dda_title);
                     $portal_title = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $portal_title);
                     $dda_title_en = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $dda_title_en);
+                    $base_title_ind = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $base_title_ind);
+                    $base_title_en = preg_replace('/^' . preg_quote($no_tabel, '/') . '\s*/u', '', $base_title_en);
                 }
+
+                // Bersihkan akhiran tahun dari base title agar formatDynamicTitleJs bisa menyusun rentang tahun secara bersih
+                $base_title_ind = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_ind);
+                $base_title_ind = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_ind);
+                $base_title_ind = trim(rtrim($base_title_ind, ','));
+
+                $base_title_en = preg_replace('/,?\s*(?:Tahun\s+|Year\s+)?(?:19|20)\d{2}(?:\s*[\–\-\/]\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_en);
+                $base_title_en = preg_replace('/,?\s*(?:19|20)\d{2}(?:,\s*(?:19|20)\d{2})*(?:\s*(?:dan|and|&)\s*(?:19|20)\d{2})?\s*$/iu', '', $base_title_en);
+                $base_title_en = trim(rtrim($base_title_en, ','));
                 $rows = [];
                 $columns = [];
 
@@ -1033,7 +1291,7 @@ function get_dda_label_nested($col)
                                 </div>
                             </td>
 
-                            <td class="title-box">
+                            <td class="title-box" data-base-id="<?php echo htmlspecialchars($base_title_ind); ?>" data-base-en="<?php echo htmlspecialchars($base_title_en); ?>" data-default-id="<?php echo htmlspecialchars($idx_res === 0 ? ($dda_title ?: $portal_title) : $portal_title); ?>" data-default-en="<?php echo htmlspecialchars($idx_res === 0 ? ($dda_title_en ?: ($api_result['title_en'] ?? '')) : ($api_result['title_en'] ?? $dda_title_en ?? '')); ?>">
                                 <span class="title-id">
                                     <?php
                                     if ($idx_res === 0) {
@@ -1066,7 +1324,7 @@ function get_dda_label_nested($col)
                     <!-- TABEL DATA UTAMA -->
                     <div class="table-responsive-dda">
                         <table class="main-table dda-table-item" id="dda-table-<?php echo $idx_res; ?>">
-                        <thead style="background: #FF6D1F; color: #fff;">
+                        <thead style="background: #154679; color: #fff;">
                             <!-- BARIS HEADER 1: INDUK -->
                             <tr>
                                 <?php foreach ($structure as $item): ?>
@@ -1090,7 +1348,7 @@ function get_dda_label_nested($col)
                                 </tr>
                             <?php endif; ?>
                             <!-- BARIS PENOMORAN (1), (2), (3) ... -->
-                            <tr class="num-row" style="background:#f9a066; color:#000;">
+                            <tr class="num-row" style="background:#154679; color:#fff;">
                                 <?php
                                 $col_count_n = 0;
                                 foreach ($columns as $idx_c => $col):
@@ -1170,20 +1428,32 @@ function get_dda_label_nested($col)
     <script>
         // Store raw data from PHP
         let rawApiResults = <?php echo json_encode($api_results); ?>;
-        let currentSelectedYears = []; // Global state multi-tahun
+        let currentSelectedYears = <?php echo json_encode(array_values(array_map('strval', $unique_years ?? []))); ?>; // Global state multi-tahun default all
         let currentTableConfig = null;
 
         // --- 1. AUTO-LOAD DARI DATABASE SAAT HALAMAN DIBUKA ---
         window.addEventListener('DOMContentLoaded', (event) => {
             rawApiResults.forEach((res, idx) => {
+                const dataRows = getRowsFromApiResult(res);
+                const baseKeys = (dataRows.length > 0) ? Object.keys(dataRows[0]) : [];
+                const hasIndicatorPattern = baseKeys.some(k => k.toLowerCase() === 'indikator') && baseKeys.some(k => k.toLowerCase() === 'nilai') && baseKeys.length >= 4 && dataRows.some(r => r.indikator !== null && r.indikator !== '');
+
                 if (res.config_tabel) {
                     try {
-                        const savedConfig = JSON.parse(res.config_tabel);
+                        let savedConfig = JSON.parse(res.config_tabel);
+                        if (typeof savedConfig === 'string') savedConfig = JSON.parse(savedConfig);
+                        if (hasIndicatorPattern && (!savedConfig.pivot || (!savedConfig.pivot.enabled && (!savedConfig.pivot.col || savedConfig.pivot.col.length === 0))) && typeof buildSmartPivotConfig === 'function') {
+                            savedConfig = buildSmartPivotConfig(baseKeys, dataRows);
+                        }
                         if (idx === 0) currentTableConfig = savedConfig;
                         renderCustomTable(idx, savedConfig);
                     } catch (e) {
                         console.error("Gagal load config:", e);
                     }
+                } else if (hasIndicatorPattern && typeof buildSmartPivotConfig === 'function') {
+                    const smartCfg = buildSmartPivotConfig(baseKeys, dataRows);
+                    if (idx === 0) currentTableConfig = smartCfg;
+                    renderCustomTable(idx, smartCfg);
                 }
             });
         });

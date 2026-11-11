@@ -1,11 +1,11 @@
 <style>
     .bg-orange {
-        background-color: #FF6D1F !important;
+        background-color: #154679 !important;
         color: white !important;
     }
 
     .bg-orange:hover {
-        background-color: #e05e15 !important;
+        background-color: #0f355c !important;
     }
 
     .sortable-ghost {
@@ -25,7 +25,7 @@
     }
 
     .dda-table-item th {
-        border: 1px solid #fff !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
         vertical-align: middle !important;
     }
 
@@ -37,6 +37,6 @@
     }
 
     .dda-table-item td {
-        border: 1px solid #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
     }
 </style>

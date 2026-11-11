@@ -18,6 +18,7 @@ class Admin extends BaseController
 	public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
 	{
 		parent::initController($request, $response, $logger);
+		date_default_timezone_set('Asia/Jakarta');
 		//$this->load->library('encryption'); //in controller
 		$this->load->library('MyPHPMailer');
 		$this->load->helper('url');
@@ -29,20 +30,81 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) {
 			$ta = date('Y');
 		}
 
+		$unitkerjalogin = $this->session->get('admin_unitkerja');
+		$user_level     = strtolower(trim((string)$this->session->get('admin_level')));
+		$user_id        = (int)$this->session->get('admin_id');
+		$username       = $this->session->get('admin_user');
+
+		$filter_unitkerja = null;
+		$filter_teams     = null;
+		$user_role_scope  = 'admin';
+		$scope_label      = 'Provinsi Jawa Tengah';
+
+		// 1. Walidata (OPD di luar BPS / bukan level admin/kominfo)
+		if ($unitkerjalogin != 'bps' && !in_array($user_level, ['admin', 'super admin', 'superadmin', 'kominfo'])) {
+			$user_role_scope  = 'walidata';
+			$filter_unitkerja = [$unitkerjalogin];
+			$filter_teams     = ['__NONE__'];
+			$unit_row = $this->db->table('m_unitkerja')->where('id_unitkerja', $unitkerjalogin)->get()->getRow();
+			$scope_label = $unit_row->unitkerja_ind ?? strtoupper((string)$unitkerjalogin);
+		}
+		// 2. LO (Liaison Officer BPS)
+		else if ($user_level == 'lo') {
+			$user_role_scope = 'lo';
+			$user_teams = $this->db->query("SELECT kode_tim FROM t_tim_anggota WHERE id_admin = ?", [$user_id])->getResultArray();
+			$team_codes = array_filter(array_column($user_teams, 'kode_tim'));
+			if (!empty($username) && !in_array($username, $team_codes)) {
+				$is_wali = $this->db->query("SELECT 1 FROM m_unitkerja WHERE user_wali = ? LIMIT 1", [$username])->getNumRows();
+				if ($is_wali > 0) {
+					$team_codes[] = $username;
+				}
+			}
+
+			if (!empty($team_codes)) {
+				$filter_teams = $team_codes;
+				$in_clause = implode(',', array_fill(0, count($team_codes), '?'));
+				$opd_binaan = $this->db->query("SELECT id_unitkerja FROM m_unitkerja WHERE user_wali IN ($in_clause)", $team_codes)->getResultArray();
+				$filter_unitkerja = !empty($opd_binaan) ? array_column($opd_binaan, 'id_unitkerja') : ['__NONE__'];
+				$scope_label = 'OPD Binaan Tim ' . strtoupper(implode(', ', $team_codes));
+			} else {
+				$filter_unitkerja = ['__NONE__'];
+				$filter_teams     = ['__NONE__'];
+				$scope_label      = 'Belum memiliki tim binaan';
+			}
+		}
+		// 3. Supervisor (SPV BPS)
+		else if ($user_level == 'spv') {
+			$user_role_scope = 'spv';
+			$opd_spv = $this->db->query("SELECT id_unitkerja FROM m_unitkerja WHERE user_spv = ?", [$username])->getResultArray();
+			$filter_unitkerja = !empty($opd_spv) ? array_column($opd_spv, 'id_unitkerja') : ['__NONE__'];
+			$filter_teams     = null;
+			$scope_label      = 'OPD Binaan SPV ' . $username;
+		}
+		// 4. Admin / Super Admin / Kominfo (Default: Akses Seluruh Data)
+		else {
+			$user_role_scope  = 'admin';
+			$filter_unitkerja = null;
+			$filter_teams     = null;
+			$scope_label      = 'Provinsi Jawa Tengah';
+		}
+
 		$this->load->model('m_kelolakegiatan');
-		$stats = $this->m_kelolakegiatan->get_statistik_dashboard($ta);
+		$stats = $this->m_kelolakegiatan->get_statistik_dashboard($ta, $filter_unitkerja);
 
-		$a['stat_diisi']       = (int) ($stats->diisi ?? 0);
-		$a['stat_belum_diisi'] = (int) ($stats->belum_diisi ?? 0);
-		$a['stat_sudah_acc']   = (int) ($stats->sudah_acc ?? 0);
-		$a['stat_belum_acc']   = (int) ($stats->belum_acc ?? 0);
+		$a['stat_diisi']         = (int) ($stats->diisi ?? 0);
+		$a['stat_belum_diisi']   = (int) ($stats->belum_diisi ?? 0);
+		$a['stat_sudah_acc']     = (int) ($stats->sudah_acc ?? 0);
+		$a['stat_belum_acc']     = (int) ($stats->belum_acc ?? 0);
+		$a['stat_diisi_waiting'] = (int) ($stats->diisi_waiting ?? 0);
+		$a['stat_total']         = (int) ($stats->total_tabel ?? 0);
 
-		$data_opd = $this->m_kelolakegiatan->get_statistik_per_opd($ta);
+		$data_opd = $this->m_kelolakegiatan->get_statistik_per_opd($ta, $filter_unitkerja);
 
 		$nama_opd = array();
 		$opd_acc = array();
@@ -63,7 +125,7 @@ class Admin extends BaseController
 		$a['grafik_opd_menunggu'] = json_encode($opd_menunggu);
 		$a['grafik_opd_belum']    = json_encode($opd_belum);
 
-		$data_tim = $this->m_kelolakegiatan->get_statistik_per_tim($ta);
+		$data_tim = ($user_role_scope === 'walidata') ? [] : $this->m_kelolakegiatan->get_statistik_per_tim($ta, $filter_teams);
 
 		$nama_tim = array();
 		$tim_acc = array();
@@ -83,6 +145,10 @@ class Admin extends BaseController
 		$a['grafik_tim_menunggu'] = json_encode($tim_menunggu);
 		$a['grafik_tim_belum']    = json_encode($tim_belum);
 
+		$a['user_role_scope']     = $user_role_scope;
+		$a['scope_label']         = $scope_label;
+		$a['is_bps']              = ($unitkerjalogin == 'bps');
+
 		$a['page']	= "d_amain";
 		return view('admin/index', $a);
 	}
@@ -92,6 +158,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$a['page']	= "f_kalender";
 
@@ -103,6 +170,12 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
+		if (!can('pengguna')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Menu Instansi Pengguna hanya untuk Super Admin.</div>');
+			return redirect()->to('admin');
+		}
+
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -151,17 +224,14 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM t_admin")->getRow()->total ?? 0);
-		$per_page		= 10;
+		if (!can('manage_admin')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Menu Manajemen Admin hanya untuk Super Admin.</div>');
+			return redirect()->to('admin');
+		}
 
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
 
-		//if (empty($awal) || $awal == 1) { $awal = 0; } { $awal = $awal; }
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/manage_admin/p");
+		/* pagination dinonaktifkan: seluruh data admin ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -219,61 +289,13 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/manage_admin');
 		} else {
-			$a['data']		= $this->db->query("SELECT * FROM t_admin LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM t_admin ORDER BY id ASC")->getResult();
 			$a['page']		= "l_manage_admin";
 		}
 
 		return view('admin/index', $a);
 	}
 
-	public function get_klasifikasi()
-	{
-		$kode 				= $this->input->post('kode', TRUE);
-
-		$data 				=  $this->db->query("SELECT id, kode, nama FROM ref_klasifikasi WHERE kode LIKE ? ORDER BY id ASC", ['%' . $kode . '%'])->getResult();
-
-		$klasifikasi 		=  array();
-		foreach ($data as $d) {
-			$json_array				= array();
-			$json_array['value']	= $d->kode;
-			$json_array['label']	= $d->kode . " - " . $d->nama;
-			$klasifikasi[] 			= $json_array;
-		}
-
-		echo json_encode($klasifikasi);
-	}
-
-	//tambahan
-	public function get_bidang()
-	{
-		$kode 				= $this->input->post('kpd_yth', TRUE);
-
-		$data 				=  $this->db->query("SELECT * FROM m_bidang WHERE nama_bidang LIKE ? ORDER BY id_bidang ASC", ['%' . $kode . '%'])->getResult();
-
-		$klasifikasi 		=  array();
-		foreach ($data as $d) {
-			$json_array				= array();
-			$json_array['value']	= $d->id_bidang . " - " . $d->nama_bidang;
-			$json_array['label']	= $d->id_bidang . " - " . $d->nama_bidang;
-			$klasifikasi[] 			= $json_array;
-		}
-
-		echo json_encode($klasifikasi);
-	}
-
-	public function get_instansi_lain()
-	{
-		$kode 				= $this->input->post('dari', TRUE);
-
-		$data 				=  $this->db->query("SELECT dari FROM t_surat_masuk WHERE dari LIKE ? GROUP BY dari", ['%' . $kode . '%'])->getResult();
-
-		$klasifikasi 		=  array();
-		foreach ($data as $d) {
-			$klasifikasi[] 	= $d->dari;
-		}
-
-		echo json_encode($klasifikasi);
-	}
 
 	public function profil()
 	{
@@ -281,18 +303,28 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		$idu					= $this->session->get('admin_id');
+
+		$idu					= (int)$this->session->get('admin_id');
 		$mau_ke					= $this->uri->segment(3);
 
 		//ambil variabel Postingan
-		$idp					= $this->input->post('idp') ?? '';
-		$nama					= $this->input->post('nama') ?? '';
-		$nip					= $this->input->post('nip') ?? '';
-		$email					= $this->input->post('email') ?? '';
-		$username				= $this->input->post('username') ?? '';
+		$nama					= trim((string)($this->input->post('nama') ?? ''));
+		$nip					= trim((string)($this->input->post('nip') ?? ''));
+		$email					= trim((string)($this->input->post('email') ?? ''));
+		$username				= trim((string)($this->input->post('username') ?? ''));
 
 		if ($mau_ke == "act_edt") {
-			$this->db->query("UPDATE t_admin SET nama = ?, nip = ?, email = ?, username = ? WHERE id = ?", [$nama, $nip, $email, $username, $idp]);
+			if (strlen($username) < 4) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Username minimal 4 karakter.</div>");
+				return redirect()->to('admin/profil');
+			}
+			$dup = $this->db->query("SELECT id FROM t_admin WHERE username = ? AND id != ? LIMIT 1", [$username, $idu])->getRow();
+			if ($dup) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Username sudah digunakan oleh akun lain.</div>");
+				return redirect()->to('admin/profil');
+			}
+
+			$this->db->query("UPDATE t_admin SET nama = ?, nip = ?, email = ?, username = ? WHERE id = ?", [$nama, $nip, $email, $username, $idu]);
 			// Sync session data
 			$this->session->set('admin_nama', $nama);
 			$this->session->set('admin_user', $username);
@@ -312,6 +344,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		$ke				= $this->uri->segment(3);
 		$id_user		= $this->session->get('admin_id');
@@ -375,6 +408,8 @@ class Admin extends BaseController
 				'admin_valid' => true
 			);
 			$this->session->set($data);
+			// Segera resolve dan cache role RBAC
+			\App\Libraries\RbacService::resolveRole($this->session);
 			return redirect()->to('index.php/admin');
 		} else {
 			$this->session->setFlashdata("k", "<div id=\"alert\" class=\"alert alert-error\">username or password is not valid</div>");
@@ -390,56 +425,6 @@ class Admin extends BaseController
 
 
 
-	public function get_kegiatan()
-	{
-		$unitkerja = $this->input->post('unitkerja');
-		$bidang = substr($unitkerja, 1, 4);
-		$query 	=  $this->db->query("SELECT * FROM m_jeniskegiatan WHERE substring(id_jeniskegiatan,1,4) = ?", [$bidang]);
-?>
-		<option value="Kosong">-- Pilih Nama Kegiatan--<?php echo $bidang; ?></option>
-		<?php
-		foreach ($query->getResult() as $row) {
-			echo "<option value='" . $row->id_jeniskegiatan . "'>" . $row->nama_kegiatan . "</option>";
-		}
-	}
-
-
-	public function konfirmasi()
-	{
-		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return redirect()->to("admin/login");
-		}
-
-		$ta = $this->session->get('admin_ta');
-		parse_str($_SERVER['QUERY_STRING'], $_GET);
-
-		//ambil variabel URL
-		$mau_ke					= $this->uri->segment(3);
-		$idu					= $this->uri->segment(4);
-
-		//ambil variabel post
-		$id_kontrak_konfirm		= $this->input->post('id_kontrak');
-		$cari					= $this->input->post('q');
-
-		if ($mau_ke == "edt") {
-			$id_edit 		  = $this->input->get('konfirmasi_id');
-		?>
-			<script>
-				//window.alert('<?php echo $id_edit; ?>');
-			</script>
-		<?php
-			$a['datpil']	= $this->db->query("select * from t_kontrak where id_kontrak=?", [$id_edit])->getRow();
-			$a['page']		= "f_konfirmasi";
-		} else if ($mau_ke == "act_edt") {
-			$this->db->query("UPDATE t_kontrak SET flag_konfirm = '1' WHERE id_kontrak = ?", [$id_kontrak_konfirm]);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data sudah dikonfirmasi selesai</div>");
-			return redirect()->to('admin/oi/');
-		} else {
-			$a['page'] = 'dashboard';
-		}
-
-		return view('admin/index', $a);
-	}
 
 
 
@@ -451,13 +436,18 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) {
 			$ta = date('Y');
 		}
 
+		$thDda = (string)$ta;
+		$thData = ((int)$ta) - 1;
+		$thDataStr = (string)$thData;
+
 		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) as total FROM t_tahun_tabel")->getRow()->total ?? 0);
+		$total_row		= (int)($this->db->query("SELECT COUNT(*) as total FROM m_list_tabel WHERE is_active = 1")->getRow()->total ?? 0);
 		$per_page		= 150;
 
 		$awal	= $this->uri->segment(4);
@@ -498,109 +488,197 @@ class Admin extends BaseController
 
 		$this->load->library('upload', $config);
 
-		if ($mau_ke == "del") {
-			$id_delete = $this->input->get('delete_id');
-		?>
-			<script>
-				//window.alert('<?php echo $id_delete; ?>');
-			</script>
-		<?php
-			$a['datpil']	= $this->db->query("select * from t_oi where id=?", [$id_delete])->getRow();
-			$a['page']		= "f_del";
-		} else if ($mau_ke == "act_del") {
-			$id_oi = $this->input->post('id');
-			$this->db->query("DELETE FROM t_oi WHERE id = ?", [$id_oi]);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
-			return redirect()->to('admin/oi/');
-		} else if ($mau_ke == "in") {
-			$id_in = $this->input->get('in_id');;
-		?>
-			<script>
-				//window.alert('<?php echo $id_in; ?>');
-			</script>
-		<?php
-			$a['datpil']	= $this->db->query("select * from t_oi where id=?", [$id_in])->getRow();
-			$a['page']		= "f_in";
-		} else if ($mau_ke == "act_in") {
-			$id_oi = $this->input->post('id');
-			date_default_timezone_set("Asia/Jakarta");
-			$tanggal_in = date("H:i");
-			$this->db->query("UPDATE t_oi SET jam_masuk=? where id=?", [$tanggal_in, $id_oi]);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
-			return redirect()->to('admin/oi/');
-		} else if ($mau_ke == "konfirmasi") {
-			$id_konfirmasi = $this->input->get('konfirmasi_id');;
-		?>
-			<script>
-				//window.alert('<?php echo $id_konfirmasi; ?>');
-			</script>
-		<?php
-			$a['datpil']	= $this->db->query("SELECT t.id, m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind FROM t_tahun_tabel t JOIN m_list_tabel m_t ON t.id_tabel = m_t.id LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja WHERE t.id=?", [$id_konfirmasi])->getRow();
-			$a['page']		= "f_konfirmasi";
+		if ($mau_ke == "konfirmasi") {
+			if (!can('input_dda_verif')) {
+				return redirect()->back()->with('k', '<div class="alert alert-danger" id="alert">Akses ditolak.</div>');
+			}
+			$id_konfirmasi = (int)$this->input->get('konfirmasi_id');
+			$datpil = $this->db->query("
+				SELECT m_t.id, m_t.id as id_tabel, ? as tahun, m_t.no_tabel,
+					   COALESCE(ka.link_api, '') as link_tabel,
+					   COALESCE(t.is_periksa, 0) as is_periksa,
+					   t.catatan_periksa,
+					   COALESCE(t.is_confirm, '0') as is_confirm,
+					   COALESCE(t.catatan, '-') as catatan,
+					   m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind, m_t.kondef, m_t.sumber_data
+				FROM m_list_tabel m_t
+				LEFT JOIN t_status_tahunan t ON t.id_tabel = m_t.id AND t.tahun = ?
+				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m_t.id
+				LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja
+				WHERE m_t.id = ?
+			", [(int)$ta, (int)$ta, $id_konfirmasi])->getRow();
+			if (!$datpil || !$this->canManageTable($datpil)) {
+				return redirect()->to('admin/dda')->with('k', '<div class="alert alert-danger" id="alert">Akses ditolak atau tabel tidak ditemukan.</div>');
+			}
+			$a['datpil'] = $datpil;
+			$a['page']   = "f_konfirmasi";
 		} else if ($mau_ke == "act_konfirmasi") {
-			$id_data = $this->input->post('id');
+			if (!can('input_dda_verif')) {
+				return redirect()->back()->with('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk memverifikasi/meng-ACC data.</div>');
+			}
+			$id_data = (int)$this->input->post('id');
+			$tabelRow = $this->db->table('m_list_tabel')->select('id, id_unitkerja')->where('id', $id_data)->get()->getRow();
+			if (!$tabelRow || !$this->canManageTable($tabelRow)) {
+				return redirect()->back()->with('k', '<div class="alert alert-danger" id="alert">Akses ditolak: Tabel ini berada di luar cakupan tim/unit kerja Anda.</div>');
+			}
 			$catatan = $this->input->post('catatan');
-
-			//$confirmed_by=$this->session->get('admin_nama');
-			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan =? where id=?", [$catatan, $id_data]);
+			$mTabelDinamis = new \App\Models\M_tabeldinamis();
+			$mTabelDinamis->upsertStatusTahunan($id_data, (int)$ta, [
+				'is_confirm' => '1',
+				'catatan'    => $catatan,
+			]);
 			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data has been updated</div>');
 		} else if ($mau_ke == "periksa") {
-			$id_konfirmasi = $this->input->get('konfirmasi_id');
-			$a['datpil']   = $this->db->query("SELECT t.id, m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind FROM t_tahun_tabel t JOIN m_list_tabel m_t ON t.id_tabel = m_t.id LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja WHERE t.id=?", [$id_konfirmasi])->getRow();
+			$id_konfirmasi = (int)$this->input->get('konfirmasi_id');
+			$datpil = $this->db->query("
+				SELECT m_t.id, m_t.id as id_tabel, ? as tahun, m_t.no_tabel,
+					   COALESCE(ka.link_api, '') as link_tabel,
+					   COALESCE(t.is_periksa, 0) as is_periksa,
+					   t.catatan_periksa,
+					   COALESCE(t.is_confirm, '0') as is_confirm,
+					   COALESCE(t.catatan, '-') as catatan,
+					   m_t.judul_ind, m_t.judul_en, m_t.id_unitkerja, m.unitkerja_ind, m_t.kondef, m_t.sumber_data
+				FROM m_list_tabel m_t
+				LEFT JOIN t_status_tahunan t ON t.id_tabel = m_t.id AND t.tahun = ?
+				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m_t.id
+				LEFT JOIN m_unitkerja m ON m_t.id_unitkerja = m.id_unitkerja
+				WHERE m_t.id = ?
+			", [(int)$ta, (int)$ta, $id_konfirmasi])->getRow();
+			if (!$datpil || !$this->canManageTable($datpil)) {
+				return $this->response->setStatusCode(403)->setBody('<div class="alert alert-danger m-3">Akses ditolak: Anda tidak memiliki izin untuk memeriksa tabel ini.</div>');
+			}
+			$a['datpil'] = $datpil;
 			return view('admin/f_periksa', $a);
 		} else if ($mau_ke == "act_periksa") {
+			if (!can('input_dda_verif')) {
+				return redirect()->back()->with('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk memverifikasi/meng-ACC data.</div>');
+			}
 			$id_data = (int)($this->request->getPost('id') ?: $this->input->post('id'));
+			$tabelRow = $this->db->table('m_list_tabel')->select('id, id_unitkerja')->where('id', $id_data)->get()->getRow();
+			if (!$tabelRow || !$this->canManageTable($tabelRow)) {
+				return redirect()->back()->with('k', '<div class="alert alert-danger" id="alert">Akses ditolak: Tabel ini berada di luar cakupan tim/unit kerja Anda.</div>');
+			}
 			$catatan_verif = trim((string)($this->request->getPost('catatan') ?: ($this->request->getPost('catatan_periksa') ?: ($this->input->post('catatan') ?: $this->input->post('catatan_periksa')))));
-
-			$this->db->query("UPDATE t_tahun_tabel SET is_confirm='1', catatan=? WHERE id=?", [$catatan_verif, $id_data]);
+			$mTabelDinamis = new \App\Models\M_tabeldinamis();
+			$mTabelDinamis->upsertStatusTahunan($id_data, (int)$ta, [
+				'is_confirm' => '1',
+				'catatan'    => $catatan_verif,
+			]);
 			return redirect()->back()->with('k', '<div class="alert alert-success" id="alert">Data berhasil diverifikasi</div>');
-		} else if ($mau_ke == "cari") {
-
-			$a['data']		= $this->db->query("SELECT * from t_oi where keterangan_uraian LIKE ?", ['%' . $cari . '%'])->getResult();
-			$a['page']		= "l_oi";
-		} else if ($mau_ke == "add") {
-
-			$a['page']		= "f_oi";
-		} else if ($mau_ke == "edt") {
-
-			$a['datpil']	= $this->db->query("SELECT * from t_oi WHERE id = ?", [$idu])->getRow();
-			$a['page']		= "f_oi";
-		} else if ($mau_ke == "act_add") {
-			$hariini = date('Y-m-d');
-			date_default_timezone_set("Asia/Jakarta");
-			$waktusekarang = date("H:i");
-
-			$this->db->query("INSERT INTO t_oi VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$nippegawai, $hariini, $waktusekarang, '', 'T', $kepentingan_kel, $kepentingan_uraian, '', '', '']);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
-			return redirect()->to('admin/dda');
-		} else if ($mau_ke == "act_edt") {
-			$this->db->query("UPDATE t_oi SET kepentingan_kel = ?, kepentingan_uraian = ? where id = ?", [$kepentingan_kel, $kepentingan_uraian, $idp]);
-
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated</div>");
-			return redirect()->to('admin/dda/');
 		} else if ($mau_ke == "kondef") {
-			$id_tabel = $this->input->get('id');
-			$a['datpil']	= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id = ?", [$id_tabel])->getRow();
-			$a['page']		= "f_kondef";
+			$id_tabel = (int)$this->input->get('id');
+			$datpil = $this->db->query("SELECT m.id, m.id as id_tabel, m.no_tabel, m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, m.sumber_data FROM m_list_tabel m WHERE m.id = ?", [$id_tabel])->getRow();
+			if (!$datpil || !$this->canManageTable($datpil)) {
+				return redirect()->to('admin/dda')->with('k', '<div class="alert alert-danger" id="alert">Akses ditolak atau tabel tidak ditemukan.</div>');
+			}
+			$a['datpil'] = $datpil;
+			$a['page']   = "f_kondef";
 		} else if ($mau_ke == "kondef_update") {
-			$idp					= $this->input->post('idp');
-			$kondef					= $this->input->post('kondef');
-			$a['datpil']			= $this->db->query("UPDATE m_list_tabel m JOIN t_tahun_tabel t ON m.id = t.id_tabel SET m.kondef=? WHERE t.id = ?", [$kondef, $idp]);
+			if (!can('input_dda_input')) {
+				return redirect()->to('admin/dda')->with('k', '<div class="alert alert-danger" id="alert">Akses ditolak: Role Anda hanya dapat melihat Konsep & Definisi (Read-Only).</div>');
+			}
+			$idp      = (int)$this->input->post('idp');
+			$tabelRow = $this->db->table('m_list_tabel')->select('id, id_unitkerja')->where('id', $idp)->get()->getRow();
+			if (!$tabelRow || !$this->canManageTable($tabelRow)) {
+				return redirect()->to('admin/dda')->with('k', '<div class="alert alert-danger" id="alert">Akses ditolak: Anda tidak berwenang memperbarui Kondef tabel instansi lain.</div>');
+			}
+			$kondef = $this->input->post('kondef');
+			$this->db->query("UPDATE m_list_tabel SET kondef = ? WHERE id = ?", [$kondef, $idp]);
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Konsep & Definisi berhasil diperbarui.</div>");
 			return redirect()->to('admin/dda/');
 		} else if ($mau_ke == "view_tabel") {
 			$id_unitkerja = $this->input->get('id');
-			$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.tahun=? ", [$id_unitkerja, $ta])->getResult();
-			$a['page']		= "l_dda";
+			$unit_row = $this->db->table('m_unitkerja')->where('id_unitkerja', $id_unitkerja)->get()->getRow();
+			$a['nama_unitkerja']   = $unit_row->unitkerja_ind ?? strtoupper((string)$id_unitkerja);
+			$a['target_unitkerja'] = $id_unitkerja;
+			$a['is_bps']           = ($this->session->get('admin_unitkerja') == 'bps');
+			$a['ta']               = $ta;
+			$a['data'] = $this->db->query("
+				SELECT 
+					m.id as id,
+					m.id as id_master,
+					m.no_tabel as no_tabel,
+					m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, m.jenis_sumber,
+					m.id as id_tahun_tabel,
+					COALESCE(t.tahun, ?) as tahun,
+					COALESCE(t.is_confirm, '0') as is_confirm,
+					COALESCE(t.is_publish, 0) as is_publish,
+					CASE 
+						WHEN (m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+							CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+						WHEN m.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+							CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+						WHEN t.is_periksa = 1 THEN 1
+						ELSE 0
+					END as is_periksa,
+					t.catatan_periksa, t.catatan,
+					COALESCE(ka.link_api, '') as link_tabel,
+					CASE 
+						WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+						WHEN m.jenis_sumber = 'dinamis' THEN 1 
+						WHEN mi.id IS NOT NULL THEN 1 
+						ELSE 0 
+					END as is_dynamic,
+					ka.id_api,
+					ka.tahun_tersedia
+				FROM m_list_tabel m
+				LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
+				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
+				LEFT JOIN (
+					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+				) nd ON nd.id_indikator = mi.id
+				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+				WHERE m.id_unitkerja = ? AND m.is_active = 1
+				ORDER BY m.no_tabel ASC, m.id ASC
+			", [$thDda, $thDataStr, "%$thDataStr%", $thDda, $thData, $id_unitkerja])->getResult();
+			$a['page'] = "l_dda_periksa";
 		} else if ($mau_ke == "periksa_tabel") {
 			$id_unitkerja = $this->input->get('id');
-			$level = $this->session->get('admin_level');
-			if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-				$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.tahun=? LIMIT ?, ? ", [$id_unitkerja, $ta, (int)$awal, (int)$akhir])->getResult();
-				$a['page']		= "l_dda_periksa";
-			} else {
-				$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.is_confirm='1' and t.tahun=? LIMIT ?, ? ", [$id_unitkerja, $ta, (int)$awal, (int)$akhir])->getResult();
-				$a['page']		= "l_dda_periksa";
-			}
+			$unit_row = $this->db->table('m_unitkerja')->where('id_unitkerja', $id_unitkerja)->get()->getRow();
+			$a['nama_unitkerja']   = $unit_row->unitkerja_ind ?? strtoupper((string)$id_unitkerja);
+			$a['target_unitkerja'] = $id_unitkerja;
+			$a['is_bps']           = ($this->session->get('admin_unitkerja') == 'bps');
+			$a['ta']               = $ta;
+			$a['data'] = $this->db->query("
+				SELECT 
+					m.id as id,
+					m.id as id_master,
+					m.no_tabel as no_tabel,
+					m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, m.jenis_sumber,
+					m.id as id_tahun_tabel,
+					COALESCE(t.tahun, ?) as tahun,
+					COALESCE(t.is_confirm, '0') as is_confirm,
+					COALESCE(t.is_publish, 0) as is_publish,
+					CASE 
+						WHEN (m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+							CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+						WHEN m.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+							CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+						WHEN t.is_periksa = 1 THEN 1
+						ELSE 0
+					END as is_periksa,
+					t.catatan_periksa, t.catatan,
+					COALESCE(ka.link_api, '') as link_tabel,
+					CASE 
+						WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+						WHEN m.jenis_sumber = 'dinamis' THEN 1 
+						WHEN mi.id IS NOT NULL THEN 1 
+						ELSE 0 
+					END as is_dynamic,
+					ka.id_api,
+					ka.tahun_tersedia
+				FROM m_list_tabel m
+				LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
+				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
+				LEFT JOIN (
+					SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+				) nd ON nd.id_indikator = mi.id
+				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+				WHERE m.id_unitkerja = ? AND m.is_active = 1
+				ORDER BY m.no_tabel ASC, m.id ASC
+				LIMIT ?, ?
+			", [$thDda, $thDataStr, "%$thDataStr%", $thDda, $thData, $id_unitkerja, (int)$awal, (int)$akhir])->getResult();
+			$a['page'] = "l_dda_periksa";
 		} else {
 			$unitkerjalogin = $this->session->get('admin_unitkerja');
 
@@ -621,7 +699,32 @@ class Admin extends BaseController
 
 				$level = $this->session->get('admin_level');
 				if ($level == 'Admin' || $level == 'Super Admin') {
-					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja order by unitkerja_ind LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+					if ($this->request->getGet('action') === 'reset_dda') {
+						$this->session->remove('sess_dda_filter_jenis');
+					}
+
+					$filter_jenis = $this->request->getGet('filter_jenis');
+					if ($filter_jenis !== null) {
+						$this->session->set('sess_dda_filter_jenis', $filter_jenis);
+					} else {
+						$filter_jenis = $this->session->get('sess_dda_filter_jenis') ?? 'all';
+					}
+					$a['selected_jenis'] = $filter_jenis;
+
+					$where_sql = "";
+					$params = [];
+					if ($filter_jenis !== 'all' && in_array($filter_jenis, ['opd', 'vertikal'])) {
+						$where_sql = "WHERE jenis_instansi = ?";
+						$params[] = $filter_jenis;
+					}
+
+					$count_sql = "SELECT COUNT(*) as total FROM m_unitkerja $where_sql";
+					$total_row = (int)($this->db->query($count_sql, $params)->getRow()->total ?? 0);
+					$a['pagi'] = _page($total_row, $per_page, 4, base_url() . "admin/dda/p");
+
+					$params[] = (int)$awal;
+					$params[] = (int)$akhir;
+					$a['data'] = $this->db->query("SELECT * FROM m_unitkerja $where_sql ORDER BY unitkerja_ind LIMIT ?, ?", $params)->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
 					$user_level = strtolower(trim((string)$this->session->get('admin_level')));
@@ -645,8 +748,50 @@ class Admin extends BaseController
 
 				$a['page']		= "l_dda_admin";
 			} else {
-				$a['data']		= $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE m.id_unitkerja=? and t.tahun=? ", [$unitkerjalogin, $ta])->getResult();
-				$a['page']		= "l_dda";
+				$unit_row = $this->db->table('m_unitkerja')->where('id_unitkerja', $unitkerjalogin)->get()->getRow();
+				$a['nama_unitkerja']   = $unit_row->unitkerja_ind ?? strtoupper((string)$unitkerjalogin);
+				$a['target_unitkerja'] = $unitkerjalogin;
+				$a['is_bps']           = false;
+				$a['ta']               = $ta;
+				$a['data'] = $this->db->query("
+					SELECT 
+						m.id as id,
+						m.id as id_master,
+						m.no_tabel as no_tabel,
+						m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, m.jenis_sumber,
+						m.id as id_tahun_tabel,
+						COALESCE(t.tahun, ?) as tahun,
+						COALESCE(t.is_confirm, '0') as is_confirm,
+						COALESCE(t.is_publish, 0) as is_publish,
+						CASE 
+							WHEN (m.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+								CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+							WHEN m.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+								CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+							WHEN t.is_periksa = 1 THEN 1
+							ELSE 0
+						END as is_periksa,
+						t.catatan_periksa, t.catatan,
+						COALESCE(ka.link_api, '') as link_tabel,
+						CASE 
+						WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+						WHEN m.jenis_sumber = 'dinamis' THEN 1 
+						WHEN mi.id IS NOT NULL THEN 1 
+						ELSE 0 
+					END as is_dynamic,
+						ka.id_api,
+						ka.tahun_tersedia
+					FROM m_list_tabel m
+					LEFT JOIN t_status_tahunan t ON m.id = t.id_tabel AND t.tahun = ?
+					LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
+					LEFT JOIN (
+						SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+					) nd ON nd.id_indikator = mi.id
+					LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+					WHERE m.id_unitkerja = ? AND m.is_active = 1
+					ORDER BY m.no_tabel ASC, m.id ASC
+				", [$thDda, $thDataStr, "%$thDataStr%", $thDda, $thData, $unitkerjalogin])->getResult();
+				$a['page'] = "l_dda_periksa";
 			}
 		}
 
@@ -661,23 +806,13 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+
 		// Email settings moved to actions
 
 		$ta = $this->session->get('admin_ta');
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_unitkerja")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		if (empty($awal) || $awal == 1) {
-			$awal = 0;
-		}
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/forum_diskusi/p");
+		/* pagination dinonaktifkan: semua OPD langsung ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -690,104 +825,118 @@ class Admin extends BaseController
 		if ($mau_ke == 'view_topik') {
 			$id_unitkerja = $this->input->get('id');
 			if ($unitkerjalogin == 'bps' || $this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$id_unitkerja, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? ORDER BY id_topik DESC", [$id_unitkerja])->getResult();
 				$a['page']		= "l_forum_topik";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_forumtopic where id_unitkerja=? ORDER BY id_topik DESC", [$unitkerjalogin])->getResult();
 				$a['page']		= "l_forum_topik";
 			}
 		} else if ($mau_ke == 'add_topik') {
 			$a['page']		= "f_tambah_topik";
 		} else if ($mau_ke == 'act_add_topik') {
-			$hariini = date('Y-m-d');
-			$nama_topik					= $this->input->post('nama_topik');
-			$id_unitkerja				= $this->input->post('id_unitkerja');
-			$user_id					= $this->session->get('admin_user');
-			//$id_unitkerjatopik			= $this->input->get('id');
-			$dataemail					= $this->db->query("select * from t_admin where id_unitkerja=?", [$id_unitkerja])->getRow();
-			$emailtopik					= $dataemail->email;
-			$namatopik					= $dataemail->nama;
-
-			$data_lo				= $this->db->query("select * from m_unitkerja where id_unitkerja=?", [$id_unitkerja])->getRow();
-			$lo						= $data_lo->user_wali;
-			$dataemail_lo			= $this->db->query("select * from t_admin where username=?", [$lo])->getRow();
-			$email_lo				= $dataemail_lo->email;
-
-			//Setting Email
-			$mail = new \PHPMailer();
-			$mail->IsSMTP();
-			$mail->SMTPAuth   = true;
-			$mail->SMTPSecure = "ssl";
-			$mail->Host       = "ssl://smtp.bps.go.id";
-			$mail->Port       = 465;
-			$mail->Username   = "ipds3300@bps.go.id";
-			$mail->Password   = "oapeaa360";
-			$mail->SetFrom('ipds3300@bps.go.id', 'Bidang IPDS BPS. Prov Jawa Tengah');
-			$mail->Subject    = "Forum Diskusi Jawa Tengah Dalam Angka";
+			$hariini      = date('Y-m-d');
+			$nama_topik   = trim((string)$this->input->post('nama_topik'));
+			$id_unitkerja = ($unitkerjalogin == 'bps' || $this->session->get('admin_level') == 'kominfo')
+				? $this->input->post('id_unitkerja')
+				: $unitkerjalogin;
+			$user_id      = $this->session->get('admin_user');
 
 			$this->db->query("INSERT INTO m_forumtopic VALUES (NULL, ?, ?, ?, ?)", [$id_unitkerja, $nama_topik, $user_id, $hariini]);
 
-			try {
-				$mail->Body      = $nama_topik . " telah ditambahkan";
-				$mail->AddAddress($emailtopik, $namatopik);
-				$mail->AddCC($email_lo);
-				$mail->Send();
-			} catch (\Exception $e) {
-				// Log error or ignore to keep flow fast
+			$dataemail    = $this->db->query("select * from t_admin where id_unitkerja=?", [$id_unitkerja])->getRow();
+			$emailtopik   = $dataemail->email ?? '';
+			$namatopik    = $dataemail->nama ?? '';
+
+			$data_lo      = $this->db->query("select * from m_unitkerja where id_unitkerja=?", [$id_unitkerja])->getRow();
+			$lo           = $data_lo->user_wali ?? '';
+			$dataemail_lo = $lo !== '' ? $this->db->query("select * from t_admin where username=?", [$lo])->getRow() : null;
+			$email_lo     = $dataemail_lo->email ?? '';
+
+			if (!empty($emailtopik) && filter_var($emailtopik, FILTER_VALIDATE_EMAIL) && class_exists('\PHPMailer')) {
+				try {
+					$mail = new \PHPMailer();
+					$mail->IsSMTP();
+					$mail->SMTPAuth   = true;
+					$mail->SMTPSecure = "ssl";
+					$mail->Host       = env('SMTP_HOST', 'ssl://smtp.bps.go.id');
+					$mail->Port       = (int)env('SMTP_PORT', 465);
+					$mail->Username   = env('SMTP_USER', 'ipds3300@bps.go.id');
+					$mail->Password   = env('SMTP_PASS', '');
+					$mail->SetFrom(env('SMTP_USER', 'ipds3300@bps.go.id'), 'Bidang IPDS BPS. Prov Jawa Tengah');
+					$mail->Subject    = "Forum Diskusi Jawa Tengah Dalam Angka";
+					$mail->Body       = $nama_topik . " telah ditambahkan";
+					$mail->AddAddress($emailtopik, $namatopik);
+					if (!empty($email_lo) && filter_var($email_lo, FILTER_VALIDATE_EMAIL)) {
+						$mail->AddCC($email_lo);
+					}
+					$mail->Send();
+				} catch (\Throwable $e) {
+					// Ignore email failure so forum post succeeds
+				}
 			}
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Topik Telah Ditambahkan</div>");
-			return redirect()->to('admin/forum_diskusi/' . $unitkerjalogin . '');
+			return redirect()->to('admin/forum_diskusi/view_topik?id=' . urlencode((string)$id_unitkerja));
 		} else if ($mau_ke == 'view_comment') {
-			$id_unitkerja 				= $this->input->get('id_unitkerja');
-			$id_topik					= $this->input->get('id_topik');
-			$a['data']					= $this->db->query("SELECT * FROM forumcomment where id_topik=? LIMIT ?, ?", [$id_topik, (int)$awal, (int)$akhir])->getResult();
-			$a['page']					= "l_forum_komen";
+			$id_unitkerja = ($unitkerjalogin == 'bps' || $this->session->get('admin_level') == 'kominfo')
+				? $this->input->get('id_unitkerja')
+				: $unitkerjalogin;
+			$id_topik     = (int)$this->input->get('id_topik');
+			$topikRow     = $this->db->query("SELECT * FROM m_forumtopic WHERE id_topik = ? LIMIT 1", [$id_topik])->getRow();
+			if (!$topikRow || ($unitkerjalogin != 'bps' && $this->session->get('admin_level') != 'kominfo' && $topikRow->id_unitkerja !== $unitkerjalogin)) {
+				return redirect()->to('admin/forum_diskusi');
+			}
+			$a['data']    = $this->db->query("SELECT * FROM forumcomment WHERE id_topik = ? ORDER BY id ASC", [$id_topik])->getResult();
+			$a['page']    = "l_forum_komen";
 		} else if ($mau_ke == 'add_comment') {
-			$hariini = date('Y-m-d');
-			$comment					= $this->input->post('comment');
-			$id_topik					= $this->input->post('id_topik');
-			$id_unitkerja 				= $this->input->post('id_unitkerja');
-			$dataemail					= $this->db->query("select * from t_admin where id_unitkerja=?", [$id_unitkerja])->getRow();
-			$emailcomment				= $dataemail->email;
-			$namacomment				= $dataemail->nama;
-
-			$data_lo				= $this->db->query("select * from m_unitkerja where id_unitkerja=?", [$id_unitkerja])->getRow();
-			$lo						= $data_lo->user_wali;
-			$dataemail_lo			= $this->db->query("select * from t_admin where username=?", [$lo])->getRow();
-			$email_lo				= $dataemail_lo->email;
-
-			$user_id					= $this->session->get('admin_user');
-
-			//Setting Email
-			$mail = new \PHPMailer();
-			$mail->IsSMTP();
-			$mail->SMTPAuth   = true;
-			$mail->SMTPSecure = "ssl";
-			$mail->Host       = "ssl://smtp.bps.go.id";
-			$mail->Port       = 465;
-			$mail->Username   = "ipds3300@bps.go.id";
-			$mail->Password   = "oapeaa360";
-			$mail->SetFrom('ipds3300@bps.go.id', 'Bidang IPDS BPS. Prov Jawa Tengah');
-			$mail->Subject    = "Forum Diskusi Jawa Tengah Dalam Angka";
+			$hariini      = date('Y-m-d');
+			$comment      = trim((string)$this->input->post('comment'));
+			$id_topik     = (int)$this->input->post('id_topik');
+			$id_unitkerja = ($unitkerjalogin == 'bps' || $this->session->get('admin_level') == 'kominfo')
+				? $this->input->post('id_unitkerja')
+				: $unitkerjalogin;
+			$user_id      = $this->session->get('admin_user');
 
 			$this->db->query("INSERT INTO forumcomment VALUES (NULL, ?, ?, ?, ?)", [$id_topik, $comment, $user_id, $hariini]);
 
-			try {
-				$mail->Body      			= $comment . " telah ditambahkan";
-				$mail->AddAddress($emailcomment, $namacomment);
-				$mail->AddCC($email_lo);
-				$mail->Send();
-			} catch (\Exception $e) {
-				// Log error or ignore
+			$dataemail    = $this->db->query("select * from t_admin where id_unitkerja=?", [$id_unitkerja])->getRow();
+			$emailcomment = $dataemail->email ?? '';
+			$namacomment  = $dataemail->nama ?? '';
+
+			$data_lo      = $this->db->query("select * from m_unitkerja where id_unitkerja=?", [$id_unitkerja])->getRow();
+			$lo           = $data_lo->user_wali ?? '';
+			$dataemail_lo = $lo !== '' ? $this->db->query("select * from t_admin where username=?", [$lo])->getRow() : null;
+			$email_lo     = $dataemail_lo->email ?? '';
+
+			if (!empty($emailcomment) && filter_var($emailcomment, FILTER_VALIDATE_EMAIL) && class_exists('\PHPMailer')) {
+				try {
+					$mail = new \PHPMailer();
+					$mail->IsSMTP();
+					$mail->SMTPAuth   = true;
+					$mail->SMTPSecure = "ssl";
+					$mail->Host       = env('SMTP_HOST', 'ssl://smtp.bps.go.id');
+					$mail->Port       = (int)env('SMTP_PORT', 465);
+					$mail->Username   = env('SMTP_USER', 'ipds3300@bps.go.id');
+					$mail->Password   = env('SMTP_PASS', '');
+					$mail->SetFrom(env('SMTP_USER', 'ipds3300@bps.go.id'), 'Bidang IPDS BPS. Prov Jawa Tengah');
+					$mail->Subject    = "Forum Diskusi Jawa Tengah Dalam Angka";
+					$mail->Body       = $comment . " telah ditambahkan";
+					$mail->AddAddress($emailcomment, $namacomment);
+					if (!empty($email_lo) && filter_var($email_lo, FILTER_VALIDATE_EMAIL)) {
+						$mail->AddCC($email_lo);
+					}
+					$mail->Send();
+				} catch (\Throwable $e) {
+					// Ignore email failure
+				}
 			}
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Komentar Telah Ditambahkan</div>");
-			return redirect()->to('admin/forum_diskusi/view_comment?id_unitkerja=' . $id_unitkerja . '&id_topik=' . $id_topik . '');
+			return redirect()->to('admin/forum_diskusi/view_comment?id_unitkerja=' . urlencode((string)$id_unitkerja) . '&id_topik=' . $id_topik);
 		} else {
 			if ($unitkerjalogin == 'bps') {
 				$level = $this->session->get('admin_level');
 				if ($this->session->get('admin_user') == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin') {
-					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+					$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 				} else {
 					$user_wali = $this->session->get('admin_user');
 					$user_level = strtolower(trim((string)$this->session->get('admin_level')));
@@ -810,11 +959,11 @@ class Admin extends BaseController
 				}
 				$a['page']		= "l_forum";
 			} else {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja=? LIMIT ?, ?", [$unitkerjalogin, (int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja where id_unitkerja=?", [$unitkerjalogin])->getResult();
 				$a['page']		= "l_forum";
 			}
 			if ($this->session->get('admin_level') == 'kominfo') {
-				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+				$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 				$a['page']		= "l_forum";
 			}
 		}
@@ -824,37 +973,37 @@ class Admin extends BaseController
 	//master_tabel
 	// =========================================================================
 	// FUNGSI CEK KONFLIK NOMOR TABEL (AJAX)
-	// Memeriksa secara realtime apakah nomor tabel sudah terpakai di tahun tertentu
+	// Memeriksa secara realtime apakah nomor tabel sudah terpakai
 	// =========================================================================
 	public function check_new_table_conflict() {
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(["conflict" => false, "message" => "Unauthorized"]);
+		}
+		if (!can('master_tabel')) {
+			return $this->response->setStatusCode(403)->setJSON(["conflict" => false, "message" => "Forbidden"]);
+		}
 		// Ambil dan bersihkan nomor tabel dari spasi
 		$no_tabel = trim(preg_replace('/\s+/', '', (string)$this->request->getPost("no_tabel")));
 		$ta = $this->request->getPost("tahun") ?: ($this->session->get("admin_ta") ?: ($this->session->get("sess_tahun") ?: date("Y")));
-		$exclude_id_tabel = $this->request->getPost("exclude_id_tabel");
-		$exclude_id = $this->request->getPost("exclude_id");
+		$exclude_id_tabel = $this->request->getPost("exclude_id_tabel") ?: $this->request->getPost("exclude_id");
 		
 		if (!$no_tabel) {
 			return $this->response->setJSON(["conflict" => false]);
 		}
 		
-		// Query cek apakah nomor tabel sudah ada di t_tahun_tabel pada tahun yang sama
+		// Query cek apakah nomor tabel sudah ada di m_list_tabel
 		$sql = "
-			SELECT t.id, t.no_tabel, m.judul_ind, COALESCE(u.unitkerja_ind, m.id_unitkerja) as unitkerja_ind
-			FROM t_tahun_tabel t
-			JOIN m_list_tabel m ON t.id_tabel = m.id
+			SELECT m.id, m.no_tabel, m.judul_ind, COALESCE(u.unitkerja_ind, m.id_unitkerja) as unitkerja_ind
+			FROM m_list_tabel m
 			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			WHERE t.no_tabel = ? AND t.tahun = ? 
+			WHERE m.no_tabel = ? AND m.is_active = 1
 		";
-		$params = [$no_tabel, $ta];
+		$params = [$no_tabel];
 		
 		// Kecualikan ID tabel tertentu (jika sedang dalam mode edit)
 		if (!empty($exclude_id_tabel)) {
-			$sql .= " AND t.id_tabel != ? ";
-			$params[] = $exclude_id_tabel;
-		}
-		if (!empty($exclude_id)) {
-			$sql .= " AND t.id != ? ";
-			$params[] = $exclude_id;
+			$sql .= " AND m.id != ? ";
+			$params[] = (int)$exclude_id_tabel;
 		}
 		$sql .= " LIMIT 1 ";
 		
@@ -880,6 +1029,12 @@ class Admin extends BaseController
 	// =========================================================================
 	public function ajax_get_last_table_number()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => false, 'message' => 'Unauthorized']);
+		}
+		if (!can('master_tabel')) {
+			return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Forbidden']);
+		}
 		// Ambil variabel GET: prefix dan tahun
 		$prefix = trim((string)$this->request->getGet('prefix'));
 		$tahun  = $this->request->getGet('tahun') ?: ($this->session->get('admin_ta') ?: date('Y'));
@@ -899,8 +1054,8 @@ class Admin extends BaseController
 
 		// 2. Periksa apakah bab ini merupakan Bab 2-Tingkat (Bab.Nomor) atau Bab 3-Tingkat (Bab.Subbab.Nomor)
 		$all_bab_tables = $this->db->query(
-			"SELECT no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY id ASC",
-			[$tahun, $bab . '.%']
+			"SELECT no_tabel FROM m_list_tabel WHERE is_active = 1 AND no_tabel LIKE ? ORDER BY id ASC",
+			[$bab . '.%']
 		)->getResult();
 
 		$is_pure_2tier = false;
@@ -944,8 +1099,8 @@ class Admin extends BaseController
 
 		// 4. Query seluruh tabel dengan prefix target
 		$tables = $this->db->query(
-			"SELECT no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY id ASC",
-			[$tahun, $target_prefix . '%']
+			"SELECT no_tabel FROM m_list_tabel WHERE is_active = 1 AND no_tabel LIKE ? ORDER BY id ASC",
+			[$target_prefix . '%']
 		)->getResult();
 
 		if (empty($tables)) {
@@ -996,7 +1151,7 @@ class Admin extends BaseController
 	// Menggeser naik (+1) nomor-nomor tabel yang berada di bawah posisi tabel baru
 	// Contoh: jika menyisipkan tabel di 1.2, maka 1.2 lama -> 1.3, 1.3 lama -> 1.4, dst.
 	// =========================================================================
-	private function shift_table_numbers($start_no_tabel, $tahun, $exclude_id = null) {
+	private function shift_table_numbers($start_no_tabel, $tahun = null, $exclude_id = null) {
 		$clean_no = trim(preg_replace('/\s+/', '', (string)$start_no_tabel));
 		
 		// Pisahkan prefix (awalan misal "1."), angka terakhir (misal "2"), dan suffix huruf jika ada (misal "a")
@@ -1008,8 +1163,8 @@ class Admin extends BaseController
 			return false;
 		}
 
-		// Cari semua tabel dengan awalan prefix yang sama pada tahun tersebut
-		$tables = $this->db->query("SELECT id, no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ?", [$tahun, $prefix . '%'])->getResult();
+		// Cari semua tabel dengan awalan prefix yang sama
+		$tables = $this->db->query("SELECT id, no_tabel FROM m_list_tabel WHERE is_active = 1 AND no_tabel LIKE ?", [$prefix . '%'])->getResult();
 		
 		$updates = [];
 		foreach ($tables as $t) {
@@ -1030,9 +1185,10 @@ class Admin extends BaseController
 		// Urutkan dari angka terbesar ke terkecil agar tidak terjadi benturan nomor saat UPDATE di database
 		usort($updates, function($a, $b) { return $b['old_num'] - $a['old_num']; });
 		
-		// Eksekusi pembaruan nomor tabel
+		// Eksekusi pembaruan nomor tabel pada m_list_tabel dan m_indikator_tabel
 		foreach ($updates as $u) {
-			$this->db->query("UPDATE t_tahun_tabel SET no_tabel = ? WHERE id = ?", [$u['new_no_tabel'], $u['id']]);
+			$this->db->table('m_list_tabel')->where('id', $u['id'])->update(['no_tabel' => $u['new_no_tabel']]);
+			$this->db->table('m_indikator_tabel')->where('id_tabel', $u['id'])->update(['no_tabel' => $u['new_no_tabel']]);
 		}
 		return count($updates);
 	}
@@ -1051,7 +1207,7 @@ class Admin extends BaseController
 
 		// Ambil kata kunci pencarian dan tahun aktif
 		$q = trim($this->request->getVar('q') ?? '');
-		$ta = $this->session->get('admin_ta') ?: ($this->session->get('sess_tahun') ?: date('Y'));
+		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('sess_tahun') ?: date('Y')));
 
 		// Batasi pencarian minimal 2 karakter
 		if (mb_strlen($q) < 2) {
@@ -1060,24 +1216,25 @@ class Admin extends BaseController
 
 		$term = '%' . $q . '%';
 		
-		// Query mencari data master tabel (m_list_tabel) beserta riwayat terbitnya di t_tahun_tabel
+		// Query mencari data master tabel (m_list_tabel)
 		$sql = "
-			SELECT m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind,
-			       GROUP_CONCAT(DISTINCT t.tahun ORDER BY t.tahun DESC SEPARATOR ', ') as tahun_terbit,
-			       MAX(CASE WHEN t.tahun = ? THEN t.no_tabel ELSE NULL END) as no_tabel_aktif,
-			       MAX(CASE WHEN t.tahun = ? THEN 1 ELSE 0 END) as is_in_ta,
-			       (SELECT link_tabel FROM t_tahun_tabel WHERE id_tabel = m.id AND link_tabel != '' AND link_tabel IS NOT NULL ORDER BY tahun DESC LIMIT 1) as latest_link,
-			       (SELECT no_tabel FROM t_tahun_tabel WHERE id_tabel = m.id AND tahun < ? AND no_tabel != '' AND no_tabel IS NOT NULL ORDER BY tahun DESC LIMIT 1) as prev_no_tabel
+			SELECT m.id, m.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind,
+			       GROUP_CONCAT(DISTINCT s.tahun ORDER BY s.tahun DESC SEPARATOR ', ') as tahun_terbit,
+			       m.no_tabel as no_tabel_aktif,
+			       MAX(CASE WHEN s.tahun = ? THEN 1 ELSE 0 END) as is_in_ta,
+			       ka.link_api as latest_link,
+			       m.no_tabel as prev_no_tabel
 			FROM m_list_tabel m
 			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			LEFT JOIN t_tahun_tabel t ON m.id = t.id_tabel
-			WHERE m.judul_ind LIKE ? OR m.judul_en LIKE ?
-			GROUP BY m.id, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind
+			LEFT JOIN t_status_tahunan s ON m.id = s.id_tabel
+			LEFT JOIN m_konfigurasi_api ka ON m.id = ka.id_tabel
+			WHERE m.is_active = 1 AND (m.judul_ind LIKE ? OR m.judul_en LIKE ? OR m.no_tabel LIKE ?)
+			GROUP BY m.id, m.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, u.unitkerja_ind, ka.link_api
 			ORDER BY is_in_ta ASC, m.judul_ind ASC
 			LIMIT 12
 		";
 
-		$results = $this->db->query($sql, [$ta, $ta, $ta, $term, $term])->getResult();
+		$results = $this->db->query($sql, [$ta, $term, $term, $term])->getResult();
 		return $this->response->setJSON($results);
 	}
 
@@ -1089,12 +1246,44 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		if (!can('master_tabel')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengelola Master Tabel.</div>');
+			return redirect()->to('admin');
+		}
+
+
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 		$a['ta'] = $ta;
 
 		$a['list_opd'] = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 		$a['list_tim'] = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' AND user_wali != '-' ORDER BY user_wali ASC")->getResult();
-		$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_tahun_tabel GROUP BY tahun ORDER BY tahun DESC")->getResult();
+		$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_status_tahunan GROUP BY tahun ORDER BY tahun DESC")->getResult();
+
+		// Total tabel aktif & counter per kategori untuk dropdown filter interaktif
+		$a['total_tabel_aktif'] = (int)($this->db->query("SELECT COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1")->getRow()->cnt ?? 0);
+
+		$opdCountsRaw = $this->db->query("SELECT id_unitkerja, COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1 GROUP BY id_unitkerja")->getResult();
+		$opdMap = [];
+		foreach ($opdCountsRaw as $r) {
+			$opdMap[trim((string)$r->id_unitkerja)] = (int)$r->cnt;
+		}
+		$a['count_per_opd'] = $opdMap;
+
+		$timCountsRaw = $this->db->query("SELECT u.user_wali, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.user_wali")->getResult();
+		$timMap = [];
+		foreach ($timCountsRaw as $r) {
+			$timMap[strtolower(trim((string)$r->user_wali))] = (int)$r->cnt;
+		}
+		$a['count_per_tim'] = $timMap;
+
+		$jenisCountsRaw = $this->db->query("SELECT u.jenis_instansi, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.jenis_instansi")->getResult();
+		$jenisMap = [];
+		foreach ($jenisCountsRaw as $r) {
+			$jenisMap[strtolower(trim((string)$r->jenis_instansi))] = (int)$r->cnt;
+		}
+		$a['count_per_jenis'] = $jenisMap;
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 
 		//ambil variabel URL
 		$mau_ke = $this->uri->segment(3);
@@ -1105,7 +1294,7 @@ class Admin extends BaseController
 		$judul_ind       = $this->input->post('judul_ind');
 		$judul_en        = $this->input->post('judul_en');
 		$link_tabel      = $this->input->post('link_tabel');
-		$link_sebelumnya = $this->input->post('link_sebelumnya');
+		$link_api        = $this->input->post('link_api');
 		$id_unitkerja    = $this->input->post('id_unitkerja');
 
 		$is_confirm      = '2';
@@ -1114,16 +1303,28 @@ class Admin extends BaseController
 		$catatan_periksa = '-';
 		$kondef          = '-';
 
-
 		if ($mau_ke == "del") {
-			$id_delete   = $this->input->get('delete_id');
-			$datpil = $this->db->query("SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.* FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id WHERE t.id=?", [$id_delete])->getRow();
+			$id_delete = (int)$this->input->get('delete_id');
+			$ctx = $mTabelDinamis->resolveTableContext($id_delete, $ta, true);
+			$datpil = null;
+			if ($ctx['tabel']) {
+				$datpil = (object)[
+					'id'           => $ctx['id_tabel'],
+					'id_tabel'     => $ctx['id_tabel'],
+					'judul_ind'    => $ctx['tabel']->judul_ind,
+					'judul_en'     => $ctx['tabel']->judul_en,
+					'kondef'       => $ctx['tabel']->kondef,
+					'id_unitkerja' => $ctx['tabel']->id_unitkerja,
+					'tahun'        => $ctx['tahun_tabel']->tahun ?? $ta,
+					'no_tabel'     => $ctx['tabel']->no_tabel ?? ($ctx['tahun_tabel']->no_tabel ?? ''),
+				];
+			}
 			$a['datpil'] = $datpil;
 			$a['act_url'] = base_url('index.php/admin/master_tabel/act_del/');
 
 			$all_years = [];
 			if ($datpil && !empty($datpil->id_tabel)) {
-				$all_years = $this->db->query("SELECT id, tahun, no_tabel FROM t_tahun_tabel WHERE id_tabel = ? ORDER BY tahun DESC", [$datpil->id_tabel])->getResult();
+				$all_years = $this->db->query("SELECT id, tahun FROM t_status_tahunan WHERE id_tabel = ? ORDER BY tahun DESC", [$datpil->id_tabel])->getResult();
 			}
 			$a['all_years'] = $all_years;
 
@@ -1131,72 +1332,43 @@ class Admin extends BaseController
 		} else if ($mau_ke == "act_del") {
 			$id_oi = (int)$this->input->post('id');
 			$scope = $this->input->post('scope') ?? 'current';
-			
-			// Ambil info t_tahun_tabel terlebih dahulu
-			$row_tt = $this->db->query("SELECT id_tabel, tahun FROM t_tahun_tabel WHERE id = ?", [$id_oi])->getRow();
-			
-			if ($row_tt) {
-				$id_master = $row_tt->id_tabel;
-				$tahun     = $row_tt->tahun;
 
+			$ctx = $mTabelDinamis->resolveTableContext($id_oi, $ta, true);
+			$id_master = $ctx['id_tabel'];
+
+			if ($id_master) {
 				$this->db->transStart();
 
-				if ($scope === 'all' && !empty($id_master)) {
-					// HAPUS SECARA GLOBAL (SEMUA TAHUN)
-					// 1. Hapus t_nilai_dinamis untuk SEMUA tahun tabel ini
-					$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
-						SELECT mi.id FROM m_indikator_tabel mi 
-						JOIN t_tahun_tabel tt ON mi.id_tahun_tabel = tt.id 
-						WHERE tt.id_tabel = ?
-					)", [$id_master]);
-
-					// 2. Hapus m_indikator_tabel untuk SEMUA tahun tabel ini
-					$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (
-						SELECT id FROM t_tahun_tabel WHERE id_tabel = ?
-					)", [$id_master]);
-
-					// 3. Hapus entri t_tahun_tabel untuk SEMUA tahun
-					$this->db->query("DELETE FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master]);
-
-					// 4. Hapus master tabel dan konsep definisi
-					$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
-					$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
-
-					$msg = "Tabel berhasil dihapus secara permanen dari seluruh tahun beserta master tabel.";
-				} else {
-					// HAPUS UNTUK TAHUN INI SAJA ($id_oi)
-					// 1. Hapus t_nilai_dinamis untuk tabel tahun ini
-					$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
-						SELECT id FROM m_indikator_tabel WHERE id_tahun_tabel = ?
-					)", [$id_oi]);
-
-					// 2. Hapus m_indikator_tabel untuk tabel tahun ini
-					$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel = ?", [$id_oi]);
-
-					// 3. Hapus entri dari t_tahun_tabel
-					$this->db->query("DELETE FROM t_tahun_tabel WHERE id = ?", [$id_oi]);
-
-					// 4. Cek apakah master tabel (m_list_tabel) masih ditautkan di tahun lainnya
-					if (!empty($id_master)) {
-						$cek = $this->db->query("SELECT COUNT(*) as jml FROM t_tahun_tabel WHERE id_tabel = ?", [$id_master])->getRow();
-						if ($cek && (int)$cek->jml === 0) {
-							// Sudah tidak tertaut di tahun manapun -> Hapus master tabel agar database bersih dari orphan
-							$this->db->query("DELETE FROM m_list_tabel WHERE id = ?", [$id_master]);
-							$this->db->query("DELETE FROM m_kondef WHERE id_tabel = ?", [$id_master]);
-							$msg = "Tabel tahun " . htmlspecialchars($tahun) . " beserta master tabel berhasil dihapus permanen (tidak ada tautan di tahun lain).";
-						} else {
-							// Masih ada tautan di tahun lain -> Master tabel tetap dipertahankan
-							$msg = "Tabel tahun " . htmlspecialchars($tahun) . " berhasil dihapus. Master tabel tetap dipertahankan karena masih digunakan pada tahun lain.";
-						}
-					} else {
-						$msg = "Data tabel berhasil dihapus.";
+				if ($scope === 'all') {
+					// Hapus secara global
+					if ($ctx['indikator']) {
+						$this->db->table('t_nilai_dinamis')->where('id_indikator', $ctx['indikator']->id)->delete();
+						$this->db->table('m_indikator_tabel')->where('id', $ctx['indikator']->id)->delete();
 					}
+					$this->db->table('m_konfigurasi_api')->where('id_tabel', $id_master)->delete();
+					$this->db->table('t_status_tahunan')->where('id_tabel', $id_master)->delete();
+					$this->db->table('m_list_tabel')->where('id', $id_master)->delete();
+					$msg = "Master tabel beserta seluruh data nilai dan konfigurasi berhasil dihapus.";
+				} else {
+					// Hapus untuk tahun aktif saja
+					$tahunDataTarget = (int)$ta - 1;
+					if ($ctx['indikator']) {
+						$this->db->table('t_nilai_dinamis')
+							->where('id_indikator', $ctx['indikator']->id)
+							->where('tahun_data', $tahunDataTarget)
+							->delete();
+					}
+					$this->db->table('t_status_tahunan')
+						->where('id_tabel', $id_master)
+						->where('tahun', (int)$ta)
+						->delete();
+					$msg = "Data tabel untuk tahun " . $ta . " berhasil dihapus.";
 				}
 
 				$this->db->transComplete();
 
 				if ($this->db->transStatus() === false) {
-					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal menghapus data tabel karena kesalahan transaksi database.</div>");
+					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal menghapus data tabel. Transaksi dibatalkan.</div>");
 				} else {
 					$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">" . $msg . "</div>");
 				}
@@ -1208,49 +1380,69 @@ class Admin extends BaseController
 		} else if ($mau_ke == "cari") {
 			$filter_opd    = $this->session->get('sess_f_opd') ?? 'all';
 			$filter_bidang = $this->session->get('sess_f_bidang') ?? 'all';
-			$filter_tahun  = $this->session->get('sess_f_tahun') ?? 'all';
+			$filter_jenis  = $this->session->get('sess_f_jenis') ?? 'all';
 
-			$where_tahun = ($filter_tahun != 'all') ? "l.tahun = ?" : "1=1";
 			$cari = $this->request->getPost('q');
 
+			$sql_base = "FROM m_list_tabel ml 
+			             LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja 
+			             LEFT JOIN m_konfigurasi_api api ON api.id_tabel = ml.id 
+			             LEFT JOIN m_indikator_tabel ind ON ind.id_tabel = ml.id";
+			$sql_where = "WHERE ml.is_active = 1";
+
 			$params = [];
-			if ($filter_tahun != 'all') $params[] = $filter_tahun;
-
-			$where_filters = "WHERE $where_tahun";
-			if ($filter_opd != 'all') {
-				$where_filters .= " AND ml.id_unitkerja = ? ";
-				$params[] = $filter_opd;
-			}
-			if ($filter_bidang != 'all') {
-				$where_filters .= " AND u.user_wali = ? ";
-				$params[] = $filter_bidang;
+			$cleanJenis = is_array($filter_jenis) ? array_values(array_filter($filter_jenis, fn($v) => !empty($v) && $v !== 'all')) : ($filter_jenis !== 'all' ? [$filter_jenis] : []);
+			if (!empty($cleanJenis)) {
+				$sql_where .= " AND u.jenis_instansi IN (" . implode(',', array_fill(0, count($cleanJenis), '?')) . ") ";
+				foreach ($cleanJenis as $cj) $params[] = $cj;
 			}
 
+			$cleanOpd = is_array($filter_opd) 
+				? array_values(array_filter(array_map('trim', $filter_opd), fn($v) => !empty($v) && $v !== 'all')) 
+				: (($filter_opd !== 'all' && !empty($filter_opd)) ? [trim((string)$filter_opd)] : []);
+			if (!empty($cleanOpd)) {
+				$sql_where .= " AND ml.id_unitkerja IN (" . implode(',', array_fill(0, count($cleanOpd), '?')) . ") ";
+				foreach ($cleanOpd as $co) $params[] = (string)$co;
+			}
+
+			$cleanBidang = is_array($filter_bidang) ? array_values(array_filter($filter_bidang, fn($v) => !empty($v) && $v !== 'all')) : ($filter_bidang !== 'all' ? [$filter_bidang] : []);
+			if (!empty($cleanBidang)) {
+				$sql_where .= " AND u.user_wali IN (" . implode(',', array_fill(0, count($cleanBidang), '?')) . ") ";
+				foreach ($cleanBidang as $cb) $params[] = $cb;
+			}
+
+			$sql_where .= " AND (ml.judul_ind LIKE ? OR u.unitkerja_ind LIKE ? OR ml.no_tabel LIKE ?) ";
 			$params[] = '%' . $cari . '%';
 			$params[] = '%' . $cari . '%';
 			$params[] = '%' . $cari . '%';
 
 			$a['data'] = $this->db->query("
-            SELECT ml.judul_ind, ml.judul_en, ml.id_unitkerja, l.*, u.unitkerja_ind, u.user_wali 
-            FROM t_tahun_tabel l JOIN m_list_tabel ml ON l.id_tabel = ml.id 
-            LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja 
-            $where_filters 
-            AND (ml.judul_ind LIKE ? OR u.unitkerja_ind LIKE ? OR l.no_tabel LIKE ?)
-            ORDER BY (l.tahun = '" . $ta . "') DESC, l.tahun DESC, CAST(SUBSTRING_INDEX(l.no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, ml.judul_ind ASC
-        ", $params)->getResult();
+				SELECT ml.id, ml.id as id_master, ml.no_tabel, ml.judul_ind, ml.judul_en, ml.id_unitkerja, ml.jenis_sumber,
+				       u.unitkerja_ind, u.user_wali, u.jenis_instansi,
+				       api.id_api, api.link_api, api.tahun_tersedia,
+				       ind.id as id_indikator, ind.tahun_tampil,
+				       ml.id as id_tahun_tabel,
+				       (CASE WHEN ml.jenis_sumber = 'api_kominfo' THEN 0 WHEN ml.jenis_sumber = 'dinamis' THEN 1 WHEN ind.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic
+				$sql_base 
+				$sql_where 
+				ORDER BY CAST(SUBSTRING_INDEX(COALESCE(ml.no_tabel, '999'), '.', 1) AS UNSIGNED) ASC, 
+				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, 
+				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, 
+				         ml.judul_ind ASC
+			", $params)->getResult();
 
 			if ($this->request->isAJAX()) {
 				return view('admin/l_master_tabel_partial', $a);
 			}
 
+			$a['selected_jenis']  = $filter_jenis;
 			$a['selected_opd']    = $filter_opd;
 			$a['selected_bidang'] = $filter_bidang;
-			$a['selected_tahun']  = $filter_tahun;
 
 			$a['list_tim']     = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' ORDER BY user_wali ASC")->getResult();
 			$a['list_opd']     = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 			$a['opd']          = $a['list_opd'];
-			$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_tahun_tabel GROUP BY tahun ORDER BY tahun DESC")->getResult();
+			$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_status_tahunan GROUP BY tahun ORDER BY tahun DESC")->getResult();
 			$a['awal']         = 0;
 			$a['cari']         = $cari;
 
@@ -1259,144 +1451,356 @@ class Admin extends BaseController
 		} else if ($mau_ke == "add") {
 			$a['page'] = "f_master_tabel";
 		} else if ($mau_ke == "edt") {
-			$a['datpil'] = $this->db->query("
-				SELECT m.judul_ind, m.judul_en, m.kondef, m.id_unitkerja, t.*,
-				       ind.id as id_indikator, ind.id_karakteristik_kelompok, ind.id_baris_kelompok, ind.id_periode_kelompok,
-				       kk.nama_kelompok_ind as nama_karakteristik_ind, kk.nama_kelompok_en as nama_karakteristik_en,
-				       bk.nama_kelompok_ind as nama_baris_ind, bk.nama_kelompok_en as nama_baris_en,
-				       pk.nama_kelompok_ind as nama_periode_ind, pk.nama_kelompok_en as nama_periode_en
-				FROM t_tahun_tabel t 
-				JOIN m_list_tabel m ON t.id_tabel = m.id 
-				LEFT JOIN m_indikator_tabel ind ON ind.id_tahun_tabel = t.id
-				LEFT JOIN m_karakteristik_kelompok kk ON ind.id_karakteristik_kelompok = kk.id
-				LEFT JOIN m_baris_kelompok bk ON ind.id_baris_kelompok = bk.id
-				LEFT JOIN m_periode_kelompok pk ON ind.id_periode_kelompok = pk.id
-				WHERE t.id = ?
-			", [$idu])->getRow();
+			$ctx = $mTabelDinamis->resolveTableContext($idu, $ta, true);
+			if (!$ctx['tabel']) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Data tabel tidak ditemukan.</div>");
+				return redirect()->to('admin/master_tabel');
+			}
+			$id_master = $ctx['id_tabel'];
+			$tRow = $ctx['tabel'];
+			$indRow = $ctx['indikator'];
+			$ttRow = $ctx['tahun_tabel'];
+
+			$apiRow = $this->db->table('m_konfigurasi_api')->where('id_tabel', $id_master)->get()->getRow();
+
+			$nama_karakteristik = '';
+			$nama_baris = '';
+			$nama_periode = '';
+			if ($indRow) {
+				if (!empty($indRow->id_karakteristik_kelompok)) {
+					$kk = $this->db->table('m_karakteristik_kelompok')->where('id', $indRow->id_karakteristik_kelompok)->get()->getRow();
+					$nama_karakteristik = $kk->nama_kelompok_ind ?? '';
+				}
+				if (!empty($indRow->id_baris_kelompok)) {
+					$bk = $this->db->table('m_baris_kelompok')->where('id', $indRow->id_baris_kelompok)->get()->getRow();
+					$nama_baris = $bk->nama_kelompok_ind ?? '';
+				}
+				if (!empty($indRow->id_periode_kelompok)) {
+					$pk = $this->db->table('m_periode_kelompok')->where('id', $indRow->id_periode_kelompok)->get()->getRow();
+					$nama_periode = $pk->nama_kelompok_ind ?? '';
+				} else if (!empty($indRow->tipe_periode)) {
+					$nama_periode = ucfirst(str_replace('_', ' ', $indRow->tipe_periode));
+				}
+			}
+
+			$a['datpil'] = (object)[
+				'id'                     => $id_master,
+				'id_master'              => $id_master,
+				'id_tahun_tabel'         => $id_master,
+				'judul_ind'              => $tRow->judul_ind,
+				'judul_en'               => $tRow->judul_en,
+				'no_tabel'               => $tRow->no_tabel ?? '',
+				'id_unitkerja'           => $tRow->id_unitkerja,
+				'jenis_sumber'           => $tRow->jenis_sumber ?? 'api_kominfo',
+				'is_dynamic'             => ($tRow->jenis_sumber === 'dinamis' ? 1 : 0),
+				'link_tabel'             => $apiRow->link_api ?? ($apiRow->id_api ?? ''),
+				'link_api'               => $apiRow->link_api ?? ($apiRow->id_api ?? ''),
+				'id_api'                 => $apiRow->id_api ?? '',
+				'link_sebelumnya'        => '',
+				'id_indikator'           => $indRow->id ?? 0,
+				'nama_karakteristik_ind' => $nama_karakteristik,
+				'nama_baris_ind'         => $nama_baris,
+				'nama_periode_ind'       => $nama_periode,
+			];
 			$a['page'] = "f_master_tabel";
 		} else if ($mau_ke == "act_add") {
-			// Ambil tanggal hari ini dan input dari form
 			$hariini             = date('Y-m-d');
 			$no_tabel            = trim(preg_replace('/\s+/', '', (string)$this->input->post("no_tabel"))) ?: null;
-			$periode_id          = $this->input->post("periode_id") ?: ($this->input->post("periode") ?: null);
-			$periode_en          = $this->input->post("periode_en") ?: $periode_id;
-			$judul_ind           = trim($this->input->post('judul_ind') ?? '');
-			$judul_en            = trim($this->input->post('judul_en') ?? '');
+			$judul_ind_raw       = trim($this->input->post('judul_ind') ?? '');
+			$judul_en_raw        = trim($this->input->post('judul_en') ?? '');
+			$id_unitkerja        = $this->input->post('id_unitkerja');
 			$master_id           = $this->input->post("master_id");
 			$conflict_resolution = $this->input->post("conflict_resolution");
-			$is_dynamic          = $this->input->post('is_dynamic') !== null ? (int)$this->input->post('is_dynamic') : 0;
+
+			// Bersihkan akhiran tahun statis pada judul
+			$clean_judul_ind = trim(preg_replace('/,?\s*(Tahun\s+|Year\s+)?(19|20)\d{2}(\s*[-–\/]\s*(19|20)\d{2})?\s*$/i', '', $judul_ind_raw));
+			$clean_judul_en  = trim(preg_replace('/,?\s*(Tahun\s+|Year\s+)?(19|20)\d{2}(\s*[-–\/]\s*(19|20)\d{2})?\s*$/i', '', $judul_en_raw));
+			if (empty($clean_judul_en)) {
+				$clean_judul_en = $clean_judul_ind;
+			}
+
+			// Tentukan jenis_sumber
+			$jenis_sumber = $this->input->post('jenis_sumber');
+			if (empty($jenis_sumber)) {
+				$is_dyn_post = $this->input->post('is_dynamic');
+				$jenis_sumber = (!empty($is_dyn_post) && (int)$is_dyn_post === 1) ? 'dinamis' : 'api_kominfo';
+			}
+
+			$link_input = trim((string)($this->input->post('link_api') ?: $this->input->post('link_tabel')));
+			$id_api = null;
+			if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $link_input, $matches)) {
+				$id_api = $matches[0];
+			} elseif (preg_match('/[?&]id=([^&]+)/i', $link_input, $matches)) {
+				$id_api = $matches[1];
+			} elseif (!empty($link_input) && strlen($link_input) <= 100 && !filter_var($link_input, FILTER_VALIDATE_URL)) {
+				$id_api = $link_input;
+			}
 
 			$m_id = null;
 
-			// =================================================================
-			// SKENARIO 1: MODE KOLABORASI (NOMOR KEMBAR)
-			// Dua OPD atau lebih mempublikasikan tabel dengan nomor yang sama
-			// Setiap OPD memiliki data tabel mandiri di m_list_tabel
-			// =================================================================
-			if ($conflict_resolution == 'collab') {
-				// Cek apakah OPD yang dipilih sudah memiliki master tabel ini di m_list_tabel
-				$check_m = $this->db->query(
-					"SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1",
-					[$id_unitkerja, $judul_ind]
-				)->getRow();
-
-				if ($check_m) {
-					$m_id = $check_m->id;
-					// Update judul bahasa Inggris jika diisi
-					if (!empty($judul_en)) {
-						$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
-					}
-				} else {
-					// Daftarkan master tabel baru untuk OPD tersebut
-					$this->db->query(
-						"INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, ?)",
-						[$judul_ind, $judul_en, $id_unitkerja, $kondef]
-					);
-					$m_id = $this->db->insertID();
-				}
-
-				// Karena ini tabel kolaborasi (nomor kembar), SELALU INSERT baris baru ke t_tahun_tabel
-				$this->db->query(
-					"INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, is_dynamic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					[$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa, $is_dynamic]
-				);
-
-				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel kolaborasi (Nomor Kembar {$no_tabel}) berhasil ditambahkan dan ditautkan ke Master ID #{$m_id} di Tahun {$ta}</div>");
-				return redirect()->to('admin/master_tabel/');
-			}
-
-			// =================================================================
-			// SKENARIO 2: MODE NORMAL ATAU SHIFT (BUKAN KOLABORASI)
-			// =================================================================
-			// Jika admin memilih untuk menautkan ke master tabel yang sudah ada dari autocomplete
 			if (!empty($master_id)) {
 				$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id = ?", [$master_id])->getRow();
 				if ($check_m) {
 					$m_id = $check_m->id;
-					if (!empty($id_unitkerja)) {
-						$this->db->query("UPDATE m_list_tabel SET id_unitkerja = COALESCE(NULLIF(id_unitkerja, ''), ?), judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$id_unitkerja, $judul_en, $m_id]);
-					}
+					$this->db->table('m_list_tabel')->where('id', $m_id)->update([
+						'no_tabel'     => $no_tabel,
+						'judul_en'     => $clean_judul_en,
+						'id_unitkerja' => $id_unitkerja,
+						'jenis_sumber' => $jenis_sumber,
+					]);
 				}
 			}
 
-			// Jika belum tertaut ke master tabel mana pun, cari berdasarkan judul dan OPD atau insert baru
 			if (empty($m_id)) {
-				$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
+				$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $clean_judul_ind])->getRow();
 				if ($check_m) {
 					$m_id = $check_m->id;
-					if (!empty($id_unitkerja)) {
-						$this->db->query("UPDATE m_list_tabel SET id_unitkerja = COALESCE(NULLIF(id_unitkerja, ''), ?), judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$id_unitkerja, $judul_en, $m_id]);
-					}
+					$this->db->table('m_list_tabel')->where('id', $m_id)->update([
+						'no_tabel'     => $no_tabel,
+						'judul_en'     => $clean_judul_en,
+						'jenis_sumber' => $jenis_sumber,
+					]);
 				} else {
-					$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, ?)", [$judul_ind, $judul_en, $id_unitkerja, $kondef]);
+					$this->db->table('m_list_tabel')->insert([
+						'no_tabel'     => $no_tabel,
+						'judul_ind'    => $clean_judul_ind,
+						'judul_en'     => $clean_judul_en,
+						'id_unitkerja' => $id_unitkerja,
+						'jenis_sumber' => $jenis_sumber,
+						'kondef'       => $kondef,
+						'is_active'    => 1,
+					]);
 					$m_id = $this->db->insertID();
 				}
 			}
 
-			// Cek apakah tabel ini sudah pernah didaftarkan pada tahun aktif ($ta)
-			$check_in_year = $this->db->query("SELECT id FROM t_tahun_tabel WHERE id_tabel = ? AND tahun = ?", [$m_id, $ta])->getRow();
-			if ($check_in_year) {
-				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill me-2\"></i>Master tabel #{$m_id} sudah terdaftar di DDA Tahun {$ta}. Data tahunan telah diperbarui.</div>");
-				$this->db->query("UPDATE t_tahun_tabel SET no_tabel = COALESCE(?, no_tabel), periode_id = COALESCE(?, periode_id), periode_en = COALESCE(?, periode_en), link_tabel = COALESCE(NULLIF(?, ''), link_tabel), is_dynamic = ? WHERE id = ?", [$no_tabel, $periode_id, $periode_en, $link_tabel, $is_dynamic, $check_in_year->id]);
-				return redirect()->to('admin/master_tabel/');
+			// Sinkronisasi m_konfigurasi_api jika api_kominfo
+			if ($jenis_sumber === 'api_kominfo') {
+				// Hanya bersihkan kerangka indikator dinamis jika belum memiliki data nilai historis di t_nilai_dinamis
+				$cekInd = $this->db->table('m_indikator_tabel')->select('id')->where('id_tabel', $m_id)->get()->getRow();
+				if ($cekInd) {
+					$hasNilai = $this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$cekInd->id)->countAllResults();
+					if ($hasNilai === 0) {
+						$this->db->table('m_indikator_tabel')->where('id', (int)$cekInd->id)->delete();
+					}
+				}
+
+				$cekApi = $this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->get()->getRow();
+				if ($cekApi) {
+					$this->db->table('m_konfigurasi_api')->where('id', $cekApi->id)->update([
+						'id_api'     => $id_api ?: $cekApi->id_api,
+						'link_api'   => $link_input ?: $cekApi->link_api,
+						'updated_at' => date('Y-m-d H:i:s'),
+					]);
+				} else {
+					$this->db->table('m_konfigurasi_api')->insert([
+						'id_tabel'   => $m_id,
+						'id_api'     => $id_api,
+						'link_api'   => $link_input,
+						'created_at' => date('Y-m-d H:i:s'),
+						'updated_at' => date('Y-m-d H:i:s'),
+					]);
+				}
 			}
 
-			// Jika user memilih resolusi 'shift', geser nomor tabel yang ada di bawahnya (+1)
+			// Sinkronisasi m_indikator_tabel jika dinamis
+			if ($jenis_sumber === 'dinamis') {
+				// Bersihkan konfigurasi API jika tabel diatur ke dinamis
+				$this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->delete();
+
+				$cekInd = $this->db->table('m_indikator_tabel')->where('id_tabel', $m_id)->get()->getRow();
+				if ($cekInd) {
+					$this->db->table('m_indikator_tabel')->where('id', $cekInd->id)->update([
+						'no_tabel'     => $no_tabel,
+						'judul_ind'    => $clean_judul_ind,
+						'judul_en'     => $clean_judul_en,
+						'id_unitkerja' => $id_unitkerja,
+						'updated_at'   => date('Y-m-d H:i:s'),
+					]);
+				} else {
+					$this->db->table('m_indikator_tabel')->insert([
+						'id_tabel'        => $m_id,
+						'no_tabel'        => $no_tabel,
+						'judul_ind'       => $clean_judul_ind,
+						'judul_en'        => $clean_judul_en,
+						'id_unitkerja'    => $id_unitkerja,
+						'tipe_periode'    => 'tahunan',
+						'desimal'         => -1,
+						'satuan'          => null,
+						'config_tampilan' => json_encode([
+							'total_horizontal' => false,
+							'jenis_total_horizontal' => 'sum',
+							'only_total_horizontal' => false,
+							'group_total_horizontal' => false,
+							'total_vertikal' => true,
+							'jenis_total_vertikal' => 'default',
+							'label_total_kustom' => '',
+							'group_by_region' => true,
+							'prioritas_karakteristik' => false,
+							'portrait_mode' => false,
+							'portrait_split_col' => false
+						]),
+						'created_at'      => date('Y-m-d H:i:s'),
+						'updated_at'      => date('Y-m-d H:i:s'),
+					]);
+				}
+			}
+
 			if ($conflict_resolution == "shift" && $no_tabel) {
 				$this->shift_table_numbers($no_tabel, $ta);
 			}
-            
-			// Masukkan data baru ke tabel tahunan DDA (t_tahun_tabel)
-			$this->db->query("INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, is_dynamic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa, $is_dynamic]);
 
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil ditambahkan dan ditautkan ke Master ID #{$m_id} di Tahun {$ta}</div>");
+			// Inisialisasi t_status_tahunan untuk $ta
+			$mTabelDinamis->upsertStatusTahunan((int)$m_id, (int)$ta, [
+				'is_periksa' => ($jenis_sumber !== 'dinamis' && !empty($link_input) && $link_input !== '-') ? 1 : 0,
+				'catatan'    => '-',
+			]);
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Master Tabel berhasil ditambahkan (ID #{$m_id})</div>");
+
+			// Jika admin memilih "Simpan & Lanjut ke Generator Tabel"
+			if ($this->input->post('simpan_lanjut_generator') == '1' || ($jenis_sumber === 'dinamis' && $this->input->post('buka_generator') == '1')) {
+				return redirect()->to('admin/generator_tabel/' . $m_id);
+			}
+
 			return redirect()->to('admin/master_tabel/');
 		} else if ($mau_ke == "act_edt") {
-			// =================================================================
-			// UPDATE DATA MASTER TABEL DAN TAHUNAN (act_edt)
-			// Memperbarui informasi judul di m_list_tabel dan atribut tahunan di t_tahun_tabel
-			// =================================================================
-			$no_tabel = trim(preg_replace('/\s+/', '', (string)$this->input->post('no_tabel'))) ?: null;
-			$periode_id = $this->input->post('periode_id') ?: ($this->input->post('periode') ?: null);
-			$periode_en = $this->input->post('periode_en') ?: $periode_id;
-			$judul_ind = trim($this->input->post('judul_ind') ?? '');
-			$judul_en = trim($this->input->post('judul_en') ?? '');
+			$ctx = $mTabelDinamis->resolveTableContext($idp, $ta, true);
+			if (!$ctx['tabel']) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Master tabel tidak ditemukan.</div>");
+				return redirect()->to('admin/master_tabel/');
+			}
+			$m_id = $ctx['id_tabel'];
 
-			$is_dynamic = $this->input->post('is_dynamic') !== null ? (int)$this->input->post('is_dynamic') : 0;
+			$no_tabel      = trim(preg_replace('/\s+/', '', (string)$this->input->post('no_tabel'))) ?: null;
+			$judul_ind_raw = trim($this->input->post('judul_ind') ?? '');
+			$judul_en_raw  = trim($this->input->post('judul_en') ?? '');
+			$id_unitkerja  = $this->input->post('id_unitkerja');
 
-			// Query UPDATE menggunakan JOIN antar tabel master dan tahunan
-			$this->db->query(
-				"UPDATE m_list_tabel m JOIN t_tahun_tabel t ON m.id = t.id_tabel SET m.judul_ind=?, m.judul_en=?, t.no_tabel=?, t.periode_id=?, t.periode_en=?, t.link_tabel=?, t.link_sebelumnya=?, t.is_dynamic=?, m.id_unitkerja=? WHERE t.id=?",
-				[$judul_ind, $judul_en, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_dynamic, $id_unitkerja, $idp]
-			);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data berhasil di update</div>");
+			$clean_judul_ind = trim(preg_replace('/,?\s*(Tahun\s+|Year\s+)?(19|20)\d{2}(\s*[-–\/]\s*(19|20)\d{2})?\s*$/i', '', $judul_ind_raw));
+			$clean_judul_en  = trim(preg_replace('/,?\s*(Tahun\s+|Year\s+)?(19|20)\d{2}(\s*[-–\/]\s*(19|20)\d{2})?\s*$/i', '', $judul_en_raw));
+			if (empty($clean_judul_en)) {
+				$clean_judul_en = $clean_judul_ind;
+			}
+
+			$jenis_sumber = $this->input->post('jenis_sumber');
+			if (empty($jenis_sumber)) {
+				$is_dyn_post = $this->input->post('is_dynamic');
+				$jenis_sumber = (!empty($is_dyn_post) && (int)$is_dyn_post === 1) ? 'dinamis' : 'api_kominfo';
+			}
+
+			$link_input = trim((string)($this->input->post('link_api') ?: $this->input->post('link_tabel')));
+			$id_api = null;
+			if (preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $link_input, $matches)) {
+				$id_api = $matches[0];
+			} elseif (preg_match('/[?&]id=([^&]+)/i', $link_input, $matches)) {
+				$id_api = $matches[1];
+			} elseif (!empty($link_input) && strlen($link_input) <= 100 && !filter_var($link_input, FILTER_VALIDATE_URL)) {
+				$id_api = $link_input;
+			}
+
+			// Update m_list_tabel
+			$this->db->table('m_list_tabel')->where('id', $m_id)->update([
+				'no_tabel'     => $no_tabel,
+				'judul_ind'    => $clean_judul_ind,
+				'judul_en'     => $clean_judul_en,
+				'id_unitkerja' => $id_unitkerja,
+				'jenis_sumber' => $jenis_sumber,
+			]);
+
+			// Sinkronisasi m_konfigurasi_api jika api_kominfo
+			if ($jenis_sumber === 'api_kominfo') {
+				// Hanya bersihkan kerangka indikator dinamis jika belum memiliki data nilai historis di t_nilai_dinamis
+				$cekInd = $this->db->table('m_indikator_tabel')->select('id')->where('id_tabel', $m_id)->get()->getRow();
+				if ($cekInd) {
+					$hasNilai = $this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$cekInd->id)->countAllResults();
+					if ($hasNilai === 0) {
+						$this->db->table('m_indikator_tabel')->where('id', (int)$cekInd->id)->delete();
+					}
+				}
+
+				$cekApi = $this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->get()->getRow();
+				if ($cekApi) {
+					$this->db->table('m_konfigurasi_api')->where('id', $cekApi->id)->update([
+						'id_api'     => $id_api ?: $cekApi->id_api,
+						'link_api'   => $link_input ?: $cekApi->link_api,
+						'updated_at' => date('Y-m-d H:i:s'),
+					]);
+				} else {
+					$this->db->table('m_konfigurasi_api')->insert([
+						'id_tabel'   => $m_id,
+						'id_api'     => $id_api,
+						'link_api'   => $link_input,
+						'created_at' => date('Y-m-d H:i:s'),
+						'updated_at' => date('Y-m-d H:i:s'),
+					]);
+				}
+			}
+
+			// Sinkronisasi m_indikator_tabel jika dinamis
+			if ($jenis_sumber === 'dinamis') {
+				// Bersihkan konfigurasi API jika tabel diatur ke dinamis
+				$this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->delete();
+
+				$cekInd = $this->db->table('m_indikator_tabel')->where('id_tabel', $m_id)->get()->getRow();
+				if ($cekInd) {
+					$this->db->table('m_indikator_tabel')->where('id', $cekInd->id)->update([
+						'no_tabel'     => $no_tabel,
+						'judul_ind'    => $clean_judul_ind,
+						'judul_en'     => $clean_judul_en,
+						'id_unitkerja' => $id_unitkerja,
+						'updated_at'   => date('Y-m-d H:i:s'),
+					]);
+				} else {
+					$this->db->table('m_indikator_tabel')->insert([
+						'id_tabel'        => $m_id,
+						'no_tabel'        => $no_tabel,
+						'judul_ind'       => $clean_judul_ind,
+						'judul_en'        => $clean_judul_en,
+						'id_unitkerja'    => $id_unitkerja,
+						'tipe_periode'    => 'tahunan',
+						'desimal'         => -1,
+						'satuan'          => null,
+						'config_tampilan' => json_encode([
+							'total_horizontal' => false,
+							'jenis_total_horizontal' => 'sum',
+							'only_total_horizontal' => false,
+							'group_total_horizontal' => false,
+							'total_vertikal' => true,
+							'jenis_total_vertikal' => 'default',
+							'label_total_kustom' => '',
+							'group_by_region' => true,
+							'prioritas_karakteristik' => false,
+							'portrait_mode' => false,
+							'portrait_split_col' => false
+						]),
+						'created_at'      => date('Y-m-d H:i:s'),
+						'updated_at'      => date('Y-m-d H:i:s'),
+					]);
+				}
+			}
+
+			// Inisialisasi/update t_status_tahunan untuk $ta
+			$mTabelDinamis->upsertStatusTahunan((int)$m_id, (int)$ta, []);
+
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Master Tabel berhasil diperbarui</div>");
+
+			if ($this->input->post('simpan_lanjut_generator') == '1' || ($jenis_sumber === 'dinamis' && $this->input->post('buka_generator') == '1')) {
+				return redirect()->to('admin/generator_tabel/' . $m_id);
+			}
+
 			return redirect()->to('admin/master_tabel/');
 		} else {
 			if (isset($_GET['action']) && $_GET['action'] == 'reset') {
 				session()->remove('sess_f_opd');
 				session()->remove('sess_f_bidang');
-				session()->remove('sess_f_tahun');
+				session()->remove('sess_f_jenis');
 				return redirect()->to('admin/master_tabel');
+			}
+
+			if (isset($_GET['filter_jenis'])) {
+				$val = $_GET['filter_jenis'];
+				$this->session->set('sess_f_jenis', $val);
 			}
 
 			if (isset($_GET['filter_opd'])) {
@@ -1409,66 +1813,65 @@ class Admin extends BaseController
 				$this->session->set('sess_f_bidang', $val);
 			}
 
-			if (isset($_GET['filter_tahun'])) {
-				$val = $_GET['filter_tahun'];
-				$this->session->set('sess_f_tahun', $val);
-			}
-
+			$filter_jenis  = $this->session->get('sess_f_jenis');
 			$filter_opd    = $this->session->get('sess_f_opd');
 			$filter_bidang = $this->session->get('sess_f_bidang');
-			$filter_tahun  = $this->session->get('sess_f_tahun');
 
+			if (empty($filter_jenis)) $filter_jenis = 'all';
 			if (empty($filter_opd)) $filter_opd = 'all';
 			if (empty($filter_bidang)) $filter_bidang = 'all';
-			if (empty($filter_tahun)) $filter_tahun = 'all';
 
+			$a['selected_jenis']  = $filter_jenis;
 			$a['selected_opd']    = $filter_opd;
 			$a['selected_bidang'] = $filter_bidang;
-			$a['selected_tahun']  = $filter_tahun;
 
-			$sql_base  = "FROM t_tahun_tabel l JOIN m_list_tabel ml ON l.id_tabel = ml.id LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja";
-			$sql_where = "WHERE 1=1";
+			$sql_base  = "FROM m_list_tabel ml 
+			             LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja 
+			             LEFT JOIN m_konfigurasi_api api ON api.id_tabel = ml.id 
+			             LEFT JOIN m_indikator_tabel ind ON ind.id_tabel = ml.id";
+			$sql_where = "WHERE ml.is_active = 1";
 
 			$params_count = [];
-			if ($filter_tahun != 'all') {
-				$sql_where .= " AND l.tahun = ?";
-				$params_count[] = $filter_tahun;
+
+			$cleanJenis = is_array($filter_jenis) ? array_values(array_filter($filter_jenis, fn($v) => !empty($v) && $v !== 'all')) : ($filter_jenis !== 'all' ? [$filter_jenis] : []);
+			if (!empty($cleanJenis)) {
+				$sql_where .= " AND u.jenis_instansi IN (" . implode(',', array_fill(0, count($cleanJenis), '?')) . ")";
+				foreach ($cleanJenis as $cj) $params_count[] = $cj;
 			}
 
-			if ($filter_opd != 'all') {
-				$sql_where .= " AND ml.id_unitkerja = ?";
-				$params_count[] = $filter_opd;
+			$cleanOpd = is_array($filter_opd) 
+				? array_values(array_filter(array_map('trim', $filter_opd), fn($v) => !empty($v) && $v !== 'all')) 
+				: (($filter_opd !== 'all' && !empty($filter_opd)) ? [trim((string)$filter_opd)] : []);
+			if (!empty($cleanOpd)) {
+				$sql_where .= " AND ml.id_unitkerja IN (" . implode(',', array_fill(0, count($cleanOpd), '?')) . ")";
+				foreach ($cleanOpd as $co) $params_count[] = (string)$co;
 			}
 
-			if ($filter_bidang != 'all') {
-				$sql_where .= " AND u.user_wali = ?";
-				$params_count[] = $filter_bidang;
+			$cleanBidang = is_array($filter_bidang) ? array_values(array_filter($filter_bidang, fn($v) => !empty($v) && $v !== 'all')) : ($filter_bidang !== 'all' ? [$filter_bidang] : []);
+			if (!empty($cleanBidang)) {
+				$sql_where .= " AND u.user_wali IN (" . implode(',', array_fill(0, count($cleanBidang), '?')) . ")";
+				foreach ($cleanBidang as $cb) $params_count[] = $cb;
 			}
 
-			$total_row = (int)($this->db->query("SELECT COUNT(l.id) as total $sql_base $sql_where", $params_count)->getRow()->total ?? 0);
-			$per_page  = 20;
-
-			$awal = $this->uri->segment(4);
-			$awal = (empty($awal) || $awal == 1) ? 0 : $awal;
-			if (empty($awal)) {
-				$awal = 0;
-			}
-
-			$a['pagi'] = _page($total_row, $per_page, 4, base_url() . "admin/master_tabel/p");
-
-			$params_data = $params_count;
-			$params_data[] = (int)$awal;
-			$params_data[] = (int)$per_page;
+			/* pagination dinonaktifkan: seluruh tabel ditampilkan sekaligus dan di-scroll di dalam kontainer */
+			$a['pagi'] = '';
 
 			$a['data'] = $this->db->query("
-            SELECT ml.judul_ind, ml.judul_en, ml.id_unitkerja, l.*, u.unitkerja_ind, u.user_wali 
-            $sql_base 
-            $sql_where 
-            ORDER BY (l.tahun = '" . $ta . "') DESC, l.tahun DESC, CAST(SUBSTRING_INDEX(l.no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(l.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, ml.judul_ind ASC 
-            LIMIT ?, ?
-        ", $params_data)->getResult();
+				SELECT ml.id, ml.id as id_master, ml.no_tabel, ml.judul_ind, ml.judul_en, ml.id_unitkerja, ml.jenis_sumber,
+				       u.unitkerja_ind, u.user_wali, u.jenis_instansi,
+				       api.id_api, api.link_api, api.tahun_tersedia,
+				       ind.id as id_indikator, ind.tahun_tampil,
+				       ml.id as id_tahun_tabel,
+				       (CASE WHEN ml.jenis_sumber = 'api_kominfo' THEN 0 WHEN ml.jenis_sumber = 'dinamis' THEN 1 WHEN ind.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic
+				$sql_base 
+				$sql_where 
+				ORDER BY CAST(SUBSTRING_INDEX(COALESCE(ml.no_tabel, '999'), '.', 1) AS UNSIGNED) ASC, 
+				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, 
+				         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(ml.no_tabel, '999'),'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, 
+				         ml.judul_ind ASC
+			", $params_count)->getResult();
 
-			$a['awal'] = (int)$awal;
+			$a['awal'] = 0;
 			$a['cari'] = '';
 			$a['page'] = "l_master_tabel";
 		}
@@ -1482,6 +1885,12 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
+		if (!can('report')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk melihat Laporan Rekap.</div>');
+			return redirect()->to('admin');
+		}
+
 
 		$jenis_rekap = $this->request->getPost('jenis_rekap') ?? '0';
 
@@ -1497,21 +1906,15 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		if (!can('master_tabel') && !can('usulan_tabel') && !can('input_dda_input') && !can('view_dda')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengakses menu Usulan Tabel.</div>');
+			return redirect()->to('admin/dda');
+		}
+
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_master_tabel_usulan")->getRow()->total ?? 0);
-		$per_page		= 10;
-
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
-
-		if (empty($awal) || $awal == 1) {
-			$awal = 0;
-		}
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/master_tabel_opd/p");
+		/* pagination dinonaktifkan: seluruh data usulan ditampilkan sekaligus dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -1535,30 +1938,50 @@ class Admin extends BaseController
 		$config['max_width']  		= '3000';
 		$config['max_height'] 		= '3000';
 		$kode						= rand(1, 1000);
-		$config['file_name'] 		= $kode . '_' . $unitkerja . '_' . $addby;
+		$safe_unit					= substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$unitkerja), 0, 15);
+		$safe_user					= substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$addby), 0, 15);
+		$config['file_name'] 		= $kode . '_' . $safe_unit . '_' . $safe_user;
 
 		$this->load->library('upload', $config);
 
 		if ($mau_ke == "del") {
 			$id_delete   = $this->input->get('delete_id');
-			$a['datpil']  = $this->db->query("select * from m_master_tabel_usulan where id=?", [$id_delete])->getRow();
+			$rowDel      = $this->db->query("select * from m_master_tabel_usulan where id=?", [$id_delete])->getRow();
+			if (!$rowDel || (!$this->isAdminBps() && $rowDel->id_unitkerja !== $unitkerja)) {
+				return redirect()->to('admin/master_tabel_opd/');
+			}
+			$a['datpil']  = $rowDel;
 			$a['act_url'] = base_url('index.php/admin/master_tabel_opd/act_del/');
 			return view('admin/f_del_master', $a);
 		} else if ($mau_ke == "act_del") {
 			$id = $this->input->post('id');
-			$this->db->query("DELETE FROM m_master_tabel_usulan WHERE id = ?", [$id]);
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
+			$rowDel = $this->db->query("select * from m_master_tabel_usulan where id=?", [$id])->getRow();
+			if ($rowDel && ($this->isAdminBps() || $rowDel->id_unitkerja === $unitkerja)) {
+				$this->db->query("DELETE FROM m_master_tabel_usulan WHERE id = ?", [$id]);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
+			}
 			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "cari") {
+			$is_bps = $this->isAdminBps();
+			$unitkerja = $this->session->get('admin_unitkerja');
 			$cari = $this->input->post('q') ?: ($this->input->post('cari') ?: '');
-			$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			if ($is_bps) {
+				$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ? ORDER BY l.is_setujui ASC, l.id DESC", ['%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			} else {
+				$a['data'] = $this->db->query("SELECT l.*, u.unitkerja_ind FROM m_master_tabel_usulan l LEFT JOIN m_unitkerja u ON l.id_unitkerja = u.id_unitkerja WHERE l.id_unitkerja = ? AND (l.judul_ind LIKE ? OR l.judul_en LIKE ? OR u.unitkerja_ind LIKE ?) ORDER BY l.is_setujui ASC, l.id DESC", [$unitkerja, '%' . $cari . '%', '%' . $cari . '%', '%' . $cari . '%'])->getResult();
+			}
 			$a['offset'] = 0;
 			$a['pagi'] = "";
+			$a['is_bps'] = $is_bps;
 			$a['page'] = "l_master_tabel_opd";
 		} else if ($mau_ke == "add") {
-
+			$a['is_bps'] = $this->isAdminBps();
 			$a['page']		= "f_add_opd";
 		} else if ($mau_ke == "edt") {
+			if (!$this->isAdminBps()) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Admin BPS yang berwenang menelaah dan menyetujui usulan tabel.</div>");
+				return redirect()->to('admin/master_tabel_opd/');
+			}
 
 			$datpil = $this->db->query("SELECT * from m_master_tabel_usulan WHERE id = ?", [$idu])->getRow();
 			$a['datpil']   = $datpil;
@@ -1570,7 +1993,7 @@ class Admin extends BaseController
 			if ($datpil) {
 				$linked_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$datpil->id_unitkerja, $datpil->judul_ind])->getRow();
 				if ($linked_m) {
-					$linked_t = $this->db->query("SELECT * FROM t_tahun_tabel WHERE id_tabel = ? AND tahun = ? LIMIT 1", [$linked_m->id, $ta])->getRow();
+					$linked_t = $this->db->query("SELECT * FROM t_status_tahunan WHERE id_tabel = ? AND tahun = ? LIMIT 1", [$linked_m->id, (int)$ta])->getRow();
 				}
 			}
 			$a['linked_m'] = $linked_m;
@@ -1582,12 +2005,19 @@ class Admin extends BaseController
 			date_default_timezone_set("Asia/Jakarta");
 			$waktusekarang = date("H:i");
 			if ($this->upload->do_upload('file_tabel')) {
-				$up_data	 	= $this->upload->data();
+				$up_data = $this->upload->data();
 				$this->db->query("INSERT INTO m_master_tabel_usulan VALUES (NULL, ?, ?, ?, ?, ?, ?)", [$judul_ind, $judul_en, $up_data['file_name'], $is_setujui, $unitkerja, $addby]);
+				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel usulan berhasil dikirim ke BPS untuk ditelaah.</div>");
+			} else {
+				$errMsg = $this->upload->display_errors() ?: 'Gagal mengunggah berkas tabel pendukung.';
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal mengirim usulan: " . esc($errMsg) . "</div>");
 			}
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel berhasil ditambahkan</div>");
-			return redirect()->to('admin/');
+			return redirect()->to('admin/master_tabel_opd/');
 		} else if ($mau_ke == "act_edt") {
+			if (!can('master_tabel')) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Hanya Admin BPS yang berwenang menyetujui usulan tabel.</div>");
+				return redirect()->to('admin/master_tabel_opd/');
+			}
 			// =================================================================
 			// PROSES PERSETUJUAN (ACC) USULAN TABEL DARI OPD
 			// Mengubah usulan menjadi tabel resmi di master tabel & tahunan
@@ -1603,7 +2033,7 @@ class Admin extends BaseController
 			$link_tabel      = $this->input->post('link_tabel') ?: '';
 			$link_sebelumnya = $this->input->post('link_sebelumnya') ?: '';
 			$ta_target       = trim((string)($this->input->post('ta_target') ?? ''));
-			$ta              = !empty($ta_target) ? $ta_target : ($this->session->get('admin_ta') ?: date('Y'));
+			$ta              = !empty($ta_target) ? (int)$ta_target : (int)($this->session->get('admin_ta') ?: date('Y'));
 
 			// Langkah 1: Cek apakah ada file lampiran baru yang diunggah
 			if ($this->upload->do_upload('file_tabel')) {
@@ -1618,36 +2048,40 @@ class Admin extends BaseController
 			$check_m = $this->db->query("SELECT id FROM m_list_tabel WHERE id_unitkerja = ? AND LOWER(TRIM(judul_ind)) = LOWER(TRIM(?)) LIMIT 1", [$id_unitkerja, $judul_ind])->getRow();
 			if ($check_m) {
 				$m_id = $check_m->id;
-				$this->db->query("UPDATE m_list_tabel SET judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$judul_en, $m_id]);
+				$this->db->query("UPDATE m_list_tabel SET no_tabel = COALESCE(?, no_tabel), judul_en = COALESCE(NULLIF(judul_en, ''), ?) WHERE id = ?", [$no_tabel, $judul_en, $m_id]);
 			} else {
-				$this->db->query("INSERT INTO m_list_tabel (judul_ind, judul_en, id_unitkerja, kondef) VALUES (?, ?, ?, '-')", [$judul_ind, $judul_en, $id_unitkerja]);
+				$this->db->query("INSERT INTO m_list_tabel (no_tabel, judul_ind, judul_en, id_unitkerja, kondef, is_active) VALUES (?, ?, ?, ?, '-', 1)", [$no_tabel, $judul_ind, $judul_en, $id_unitkerja]);
 				$m_id = $this->db->insertID();
 			}
 
-			// Langkah 3: Daftarkan ke Tabel Tahunan DDA (t_tahun_tabel) untuk tahun aktif ($ta)
-			$check_t = $this->db->query("SELECT id FROM t_tahun_tabel WHERE id_tabel = ? AND tahun = ?", [$m_id, $ta])->getRow();
-			
-			// Jika user memilih resolusi 'shift', geser nomor tabel yang beririsan (+1)
-			if ($conflict_resolution == "shift" && $no_tabel) {
-				$this->shift_table_numbers($no_tabel, $ta, $check_t ? $check_t->id : null);
+			// Simpan link_api ke m_konfigurasi_api jika ada
+			if (!empty($link_tabel)) {
+				$existKa = $this->db->table('m_konfigurasi_api')->where('id_tabel', $m_id)->get()->getRow();
+				if ($existKa) {
+					$this->db->table('m_konfigurasi_api')->where('id', $existKa->id)->update([
+						'link_api'   => $link_tabel,
+						'updated_at' => date('Y-m-d H:i:s'),
+					]);
+				} else {
+					$this->db->table('m_konfigurasi_api')->insert([
+						'id_tabel'   => $m_id,
+						'link_api'   => $link_tabel,
+						'created_at' => date('Y-m-d H:i:s'),
+						'updated_at' => date('Y-m-d H:i:s'),
+					]);
+				}
 			}
 
-			// Masukkan atau update data tabel tahunan
-			if (!$check_t) {
-				$is_confirm      = '2'; // Belum dikonfirmasi selesai
-				$catatan         = '-';
-				$is_periksa      = '0'; // Belum diperiksa
-				$catatan_periksa = '-';
-				$this->db->query(
-					"INSERT INTO t_tahun_tabel (id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					[$m_id, $ta, $no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $is_confirm, $catatan, $is_periksa, $catatan_periksa]
-				);
-			} else {
-				$this->db->query(
-					"UPDATE t_tahun_tabel SET no_tabel = COALESCE(?, no_tabel), periode_id = COALESCE(?, periode_id), periode_en = COALESCE(?, periode_en), link_tabel = COALESCE(NULLIF(?, ''), link_tabel), link_sebelumnya = COALESCE(NULLIF(?, ''), link_sebelumnya) WHERE id = ?",
-					[$no_tabel, $periode_id, $periode_en, $link_tabel, $link_sebelumnya, $check_t->id]
-				);
+			// Jika user memilih resolusi 'shift', geser nomor tabel yang beririsan (+1)
+			if ($conflict_resolution == "shift" && $no_tabel) {
+				$this->shift_table_numbers($no_tabel, $ta, $m_id);
 			}
+
+			// Langkah 3: Daftarkan ke t_status_tahunan untuk tahun aktif ($ta)
+			$mTabelDinamis = new \App\Models\M_tabeldinamis();
+			$mTabelDinamis->upsertStatusTahunan((int)$m_id, (int)$ta, [
+				'catatan' => '-',
+			]);
 
 			// Langkah 4: Tandai tabel usulan sebagai telah disetujui (is_setujui = '1')
 			$this->db->query("UPDATE m_master_tabel_usulan SET is_setujui = '1', judul_ind = ?, judul_en = ?, id_unitkerja = ? WHERE id = ?", [$judul_ind, $judul_en, $id_unitkerja, $idp]);
@@ -1655,8 +2089,15 @@ class Admin extends BaseController
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Tabel usulan berhasil disetujui (ACC) dan ditautkan ke Master Tabel #{$m_id} untuk DDA Tahun {$ta}</div>");
 			return redirect()->to('admin/master_tabel_opd/');
 		} else {
-			$a['data']		= $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
-			$a['offset']	= (int)$awal;
+			$is_bps = $this->isAdminBps();
+			$unitkerja = $this->session->get('admin_unitkerja');
+			if ($is_bps) {
+				$a['data'] = $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja ORDER BY l.is_setujui ASC, l.id DESC")->getResult();
+			} else {
+				$a['data'] = $this->db->query("SELECT l.*,u.unitkerja_ind FROM m_master_tabel_usulan l left join m_unitkerja u on l.id_unitkerja=u.id_unitkerja WHERE l.id_unitkerja = ? ORDER BY l.is_setujui ASC, l.id DESC", [$unitkerja])->getResult();
+			}
+			$a['offset']	= 0;
+			$a['is_bps']	= $is_bps;
 			$a['page']		= "l_master_tabel_opd";
 		}
 		return view('admin/index', $a);
@@ -1669,17 +2110,14 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		/* pagination */
-		$total_row		= (int)($this->db->query("SELECT COUNT(*) AS total FROM m_unitkerja")->getRow()->total ?? 0);
-		$per_page		= 10;
+		if (!can('master_opd')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengelola Master OPD.</div>');
+			return redirect()->to('admin');
+		}
 
-		$awal	= $this->uri->segment(4);
-		$awal	= (empty($awal) || $awal == 1) ? 0 : $awal;
 
-		//if (empty($awal) || $awal == 1) { $awal = 0; } { $awal = $awal; }
-		$akhir	= $per_page;
-
-		$a['pagi']	= _page($total_row, $per_page, 4, base_url() . "admin/master_opd/p");
+		/* pagination dinonaktifkan: semua OPD langsung ditampilkan dan di-scroll di dalam kontainer */
+		$a['pagi'] = '';
 
 		//ambil variabel URL
 		$mau_ke					= $this->uri->segment(3);
@@ -1692,6 +2130,7 @@ class Admin extends BaseController
 		$id_unitkerja	= $this->input->post('id_unitkerja');
 		$unitkerja_ind	= $this->input->post('unitkerja_ind');
 		$unitkerja_en	= $this->input->post('unitkerja_en');
+		$jenis_instansi = $this->input->post('jenis_instansi') ?: 'vertikal';
 		$user_wali		= $this->input->post('user_wali');
 		$user_spv		= trim((string)($this->input->post('user_spv') ?? '')) ?: '-';
 
@@ -1716,26 +2155,24 @@ class Admin extends BaseController
 		} else if ($mau_ke == "act_add") {
 			$cek_user_exist = $this->db->query("SELECT id_unitkerja FROM m_unitkerja WHERE id_unitkerja = ?", [$id_unitkerja])->getNumRows();
 
-			if (strlen($id_unitkerja) < 3) {
+			if (strlen($id_unitkerja) < 4) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Unitkerja minimal 4 huruf</div>");
 				return redirect()->to('admin/master_opd');
 			} else if ($cek_user_exist > 0) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">OPD telah ditambahkan. Ganti yang lain..!</div>");
 				return redirect()->to('admin/master_opd');
 			} else {
-				$this->db->query("INSERT INTO m_unitkerja VALUES (?, ?, ?, ?, ?)", [$id_unitkerja, $unitkerja_ind, $unitkerja_en, $user_wali, $user_spv]);
+				$this->db->query("INSERT INTO m_unitkerja (id_unitkerja, unitkerja_ind, unitkerja_en, jenis_instansi, user_wali, user_spv) VALUES (?, ?, ?, ?, ?, ?)", [$id_unitkerja, $unitkerja_ind, $unitkerja_en, $jenis_instansi, $user_wali, $user_spv]);
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
+				return redirect()->to('admin/master_opd');
 			}
-
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
-			return redirect()->to('admin/master_opd');
 		} else if ($mau_ke == "act_edt") {
-			$this->db->query("UPDATE m_unitkerja SET id_unitkerja = ?, unitkerja_ind = ?, unitkerja_en = ?, user_wali = ?, user_spv = ? WHERE id_unitkerja = ?", [$id_unitkerja, $unitkerja_ind, $unitkerja_en, $user_wali, $user_spv, $idp]);
+			$this->db->query("UPDATE m_unitkerja SET id_unitkerja = ?, unitkerja_ind = ?, unitkerja_en = ?, jenis_instansi = ?, user_wali = ?, user_spv = ? WHERE id_unitkerja = ?", [$id_unitkerja, $unitkerja_ind, $unitkerja_en, $jenis_instansi, $user_wali, $user_spv, $idp]);
 
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been updated </div>");
 			return redirect()->to('admin/master_opd');
 		} else {
-			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja LIMIT ?, ?", [(int)$awal, (int)$akhir])->getResult();
+			$a['data']		= $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
 			$a['page']		= "l_unitkerja";
 		}
 
@@ -1744,47 +2181,127 @@ class Admin extends BaseController
 
 	public function set_tahun($tahun = null)
 	{
-		if (!$tahun)
+		if (!$tahun) {
 			$tahun = date('Y');
+		}
 
-		$this->session->set('admin_ta', $tahun);
+		$this->session->set('admin_ta', (int)$tahun);
+
+		// 1. Cek parameter query redirect_to yang dikirim secara eksplisit oleh UI navbar
+		$redirectTo = $this->request->getGet('redirect_to');
+		if (!empty($redirectTo)) {
+			$cleanPath = ltrim(urldecode($redirectTo), '/');
+			// Keamanan: Pastikan internal path (bukan external url) dan bukan loop ke set_tahun/login
+			if (!preg_match('#^(https?://|//)#i', $cleanPath) && 
+				!str_contains($cleanPath, 'set_tahun') && 
+				!str_contains($cleanPath, 'login')) {
+				return redirect()->to(base_url($cleanPath));
+			}
+		}
+
+		// 2. Fallback: Gunakan HTTP_REFERER bawaan browser
+		$referer = $this->request->getServer('HTTP_REFERER');
+		if (!empty($referer)) {
+			$parsedPath = parse_url($referer, PHP_URL_PATH) ?? '';
+			if (!str_contains($parsedPath, 'set_tahun') && !str_contains($parsedPath, 'login')) {
+				return redirect()->to($referer);
+			}
+		}
+
+		// 3. Fallback terakhir jika dibuka manual langsung dari address bar
 		return redirect()->to('admin/index');
+	}
+
+	/**
+	 * Cek apakah user yang login memiliki hak istimewa Admin BPS / Super Admin
+	 */
+	private function isAdminBps(): bool
+	{
+		if (!$this->session->get('admin_valid')) {
+			return false;
+		}
+		$unitkerja = (string)$this->session->get('admin_unitkerja');
+		$level = strtolower((string)$this->session->get('admin_level'));
+		return ($unitkerja === 'bps' || in_array($level, ['admin', 'super admin', 'superadmin'], true));
+	}
+
+	/**
+	 * Cek apakah user berwenang mengelola tabel tertentu (Admin BPS atau pemilik unit kerja tabel)
+	 */
+	private function canManageTable($tabel): bool
+	{
+		if (!$this->session->get('admin_valid')) {
+			return false;
+		}
+		if ($this->isAdminBps()) {
+			return true;
+		}
+		$unitkerja = (string)$this->session->get('admin_unitkerja');
+		$tableUnitkerja = is_object($tabel) ? ($tabel->id_unitkerja ?? '') : ($tabel['id_unitkerja'] ?? '');
+		return (!empty($unitkerja) && !empty($tableUnitkerja) && (string)$tableUnitkerja === $unitkerja);
 	}
 
 	public function act_update_isi()
 	{
-		$id_tabel = $this->input->post('id_tabel');
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$id_tabel = (int)$this->input->post('id_tabel');
 		$catatan  = $this->input->post('catatan_periksa');
+		$ta       = (int)($this->session->get('admin_ta') ?: date('Y'));
 
-		$data = array(
-			'is_periksa' => '1',
-			'catatan_periksa' => $catatan
-		);
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$ctx = $mTabelDinamis->resolveTableContext($id_tabel, $ta);
+		$id_master = $ctx['id_tabel'] ?: $id_tabel;
 
-		$this->db->table('t_tahun_tabel')->where('id', $id_tabel)->update($data);
+		if (!$ctx['tabel'] || !$this->canManageTable($ctx['tabel'])) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda hanya berwenang mengubah status tabel instansi Anda sendiri.</div>');
+			return redirect()->back();
+		}
+
+		if ($id_master > 0) {
+			$mTabelDinamis->upsertStatusTahunan($id_master, $ta, [
+				'is_periksa'      => 1,
+				'catatan_periksa' => $catatan
+			]);
+		}
 
 		return redirect()->back()->with('k', '<div class="alert alert-success">Status berhasil diperbarui!</div>');
 	}
 
 	public function batal_isi($id)
 	{
-		$id = (int)$id;
-		$tabel = $this->db->table('t_tahun_tabel')->where('id', $id)->get()->getRow();
-		if ($tabel) {
-			$is_portal = (stripos($tabel->link_tabel, 'portal') !== false || 
-			              stripos($tabel->link_tabel, 'satudata') !== false || 
-			              !empty($tabel->id_api));
-			if (!empty($tabel->is_dynamic) || $is_portal) {
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		$id_tabel = (int)$id;
+		$ta       = (int)($this->session->get('admin_ta') ?: date('Y'));
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$ctx = $mTabelDinamis->resolveTableContext($id_tabel, $ta);
+		$id_master = $ctx['id_tabel'] ?: $id_tabel;
+
+		if (!$ctx['tabel'] || !$this->canManageTable($ctx['tabel'])) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda hanya berwenang membatalkan pengisian tabel instansi Anda sendiri.</div>');
+			return redirect()->back();
+		}
+
+		if ($ctx['tabel']) {
+			$link_tabel = $ctx['tahun_tabel']->link_tabel ?? '';
+			$is_portal = (stripos($link_tabel, 'portal') !== false || 
+			              stripos($link_tabel, 'satudata') !== false || 
+			              !empty($ctx['tahun_tabel']->id_api));
+			if (!empty($ctx['tabel']->is_dynamic) || $ctx['indikator'] !== null || $is_portal) {
 				$this->session->setFlashdata('k', '<div class="alert alert-warning border-0 shadow-sm rounded-3 mb-3" id="alert"><i class="bi bi-exclamation-triangle-fill me-2"></i>Status pengisian Tabel Dinamis dan API Portal tidak dapat dibatalkan secara manual.</div>');
 				return redirect()->back();
 			}
 		}
 
-		$data = array(
-			'is_periksa' => '0',
+		$mTabelDinamis->upsertStatusTahunan($id_master, $ta, [
+			'is_periksa'      => 0,
 			'catatan_periksa' => '-'
-		);
-		$this->db->table('t_tahun_tabel')->where('id', $id)->update($data);
+		]);
 		return redirect()->back();
 	}
 
@@ -1794,20 +2311,24 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
-		// Keamanan: Hanya akun BPS yang berwenang membatalkan verifikasi
-		if ($this->session->get('admin_unitkerja') != 'bps') {
-			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Hanya BPS yang berwenang membatalkan verifikasi data.</div>');
+		// Keamanan RBAC: Hanya akun dengan hak verifikasi (Super Admin, Admin, LO) yang berwenang membatalkan verifikasi
+		if (!can('input_dda_verif')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda tidak memiliki izin untuk membatalkan verifikasi data.</div>');
 			return redirect()->back();
 		}
 
-		$id = (int)$id;
-		$data = array(
+		$id_tabel = (int)$id;
+		$ta       = (int)($this->session->get('admin_ta') ?: date('Y'));
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$ctx = $mTabelDinamis->resolveTableContext($id_tabel, $ta);
+		$id_master = $ctx['id_tabel'] ?: $id_tabel;
+
+		$mTabelDinamis->upsertStatusTahunan($id_master, $ta, [
 			'is_confirm'   => '0',
 			'catatan'      => '-',
-			'is_publish'   => '0', // Otomatis kembalikan ke Draft demi keamanan data publik
+			'is_publish'   => 0,
 			'published_at' => null
-		);
-		$this->db->table('t_tahun_tabel')->where('id', $id)->update($data);
+		]);
 
 		$this->session->setFlashdata('k', '<div class="alert alert-warning border-0 shadow-sm rounded-3 d-flex align-items-center mb-3" id="alert" style="background-color: #fff3cd; color: #664d03;"><i class="bi bi-exclamation-triangle-fill fs-5 me-2 flex-shrink-0 text-warning"></i><div><strong>Status Diperbarui:</strong> Verifikasi data berhasil dibatalkan. Tabel otomatis dikembalikan ke status <b>Draft</b>.</div></div>');
 		return redirect()->back();
@@ -1826,8 +2347,7 @@ class Admin extends BaseController
 		}
 
 		// Keamanan RBAC: Hanya akun Admin dan Super Admin yang berwenang mempublikasikan tabel ke publik
-		$user_level = strtolower(trim($this->session->get('admin_level') ?? ''));
-		if (!in_array($user_level, ['admin', 'super admin', 'superadmin'])) {
+		if (!can('input_dda_publish')) {
 			return $this->response->setJSON([
 				'status' => 'error',
 				'message' => 'Akses ditolak! Hanya Admin dan Super Admin yang berwenang mengubah status publikasi tabel.'
@@ -1844,13 +2364,11 @@ class Admin extends BaseController
 			])->setStatusCode(400);
 		}
 
-		// Ambil info tabel
-		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, t.no_tabel, t.link_tabel, t.is_periksa, t.is_confirm, t.is_dynamic, t.catatan_periksa, m.judul_ind')
-			->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-			->where('t.id', $id)
-			->get()
-			->getRow();
+		$ta = (int)($this->session->get('admin_ta') ?: date('Y'));
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$ctx = $mTabelDinamis->resolveTableContext($id, $ta);
+		$tabel = $ctx['tabel'];
+		$id_master = $ctx['id_tabel'] ?: $id;
 
 		if (!$tabel) {
 			return $this->response->setJSON([
@@ -1859,35 +2377,51 @@ class Admin extends BaseController
 			])->setStatusCode(404);
 		}
 
+		$statusTahunan = $ctx['tahun_tabel'];
+
 		// Validasi persyaratan tampil (hanya saat mengaktifkan publikasi / is_publish = 1)
 		if ($is_publish === 1) {
-			$is_dynamic = (!empty($tabel->is_dynamic) && (int)$tabel->is_dynamic === 1);
+			$is_dynamic = (($tabel->jenis_sumber ?? '') === 'api_kominfo') 
+				? false 
+				: (((!empty($tabel->jenis_sumber) && $tabel->jenis_sumber === 'dinamis') || ($ctx['indikator'] !== null)));
 
 			// 1. Syarat Link: Harus memiliki tautan data (jika bukan tabel dinamis)
-			if (!$is_dynamic && empty(trim($tabel->link_tabel ?? ''))) {
+			if (!$is_dynamic && empty(trim($statusTahunan->link_tabel ?? ''))) {
 				return $this->response->setJSON([
 					'status' => 'error',
 					'message' => 'Tabel belum memiliki tautan data (link kosong). Silakan lengkapi link terlebih dahulu sebelum mempublish.'
 				])->setStatusCode(422);
 			}
 
-			// 2. Syarat Pengisian: Harus sudah diisi (is_periksa == 1 atau tersinkron portal data)
-			$is_portal = (stripos($tabel->link_tabel ?? '', 'portal') !== false || 
-			              stripos($tabel->link_tabel ?? '', 'satudata') !== false);
+			// 2. Syarat Pengisian: Harus sudah diisi pada tahun target ($ta - 1)
+			$thDataCheck = (int)$ta - 1;
+			$thDataStr = (string)$thDataCheck;
+			$is_portal = (stripos($statusTahunan->link_tabel ?? '', 'portal') !== false || 
+			              stripos($statusTahunan->link_tabel ?? '', 'satudata') !== false ||
+			              !empty($ctx['api']->id_api));
 			if ($is_dynamic) {
-				$is_filled = ($tabel->is_periksa == '1' && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh/iu', $tabel->catatan_periksa ?? ''));
-				if (!$is_filled && $tabel->is_periksa == '1') {
-					// Fallback: periksa keberadaan data sel di t_nilai_dinamis
-					$indikator = $this->db->table('m_indikator_tabel')->where('id_tahun_tabel', $id)->get()->getRow();
-					if ($indikator) {
-						$has_nilai = ($this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults() > 0);
-						if ($has_nilai) {
-							$is_filled = true;
-						}
+				$is_filled = false;
+				if ($ctx['indikator']) {
+					$has_nilai = ($this->db->table('t_nilai_dinamis')
+						->where('id_indikator', (int)$ctx['indikator']->id)
+						->where('tahun_data', $thDataCheck)
+						->groupStart()
+							->where('nilai IS NOT NULL')
+							->orGroupStart()
+								->where('simbol IS NOT NULL')
+								->where('simbol !=', '')
+							->groupEnd()
+						->groupEnd()
+						->countAllResults() > 0);
+					if ($has_nilai) {
+						$is_filled = true;
 					}
 				}
+			} elseif ($is_portal) {
+				$tahunTersedia = (string)($ctx['api']->tahun_tersedia ?? '');
+				$is_filled = ($tahunTersedia !== '' && (in_array($thDataStr, array_map('trim', explode(',', $tahunTersedia)), true) || strpos($tahunTersedia, $thDataStr) !== false));
 			} else {
-				$is_filled = ($tabel->is_periksa == '1' || $is_portal);
+				$is_filled = ($statusTahunan->is_periksa == 1);
 			}
 			if (!$is_filled) {
 				return $this->response->setJSON([
@@ -1897,7 +2431,7 @@ class Admin extends BaseController
 			}
 
 			// 3. Syarat Verifikasi: Harus sudah diverifikasi oleh BPS (is_confirm == 1)
-			if ($tabel->is_confirm != '1') {
+			if ($statusTahunan->is_confirm != '1') {
 				return $this->response->setJSON([
 					'status' => 'error',
 					'message' => 'Tabel belum dapat dipublish karena belum diverifikasi oleh BPS (status masih Menunggu Cek).'
@@ -1906,14 +2440,14 @@ class Admin extends BaseController
 		}
 
 		$now = date('Y-m-d H:i:s');
-		$update_data = [
+		$updatePayload = [
 			'is_publish'   => $is_publish,
 			'published_at' => ($is_publish === 1) ? $now : null
 		];
-
-		$this->db->table('t_tahun_tabel')
-			->where('id', $id)
-			->update($update_data);
+		if ($is_publish === 1 && !empty($is_filled)) {
+			$updatePayload['is_periksa'] = 1;
+		}
+		$mTabelDinamis->upsertStatusTahunan($id_master, $ta, $updatePayload);
 
 		$judul_singkat = !empty($tabel->no_tabel) ? 'Tabel ' . trim($tabel->no_tabel) : mb_strimwidth($tabel->judul_ind, 0, 30, '...');
 
@@ -1929,26 +2463,73 @@ class Admin extends BaseController
 
 	public function export_excel_instansi()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		if (!can('report')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengunduh Laporan Rekap.</div>');
+			return redirect()->to('admin');
+		}
+
 		error_reporting(0);
 		ini_set('display_errors', 0);
 
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) $ta = date('Y');
+		$thDda = (string)$ta;
+		$thData = ((int)$ta) - 1;
+		$thDataStr = (string)$thData;
 
 		header("Content-type: application/vnd-ms-excel");
 		header("Content-Disposition: attachment; filename=Laporan_Instansi_$ta.xls");
 
 		$data = $this->db->query("
-        SELECT m.unitkerja_ind,
-            COUNT(t.id) as jumlah_tabel,
-            SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
-            SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
-            SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
-        FROM m_unitkerja m 
-        LEFT JOIN m_list_tabel mt ON m.id_unitkerja = mt.id_unitkerja LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
+        SELECT 
+            m.unitkerja_ind,
+            COUNT(mt.id) as jumlah_tabel,
+            SUM(CASE 
+                WHEN (tt.is_confirm = '1') OR (
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
+                ) THEN 0 
+                ELSE 1 
+            END) as belum_isi,
+            SUM(CASE 
+                WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
+                ) THEN 1 
+                ELSE 0 
+            END) as menunggu_validasi,
+            SUM(CASE 
+                WHEN tt.is_confirm = '1' THEN 1 
+                ELSE 0 
+            END) as sudah_validasi
+        FROM m_list_tabel mt
+        JOIN m_unitkerja m ON mt.id_unitkerja = m.id_unitkerja 
+        LEFT JOIN t_status_tahunan tt ON tt.id_tabel = mt.id AND tt.tahun = ?
+        LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+        LEFT JOIN (
+            SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+        ) nd ON nd.id_indikator = mi.id
+        LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+        WHERE mt.is_active = 1
         GROUP BY m.id_unitkerja 
         ORDER BY m.unitkerja_ind ASC
-    ", [$ta])->getResult();
+    ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 
 		echo "<table border='1'>";
 		echo "<tr>
@@ -1972,12 +2553,23 @@ class Admin extends BaseController
 	}
 	public function export_excel_tim()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+
+		if (!can('report')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengunduh Laporan Rekap.</div>');
+			return redirect()->to('admin');
+		}
 
 		error_reporting(0);
 		ini_set('display_errors', 0);
 
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) $ta = date('Y');
+		$thDda = (string)$ta;
+		$thData = ((int)$ta) - 1;
+		$thDataStr = (string)$thData;
 
 		header("Content-type: application/vnd-ms-excel");
 		header("Content-Disposition: attachment; filename=Laporan_Tim_$ta.xls");
@@ -1985,16 +2577,50 @@ class Admin extends BaseController
 		$data = $this->db->query("
             SELECT 
                 u.user_wali,
-                COUNT(t.id) as jumlah_tabel,
-                SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
-                SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
-                SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
+                COUNT(mt.id) as jumlah_tabel,
+                SUM(CASE 
+                    WHEN (tt.is_confirm = '1') OR (
+                        CASE 
+                            WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                                CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                            WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                                CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                            WHEN tt.is_periksa = 1 THEN 1
+                            ELSE 0
+                        END = 1
+                    ) THEN 0 
+                    ELSE 1 
+                END) as belum_isi,
+                SUM(CASE 
+                    WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                        CASE 
+                            WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                                CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                            WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                                CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                            WHEN tt.is_periksa = 1 THEN 1
+                            ELSE 0
+                        END = 1
+                    ) THEN 1 
+                    ELSE 0 
+                END) as menunggu_validasi,
+                SUM(CASE 
+                    WHEN tt.is_confirm = '1' THEN 1 
+                    ELSE 0 
+                END) as sudah_validasi
             FROM m_unitkerja u
-            LEFT JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
-            WHERE u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
+            JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja 
+            LEFT JOIN t_status_tahunan tt ON tt.id_tabel = mt.id AND tt.tahun = ?
+            LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+            LEFT JOIN (
+                SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+            ) nd ON nd.id_indikator = mi.id
+            LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+            WHERE mt.is_active = 1
+              AND u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
             GROUP BY u.user_wali 
             ORDER BY u.user_wali ASC
-        ", [$ta])->getResult();
+        ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 
 		echo "<table border='1'>";
 		echo "<tr>
@@ -2023,6 +2649,12 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
+		if (!can('master_tim')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengelola Master Tim.</div>');
+			return redirect()->to('admin');
+		}
+
 
 		// Batasi hak akses hanya untuk Super Admin dan Admin (Diseminasi)
 		$user_lvl = strtolower(trim((string)($this->session->get('admin_level') ?? '')));
@@ -2156,21 +2788,37 @@ class Admin extends BaseController
 			$total_anggota_count = 0;
 			$total_opd_count = 0;
 
-			foreach ($teams_raw as $t) {
-				// Ambil anggota tim dari t_tim_anggota
-				$members = $this->db->query("SELECT ta.id as rel_id, ta.created_at, u.id as admin_id, u.nama, u.nip, u.username, u.email 
+			$membersByTim = [];
+			$opdsByTim    = [];
+			$kodeTimList  = array_values(array_filter(array_map(fn($r) => $r->username, $teams_raw)));
+
+			if (!empty($kodeTimList)) {
+				$placeholders = implode(',', array_fill(0, count($kodeTimList), '?'));
+
+				$allMembers = $this->db->query("SELECT ta.kode_tim, ta.id as rel_id, ta.created_at, u.id as admin_id, u.nama, u.nip, u.username, u.email 
 					FROM t_tim_anggota ta 
 					JOIN t_admin u ON ta.id_admin = u.id 
-					WHERE ta.kode_tim = ? 
-					ORDER BY u.nama ASC", [$t->username])->getResult();
+					WHERE ta.kode_tim IN ($placeholders) 
+					ORDER BY u.nama ASC", $kodeTimList)->getResult();
+				foreach ($allMembers as $m) {
+					$membersByTim[$m->kode_tim][] = $m;
+				}
 
-				// Ambil daftar OPD binaan dari m_unitkerja
-				$opds = $this->db->query("SELECT id_unitkerja, unitkerja_ind, unitkerja_en, user_spv 
+				$allOpds = $this->db->query("SELECT user_wali, id_unitkerja, unitkerja_ind, unitkerja_en, user_spv 
 					FROM m_unitkerja 
-					WHERE user_wali = ? 
-					ORDER BY unitkerja_ind ASC", [$t->username])->getResult();
+					WHERE user_wali IN ($placeholders) 
+					ORDER BY unitkerja_ind ASC", $kodeTimList)->getResult();
+				foreach ($allOpds as $o) {
+					$opdsByTim[$o->user_wali][] = $o;
+				}
+			}
+
+			foreach ($teams_raw as $t) {
+				$members = $membersByTim[$t->username] ?? [];
+				$opds    = $opdsByTim[$t->username] ?? [];
 
 				$total_anggota_count += count($members);
+				$total_opd_count += count($opds);
 				$spv_arr = array_unique(array_filter(array_map(function($o) {
 					return (!empty($o->user_spv) && $o->user_spv !== '-') ? strtoupper($o->user_spv) : null;
 				}, $opds)));
@@ -2212,24 +2860,23 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
-		$jenis_rekap = $this->input->post('jenis_rekap');
-		if ($jenis_rekap == '0') {
-			$data_byjk	= $this->db->query("SELECT mt.id_unitkerja, u.unitkerja_ind, count(mt.judul_ind) as jumlah_tabel, sum(case when t.is_confirm = 1 then 1 else 0 end ) as terentri FROM `t_tahun_tabel` t JOIN m_list_tabel mt ON t.id_tabel = mt.id LEFT JOIN m_unitkerja u ON mt.id_unitkerja=u.id_unitkerja GROUP BY mt.id_unitkerja ORDER BY u.id_unitkerja ")->getResult();
-			$a['page']		= "view_report";
+
+		if (!can('matching')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Menu Sinkronisasi/Matching hanya untuk Super Admin.</div>');
+			return redirect()->to('admin');
 		}
 
-		$a['page']	= "matching";
+		$a['page'] = "matching";
 		return view('admin/index', $a);
 	}
 
 
 	private function callApi2($url)
 	{
-		//$token = 'wenFlEPchGCa7aIMTBoB5Lt0pN1fcsDq';
-		//$token = 'k83pdzFWM5C4VF5eOLeaFF7V4iW0bO0q1I9AKlJ2i1JbTEsxhmdLMwC7OXip';
-		// $token ='1ScZHTidKmSn562vRXFWBf2wcWImhNL3XcTdtlFMx5cLVYU1zJS9H8uAzJG4';
-		// $token = 'uIJibrGVvdBvfi4EroYKbKeBCkpIsVMeVxnlgSTZk8xc4ttmYX63dHDhKoHa';
-		$token = 'sdj_UYf5h0TPgUW3E0kcZisn33xrTe5PMRqLuXq6CWbAfb69tEA7dILT0TLhpFtjQiWHqrd1pn9SGvE4NYlN';
+		$token = (string)env('SATUDATA_TOKEN', '');
+		if ($token === '') {
+			return ['error' => 'MISSING_TOKEN: SATUDATA_TOKEN belum dikonfigurasi di .env'];
+		}
 
 		$ch = curl_init($url);
 		curl_setopt_array($ch, [
@@ -2275,6 +2922,13 @@ class Admin extends BaseController
 
 	public function ambil_data()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => false, 'message' => 'Unauthorized']);
+		}
+		if (!can('matching')) {
+			return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+		}
+
 		// biar tidak timeout
 		ini_set('max_execution_time', 0); // 0 = unlimited
 		set_time_limit(0);
@@ -2311,16 +2965,15 @@ class Admin extends BaseController
 				}
 
 				try {
-					$this->db->query(
-						"INSERT INTO t_api_data (id_api, judul, tahun_data)
-						 VALUES (?, ?, ?)
-						 ON DUPLICATE KEY UPDATE
-						 judul = VALUES(judul),
-						 tahun_data = VALUES(tahun_data)",
-						[$id, $judul, $tahun]
-					);
+					$this->db->table('m_konfigurasi_api')
+						->where('id_api', $id)
+						->update([
+							'tahun_tersedia' => (string)$tahun,
+							'last_sync_at'   => date('Y-m-d H:i:s'),
+							'updated_at'     => date('Y-m-d H:i:s'),
+						]);
 				} catch (\Exception $e) {
-					log_message('error', 'Gagal insert t_api_data: ' . $e->getMessage());
+					log_message('error', 'Gagal update m_konfigurasi_api: ' . $e->getMessage());
 				}
 			}
 
@@ -2336,6 +2989,13 @@ class Admin extends BaseController
 
 	public function ambil_databatch()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => false, 'message' => 'Unauthorized', 'has_next' => false]);
+		}
+		if (!can('matching')) {
+			return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak', 'has_next' => false]);
+		}
+
 		// biar tidak timeout
 		ini_set('max_execution_time', 0); // 0 = unlimited
 		set_time_limit(0);
@@ -2377,19 +3037,17 @@ class Admin extends BaseController
 				}
 			}
 
-			// Insert atau update
+			// Update m_konfigurasi_api
 			try {
-				$this->db->query(
-					"INSERT INTO t_api_data (id_api, judul, tahun_data)
-					 VALUES (?, ?, ?)
-					 ON DUPLICATE KEY UPDATE
-					 judul = VALUES(judul),
-					 tahun_data = VALUES(tahun_data)",
-					[$id, $judul, $tahun]
-				);
+				$this->db->table('m_konfigurasi_api')
+					->where('id_api', $id)
+					->update([
+						'tahun_tersedia' => (string)$tahun,
+						'last_sync_at'   => date('Y-m-d H:i:s'),
+						'updated_at'     => date('Y-m-d H:i:s'),
+					]);
 			} catch (\Exception $e) {
-				log_message('error', 'Gagal insert t_api_data: ' . $e->getMessage());
-				// Lanjut saja ke item berikutnya
+				log_message('error', 'Gagal update m_konfigurasi_api: ' . $e->getMessage());
 			}
 		}
 
@@ -2407,77 +3065,29 @@ class Admin extends BaseController
 		]);
 	}
 
-	/*
-	public function ambil_tahun_terakhir_dari_match()
-{
-    ini_set('max_execution_time', 0);
-    set_time_limit(0);
-
-    $list = $this->db
-        ->select('id_api')
-        ->get('t_tabel_match')
-        ->getResultArray();
-
-    $updated = 0;
-
-    foreach ($list as $row) {
-
-        $id_api = $row['id_api'];
-
-        $detail = $this->callApi(
-            "https://satudata-backup.jatengprov.go.id/v1/data/{$id_api}"
-        );
-
-        // âœ… STRUKTUR SESUAI POSTMAN
-        if (!isset($detail['data']) || !is_array($detail['data'])) {
-            continue;
-        }
-
-        $tahunList = array_column($detail['data'], 'tahun_data');
-
-        if (empty($tahunList)) {
-            continue;
-        }
-
-        $tahunTerakhir = max($tahunList);
-
-        // INSERT / UPDATE
-        $this->db->query(
-            "INSERT INTO t_dataportal (id_portal, tahun_data, updated_at)
-             VALUES (?, ?, ?)
-             ON DUPLICATE KEY UPDATE
-                tahun_data = VALUES(tahun_data),
-                updated_at = VALUES(updated_at)",
-            [$id_api, $tahunTerakhir, date('Y-m-d H:i:s')]
-        );
-
-        if ($this->db->affected_rows() > 0) {
-            $updated++;
-        }
-    }
-
-    echo json_encode([
-        'status'  => true,
-        'updated' => $updated
-    ]);
-}*/
-
 	public function ambil_tahun_terakhir_dari_match()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => false, 'message' => 'Unauthorized']);
+		}
+		if (!can('matching')) {
+			return $this->response->setStatusCode(403)->setJSON(['status' => false, 'message' => 'Akses ditolak']);
+		}
+
 		ini_set('max_execution_time', 0);
 		set_time_limit(0);
 
-		$list = $this->db->table('t_tabel_match')
+		$list = $this->db->table('m_konfigurasi_api')
 			->select('id_api')
+			->where('id_api IS NOT NULL')
+			->where('id_api !=', '')
 			->get()
 			->getResultArray();
 
 		$updated = 0;
 
 		foreach ($list as $row) {
-
 			$id_api = $row['id_api'];
-
 			$detail = $this->callApi(
 				"https://satudata-backup.jatengprov.go.id/v1/data/{$id_api}"
 			);
@@ -2486,24 +3096,17 @@ class Admin extends BaseController
 				continue;
 			}
 
-			// default NULL
-			$tahunTerakhir = null;
-
-			$tahunList = array_column($detail['data'], 'tahun_data');
+			$tahunList = array_unique(array_filter(array_column($detail['data'], 'tahun_data')));
 			if (!empty($tahunList)) {
-				$tahunTerakhir = max($tahunList);
-			}
-
-			$this->db->query(
-				"INSERT INTO t_dataportal (id_portal, tahun_data, updated_at)
-             VALUES (?, ?, ?)
-             ON DUPLICATE KEY UPDATE
-                tahun_data = VALUES(tahun_data),
-                updated_at = VALUES(updated_at)",
-				[$id_api, $tahunTerakhir, date('Y-m-d H:i:s')]
-			);
-
-			if ($this->db->affectedRows() > 0) {
+				sort($tahunList);
+				$tahunStr = implode(',', $tahunList);
+				$this->db->table('m_konfigurasi_api')
+					->where('id_api', $id_api)
+					->update([
+						'tahun_tersedia' => $tahunStr,
+						'last_sync_at'   => date('Y-m-d H:i:s'),
+						'updated_at'     => date('Y-m-d H:i:s')
+					]);
 				$updated++;
 			}
 		}
@@ -2524,13 +3127,29 @@ class Admin extends BaseController
 	 * URL: admin/view_portal_tabel?id={id_api}
 	 * Mendukung Multiple ID dipisahkan koma (misal: ?id=uuid1,uuid2)
 	 */
-	public function view_portal_tabel()
+	public function view_portal_tabel($seg_id = null)
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		$id_api = $this->request->getGet('id');
+		$ta = $this->session->get('admin_ta');
+		if (empty($ta)) {
+			$ta = date('Y');
+		}
+		$thDda = (int)$ta;
+		$thTargetData = $thDda - 1;
+		$id_api = $this->request->getGet('id') ?: $this->request->getGet('id_api');
+		if (empty($id_api) && !empty($seg_id)) {
+			$id_api = $seg_id;
+		}
+		if (empty($id_api)) {
+			$uri = service('uri');
+			$seg3 = $uri->getTotalSegments() >= 3 ? $uri->getSegment(3) : null;
+			$seg4 = $uri->getTotalSegments() >= 4 ? $uri->getSegment(4) : null;
+			$id_api = (!empty($seg3) && $seg3 !== 'view_portal_tabel') ? $seg3 : (!empty($seg4) ? $seg4 : null);
+		}
+		$table_id = (int)($this->request->getGet('table_id') ?: $this->request->getGet('id_db') ?: 0);
 		if (empty($id_api)) {
 			$a['page'] = "d_amain";
 			$this->session->setFlashdata("k", '<div class="alert alert-danger" id="alert">ID Portal Data tidak ditemukan</div>');
@@ -2540,24 +3159,36 @@ class Admin extends BaseController
 		// Support multiple IDs (comma separated)
 		$ids = explode(',', $id_api);
 
-		// Map id_api_new dari t_tabel_match
-		$match_rows = $this->db->table('t_tabel_match')
-			->select('id_api_new')
-			->whereIn('id_api_new', $ids)
-			->get()
-			->getResultArray();
-		$valid_ids = array_map(fn($m) => (string)$m['id_api_new'], $match_rows);
+		// Map id_api_new jika ID berupa UUID lama
+		$cleaned_ids = [];
+		foreach ($ids as $id_val) {
+			$id_val = trim($id_val);
+			if (empty($id_val)) continue;
 
-		// Filter hanya id yang valid dari t_tabel_match
-		$filtered_ids = array_filter($ids, fn($id) => in_array(trim($id), $valid_ids));
-		if (empty($filtered_ids)) {
-			$filtered_ids = $valid_ids;
+			if (!is_numeric($id_val)) {
+				$match = null;
+				if ($this->db->tableExists('t_tabel_match')) {
+					$match = $this->db->table('t_tabel_match')
+						->select('id_api_new')
+						->where('id_api', $id_val)
+						->get()
+						->getRowArray();
+				}
+				$cleaned_ids[] = (!empty($match['id_api_new'])) ? (string)$match['id_api_new'] : $id_val;
+			} else {
+				$cleaned_ids[] = $id_val;
+			}
 		}
-		$new_ids_str = implode(',', $filtered_ids);
+		if (!empty($cleaned_ids)) {
+			$ids = $cleaned_ids;
+		}
+		$new_ids_str = implode(',', $ids);
 
-		// Redirect jika ID perlu dikoreksi
-		if ($new_ids_str !== trim($id_api)) {
-			return redirect()->to("admin/view_portal_tabel?id=" . $new_ids_str);
+		// Redirect jika ada ID UUID lama yang dikonversi
+		if ($new_ids_str !== trim($id_api) && !empty($new_ids_str)) {
+			$redir = "admin/view_portal_tabel?id=" . $new_ids_str;
+			if ($table_id > 0) $redir .= "&table_id=" . $table_id;
+			return redirect()->to($redir);
 		}
 
 		// Sekarang $ids sudah berisi id_api_new, langsung proses
@@ -2635,20 +3266,87 @@ class Admin extends BaseController
 			} while ($page <= 200);
 
 			if (!empty($all_rows)) {
-				$dda_info = $this->db->query("
-					SELECT t.id, t.no_tabel, t.periode_id, t.periode_en, m.judul_ind, m.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en
-                    FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id 
-                    LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-                    WHERE t.link_tabel REGEXP ?
-                    LIMIT 1
-                ", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
+				// Auto-sync available years to m_konfigurasi_api if changed or empty
+				$extracted_years = [];
+				foreach ($all_rows as $row_item) {
+					$y = $row_item['tahun_data'] ?? $row_item['tahun'] ?? $row_item['year'] ?? $row_item['periode'] ?? null;
+					if (!empty($y) && is_numeric($y) && strlen((string)$y) === 4) {
+						$extracted_years[(int)$y] = true;
+					}
+				}
+				if (!empty($extracted_years)) {
+					ksort($extracted_years);
+					$tahun_str = implode(',', array_keys($extracted_years));
+					$this->db->query("
+						UPDATE m_konfigurasi_api 
+						SET tahun_tersedia = ?, last_sync_at = NOW() 
+						WHERE (link_api REGEXP ? OR id_api = ?) AND (tahun_tersedia IS NULL OR tahun_tersedia != ?)
+					", [$tahun_str, 'id=' . $id_p . '([^0-9]|$)', $id_p, $tahun_str]);
+				}
+
+				$dda_info = null;
+				if ($table_id > 0 && $this->db->tableExists('t_tahun_tabel')) {
+					$dda_info = $this->db->query("
+						SELECT t.id, t.no_tabel, t.periode_id, t.periode_en, m.judul_ind, m.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en
+						FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id 
+						LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+						WHERE t.id = ?
+						LIMIT 1
+					", [$table_id])->getRow();
+				}
+				if (!$dda_info && $this->db->tableExists('t_tahun_tabel')) {
+					$dda_info = $this->db->query("
+						SELECT t.id, t.no_tabel, t.periode_id, t.periode_en, m.judul_ind, m.judul_en, t.config_tabel, u.unitkerja_ind, u.unitkerja_en
+						FROM t_tahun_tabel t JOIN m_list_tabel m ON t.id_tabel = m.id 
+						LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+						WHERE t.link_tabel REGEXP ?
+						LIMIT 1
+					", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
+				}
+				if (!$dda_info && $this->db->tableExists('m_konfigurasi_api')) {
+					if ($table_id > 0) {
+						$dda_info = $this->db->query("
+							SELECT m.id, m.no_tabel, COALESCE(ka.tahun_tersedia, '') as periode_id, '' as periode_en, m.judul_ind, m.judul_en, ka.config_tabel, u.unitkerja_ind, u.unitkerja_en
+							FROM m_list_tabel m 
+							LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+							LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+							WHERE m.id = ?
+							LIMIT 1
+						", [$table_id])->getRow();
+					}
+					if (!$dda_info) {
+						$dda_info = $this->db->query("
+							SELECT m.id, m.no_tabel, COALESCE(ka.tahun_tersedia, '') as periode_id, '' as periode_en, m.judul_ind, m.judul_en, ka.config_tabel, u.unitkerja_ind, u.unitkerja_en
+							FROM m_list_tabel m 
+							LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+							LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+							WHERE ka.link_api REGEXP ? OR ka.id_api = ?
+							LIMIT 1
+						", ['id=' . $id_p . '([^0-9]|$)', $id_p])->getRow();
+					}
+				}
 
 				$final_res = $meta_info;
 				$final_res['data']           = $all_rows;
 				$final_res['res_id']         = $dda_info->id ?? 0;
 				$final_res['no_tabel']       = $dda_info->no_tabel ?? '';
-				$final_res['dda_title']      = format_judul_tabel($dda_info->judul_ind ?? '', $dda_info->periode_id ?? '');
-				$final_res['dda_title_en']   = format_judul_tabel($dda_info->judul_en ?? '', $dda_info->periode_en ?? ($dda_info->periode_id ?? ''));
+				$years_portal = !empty($extracted_years)
+					? array_keys($extracted_years)
+					: array_filter(array_map('trim', explode(',', $dda_info->periode_id ?? '')));
+
+				$title_ind_base = $dda_info->judul_ind ?? '';
+				$title_en_base  = !empty($dda_info->judul_en) ? $dda_info->judul_en : $title_ind_base;
+
+				if (function_exists('formatDynamicTableTitle') && !empty($years_portal)) {
+					$final_res['dda_title']    = formatDynamicTableTitle($title_ind_base, $years_portal, 'id');
+					$final_res['dda_title_en'] = formatDynamicTableTitle($title_en_base, $years_portal, 'en');
+				} else {
+					$final_res['dda_title']    = format_judul_tabel($title_ind_base, $dda_info->periode_id ?? '', 'id');
+					$final_res['dda_title_en'] = format_judul_tabel($title_en_base, !empty($dda_info->periode_en) ? $dda_info->periode_en : ($dda_info->periode_id ?? ''), 'en');
+				}
+
+				$final_res['base_title_ind'] = $title_ind_base;
+				$final_res['base_title_en']  = $title_en_base;
 				$final_res['config_tabel']   = $dda_info->config_tabel ?? null;
 				$final_res['unitkerja_ind']  = $dda_info->unitkerja_ind ?? '-';
 				$final_res['unitkerja_en']   = $dda_info->unitkerja_en ?? '-';
@@ -2658,10 +3356,13 @@ class Admin extends BaseController
 			}
 		}
 
-		$a['api_results']  = $all_results;
-		$a['api_errors']   = $api_error_msgs;
-		$a['id_api']       = $id_api;
-		$a['page']         = "v_portal_tabel";
+		$a['api_results']    = $all_results;
+		$a['api_errors']     = $api_error_msgs;
+		$a['id_api']         = $id_api;
+		$a['table_id']       = $table_id ?? null;
+		$a['ta']             = $thDda;
+		$a['th_target_data'] = $thTargetData;
+		$a['page']           = "v_portal_tabel";
 
 		return view('admin/index', $a);
 	}
@@ -2676,6 +3377,14 @@ class Admin extends BaseController
 	 */
 	public function download_xlsx_template()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return redirect()->to("admin/login");
+		}
+		if (!can('master_tabel')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak!</div>');
+			return redirect()->to('admin');
+		}
+
 		$filename = "template_bulk_portal.csv";
 
 		// Add BOM for Excel UTF-8 support
@@ -2696,6 +3405,9 @@ class Admin extends BaseController
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
+		}
+		if (!can('master_tabel')) {
+			return redirect()->to('admin')->with('k', '<div class="alert alert-danger">Akses ditolak!</div>');
 		}
 
 		$ta_input = trim((string)($this->request->getPost('tahun') ?? ''));
@@ -2724,26 +3436,14 @@ class Admin extends BaseController
 			if (empty($input_key)) continue;
 
 			// Cek apakah input adalah ID, Nomor Tabel, atau Judul
-			// Prioritaskan pencocokan pada tahun publikasi aktif ($ta) agar link tidak salah update ke tahun lalu
 			$check = $this->db->query("
-				SELECT t.id, m.judul_ind, t.no_tabel, t.periode_id, t.tahun 
-				FROM t_tahun_tabel t 
-				JOIN m_list_tabel m ON t.id_tabel = m.id 
-				WHERE t.tahun = ? AND (t.id = ? OR TRIM(t.no_tabel) = TRIM(?) OR LOWER(TRIM(m.judul_ind)) = LOWER(TRIM(?)))
-				ORDER BY (t.id = ?) DESC, (TRIM(t.no_tabel) = TRIM(?)) DESC, t.id ASC
+				SELECT m.id, m.judul_ind, m.no_tabel, COALESCE(ka.tahun_tersedia, '') as periode_id, ? as tahun 
+				FROM m_list_tabel m 
+				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+				WHERE m.is_active = 1 AND (m.id = ? OR TRIM(m.no_tabel) = TRIM(?) OR LOWER(TRIM(m.judul_ind)) = LOWER(TRIM(?)))
+				ORDER BY (m.id = ?) DESC, (TRIM(m.no_tabel) = TRIM(?)) DESC, m.id ASC
 				LIMIT 1
 			", [$ta, $input_key, $input_key, $input_key, $input_key, $input_key])->getRow();
-
-			// Fallback: jika input_key berupa angka ID t_tahun_tabel dan tidak ditemukan pada $ta, cek tanpa filter tahun
-			if (!$check && is_numeric($input_key)) {
-				$check = $this->db->query("
-					SELECT t.id, m.judul_ind, t.no_tabel, t.periode_id, t.tahun 
-					FROM t_tahun_tabel t 
-					JOIN m_list_tabel m ON t.id_tabel = m.id 
-					WHERE t.id = ?
-					LIMIT 1
-				", [$input_key])->getRow();
-			}
 
 			$list_data[] = [
 				'input_key' => $input_key,
@@ -2758,13 +3458,13 @@ class Admin extends BaseController
 
 		// Ambil list semua tabel pada tahun aktif untuk fallback dropdown di VIEW
 		$a['all_tables'] = $this->db->query("
-			SELECT t.id, t.no_tabel, t.periode_id, m.judul_ind, t.tahun 
-			FROM t_tahun_tabel t 
-			JOIN m_list_tabel m ON t.id_tabel = m.id 
-			WHERE t.tahun = ? 
-			ORDER BY CAST(SUBSTRING_INDEX(t.no_tabel, '.', 1) AS UNSIGNED) ASC, 
-			         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(t.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, 
-			         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(t.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, 
+			SELECT m.id, m.no_tabel, COALESCE(ka.tahun_tersedia, '') as periode_id, m.judul_ind, ? as tahun 
+			FROM m_list_tabel m 
+			LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+			WHERE m.is_active = 1 
+			ORDER BY CAST(SUBSTRING_INDEX(m.no_tabel, '.', 1) AS UNSIGNED) ASC, 
+			         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(m.no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, 
+			         CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(m.no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, 
 			         m.judul_ind ASC
 		", [$ta])->getResult();
 		$a['ta']           = $ta;
@@ -2782,6 +3482,9 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+		if (!can('master_tabel')) {
+			return redirect()->to('admin')->with('k', '<div class="alert alert-danger">Akses ditolak!</div>');
+		}
 
 		$selected_indices = $this->request->getPost('id_selected'); // Ini array index (0, 1, 2...)
 		$id_tabels        = $this->request->getPost('id_tabel_final'); // Array [index => id_tabel]
@@ -2791,9 +3494,12 @@ class Admin extends BaseController
 			return redirect()->to('admin/master_tabel')->with('k', '<div class="alert alert-danger">Tidak ada data yang dipilih untuk diupdate.</div>');
 		}
 
+		$ta = (int)($this->session->get('admin_ta') ?: date('Y'));
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 		$count = 0;
+
 		foreach ($selected_indices as $index) {
-			$id_tabel   = $id_tabels[$index] ?? '';
+			$id_tabel   = (int)($id_tabels[$index] ?? 0);
 			$raw_portal = trim((string)($portal_ids_list[$index] ?? ''));
 
 			if (empty($id_tabel) || empty($raw_portal)) continue;
@@ -2808,8 +3514,29 @@ class Admin extends BaseController
 			if (empty($clean_ids)) continue;
 
 			$new_link = "index.php/admin/view_portal_tabel?id=" . $clean_ids;
-			$this->db->query("UPDATE t_tahun_tabel SET link_tabel = ? WHERE id = ?", [$new_link, $id_tabel]);
-			$count += $this->db->affectedRows();
+
+			$existKa = $this->db->table('m_konfigurasi_api')->where('id_tabel', $id_tabel)->get()->getRow();
+			if ($existKa) {
+				$this->db->table('m_konfigurasi_api')->where('id', $existKa->id)->update([
+					'id_api'     => $clean_ids,
+					'link_api'   => $new_link,
+					'updated_at' => date('Y-m-d H:i:s'),
+				]);
+			} else {
+				$this->db->table('m_konfigurasi_api')->insert([
+					'id_tabel'   => $id_tabel,
+					'id_api'     => $clean_ids,
+					'link_api'   => $new_link,
+					'created_at' => date('Y-m-d H:i:s'),
+					'updated_at' => date('Y-m-d H:i:s'),
+				]);
+			}
+
+			$thDataStr = (string)($ta - 1);
+			$tahunTersedia = (string)($existKa->tahun_tersedia ?? '');
+			$hasYear = ($tahunTersedia !== '' && (in_array($thDataStr, array_map('trim', explode(',', $tahunTersedia)), true) || strpos($tahunTersedia, $thDataStr) !== false));
+			$mTabelDinamis->upsertStatusTahunan($id_tabel, $ta, ['is_periksa' => $hasYear ? 1 : 0]);
+			$count++;
 		}
 
 		return redirect()->to('admin/master_tabel')->with('k', '<div class="alert alert-success">Berhasil memperbarui ' . $count . ' tabel ke Portal Data.</div>');
@@ -2817,136 +3544,141 @@ class Admin extends BaseController
 
 	public function simpan_config_tabel()
 	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized'])->setStatusCode(401);
+		}
+
 		if ($this->request->isAJAX()) {
-			$id = $this->request->getPost('id');
+			$id = (int)$this->request->getPost('id');
 			$config = $this->request->getPost('config');
 
 			if (!$id || !$config) {
 				return $this->response->setJSON(['status' => 'error', 'message' => 'Data tidak lengkap']);
 			}
 
-			$update = $this->db->table('t_tahun_tabel')->where('id', $id)->update(['config_tabel' => $config]);
-
-			if ($update) {
-				return $this->response->setJSON(['status' => 'success', 'message' => 'Konfigurasi berhasil disimpan']);
+			$tabelRow = null;
+			if ($this->db->tableExists('m_list_tabel')) {
+				$tabelRow = $this->db->table('m_list_tabel')->where('id', $id)->get()->getRow();
 			}
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal simpan database']);
-		}
-	}
+			if (!$tabelRow && $this->db->tableExists('t_tahun_tabel')) {
+				$tt = $this->db->table('t_tahun_tabel')->where('id', $id)->get()->getRow();
+				if ($tt && !empty($tt->id_tabel)) {
+					$tabelRow = $this->db->table('m_list_tabel')->where('id', $tt->id_tabel)->get()->getRow();
+				}
+			}
+			if ($tabelRow && method_exists($this, 'canManageTable') && !$this->canManageTable($tabelRow)) {
+				return $this->response->setJSON(['status' => 'error', 'message' => 'Akses ditolak'])->setStatusCode(403);
+			}
 
-	// =========================================================================
-	// FUNGSI DUPLIKASI TABEL DARI TAHUN SEBELUMNYA (CLONE TAHUNAN)
-	// Digunakan untuk menyalin seluruh daftar tabel dari tahun sumber ke tahun tujuan
-	// =========================================================================
-	public function clone_tahunan()
-	{
-		// Cek otentikasi login admin
-		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
-			return redirect()->to("admin/login");
-		}
+			// Simpan ke m_konfigurasi_api jika tabel ada
+			if ($this->db->tableExists('m_konfigurasi_api')) {
+				$existKa = $this->db->table('m_konfigurasi_api')->where('id_tabel', $id)->get()->getRow();
+				if ($existKa) {
+					$this->db->table('m_konfigurasi_api')->where('id', $existKa->id)->update([
+						'config_tabel' => $config,
+						'updated_at'   => date('Y-m-d H:i:s'),
+					]);
+				} else {
+					$this->db->table('m_konfigurasi_api')->insert([
+						'id_tabel'     => $id,
+						'config_tabel' => $config,
+						'created_at'   => date('Y-m-d H:i:s'),
+						'updated_at'   => date('Y-m-d H:i:s'),
+					]);
+				}
+			}
 
-		// Keamanan: Hak akses dibatasi hanya untuk Super Admin
-		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
-		if (!in_array($user_lvl, ['super admin', 'superadmin'])) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Fitur Duplikasi/Clone Master Tabel hanya dapat diakses oleh Super Admin.</div>");
-			return redirect()->to('admin/master_tabel');
-		}
+			// Simpan ke t_tahun_tabel jika tabel ada
+			if ($this->db->tableExists('t_tahun_tabel')) {
+				$this->db->table('t_tahun_tabel')->where('id', $id)->update(['config_tabel' => $config]);
+			}
 
-		// Ambil variabel post dari form
-		$tahun_sumber = $this->input->post('tahun_sumber');
-		$tahun_tujuan = $this->input->post('tahun_tujuan');
+			// Dapatkan nomor tabel dan tahun aktif
+			$ta = (string)($this->session->get('admin_ta') ?: '2026');
+			$no_tabel = '';
 
-		// Validasi: pastikan tahun sumber dan tujuan sudah diisi
-		if (empty($tahun_sumber) || empty($tahun_tujuan)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Tahun sumber dan tujuan harus diisi!</div>");
-			return redirect()->back();
-		}
-
-		// Validasi: tahun sumber dan tujuan tidak boleh sama
-		if ($tahun_sumber == $tahun_tujuan) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Tahun sumber dan tujuan tidak boleh sama!</div>");
-			return redirect()->back();
-		}
-
-		// Ambil seluruh data tabel pada tahun sumber dari tabel t_tahun_tabel
-		$data_sumber = $this->db->query("SELECT * FROM t_tahun_tabel WHERE tahun = ?", [$tahun_sumber])->getResultArray();
-		
-		// Jika tahun sumber belum memiliki data tabel sama sekali
-		if (count($data_sumber) == 0) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ada data tabel pada tahun sumber ($tahun_sumber).</div>");
-			return redirect()->back();
-		}
-
-		// Ambil data tabel yang sudah terdaftar di tahun tujuan saat ini
-		// Pemetaan (target_map) ini berguna agar tabel kolaborasi / nomor kembar dapat di-clone sesuai jumlah yang tepat
-		$data_tujuan = $this->db->query("SELECT id, id_tabel, no_tabel FROM t_tahun_tabel WHERE tahun = ?", [$tahun_tujuan])->getResultArray();
-		$target_map = [];
-		foreach ($data_tujuan as $t) {
-			$key = $t['id_tabel'] . '_' . $t['no_tabel'];
-			$target_map[$key][] = $t['id'];
-		}
-
-		// Looping untuk menduplikasi setiap tabel dari tahun sumber ke tahun tujuan
-		$count_inserted = 0;
-		foreach ($data_sumber as $row) {
-			$key = $row['id_tabel'] . '_' . $row['no_tabel'];
-			
-			// Jika tabel tersebut sudah ada di tahun tujuan, kurangi slot antrian dan lewati (agar tidak dobel)
-			if (isset($target_map[$key]) && count($target_map[$key]) > 0) {
-				array_pop($target_map[$key]); 
-			} else {
-				// Jika belum ada di tahun tujuan, insert data baru:
-				// - link_tabel dikosongkan (menunggu pengisian data tahun baru)
-				// - link_sebelumnya diisi dengan link_tabel dari tahun sumber (sebagai referensi)
-				// - is_confirm diset ke '2' (belum dikonfirmasi)
-				// - is_periksa diset ke 0 (belum diperiksa)
-				// - is_dynamic dipertahankan dari tahun sumber
-				$is_dynamic = (int)($row['is_dynamic'] ?? 0);
-
-				$this->db->query("INSERT INTO t_tahun_tabel 
-					(id_tabel, tahun, no_tabel, periode_id, periode_en, link_tabel, link_sebelumnya, is_confirm, catatan, is_periksa, catatan_periksa, config_tabel, is_dynamic) 
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
-					$row['id_tabel'],
-					$tahun_tujuan,
-					$row['no_tabel'],
-					$row['periode_id'],
-					$row['periode_en'] ?? $row['periode_id'],
-					'', // link_tabel baru dikosongkan
-					$row['link_tabel'], // link tahun lalu disimpan sebagai riwayat
-					'2', // status konfirmasi diset belum selesai
-					'-',
-					0, // status pemeriksaan awal
-					'-',
-					$row['config_tabel'], // konfigurasi layout tabel dinamis ikut disalin
-					$is_dynamic
-				]);
-
-				$new_id_tahun_tabel = $this->db->insertID();
-
-				// Jika tabel sumber merupakan tabel dinamis, duplikasi juga konfigurasi perakitan dimensinya (m_indikator_tabel)
-				if ($is_dynamic === 1 && !empty($new_id_tahun_tabel)) {
-					$old_indikator = $this->db->query("SELECT * FROM m_indikator_tabel WHERE id_tahun_tabel = ?", [$row['id']])->getRowArray();
-					if ($old_indikator) {
-						unset($old_indikator['id']);
-						$old_indikator['id_tahun_tabel'] = $new_id_tahun_tabel;
-						$old_indikator['created_at']     = date('Y-m-d H:i:s');
-						$old_indikator['updated_at']     = date('Y-m-d H:i:s');
-						$this->db->table('m_indikator_tabel')->insert($old_indikator);
+			if ($this->db->tableExists('t_tahun_tabel')) {
+				$ttRow = $this->db->table('t_tahun_tabel')->select('id_tabel, tahun, no_tabel')->where('id', $id)->get()->getRowArray();
+				if ($ttRow) {
+					if (!empty($ttRow['tahun'])) $ta = (string)$ttRow['tahun'];
+					if (!empty($ttRow['no_tabel'])) $no_tabel = (string)$ttRow['no_tabel'];
+					if ($this->db->tableExists('m_konfigurasi_api') && !empty($ttRow['id_tabel'])) {
+						$this->db->table('m_konfigurasi_api')->where('id_tabel', $ttRow['id_tabel'])->update(['config_tabel' => $config]);
 					}
 				}
-
-				$count_inserted++;
+			} elseif ($this->db->tableExists('m_list_tabel')) {
+				$mRow = $this->db->table('m_list_tabel')->select('no_tabel')->where('id', $id)->get()->getRowArray();
+				if ($mRow && !empty($mRow['no_tabel'])) {
+					$no_tabel = (string)$mRow['no_tabel'];
+				}
 			}
-		}
 
-		// Berikan notifikasi sukses dan kembalikan ke halaman master tabel
-		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil menduplikasi $count_inserted tabel dari tahun $tahun_sumber ke $tahun_tujuan.</div>");
-		return redirect()->to('admin/master_tabel');
+			// Sinkronkan ke dda_db_{ta}.json jika ada
+			$uploadPath = WRITEPATH . 'uploads/';
+			$dbJson = $uploadPath . "dda_db_{$ta}.json";
+			if (file_exists($dbJson)) {
+				$dbList = json_decode(@file_get_contents($dbJson), true);
+				if (is_array($dbList)) {
+					$changed = false;
+					foreach ($dbList as &$row) {
+						if ((int)($row['id_db'] ?? 0) === (int)$id) {
+							$row['config_tabel'] = $config;
+							$row['has_config'] = 1;
+							$changed = true;
+							break;
+						}
+					}
+					unset($row);
+					if ($changed) {
+						@file_put_contents($dbJson, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+					}
+				}
+			}
+
+			// Sinkronkan juga ke dda_matched_{ta}.json has_config
+			$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+			if (file_exists($matchedJson)) {
+				$matchedData = json_decode(@file_get_contents($matchedJson), true);
+				if (is_array($matchedData)) {
+					$listKey = isset($matchedData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+					if (isset($matchedData[$listKey]) && is_array($matchedData[$listKey])) {
+						$mChanged = false;
+						foreach ($matchedData[$listKey] as &$mRow) {
+							if ((int)($mRow['id_db'] ?? 0) === (int)$id) {
+								$mRow['has_config'] = 1;
+								$mRow['config_tabel'] = $config;
+								$mChanged = true;
+								break;
+							}
+						}
+						unset($mRow);
+						if ($mChanged) {
+							@file_put_contents($matchedJson, json_encode($matchedData, JSON_UNESCAPED_UNICODE));
+						}
+					}
+				}
+			}
+
+			// Invalidate state cache untuk tabel ini agar bisa divalidasi ulang dengan config terbaru
+			$stateJson = $uploadPath . "dda_state_{$ta}.json";
+			if (file_exists($stateJson) && !empty($no_tabel)) {
+				$stateData = json_decode(@file_get_contents($stateJson), true);
+				if (is_array($stateData) && isset($stateData[$no_tabel])) {
+					unset($stateData[$no_tabel]);
+					@file_put_contents($stateJson, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+				}
+			}
+
+			return $this->response->setJSON(['status' => 'success', 'message' => 'Konfigurasi berhasil disimpan']);
+		}
+		return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'Invalid request']);
 	}
+
+
 
 	// =========================================================================
 	// FUNGSI RESET / KOSONGKAN TABEL PADA TAHUN TERTENTU
-	// Menghapus data t_tahun_tabel pada tahun target tanpa menghapus kamus master m_list_tabel
+	// Menghapus data status dan nilai pada tahun target tanpa menghapus kamus master m_list_tabel & dimensi
 	// =========================================================================
 	public function reset_tahun()
 	{
@@ -2954,6 +3686,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		// Keamanan tingkat 1: Hak akses dibatasi hanya untuk Super Admin
 		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
@@ -2980,40 +3713,32 @@ class Admin extends BaseController
 			return redirect()->to('admin/master_tabel');
 		}
 
-		// Hitung jumlah data tabel pada tahun tersebut
-		$count = $this->db->query("SELECT COUNT(*) as c FROM t_tahun_tabel WHERE tahun = ?", [$target_tahun])->getRow()->c ?? 0;
+		// Hitung jumlah data tabel pada status tahunan tersebut
+		$count = $this->db->query("SELECT COUNT(*) as c FROM t_status_tahunan WHERE tahun = ?", [$target_tahun])->getRow()->c ?? 0;
 
 		if ($count == 0) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ada tabel yang terdaftar pada Tahun {$target_tahun}.</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ada status tabel yang terdaftar pada Tahun {$target_tahun}.</div>");
 			return redirect()->to('admin/master_tabel');
 		}
 
-		// Eksekusi penghapusan massal data tahunan di dalam database transaction
-		// Master tabel pada m_list_tabel tetap aman dan tidak terhapus
+		// Eksekusi pembersihan status operasional tahunan di dalam database transaction
+		// Master tabel pada m_list_tabel dan konfigurasi perakitan m_indikator_tabel tetap aman dan tidak terhapus
 		$this->db->transStart();
 
-		// 1. Hapus nilai dinamis yang terkait dengan indikator tabel pada tahun target
-		$this->db->query("DELETE FROM t_nilai_dinamis WHERE id_indikator IN (
-			SELECT mi.id FROM m_indikator_tabel mi 
-			JOIN t_tahun_tabel tt ON mi.id_tahun_tabel = tt.id 
-			WHERE tt.tahun = ?
-		)", [$target_tahun]);
+		// 1. Hapus nilai dinamis HANYA untuk tahun data publikasi ini (tahun_data = target_tahun - 1)
+		$tahunDataTarget = (int)$target_tahun - 1;
+		$this->db->query("DELETE FROM t_nilai_dinamis WHERE tahun_data = ?", [$tahunDataTarget]);
 
-		// 2. Hapus konfigurasi dimensi/indikator tabel dinamis pada tahun target
-		$this->db->query("DELETE FROM m_indikator_tabel WHERE id_tahun_tabel IN (
-			SELECT id FROM t_tahun_tabel WHERE tahun = ?
-		)", [$target_tahun]);
-
-		// 3. Hapus entri data tabel tahunan
-		$this->db->query("DELETE FROM t_tahun_tabel WHERE tahun = ?", [$target_tahun]);
+		// 2. Hapus entri data status tabel tahunan untuk tahun tersebut
+		$this->db->query("DELETE FROM t_status_tahunan WHERE tahun = ?", [$target_tahun]);
 
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal mengosongkan tabel pada Tahun {$target_tahun} karena terjadi kesalahan transaksi database.</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal mengosongkan status tabel pada Tahun {$target_tahun} karena terjadi kesalahan transaksi database.</div>");
 		} else {
 			// Berikan notifikasi sukses
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\"><strong>Berhasil!</strong> Sebanyak {$count} tabel pada DDA Tahun {$target_tahun} telah berhasil dikosongkan. Kamus tabel master tetap utuh.</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\"><strong>Berhasil!</strong> Sebanyak {$count} status operasional tabel pada DDA Tahun {$target_tahun} telah berhasil dikosongkan. Kamus tabel master dan konfigurasi matriks tetap utuh.</div>");
 		}
 		return redirect()->to('admin/master_tabel');
 	}
@@ -3028,6 +3753,7 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
 
 		// Keamanan: Hak akses dibatasi hanya untuk Super Admin
 		$user_lvl = strtolower(trim($this->session->get('admin_level') ?? ''));
@@ -3058,12 +3784,12 @@ class Admin extends BaseController
 			// User hanya memasukkan angka Bab (misal 8 atau 11)
 			// Cek apakah bab ini merupakan Bab 2-tingkat murni atau 3-tingkat
 			$all_bab_tables = $this->db->query(
-				"SELECT no_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY id ASC",
-				[$tahun, $prefix_clean . '.%']
+				"SELECT no_tabel FROM m_list_tabel WHERE is_active = 1 AND no_tabel LIKE ? ORDER BY id ASC",
+				[$prefix_clean . '.%']
 			)->getResult();
 
 			if (empty($all_bab_tables)) {
-				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ditemukan tabel berawalan Bab $prefix_clean pada tahun $tahun.</div>");
+				$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ditemukan tabel berawalan Bab $prefix_clean pada master tabel.</div>");
 				return redirect()->back();
 			}
 
@@ -3085,28 +3811,27 @@ class Admin extends BaseController
 			return redirect()->back();
 		}
 
-		// Ambil semua tabel yang memiliki prefix tersebut pada tahun target,
+		// Ambil semua tabel yang memiliki prefix tersebut pada master tabel,
 		// diurutkan secara hirarki numerik agar urutan asli tetap terjaga
-		$tables = $this->db->query("SELECT id, no_tabel, id_tabel FROM t_tahun_tabel WHERE tahun = ? AND no_tabel LIKE ? ORDER BY CAST(SUBSTRING_INDEX(no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0.0'), '.', 4), '.', -1) AS UNSIGNED) ASC, id_tabel ASC", [$tahun, $prefix . '%'])->getResult();
+		$tables = $this->db->query("SELECT id, no_tabel FROM m_list_tabel WHERE is_active = 1 AND no_tabel LIKE ? ORDER BY CAST(SUBSTRING_INDEX(no_tabel, '.', 1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0'), '.', 2), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0'), '.', 3), '.', -1) AS UNSIGNED) ASC, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(no_tabel,'.0.0.0'), '.', 4), '.', -1) AS UNSIGNED) ASC, id ASC", [$prefix . '%'])->getResult();
 		
 		if (empty($tables)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ditemukan tabel berawalan $prefix pada tahun $tahun.</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Tidak ditemukan tabel berawalan $prefix pada master tabel.</div>");
 			return redirect()->back();
 		}
 
 		$updates = 0;
 		$current_num = 1;
-		$last_id_tabel = null;
 		$last_orig_no  = null;
 
-		// Looping untuk memperbarui nomor tabel secara berurutan
+		// Looping untuk memperbarui nomor tabel secara berurutan di dalam transaksi database
+		$this->db->transStart();
 		foreach ($tables as $t) {
 			$curr_orig_no = trim((string)$t->no_tabel);
 
-			// Jika tabel kolaborasi (memiliki id_tabel master yang sama atau nomor tabel asli yang sama persis),
+			// Jika tabel kolaborasi (memiliki nomor tabel asli yang sama persis),
 			// pertahankan status nomor kembar dengan nomor yang sama seperti baris sebelumnya
-			$is_twin = ($last_id_tabel !== null && (int)$t->id_tabel === (int)$last_id_tabel)
-					|| ($last_orig_no !== null && $curr_orig_no === $last_orig_no);
+			$is_twin = ($last_orig_no !== null && $curr_orig_no === $last_orig_no);
 
 			if ($is_twin) {
 				$new_no = $prefix . ($current_num - 1);
@@ -3118,15 +3843,20 @@ class Admin extends BaseController
 			
 			// Update nomor tabel jika berbeda dengan nomor sebelumnya
 			if ($curr_orig_no !== $new_no) {
-				$this->db->query("UPDATE t_tahun_tabel SET no_tabel = ? WHERE id = ?", [$new_no, $t->id]);
+				$this->db->query("UPDATE m_list_tabel SET no_tabel = ? WHERE id = ?", [$new_no, $t->id]);
+				$this->db->query("UPDATE m_indikator_tabel SET no_tabel = ? WHERE id_tabel = ?", [$new_no, $t->id]);
 				$updates++;
 			}
-			$last_id_tabel = $t->id_tabel;
-			$last_orig_no  = $curr_orig_no;
+			$last_orig_no = $curr_orig_no;
 		}
+		$this->db->transComplete();
 
-		$prefix_msg = rtrim($prefix, '.');
-		$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil merapikan urutan (Resequence) pada $updates tabel untuk bab $prefix_msg di Tahun $tahun.</div>");
+		if ($this->db->transStatus() === false) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal merapikan urutan tabel karena terjadi kesalahan transaksi database.</div>");
+		} else {
+			$prefix_msg = rtrim($prefix, '.');
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Berhasil merapikan urutan (Resequence) pada $updates tabel untuk bab $prefix_msg di Master Tabel.</div>");
+		}
 		return redirect()->to('admin/master_tabel');
 	}
 
@@ -3142,22 +3872,87 @@ class Admin extends BaseController
 	{
 		$mDinamis = new \App\Models\M_tabeldinamis();
 		$dynamicMap = $mDinamis->exportDynamicTablesForMatching((int)$ta);
+		$db_tables = [];
 
 		if ($this->db->tableExists('t_tahun_tabel') && $this->db->tableExists('m_list_tabel')) {
+			$hasTahun = $this->db->table('t_tahun_tabel')->where('tahun', $ta)->countAllResults();
+			if ($hasTahun > 0) {
+				$query = $this->db->query("
+					SELECT 
+						t.id as id_db,
+						COALESCE(t.no_tabel, '') as nomor_tabel, 
+						m.judul_ind as raw_judul, 
+						t.periode_id,
+						t.link_tabel,
+						COALESCE(t.is_dynamic, 0) as is_dynamic,
+						t.config_tabel
+					FROM t_tahun_tabel t
+					JOIN m_list_tabel m ON t.id_tabel = m.id
+					WHERE t.tahun = ?
+				", [$ta]);
+				$raw_tables = $query->getResultArray();
+				foreach ($raw_tables as $r) {
+					$idDb = (int)$r['id_db'];
+					$formatted_judul = function_exists('format_judul_tabel')
+						? format_judul_tabel($r['raw_judul'], $r['periode_id'])
+						: $r['raw_judul'];
+
+					$dynInfo = $dynamicMap[$idDb] ?? null;
+					$isDyn = ((int)$r['is_dynamic'] === 1 || $dynInfo !== null) ? 1 : 0;
+					$linkLower = strtolower(trim($r['link_tabel'] ?? ''));
+
+					if ($isDyn === 1) {
+						$sourceType = 'dinamis';
+					} elseif (strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) {
+						$sourceType = 'api';
+					} else {
+						$sourceType = 'spreadsheet';
+					}
+
+					$db_tables[] = [
+						'id_db'         => $idDb,
+						'id_indikator'  => $dynInfo ? (int)($dynInfo['id_indikator'] ?? 0) : 0,
+						'nomor_tabel'   => $r['nomor_tabel'],
+						'judul_tabel'   => $formatted_judul,
+						'link_tabel'    => $r['link_tabel'],
+						'is_dynamic'    => $isDyn,
+						'source_type'   => $sourceType,
+						'config_tabel'  => $r['config_tabel'] ?? null,
+						'dynamic_empty' => $dynInfo ? (bool)$dynInfo['dynamic_empty'] : ($isDyn === 1),
+						'dynamic_grid'  => $dynInfo ? ($dynInfo['dynamic_grid'] ?? []) : [],
+						'template_grid' => $dynInfo ? ($dynInfo['template_grid'] ?? []) : [],
+						'cell_coords'   => $dynInfo ? ($dynInfo['cell_coords'] ?? []) : [],
+					];
+				}
+			}
+		}
+
+		if (empty($db_tables) && $this->db->tableExists('m_list_tabel')) {
 			$query = $this->db->query("
 				SELECT 
-					t.id as id_db,
-					COALESCE(t.no_tabel, '') as nomor_tabel, 
+					m.id as id_db,
+					COALESCE(m.no_tabel, '') as nomor_tabel, 
 					m.judul_ind as raw_judul, 
-					t.periode_id,
-					t.link_tabel,
-					COALESCE(t.is_dynamic, 0) as is_dynamic
-				FROM t_tahun_tabel t
-				JOIN m_list_tabel m ON t.id_tabel = m.id
-				WHERE t.tahun = ?
-			", [$ta]);
+					'Tahunan' as periode_id,
+					ka.link_api as link_tabel,
+					CASE 
+					WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+					WHEN m.jenis_sumber = 'dinamis' THEN 1 
+					WHEN mi.id IS NOT NULL THEN 1 
+					ELSE 0 
+				END as is_dynamic,
+					ka.config_tabel,
+					m.jenis_sumber,
+					u.unitkerja_ind,
+					u.jenis_instansi
+				FROM m_list_tabel m
+				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
+				LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
+				WHERE m.is_active = 1
+				ORDER BY m.id ASC
+			");
 			$raw_tables = $query->getResultArray();
-			$db_tables = [];
 			foreach ($raw_tables as $r) {
 				$idDb = (int)$r['id_db'];
 				$formatted_judul = function_exists('format_judul_tabel')
@@ -3170,7 +3965,7 @@ class Admin extends BaseController
 
 				if ($isDyn === 1) {
 					$sourceType = 'dinamis';
-				} elseif (strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) {
+				} elseif (($r['jenis_sumber'] ?? '') === 'api_kominfo' || strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) {
 					$sourceType = 'api';
 				} else {
 					$sourceType = 'spreadsheet';
@@ -3184,23 +3979,15 @@ class Admin extends BaseController
 					'link_tabel'    => $r['link_tabel'],
 					'is_dynamic'    => $isDyn,
 					'source_type'   => $sourceType,
+					'instansi'      => $r['unitkerja_ind'] ?? '',
+					'jenis_instansi'=> $r['jenis_instansi'] ?? '',
+					'config_tabel'  => $r['config_tabel'] ?? null,
 					'dynamic_empty' => $dynInfo ? (bool)$dynInfo['dynamic_empty'] : ($isDyn === 1),
 					'dynamic_grid'  => $dynInfo ? ($dynInfo['dynamic_grid'] ?? []) : [],
 					'template_grid' => $dynInfo ? ($dynInfo['template_grid'] ?? []) : [],
 					'cell_coords'   => $dynInfo ? ($dynInfo['cell_coords'] ?? []) : [],
 				];
 			}
-		} else {
-			$query = $this->db->query("SELECT nomor_tabel, judul_ind as judul_tabel, link_tabel FROM t_list_tabel WHERE tahun = ?", [$ta]);
-			$db_tables = $query->getResultArray();
-			foreach ($db_tables as &$r) {
-				$linkLower = strtolower(trim($r['link_tabel'] ?? ''));
-				$r['source_type'] = (strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) ? 'api' : 'spreadsheet';
-				$r['is_dynamic'] = 0;
-				$r['dynamic_empty'] = false;
-				$r['dynamic_grid'] = [];
-			}
-			unset($r);
 		}
 
 		foreach ($db_tables as &$row) {
@@ -3221,26 +4008,230 @@ class Admin extends BaseController
 	 */
 	private function getDynamicConfigSignature(string $ta): string
 	{
-		if (!$this->db->tableExists('t_tahun_tabel')) {
-			return 'legacy';
+		if ($this->db->tableExists('t_tahun_tabel')) {
+			$sigRow = $this->db->query("
+				SELECT COUNT(*) as total_dyn,
+				       GROUP_CONCAT(t.id ORDER BY t.id SEPARATOR ',') as dyn_ids,
+				       (SELECT COUNT(*) FROM m_indikator_tabel) as ind_cnt,
+				       (SELECT MAX(updated_at) FROM m_indikator_tabel) as ind_max_upd,
+				       (SELECT COUNT(*) FROM t_nilai_dinamis) as nilai_cnt,
+				       (SELECT MD5(GROUP_CONCAT(COALESCE(config_tabel, '') SEPARATOR '|')) FROM t_tahun_tabel WHERE tahun = ?) as config_sig
+				FROM t_tahun_tabel t
+				WHERE t.tahun = ? AND (t.is_dynamic = 1 OR EXISTS (SELECT 1 FROM m_indikator_tabel i WHERE i.id_tahun_tabel = t.id))
+			", [$ta, $ta])->getRowArray();
+			return md5(json_encode($sigRow));
 		}
+
 		$sigRow = $this->db->query("
 			SELECT COUNT(*) as total_dyn,
-			       GROUP_CONCAT(t.id ORDER BY t.id SEPARATOR ',') as dyn_ids,
+			       GROUP_CONCAT(m.id ORDER BY m.id SEPARATOR ',') as dyn_ids,
 			       (SELECT COUNT(*) FROM m_indikator_tabel) as ind_cnt,
 			       (SELECT MAX(updated_at) FROM m_indikator_tabel) as ind_max_upd,
 			       (SELECT COUNT(*) FROM t_nilai_dinamis) as nilai_cnt
-			FROM t_tahun_tabel t
-			WHERE t.tahun = ? AND (t.is_dynamic = 1 OR EXISTS (SELECT 1 FROM m_indikator_tabel i WHERE i.id_tahun_tabel = t.id))
-		", [$ta])->getRowArray();
-		return md5(json_encode($sigRow));
+			FROM m_list_tabel m
+			JOIN m_indikator_tabel i ON i.id_tabel = m.id
+			WHERE m.is_active = 1
+		")->getRowArray();
+
+		$kaSig = '';
+		if ($this->db->tableExists('m_konfigurasi_api')) {
+			$kaRow = $this->db->query("
+				SELECT COUNT(*) as cnt,
+				       MAX(updated_at) as max_upd,
+				       MD5(GROUP_CONCAT(CONCAT(id_tabel, ':', COALESCE(link_api,''), ':', MD5(COALESCE(config_tabel,''))) ORDER BY id_tabel SEPARATOR '|')) as ka_hash
+				FROM m_konfigurasi_api
+			")->getRowArray();
+			$kaSig = json_encode($kaRow);
+		}
+
+		$mlSig = '';
+		if ($this->db->tableExists('m_list_tabel')) {
+			$mlRow = $this->db->query("
+				SELECT COUNT(*) as cnt,
+				       MD5(GROUP_CONCAT(CONCAT(id, ':', COALESCE(no_tabel,'')) ORDER BY id SEPARATOR '|')) as ml_hash
+				FROM m_list_tabel
+				WHERE is_active = 1
+			")->getRowArray();
+			$mlSig = json_encode($mlRow);
+		}
+
+		return md5(json_encode($sigRow) . '_' . $kaSig . '_' . $mlSig . '_' . $ta);
 	}
 
 	/**
-	 * Menyinkronkan dda_db_{ta}.json dan dda_matched_{ta}.json dengan kondisi terbaru di database
-	 * (memfilter tabel yang masih berformat spreadsheet ke tab 'unregistered_in_db' dan memasukkan
-	 * tabel yang baru dikonfigurasi Tabel Dinamis / API ke 'matched_in_pdf').
+	 * Sinkronisasi Delta Real-Time Cepat (< 1 detik) status data Tabel Dinamis dari Cloud MySQL
+	 * ke snapshot lokal dda_matched_{ta}.json, dda_db_{ta}.json, dan dda_state_{ta}.json.
+	 *
+	 * Tanpa re-index PDF (match_pdf.py) yang memakan waktu belasan detik!
+	 * Langsung mendeteksi tabel mana saja yang baru diisi nilainya oleh operator/teman di Cloud DB,
+	 * memperbarui grid data 2D tabel tersebut, dan mengubah statusnya menjadi 'unverified' agar
+	 * siap diverifikasi instan secara parsial.
+	 *
+	 * @param string $ta Tahun aktif (misal '2026')
+	 * @param bool $forceReexport Paksa periksa dan sinkronkan tanpa cek signature
+	 * @return array Ringkasan perubahan ['changed_to_filled' => [...], 'changed_to_empty' => [...], 'db_sig' => ...]
 	 */
+	public function syncDynamicTablesRealtime(string $ta, bool $forceReexport = false): array
+	{
+		$uploadPath = WRITEPATH . 'uploads/';
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+
+		if (!file_exists($matchedJson) || !file_exists($dbJson)) {
+			return ['status' => 'error', 'message' => 'File matched atau db JSON belum tersedia', 'changed_to_filled' => []];
+		}
+
+		$currentDbSig = $this->getDynamicConfigSignature($ta);
+		$masterData = json_decode(@file_get_contents($matchedJson), true);
+		if (!is_array($masterData) || (!isset($masterData['matched_in_pdf']) && !isset($masterData['matched_tables']))) {
+			return ['status' => 'error', 'message' => 'Format file matched JSON tidak valid', 'changed_to_filled' => []];
+		}
+
+		if (!$forceReexport && !empty($masterData['db_sig']) && $masterData['db_sig'] === $currentDbSig) {
+			return [
+				'status'            => 'success',
+				'message'           => 'Data sudah up-to-date dengan Cloud Aiven.',
+				'changed_to_filled' => [],
+				'changed_to_empty'  => [],
+				'db_sig'            => $currentDbSig
+			];
+		}
+
+		$sql = "
+			SELECT 
+				i.id as id_indikator,
+				i.id_tabel as id_master,
+				m.no_tabel,
+				COUNT(n.id) as filled_cnt
+			FROM m_indikator_tabel i
+			JOIN m_list_tabel m ON m.id = i.id_tabel
+			LEFT JOIN t_nilai_dinamis n ON n.id_indikator = i.id AND (
+				(n.nilai IS NOT NULL AND n.nilai != '') OR 
+				(n.simbol IS NOT NULL AND n.simbol != '')
+			)
+			WHERE m.is_active = 1
+			GROUP BY i.id, i.id_tabel, m.no_tabel
+		";
+		$rows = $this->db->query($sql)->getResultArray();
+
+		$dbFillById = [];
+		foreach ($rows as $r) {
+			$idM = (string)($r['id_master'] ?? '');
+			$cnt = (int)($r['filled_cnt'] ?? 0);
+			if ($cnt > 0) {
+				$dbFillById[$idM] = true;
+			} elseif (!isset($dbFillById[$idM])) {
+				$dbFillById[$idM] = false;
+			}
+		}
+
+		$dbList = json_decode(@file_get_contents($dbJson), true) ?? [];
+		$stateData = file_exists($stateJson) ? (json_decode(@file_get_contents($stateJson), true) ?? []) : [];
+		$mDinamis = new \App\Models\M_tabeldinamis();
+
+		$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+		$changedToFilled = [];
+		$changedToEmpty = [];
+		$matchedUpdated = false;
+		$dbUpdated = false;
+		$stateUpdated = false;
+
+		$dbIndexMap = [];
+		foreach ($dbList as $idx => $dbItem) {
+			$idDbStr = (string)($dbItem['id_db'] ?? '');
+			if ($idDbStr !== '') {
+				$dbIndexMap[$idDbStr] = $idx;
+			}
+		}
+
+		foreach ($masterData[$listKey] as &$mItem) {
+			$tNo = trim((string)($mItem['nomor_tabel'] ?? ''));
+			$idDb = (string)($mItem['id_db'] ?? '');
+			$isDyn = ($mItem['source_type'] ?? '') === 'dinamis' || ((int)($mItem['is_dynamic'] ?? 0)) === 1;
+			if (!$isDyn || $idDb === '') {
+				continue;
+			}
+
+			$currEmpty = !empty($mItem['dynamic_empty']);
+			$hasDataInDb = $dbFillById[$idDb] ?? false;
+			$actualEmpty = !$hasDataInDb;
+
+			if ($currEmpty && !$actualEmpty) {
+				$mItem['dynamic_empty'] = false;
+				$changedToFilled[] = $tNo;
+				$matchedUpdated = true;
+
+				$dynExport = $mDinamis->exportSingleDynamicTable((int)$idDb);
+				if ($dynExport && isset($dbIndexMap[$idDb])) {
+					$idx = $dbIndexMap[$idDb];
+					$dbList[$idx]['dynamic_empty'] = false;
+					$dbList[$idx]['dynamic_grid'] = $dynExport['dynamic_grid'] ?? [];
+					$dbList[$idx]['template_grid'] = $dynExport['template_grid'] ?? [];
+					$dbList[$idx]['cell_coords'] = $dynExport['cell_coords'] ?? [];
+					$dbUpdated = true;
+				}
+
+				if ($tNo !== '') {
+					$stateData[$tNo] = [
+						'status'      => 'unverified',
+						'match_count' => 0,
+						'diff_count'  => 0,
+						'reason'      => 'Data telah terisi di database, siap diverifikasi.',
+						'updated_at'  => date('Y-m-d H:i:s'),
+					];
+					$stateUpdated = true;
+				}
+			} elseif (!$currEmpty && $actualEmpty) {
+				$mItem['dynamic_empty'] = true;
+				$changedToEmpty[] = $tNo;
+				$matchedUpdated = true;
+
+				if (isset($dbIndexMap[$idDb])) {
+					$idx = $dbIndexMap[$idDb];
+					$dbList[$idx]['dynamic_empty'] = true;
+					$dbList[$idx]['dynamic_grid'] = [];
+					$dbUpdated = true;
+				}
+
+				if ($tNo !== '') {
+					$stateData[$tNo] = [
+						'status'      => 'api_empty',
+						'match_count' => 0,
+						'diff_count'  => 0,
+						'reason'      => 'Data nilai Tabel Dinamis belum diisi di database.',
+						'updated_at'  => date('Y-m-d H:i:s'),
+					];
+					$stateUpdated = true;
+				}
+			}
+		}
+		unset($mItem);
+
+		$masterData['db_sig'] = $currentDbSig;
+		@file_put_contents($matchedJson, json_encode($masterData, JSON_UNESCAPED_UNICODE));
+
+		if ($dbUpdated) {
+			@file_put_contents($dbJson, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+		}
+
+		if ($stateUpdated) {
+			@file_put_contents($stateJson, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+		}
+
+		return [
+			'status'            => 'success',
+			'message'           => count($changedToFilled) > 0 
+				? 'Ditemukan ' . count($changedToFilled) . ' tabel baru yang telah terisi data dari Cloud Aiven!' 
+				: 'Sinkronisasi berhasil! Status data tabel dinamis telah up-to-date.',
+			'changed_to_filled' => $changedToFilled,
+			'changed_to_empty'  => $changedToEmpty,
+			'db_sig'            => $currentDbSig,
+			'matched_in_pdf'    => $masterData[$listKey],
+			'batch_status'      => $stateData
+		];
+	}
+
 	private function syncMasterMatchingFiles(string $ta, string $pdfMaster, string $dbJson, string $matchedJson, bool $forceRebuild = false): ?array
 	{
 		if (!file_exists($matchedJson)) {
@@ -3268,6 +4259,12 @@ class Admin extends BaseController
 			if (!$hasLegacyFormat && !empty($masterData['db_sig']) && $masterData['db_sig'] === $currentDbSig) {
 				return $masterData;
 			}
+
+			// Signature berubah tapi file PDF sudah ada: jalankan Fast Delta Sync (< 1 detik)
+			// Alih-alih menjalankan match_pdf.py yang memakan waktu belasan detik
+			$this->syncDynamicTablesRealtime($ta);
+			$reloaded = json_decode(@file_get_contents($matchedJson), true);
+			return is_array($reloaded) ? $reloaded : $masterData;
 		}
 
 		$dbList = $this->buildDbTablesForMatching($ta);
@@ -3300,6 +4297,15 @@ class Admin extends BaseController
 								'updated_at'  => date('Y-m-d H:i:s'),
 							];
 							$stateChanged = true;
+						} elseif (!$isEmpty && $currSt === 'api_empty') {
+							$stateData[$tNo] = [
+								'status'      => 'unverified',
+								'match_count' => 0,
+								'diff_count'  => 0,
+								'reason'      => 'Data telah terisi di database, siap diverifikasi.',
+								'updated_at'  => date('Y-m-d H:i:s'),
+							];
+							$stateChanged = true;
 						}
 					}
 				}
@@ -3320,9 +4326,15 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		if (!can('matching_pdf')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Menu Matching PDF hanya untuk Super Admin.</div>');
+			return redirect()->to('admin');
+		}
+
+
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) {
-			$ta = '2026';
+			$ta = (string)date('Y');
 		}
 
 		$uploadPath = WRITEPATH . 'uploads/';
@@ -3347,6 +4359,56 @@ class Admin extends BaseController
 				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
 				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
 			}
+
+			// 1a. Auto-heal status state jika ada tabel dinamis yang di state masih 'api_empty' padahal di master data sudah ada nilainya
+			if ($masterData && !empty($masterData['matched_in_pdf']) && file_exists($stateJson)) {
+				$stData = json_decode(@file_get_contents($stateJson), true) ?? [];
+				$stChanged = false;
+				foreach ($masterData['matched_in_pdf'] as $mItem) {
+					$tNo = $mItem['nomor_tabel'] ?? '';
+					$isDyn = ($mItem['source_type'] ?? '') === 'dinamis' || ((int)($mItem['is_dynamic'] ?? 0)) === 1;
+					if ($isDyn && $tNo !== '' && empty($mItem['dynamic_empty'])) {
+						if (($stData[$tNo]['status'] ?? '') === 'api_empty') {
+							$stData[$tNo] = [
+								'status'      => 'unverified',
+								'match_count' => 0,
+								'diff_count'  => 0,
+								'reason'      => 'Data telah terisi di database, siap diverifikasi.',
+								'updated_at'  => date('Y-m-d H:i:s'),
+							];
+							$stChanged = true;
+						}
+					}
+				}
+				if ($stChanged) {
+					@file_put_contents($stateJson, json_encode($stData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+				}
+			}
+		}
+
+		// 1b. Populasikan has_config pada setiap tabel matched API
+		if ($masterData && (isset($masterData['matched_in_pdf']) || isset($masterData['matched_tables']))) {
+			$dbMapConfig = [];
+			if (file_exists($dbJson)) {
+				$dbArr = json_decode(@file_get_contents($dbJson), true) ?? [];
+				foreach ($dbArr as $dbItem) {
+					$dId = (int)($dbItem['id_db'] ?? 0);
+					if ($dId > 0) {
+						$hasCfg = (!empty($dbItem['config_tabel']) && trim((string)$dbItem['config_tabel']) !== '' && trim((string)$dbItem['config_tabel']) !== '{}' && trim((string)$dbItem['config_tabel']) !== 'null') ? 1 : 0;
+						$dbMapConfig[$dId] = $hasCfg;
+					}
+				}
+			}
+			$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+			foreach ($masterData[$listKey] as &$mItem) {
+				$mId = (int)($mItem['id_db'] ?? 0);
+				if (isset($dbMapConfig[$mId])) {
+					$mItem['has_config'] = $dbMapConfig[$mId];
+				} elseif (!isset($mItem['has_config'])) {
+					$mItem['has_config'] = (!empty($mItem['config_tabel']) && trim((string)$mItem['config_tabel']) !== '' && trim((string)$mItem['config_tabel']) !== '{}' && trim((string)$mItem['config_tabel']) !== 'null') ? 1 : 0;
+				}
+			}
+			unset($mItem);
 		}
 
 		// 2. Muat status validasi terakhir dari file state JSON
@@ -3379,7 +4441,7 @@ class Admin extends BaseController
 	 *
 	 * Menggunakan arsitektur "Deterministic Slot Master per Tahun":
 	 * 1. File disimpan dengan nama statis `dda_master_{ta}.pdf` (overwrite file lama).
-	 * 2. Mengambil metadata tabel tahun aktif dari tabel `t_list_tabel`.
+	 * 2. Mengambil metadata tabel tahun aktif dari tabel `m_list_tabel`.
 	 * 3. Menjalankan Python engine `match_pdf.py` untuk pemindaian tabel dan indexing halaman.
 	 * 4. Menyimpan hasil pencocokan struktur tabel ke `dda_matched_{ta}.json`.
 	 * 5. Menjalankan Lazy Garbage Collection otomatis: menghapus file upload sementara
@@ -3409,7 +4471,7 @@ class Admin extends BaseController
 
 		$ta = $this->session->get('admin_ta');
 		if (empty($ta)) {
-			$ta = '2026';
+			$ta = (string)date('Y');
 		}
 
 		$uploadPath = WRITEPATH . 'uploads/';
@@ -3529,7 +4591,7 @@ class Admin extends BaseController
 		}
 
 		// AUTO-SYNC: Selalu perbarui link_tabel & matriks Tabel Dinamis untuk nomor tabel ini dari database ke file JSON snapshot
-		$ta = $this->session->get('admin_ta') ?? '2026';
+		$ta = $this->session->get('admin_ta') ?? (string)date('Y');
 		if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
 			$ta = $mYear[1];
 		}
@@ -3538,16 +4600,24 @@ class Admin extends BaseController
 			$cleanNo = rtrim($cleanNo, '.');
 			
 			$rowDb = $this->db->query("
-				SELECT t.id as id_db, t.link_tabel, COALESCE(t.is_dynamic, 0) as is_dynamic
-				FROM t_tahun_tabel t 
-				WHERE t.tahun = ? AND (
-					TRIM(t.no_tabel) = ? OR 
-					TRIM(t.no_tabel) = ? OR 
-					TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?
+				SELECT m.id as id_db, ka.link_api as link_tabel, 
+				CASE 
+					WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
+					WHEN m.jenis_sumber = 'dinamis' THEN 1 
+					WHEN mi.id IS NOT NULL THEN 1 
+					ELSE 0 
+				END as is_dynamic
+				FROM m_list_tabel m
+				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
+				WHERE (
+					TRIM(m.no_tabel) = ? OR 
+					TRIM(m.no_tabel) = ? OR 
+					TRIM(REPLACE(m.no_tabel, 'Tabel ', '')) = ?
 				)
-				ORDER BY COALESCE(t.is_dynamic, 0) DESC, t.id DESC
+				ORDER BY CASE WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END DESC, m.id DESC
 				LIMIT 1
-			", [$ta, $nomor_tabel, $cleanNo, $cleanNo])->getRow();
+			", [$nomor_tabel, $cleanNo, $cleanNo])->getRow();
 
 			if ($rowDb) {
 				$mDinamis = new \App\Models\M_tabeldinamis();
@@ -3559,10 +4629,15 @@ class Admin extends BaseController
 				$rawJson = @file_get_contents($dbJsonPath);
 				$listTables = json_decode($rawJson, true);
 				if (is_array($listTables)) {
+					$updated = false;
 					foreach ($listTables as &$item) {
 						$curClean = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $item['nomor_tabel'] ?? ''));
 						$curClean = rtrim($curClean, '.');
-						if ($curClean === $cleanNo && ((int)($item['id_db'] ?? 0) === (int)$rowDb->id_db || ($item['source_type'] ?? '') !== 'spreadsheet')) {
+						$isMatch = ($curClean === $cleanNo)
+							|| ((int)($item['id_db'] ?? 0) === (int)$rowDb->id_db)
+							|| (trim((string)($item['nomor_tabel'] ?? '')) === trim((string)$nomor_tabel));
+
+						if ($isMatch) {
 							$item['id_db']         = (int)$rowDb->id_db;
 							$item['id_indikator']  = $dynInfo ? ($dynInfo['id_indikator'] ?? null) : null;
 							$item['link_tabel']    = $rowDb->link_tabel;
@@ -3572,11 +4647,14 @@ class Admin extends BaseController
 							$item['dynamic_grid']  = $dynInfo ? ($dynInfo['dynamic_grid'] ?? []) : [];
 							$item['template_grid'] = $dynInfo ? ($dynInfo['template_grid'] ?? []) : [];
 							$item['cell_coords']   = $dynInfo ? ($dynInfo['cell_coords'] ?? []) : [];
+							$updated = true;
 							break;
 						}
 					}
 					unset($item);
-					@file_put_contents($dbJsonPath, json_encode($listTables, JSON_UNESCAPED_UNICODE));
+					if ($updated) {
+						@file_put_contents($dbJsonPath, json_encode($listTables, JSON_UNESCAPED_UNICODE));
+					}
 				}
 			}
 		}
@@ -3609,7 +4687,7 @@ class Admin extends BaseController
 
 		if ($res) {
 			// Update state file secara otomatis & persisten
-			$ta = $this->session->get('admin_ta') ?? '2026';
+			$ta = $this->session->get('admin_ta') ?? (string)date('Y');
 			if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
 				$ta = $mYear[1];
 			}
@@ -3671,10 +4749,10 @@ class Admin extends BaseController
 	 */
 	public function start_batch_worker()
 	{
-		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? (string)date('Y');
 		$tolerance = $this->request->getPost('tolerance') ?? "0.0";
 		$sourceFilter = strtolower(trim((string)($this->request->getPost('source_filter') ?? 'all')));
-		if (!in_array($sourceFilter, ['all', 'dinamis', 'api'], true)) {
+		if (!in_array($sourceFilter, ['all', 'dinamis', 'api', 'unverified'], true)) {
 			$sourceFilter = 'all';
 		}
 
@@ -3689,8 +4767,8 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
 		}
 
-		// AUTO-SYNC ALL LINKS & TABEL DINAMIS: Sinkronkan seluruh data terbaru dari MySQL ke dda_db_{ta}.json & dda_matched_{ta}.json
-		$this->syncMasterMatchingFiles((string)$ta, $pdfPath, $dbJson, $matchedJson, true);
+		// AUTO-SYNC TABEL DINAMIS: Sinkronkan seluruh data terbaru dari MySQL secara real-time delta sync (< 1 detik)
+		$this->syncDynamicTablesRealtime((string)$ta);
 
 		// Bersihkan stop file jika ada
 		$stopFile = $progressJson . '.stop';
@@ -3698,7 +4776,7 @@ class Admin extends BaseController
 			@unlink($stopFile);
 		}
 
-		// Jika validasi semua, reset state file. Jika filter parsial (misal 'dinamis'), pertahankan state sumber lain.
+		// Jika validasi semua, reset state file. Jika filter parsial (misal 'unverified', 'dinamis', 'api'), pertahankan state yang sudah ada!
 		if ($sourceFilter === 'all' || !file_exists($stateJson)) {
 			@file_put_contents($stateJson, json_encode(new \stdClass(), JSON_FORCE_OBJECT));
 		}
@@ -3724,6 +4802,43 @@ class Admin extends BaseController
 	}
 
 	/**
+	 * AJAX endpoint: Sinkronkan seluruh data Tabel Dinamis dari Cloud MySQL ke snapshot lokal dda_db_{ta}.json & dda_matched_{ta}.json
+	 */
+	public function ajax_sync_cloud()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$uploadPath = WRITEPATH . 'uploads/';
+		$pdfPath = $uploadPath . "dda_master_{$ta}.pdf";
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+
+		if (!file_exists($pdfPath) || !file_exists($matchedJson) || !file_exists($dbJson)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data tabel belum tersedia']);
+		}
+
+		// Jalankan Real-Time Delta Sync super cepat (< 1 detik)
+		$syncResult = $this->syncDynamicTablesRealtime((string)$ta, true);
+		$stateData = file_exists($stateJson) ? (json_decode(@file_get_contents($stateJson), true) ?? []) : [];
+		$masterData = file_exists($matchedJson) ? (json_decode(@file_get_contents($matchedJson), true) ?? []) : [];
+		$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
+
+		return $this->response->setJSON([
+			'status'            => 'success',
+			'message'           => $syncResult['message'] ?? 'Data dari Cloud Aiven berhasil disinkronkan!',
+			'changed_to_filled' => $syncResult['changed_to_filled'] ?? [],
+			'changed_to_empty'  => $syncResult['changed_to_empty'] ?? [],
+			'matched_in_pdf'    => $masterData[$listKey] ?? [],
+			'batch_status'      => $stateData,
+			'db_sig'            => $syncResult['db_sig'] ?? ''
+		]);
+	}
+
+	/**
 	 * Menyimpan hasil ekstraksi nilai dari PDF langsung ke t_nilai_dinamis (One-Click Auto-Fill / Sync).
 	 */
 	public function sync_pdf_to_dinamis()
@@ -3740,6 +4855,22 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Data sel atau ID Indikator Tabel Dinamis tidak valid']);
 		}
 
+		$mDinamis = new \App\Models\M_tabeldinamis();
+		$indObj = $this->db->table('m_indikator_tabel')->where('id', $idIndikator)->get()->getRow();
+		$availYears = $mDinamis->getAvailableYears($idIndikator);
+		$adminTa = (int)($this->session->get('admin_ta') ?: date('Y'));
+
+		if (!empty($availYears)) {
+			$taDefault = (int)end($availYears);
+		} elseif ($indObj && !empty($indObj->tahun_tampil)) {
+			$tParts = array_values(array_filter(array_map('intval', explode(',', (string)$indObj->tahun_tampil))));
+			$taDefault = !empty($tParts) ? (int)end($tParts) : ($adminTa - 1);
+		} elseif ($indObj && !empty($indObj->tahun) && (int)$indObj->tahun >= 1900) {
+			$taDefault = (int)$indObj->tahun;
+		} else {
+			$taDefault = $adminTa;
+		}
+
 		$payload = [];
 		foreach ($cells as $c) {
 			$idB = (int)($c['id_baris_item'] ?? ($c['b'] ?? 0));
@@ -3747,9 +4878,41 @@ class Admin extends BaseController
 			$idP = (int)($c['id_periode_item'] ?? ($c['p'] ?? 0));
 			$rawVal = $c['nilai'] ?? null;
 			$simbol = $c['simbol'] ?? null;
+			$cTahun = (int)($c['tahun_data'] ?? ($c['t'] ?? ($this->request->getPost('tahun_data') ?: 0)));
+			$tahunData = ($cTahun >= 1900 && $cTahun <= 2100) ? $cTahun : $taDefault;
 
+			if ($idP > 190000000) {
+				$tahunData = intdiv($idP, 100000);
+				$idP       = $idP % 100000;
+			} elseif ($idP >= 1900 && $idP <= 2100) {
+				$tahunData = $idP;
+				$idP       = 0;
+			}
+
+			if ($rawVal !== null && !is_numeric($rawVal) && is_string($rawVal)) {
+				$cleanRaw = trim($rawVal);
+				if (preg_match('/^-?\d{1,3}(?:\.\d{3})+(?:,\d+)?$/', $cleanRaw)) {
+					$cleanRaw = str_replace('.', '', $cleanRaw);
+					$cleanRaw = str_replace(',', '.', $cleanRaw);
+				} elseif (preg_match('/^-?\d+,\d+$/', $cleanRaw)) {
+					$cleanRaw = str_replace(',', '.', $cleanRaw);
+				} elseif (preg_match('/^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/', $cleanRaw)) {
+					$cleanRaw = str_replace(',', '', $cleanRaw);
+				}
+				if (is_numeric($cleanRaw)) {
+					$rawVal = $cleanRaw;
+				}
+			}
+
+			$jmlDesimal = null;
 			if (is_numeric($rawVal)) {
 				$nilai = (float)$rawVal;
+				if (abs($nilai - round($nilai)) > 0.00001) {
+					$vStr = (string)$nilai;
+					$jmlDesimal = (strpos($vStr, '.') !== false) ? min(4, strlen(rtrim(explode('.', $vStr)[1], '0'))) : 2;
+				} else {
+					$jmlDesimal = 0;
+				}
 			} else {
 				$nilai = null;
 				if ($rawVal !== null && trim((string)$rawVal) !== '') {
@@ -3761,26 +4924,38 @@ class Admin extends BaseController
 				'id_baris_item'         => $idB,
 				'id_karakteristik_item' => $idK,
 				'id_periode_item'       => $idP,
+				'tahun_data'            => $tahunData,
 				'nilai'                 => $nilai,
 				'simbol'                => $simbol,
+				'jumlah_desimal'        => $jmlDesimal,
 			];
 		}
 
-		$mDinamis = new \App\Models\M_tabeldinamis();
-		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload);
+		// Deteksi presisi desimal jika ada data desimal pecahan
+		$maxDetectedDec = 0;
+		foreach ($payload as $pItem) {
+			if (!empty($pItem['jumlah_desimal']) && (int)$pItem['jumlah_desimal'] > $maxDetectedDec) {
+				$maxDetectedDec = (int)$pItem['jumlah_desimal'];
+			}
+		}
+		if ($maxDetectedDec > 0 && $indObj) {
+			if ((int)$indObj->desimal === 0 || (int)$indObj->desimal === -1) {
+				$this->db->table('m_indikator_tabel')->where('id', $idIndikator)->update(['desimal' => $maxDetectedDec]);
+			}
+		}
+
+		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload, $taDefault);
 
 		if ($affected > 0) {
 			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
 			$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
 
 			$indRow = $mDinamis->find($idIndikator);
-			if ($indRow && !empty($indRow->id_tahun_tabel)) {
-				$this->db->table('t_tahun_tabel')
-					->where('id', (int)$indRow->id_tahun_tabel)
-					->update([
-						'is_periksa'      => 1,
-						'catatan_periksa' => $catatan
-					]);
+			if ($indRow && !empty($indRow->id_tabel)) {
+				$mDinamis->upsertStatusTahunan((int)$indRow->id_tabel, $taDefault, [
+					'is_periksa'      => 1,
+					'catatan_periksa' => $catatan
+				]);
 			}
 		}
 
@@ -3796,6 +4971,355 @@ class Admin extends BaseController
 	 * Mencocokkan atau membuat Master Dimensi (Baris, Karakteristik Kolom, Periode) secara cerdas,
 	 * merakit m_indikator_tabel, mengaktifkan is_dynamic = 1, dan opsional langsung mengisi nilai sel dari PDF.
 	 */
+	/**
+	 * Menghasilkan konfigurasi layout otomatis untuk tabel API Satudata berdasarkan standar layout PDF.
+	 * Menyembunyikan kolom metadata (tahun, kode wilayah), memformat kolom wilayah (Kabupaten/Kota),
+	 * mengubah kolom metrik menjadi Title Case yang rapi, dan menyusun pivot jika berdimensi waktu.
+	 */
+	public function get_auto_layout_config()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$idDb = (int)$this->request->getPost('id_db');
+		$nomorTabel = trim((string)$this->request->getPost('nomor_tabel'));
+		$ta = (string)($this->request->getPost('ta') ?: ($this->session->get('admin_ta') ?: '2026'));
+
+		$row = null;
+		if ($this->db->tableExists('t_tahun_tabel') && $this->db->tableExists('m_list_tabel')) {
+			if ($idDb > 0) {
+				$row = $this->db->query("
+					SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
+					FROM t_tahun_tabel t
+					JOIN m_list_tabel m ON t.id_tabel = m.id
+					WHERE t.id = ?
+					LIMIT 1
+				", [$idDb])->getRowArray();
+			}
+			if (!$row && $nomorTabel !== '') {
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
+				$row = $this->db->query("
+					SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
+					FROM t_tahun_tabel t
+					JOIN m_list_tabel m ON t.id_tabel = m.id
+					WHERE t.tahun = ? AND (TRIM(t.no_tabel) = ? OR TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?)
+					LIMIT 1
+				", [$ta, $cleanNo, $cleanNo])->getRowArray();
+			}
+		}
+
+		if (!$row && $this->db->tableExists('m_list_tabel')) {
+			if ($idDb > 0) {
+				$row = $this->db->query("
+					SELECT m.id, m.id as id_tabel, m.no_tabel, ka.link_api as link_tabel, ka.config_tabel, m.judul_ind, m.judul_en
+					FROM m_list_tabel m
+					LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+					WHERE m.id = ?
+					LIMIT 1
+				", [$idDb])->getRowArray();
+			}
+			if (!$row && $nomorTabel !== '') {
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
+				$row = $this->db->query("
+					SELECT m.id, m.id as id_tabel, m.no_tabel, ka.link_api as link_tabel, ka.config_tabel, m.judul_ind, m.judul_en
+					FROM m_list_tabel m
+					LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+					WHERE TRIM(m.no_tabel) = ? OR TRIM(REPLACE(m.no_tabel, 'Tabel ', '')) = ?
+					LIMIT 1
+				", [$cleanNo, $cleanNo])->getRowArray();
+			}
+		}
+
+		if (!$row) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Data tabel tidak ditemukan di database.']);
+		}
+
+		$linkTabel = (string)($row['link_tabel'] ?? '');
+		if (empty($linkTabel) || (strpos($linkTabel, 'view_portal_tabel') === false && strpos($linkTabel, 'satudata') === false)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Tabel ini bukan merupakan tabel sumber API Satudata.']);
+		}
+
+		// Extract API ID
+		preg_match('/id=([^&]+)/i', $linkTabel, $matches);
+		$idApi = isset($matches[1]) ? trim($matches[1]) : '';
+		if (empty($idApi)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'ID API tidak ditemukan pada link tabel.']);
+		}
+
+		// Call live API
+		$apiIds = explode(',', $idApi);
+		$firstId = trim($apiIds[0]);
+		if (strpos($firstId, '?') !== false) $firstId = explode('?', $firstId)[0];
+		if (strpos($firstId, 'data/') !== false) $firstId = explode('data/', $firstId)[1];
+		$firstId = trim($firstId, '/ ');
+
+		$url = "https://satudata.jatengprov.go.id/api/v1/data/{$firstId}?peruntukan=DDA";
+		$apiRes = $this->callApi2($url);
+
+		$rows = [];
+		if (isset($apiRes['data']) && is_array($apiRes['data'])) {
+			$rows = $apiRes['data'];
+		} elseif (is_array($apiRes) && isset($apiRes[0])) {
+			$rows = $apiRes;
+		}
+
+		if (empty($rows)) {
+			return $this->response->setJSON([
+				'status'      => 'empty',
+				'nomor_tabel' => $row['no_tabel'],
+				'judul_tabel' => $row['judul_ind'],
+				'id_db'       => (int)$row['id'],
+				'id_api'      => $idApi,
+				'message'     => 'API Satu Data mengembalikan 0 baris data dari server provinsi (data masih kosong).'
+			]);
+		}
+
+		$firstRow = $rows[0];
+		$baseKeys = array_keys($firstRow);
+
+		// Build smart config
+		$ignoreCols = ['id', 'tahun', 'tahun_data', 'year', 'periode', 'kode_wilayah', 'kode_kabupatenkota', 'kode_bps', 'kode_kemendagri', 'urutan'];
+		$lowerKeys = array_map('strtolower', $baseKeys);
+		$hasIndicator = in_array('indikator', $lowerKeys) || in_array('jenis_koperasi', $lowerKeys) || in_array('jenis_usaha', $lowerKeys);
+		$hasNilai = in_array('nilai', $lowerKeys) || in_array('jumlah', $lowerKeys) || in_array('jmlh', $lowerKeys);
+		$hasWilayah = in_array('nama_wilayah', $lowerKeys) || in_array('nama_kabupatenkota', $lowerKeys) || in_array('kabupaten_kota', $lowerKeys);
+
+		$columns = [];
+		$pivot = [
+			'enabled' => false,
+			'row' => [],
+			'col' => [],
+			'val' => [],
+			'total_row' => true,
+			'only_total' => false,
+			'total_col' => false,
+			'metric_first' => false,
+			'metrics_as_row' => false,
+			'prefix' => '',
+			'prefix_en' => '',
+			'mappings' => new \stdClass(),
+			'mapping_order' => []
+		];
+
+		$groupByRegion = $hasWilayah;
+
+		if ($hasIndicator && $hasNilai && !$hasWilayah) {
+			$valCandidates = ['nilai', 'jumlah', 'jmlh', 'total', 'volume_usaha', 'modal_sendiri', 'modal_luar'];
+			$valCols = array_values(array_filter($baseKeys, function($k) use ($valCandidates) {
+				return in_array(strtolower($k), $valCandidates);
+			}));
+			if (empty($valCols)) $valCols = [end($baseKeys)];
+
+			$catCandidates = array_values(array_filter($baseKeys, function($k) use ($ignoreCols, $valCols) {
+				return !in_array(strtolower($k), $ignoreCols) && !in_array($k, $valCols);
+			}));
+
+			$rowCol = $catCandidates[0] ?? $baseKeys[0];
+			$colCol = in_array('tahun_data', $baseKeys) ? 'tahun_data' : ($catCandidates[1] ?? 'tahun_data');
+
+			$pivot['enabled'] = true;
+			$pivot['row'] = [$rowCol];
+			$pivot['col'] = [$colCol];
+			$pivot['val'] = $valCols;
+
+			foreach ($baseKeys as $k) {
+				$columns[] = [
+					'key' => $k,
+					'label_id' => $this->formatTitleLabel($k),
+					'label_en' => '',
+					'visible' => true,
+					'format' => in_array($k, $valCols) ? 'number' : 'text'
+				];
+			}
+		} else {
+			// Cek apakah tabel ini memiliki mapping otomatis dari PDF buku DDA
+			$matchedJsonPath = WRITEPATH . "uploads/dda_matched_{$ta}.json";
+			$pdfPath = WRITEPATH . "uploads/dda_master_{$ta}.pdf";
+			$matchedPages = [];
+			$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $row['no_tabel'] ?? ''));
+
+			if (file_exists($matchedJsonPath)) {
+				$mJson = @file_get_contents($matchedJsonPath);
+				$mData = json_decode($mJson, true);
+				$matchedList = $mData['matched_in_pdf'] ?? $mData['matched_tables'] ?? [];
+				foreach ($matchedList as $mItem) {
+					if (trim($mItem['nomor_tabel'] ?? '') === $cleanNo) {
+						$matchedPages = $mItem['pages'] ?? [];
+						break;
+					}
+				}
+			}
+
+			$pdfMappedColumns = null;
+			if (!empty($matchedPages) && file_exists($pdfPath)) {
+				$pythonScript = FCPATH . '../python_engine/auto_config_pdf.py';
+				$b64Pages = base64_encode(json_encode(array_values($matchedPages)));
+				$b64Keys  = base64_encode(json_encode(array_values($baseKeys)));
+				$targetYearArg = escapeshellarg($ta);
+				$cmd = "python " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($b64Pages) . " " . escapeshellarg($b64Keys) . " " . $targetYearArg . " 2>&1";
+				$rawOut = (string)@shell_exec($cmd);
+				if (preg_match('/===JSON_START===(.*?)===JSON_END===/s', $rawOut, $mJson)) {
+					$decoded = json_decode($mJson[1], true);
+					if (is_array($decoded) && !empty($decoded)) {
+						$pdfMappedColumns = $decoded;
+					}
+				}
+			}
+
+			if (!empty($pdfMappedColumns)) {
+				$columns = $pdfMappedColumns;
+			} else {
+				foreach ($baseKeys as $k) {
+					$kLower = strtolower($k);
+					if (in_array($kLower, $ignoreCols)) {
+						$columns[] = [
+							'key' => $k,
+							'label_id' => $k,
+							'label_en' => '',
+							'visible' => false,
+							'format' => 'number'
+						];
+					} elseif (in_array($kLower, ['nama_wilayah', 'nama_kabupatenkota', 'kabupaten_kota', 'wilayah'])) {
+						$columns[] = [
+							'key' => $k,
+							'label_id' => 'Kabupaten/Kota',
+							'label_en' => 'Regency/Municipality',
+							'visible' => true,
+						'format' => 'text'
+						];
+					} else {
+						$fmtTitle = $this->formatTitleLabel($k);
+						$columns[] = [
+							'key' => $k,
+							'label_id' => $fmtTitle,
+							'label_en' => $this->translateLabelEn($fmtTitle),
+							'visible' => true,
+							'format' => 'number'
+						];
+					}
+				}
+			}
+		}
+
+		$smartConfig = [
+			'columns' => $columns,
+			'pivot' => $pivot,
+			'merge_datasets' => false,
+			'show_total_col' => false,
+			'show_group_total' => false,
+			'group_by_region' => $groupByRegion
+		];
+
+		// Take first 6 rows for preview
+		$previewRows = array_slice($rows, 0, 6);
+
+		return $this->response->setJSON([
+			'status'         => 'success',
+			'nomor_tabel'    => $row['no_tabel'],
+			'judul_tabel'    => $row['judul_ind'],
+			'id_db'          => (int)$row['id'],
+			'id_api'         => $idApi,
+			'total_api_rows' => count($rows),
+			'config'         => $smartConfig,
+			'preview_rows'   => $previewRows
+		]);
+	}
+
+	private function translateLabelEn(string $labelId): string
+	{
+		if (strpos($labelId, ' || ') !== false) {
+			$parts = explode(' || ', $labelId);
+			$enParts = array_map([$this, 'translateLabelEn'], $parts);
+			return implode(' || ', $enParts);
+		}
+
+		$dict = [
+			'Kabupaten/Kota' => 'Regency/Municipality',
+			'Tenaga Medis' => 'Medical Personnel',
+			'Psikologi Klinis' => 'Clinical Psychologists',
+			'Tenaga Keperawatan' => 'Nursing Personnel',
+			'Tenaga Kebidanan' => 'Midwifery Personnel',
+			'Tenaga Kefarmasian' => 'Pharmaceutical Personnel',
+			'Tenaga Kesehatan Masyarakat' => 'Public Health Personnel',
+			'Tenaga Kesehatan Lingkungan' => 'Environmental Health Personnel',
+			'Tenaga Gizi' => 'Nutritionists',
+			'Tenaga Keterapisan Fisik' => 'Physical Therapists',
+			'Tenaga Keteknisian Medis' => 'Medical Technicians',
+			'Tenaga Teknik Biomedika' => 'Biomedical Engineering Personnel',
+			'Tenaga Kesehatan Tradisional' => 'Traditional Health Personnel',
+			'Jumlah Rusak Berat' => 'Number of Heavily Damaged',
+			'Jumlah Rusak Sedang' => 'Number of Moderately Damaged',
+			'Jumlah Rusak Ringan' => 'Number of Lightly Damaged',
+			'Milik Pemerintah' => 'Government Owned',
+			'Kementerian Kesehatan' => 'Ministry of Health',
+			'Pemerintah Provinsi' => 'Provincial Government',
+			'Provinsi' => 'Province',
+			'Pemerintah Kabupaten/Kota' => 'Regency/Municipality Government',
+			'Polri' => 'Indonesian Police',
+			'Kementerian Lain' => 'Other Ministry',
+			'Kementrian Lain' => 'Other Ministry',
+			'Swasta' => 'Non Government / Private',
+			'Bukan Milik Pemerintah' => 'Non Government',
+			'Tempat Tidur' => 'Beds',
+			'Rumah Sakit' => 'Hospital',
+			'Puskesmas' => 'Public Health Center',
+			'Klinik' => 'Clinic',
+			'Dokter' => 'Doctor',
+			'Perawat' => 'Nurse',
+			'Bidan' => 'Midwife',
+			'Jumlah' => 'Total',
+			'Sub Jumlah' => 'Sub Total',
+			'Total' => 'Total',
+			'Laki-Laki' => 'Male',
+			'Perempuan' => 'Female',
+			'Luas Panen' => 'Harvested Area',
+			'Produksi' => 'Production',
+			'Produktivitas' => 'Productivity',
+			'Nilai' => 'Value',
+			'Volume Usaha' => 'Business Volume',
+			'Modal Sendiri' => 'Own Capital',
+			'Modal Luar' => 'External Capital',
+			'Persentase' => 'Percentage',
+			'Panti Asuhan' => 'Orphanage',
+			'Anak Yang Diasuh' => 'Children Under Care',
+			'Jumlah Panti Asuhan' => 'Number of Orphanages',
+			'Jumlah Anak Yang Diasuh' => 'Number of Children Under Care'
+		];
+
+		$trimmed = trim($labelId);
+		if (isset($dict[$trimmed])) return $dict[$trimmed];
+
+		// Case-insensitive lookup
+		foreach ($dict as $k => $v) {
+			if (strcasecmp($trimmed, $k) === 0) return $v;
+		}
+
+		// Pattern heuristics
+		if (preg_match('/^Tenaga\s+(.*)$/i', $trimmed, $m)) {
+			return trim($m[1]) . ' Personnel';
+		}
+		if (preg_match('/^Jumlah\s+(.*)$/i', $trimmed, $m)) {
+			return 'Number of ' . trim($m[1]);
+		}
+
+		return '';
+	}
+
+	private function formatTitleLabel(string $key): string
+	{
+		$k = str_replace('_', ' ', $key);
+		$k = preg_replace('/\bribu rupiah\b/i', '(Ribu Rupiah)', $k);
+		$k = preg_replace('/\bjuta rupiah\b/i', '(Juta Rupiah)', $k);
+		$k = preg_replace('/\brs\b/i', 'Rumah Sakit', $k);
+		$words = explode(' ', $k);
+		$titleWords = array_map(function($w) {
+			if (preg_match('/^\(.*\)$/', $w)) return $w;
+			return ucfirst(strtolower($w));
+		}, $words);
+		return implode(' ', $titleWords);
+	}
+
 	public function auto_config_tabel_pdf()
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
@@ -3807,7 +5331,7 @@ class Admin extends BaseController
 		$pagesRaw   = $this->request->getPost('pages');
 		$judulPdf   = trim((string)$this->request->getPost('judul_pdf'));
 		$autoFill   = (int)$this->request->getPost('auto_fill');
-		$ta         = (string)($this->request->getPost('ta') ?: ($this->session->get('admin_ta') ?: '2026'));
+		$ta         = (string)($this->request->getPost('ta') ?: ($this->session->get('admin_ta') ?: date('Y')));
 
 		if ($nomorTabel === '') {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Nomor tabel wajib diisi.']);
@@ -3819,64 +5343,49 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File Master PDF belum tersedia.']);
 		}
 
-		// 1. Cari entri tabel di t_tahun_tabel (atau buat otomatis jika belum ada)
+		// 1. Cari entri tabel di master tabel m_list_tabel (atau buat otomatis jika belum ada)
 		$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
 		$cleanNo = rtrim($cleanNo, '.');
 
 		$tabelRow = null;
 		if ($idDb > 0) {
 			$tabelRow = $this->db->query("
-				SELECT t.id, t.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, t.periode_id
-				FROM t_tahun_tabel t
-				JOIN m_list_tabel m ON t.id_tabel = m.id
-				WHERE t.id = ?
+				SELECT m.id, m.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja
+				FROM m_list_tabel m
+				WHERE m.id = ?
 			", [$idDb])->getRow();
 		}
 		if (!$tabelRow) {
 			$tabelRow = $this->db->query("
-				SELECT t.id, t.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, t.periode_id
-				FROM t_tahun_tabel t
-				JOIN m_list_tabel m ON t.id_tabel = m.id
-				WHERE t.tahun = ? AND (TRIM(t.no_tabel) = ? OR TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?)
+				SELECT m.id, m.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja
+				FROM m_list_tabel m
+				WHERE (TRIM(m.no_tabel) = ? OR TRIM(REPLACE(m.no_tabel, 'Tabel ', '')) = ?)
 				LIMIT 1
-			", [$ta, $cleanNo, $cleanNo])->getRow();
+			", [$cleanNo, $cleanNo])->getRow();
 		}
 
 		if (!$tabelRow) {
-			// Tabel belum terdaftar di m_list_tabel / t_tahun_tabel -> Daftarkan otomatis
+			// Tabel belum terdaftar di m_list_tabel -> Daftarkan otomatis
 			$titleInd = $judulPdf !== '' ? $judulPdf : "Tabel {$cleanNo}";
 			$this->db->table('m_list_tabel')->insert([
-				'judul_ind'    => $titleInd,
-				'judul_en'     => $titleInd,
-				'id_unitkerja' => 'bps',
-				'kondef'       => '-',
-			]);
-			$newMasterId = (int)$this->db->insertID();
-			$this->db->table('t_tahun_tabel')->insert([
-				'id_tabel'        => $newMasterId,
-				'tahun'           => $ta,
-				'no_tabel'        => $cleanNo,
-				'periode_id'      => $ta,
-				'periode_en'      => $ta,
-				'link_tabel'      => '-',
-				'is_confirm'      => '2',
-				'catatan'         => '-',
-				'is_periksa'      => '0',
-				'catatan_periksa' => '-',
-				'is_dynamic'      => 1,
-			]);
-			$newTtId = (int)$this->db->insertID();
-			$tabelRow = (object)[
-				'id'           => $newTtId,
 				'no_tabel'     => $cleanNo,
 				'judul_ind'    => $titleInd,
 				'judul_en'     => $titleInd,
 				'id_unitkerja' => 'bps',
-				'periode_id'   => $ta,
+				'kondef'       => '-',
+				'jenis_sumber' => 'dinamis',
+			]);
+			$newMasterId = (int)$this->db->insertID();
+			$tabelRow = (object)[
+				'id'           => $newMasterId,
+				'no_tabel'     => $cleanNo,
+				'judul_ind'    => $titleInd,
+				'judul_en'     => $titleInd,
+				'id_unitkerja' => 'bps',
 			];
 		}
 
-		$idTahunTabel = (int)$tabelRow->id;
+		$idMasterTabel = (int)$tabelRow->id;
 
 		// Jika pages kosong, ambil dari dda_matched_{ta}.json
 		if (empty($pages)) {
@@ -3978,8 +5487,28 @@ class Admin extends BaseController
 
 		// 4. Resolusi Dimensi Periode
 		$idPeriodeKelompok = null;
+		$tipePeriode = 'tahunan';
 		$periods = $ext['periods'] ?? [];
-		if (!empty($periods)) {
+		$isAllYearNumbers = !empty($periods) && empty(array_filter($periods, function($p) {
+			return !preg_match('/^\d{4}$/', trim((string)$p));
+		}));
+		$isAllAcademicYears = !empty($periods) && empty(array_filter($periods, function($p) {
+			return !preg_match('/^(\d{4})\s*\/\s*(\d{4})$/', trim((string)$p));
+		}));
+		$tahunTampilPdf = null;
+
+		if ($isAllYearNumbers) {
+			$tipePeriode = 'tahunan';
+			$idPeriodeKelompok = null;
+			$tahunTampilPdf = implode(',', array_map('intval', $periods));
+		} elseif ($isAllAcademicYears) {
+			$tipePeriode = 'tahun_ajaran';
+			$idPeriodeKelompok = null;
+			$startYrs = array_map(function($p) {
+				return (int)substr(trim((string)$p), 0, 4);
+			}, $periods);
+			$tahunTampilPdf = implode(',', $startYrs);
+		} elseif (!empty($periods)) {
 			$targetPerNorm = array_map(function ($p) {
 				return mb_strtolower(trim((string)$p));
 			}, $periods);
@@ -3997,12 +5526,12 @@ class Admin extends BaseController
 			}
 
 			if (!$idPeriodeKelompok) {
-				$namaKelPer = mb_substr('Tahunan ' . implode(', ', $periods) . " (Tabel {$cleanNo})", 0, 190);
+				$namaKelPer = mb_substr('Periode ' . implode(', ', $periods) . " (Tabel {$cleanNo})", 0, 190);
 				$idPeriodeKelompok = $mDinamis->savePeriodeKelompok([
 					'nama_kelompok_ind' => $namaKelPer,
 					'nama_kelompok_en'  => $namaKelPer,
-					'judul_periode_ind' => 'Tahun',
-					'judul_periode_en'  => 'Year',
+					'judul_periode_ind' => 'Periode',
+					'judul_periode_en'  => 'Period',
 				]);
 				$perPayload = [];
 				foreach ($periods as $idx => $pVal) {
@@ -4014,6 +5543,7 @@ class Admin extends BaseController
 				}
 				$mDinamis->syncPeriodeItems($idPeriodeKelompok, $perPayload);
 			}
+			$tipePeriode = 'custom';
 		}
 
 		// 5. Resolusi Dimensi Karakteristik (Kolom)
@@ -4039,7 +5569,18 @@ class Admin extends BaseController
 				if (count($kNorms) === count($targetKarNorms) && count($kNorms) > 0) {
 					$matches = 0;
 					foreach ($kNorms as $idx => $kn) {
-						if ($kn === $targetKarNorms[$idx]) {
+						$tn = $targetKarNorms[$idx] ?? '';
+						$isMatch = ($kn === $tn);
+						if (!$isMatch) {
+							$knIsTotal = (strpos($kn, 'jumlah') !== false || strpos($kn, 'total') !== false);
+							$tnHasPlus = (strpos($tn, '+') !== false);
+							$knHasPlus = (strpos($kn, '+') !== false);
+							$tnIsTotal = (strpos($tn, 'jumlah') !== false || strpos($tn, 'total') !== false);
+							if (($knIsTotal && $tnHasPlus) || ($knHasPlus && $tnIsTotal)) {
+								$isMatch = true;
+							}
+						}
+						if ($isMatch) {
 							$matches++;
 						}
 					}
@@ -4071,7 +5612,7 @@ class Admin extends BaseController
 			}
 		}
 
-		$dimCount = ($idBarisKelompok ? 1 : 0) + ($idKarakteristikKelompok ? 1 : 0) + ($idPeriodeKelompok ? 1 : 0);
+		$dimCount = ($idBarisKelompok ? 1 : 0) + ($idKarakteristikKelompok ? 1 : 0) + (($idPeriodeKelompok || $tipePeriode === 'tahunan' || $tipePeriode === 'tahun_ajaran') ? 1 : 0);
 		if ($dimCount < 2) {
 			return $this->response->setJSON([
 				'status'  => 'error',
@@ -4079,23 +5620,27 @@ class Admin extends BaseController
 			]);
 		}
 
-		// 6. Simpan m_indikator_tabel & aktifkan is_dynamic = 1 di t_tahun_tabel
+		// 6. Simpan m_indikator_tabel & aktifkan jenis_sumber = dinamis di m_list_tabel
 		$now = date('Y-m-d H:i:s');
-		$existingInd = $mDinamis->where('id_tahun_tabel', $idTahunTabel)->first();
+		$idMasterTabel = (int)$tabelRow->id;
+		$idTahunTabel  = $idDb > 0 ? $idDb : $idMasterTabel;
+		$existingInd = $mDinamis->where('id_tabel', $idMasterTabel)->first();
 		$indPayload = [
-			'id_tahun_tabel'            => $idTahunTabel,
+			'id_tabel'                  => $idMasterTabel,
 			'no_tabel'                  => $tabelRow->no_tabel ?: $cleanNo,
 			'judul_ind'                 => $tabelRow->judul_ind,
 			'judul_en'                  => $tabelRow->judul_en,
 			'id_unitkerja'              => $tabelRow->id_unitkerja ?: 'bps',
 			'id_karakteristik_kelompok' => $idKarakteristikKelompok,
 			'id_baris_kelompok'         => $idBarisKelompok,
+			'tipe_periode'              => $tipePeriode ?? 'tahunan',
 			'id_periode_kelompok'       => $idPeriodeKelompok,
 			'posisi_hirarki'            => $ext['posisi_hirarki'] ?? 'kolom_atas',
 			'tingkat_kolom'             => 'semua',
 			'konfigurasi_total'         => $konfigurasiTotal,
 			'format_nomor_baris'        => 'none',
 			'desimal'                   => isset($ext['desimal']) ? (int)$ext['desimal'] : 0,
+			'tahun_tampil'              => $tahunTampilPdf,
 			'updated_at'                => $now,
 		];
 
@@ -4108,16 +5653,17 @@ class Admin extends BaseController
 			$idIndikator = (int)$this->db->insertID();
 		}
 
-		$this->db->table('t_tahun_tabel')->where('id', $idTahunTabel)->update(['is_dynamic' => 1]);
+		$this->db->table('m_list_tabel')->where('id', $idMasterTabel)->update(['jenis_sumber' => 'dinamis']);
+		$mDinamis->upsertStatusTahunan($idMasterTabel, (int)$ta, []);
 
 		// 7. Update dda_db_{ta}.json, dda_matched_{ta}.json, dan dda_state_{ta}.json secara langsung
 		$dbJsonPath      = WRITEPATH . "uploads/dda_db_{$ta}.json";
 		$matchedJsonPath = WRITEPATH . "uploads/dda_matched_{$ta}.json";
 		$stateJsonPath   = WRITEPATH . "uploads/dda_state_{$ta}.json";
 
-		$dynInfo = $mDinamis->exportSingleDynamicTable($idTahunTabel);
+		$dynInfo = $mDinamis->exportSingleDynamicTable($idMasterTabel);
 		$formattedJudul = function_exists('format_judul_tabel')
-			? format_judul_tabel($tabelRow->judul_ind, $tabelRow->periode_id ?? $ta)
+			? format_judul_tabel($tabelRow->judul_ind, $ta)
 			: $tabelRow->judul_ind;
 
 		if (file_exists($dbJsonPath)) {
@@ -4194,11 +5740,20 @@ class Admin extends BaseController
 					$bId = (int)($ac['id_baris_item'] ?? 0);
 					$kId = (int)($ac['id_karakteristik_item'] ?? 0);
 					$pId = (int)($ac['id_periode_item'] ?? 0);
-					if ($bId > 0 && $kId > 0) {
+					$tahunDataCell = (int)($ac['tahun_data'] ?? $ta);
+					if ($pId > 190000000) {
+						$tahunDataCell = intdiv($pId, 100000);
+						$pId           = $pId % 100000;
+					} elseif ($pId >= 1900 && $pId <= 2100) {
+						$tahunDataCell = $pId;
+						$pId           = 0;
+					}
+					if ($bId >= 0 && $kId >= 0) {
 						$upsertCells[] = [
 							'id_baris_item'         => $bId,
 							'id_karakteristik_item' => $kId,
-							'id_periode_item'       => $pId > 0 ? $pId : null,
+							'id_periode_item'       => $pId > 0 ? $pId : 0,
+							'tahun_data'            => $tahunDataCell,
 							'nilai'                 => $ac['nilai'] ?? 0,
 							'simbol'                => null,
 						];
@@ -4209,18 +5764,16 @@ class Admin extends BaseController
 					if ($filledCellsCount > 0) {
 						$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
 						$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
-						$this->db->table('t_tahun_tabel')
-							->where('id', $idTahunTabel)
-							->update([
-								'is_periksa'      => 1,
-								'catatan_periksa' => $catatan
-							]);
+						$mDinamis->upsertStatusTahunan($idMasterTabel, (int)$ta, [
+							'is_periksa'      => 1,
+							'catatan_periksa' => $catatan
+						]);
 					}
 					// Perbarui snapshot dda_db_{ta}.json dengan nilai yang baru diisi
-					$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idTahunTabel);
+					$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idMasterTabel);
 					$dbList = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
 					foreach ($dbList as &$dbItem) {
-						if ((int)($dbItem['id_db'] ?? 0) === $idTahunTabel || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
+						if ((int)($dbItem['id_db'] ?? 0) === $idMasterTabel || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
 							$dbItem['dynamic_empty'] = false;
 							$dbItem['dynamic_grid']  = $dynInfoAfter['dynamic_grid'] ?? [];
 							break;
@@ -4304,8 +5857,8 @@ class Admin extends BaseController
 			return $this->response->setStatusCode(403)->setBody('Unauthorized');
 		}
 
-		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
-		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? date('Y');
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: date('Y');
 		$pdfPath = WRITEPATH . "uploads/dda_master_{$ta}.pdf";
 
 		if (!file_exists($pdfPath)) {
@@ -4331,8 +5884,8 @@ class Admin extends BaseController
 			return $this->response->setStatusCode(403)->setBody('Unauthorized');
 		}
 
-		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
-		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? date('Y');
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: date('Y');
 		$page = (int)($this->request->getGet('page') ?? 1);
 		if ($page < 1) $page = 1;
 		$dpi = (int)($this->request->getGet('dpi') ?? 150);
@@ -4375,6 +5928,255 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getGet('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
+		if (file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000) {
+			return $this->response->download($canonicalExcel, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx");
+		}
+
+		// Cek jika ada file generate sebelumnya dengan timestamp
+		$recentFiles = glob($uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}_*.xlsx");
+		if (!empty($recentFiles)) {
+			usort($recentFiles, function($a, $b) {
+				return filemtime($b) - filemtime($a);
+			});
+			$latest = $recentFiles[0];
+			if (file_exists($latest) && filesize($latest) > 5000) {
+				@copy($latest, $canonicalExcel);
+				return $this->response->download($latest, null)->setFileName("Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx");
+			}
+		}
+
+		// Jika belum ada file, arahkan ke halaman matching_pdf dengan trigger untuk generate di modal
+		return redirect()->to("admin/matching_pdf?ta={$ta}&source={$source}&trigger_export=1");
+	}
+
+	/**
+	 * Mengecek status ketersediaan file Rekap Global Excel (.xlsx) dan status worker background
+	 */
+	public function ajax_check_rekap_excel()
+	{
+		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getGetPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
+
+		$exists = file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000;
+		$mtimeStr = $exists ? date('d M Y H:i', filemtime($canonicalExcel)) : null;
+		$fileSizeKb = $exists ? round(filesize($canonicalExcel) / 1024, 1) : 0;
+
+		$isRunning = false;
+		$percent = 0;
+		$curTable = '';
+		if (file_exists($progressJson)) {
+			$pData = json_decode(@file_get_contents($progressJson), true) ?? [];
+			$isRunning = !empty($pData['is_running']);
+			$percent = $pData['percent'] ?? 0;
+			$curTable = $pData['current_table'] ?? '';
+			if ($isRunning && !empty($pData['updated_at']) && (time() - $pData['updated_at'] > 600)) {
+				$isRunning = false;
+			}
+		}
+
+		return $this->response->setJSON([
+			'status' => 'success',
+			'source' => $source,
+			'file_exists' => $exists,
+			'filesize_kb' => $fileSizeKb,
+			'updated_at' => $mtimeStr,
+			'is_running' => $isRunning,
+			'percent' => $percent,
+			'current_table' => $curTable,
+			'download_url' => base_url("admin/export_rekap_matching?ta={$ta}&source={$source}")
+		]);
+	}
+
+	/**
+	 * Memulai background worker untuk menyusun Rekap Global Excel Multi-Sheet
+	 */
+	public function start_export_rekap()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		$pdfMaster = $uploadPath . "dda_master_{$ta}.pdf";
+		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
+		$dbJson = $uploadPath . "dda_db_{$ta}.json";
+		$stateJson = $uploadPath . "dda_state_{$ta}.json";
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
+		$stopFile = $progressJson . '.stop';
+
+		if (file_exists($stopFile)) {
+			@unlink($stopFile);
+		}
+
+		if (!file_exists($pdfMaster) || !file_exists($matchedJson) || !file_exists($dbJson) || !file_exists($stateJson)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'File master PDF atau data hasil verifikasi belum lengkap']);
+		}
+
+		// Pastikan tidak ada worker duplikat yang sedang berjalan untuk sumber ini
+		if (file_exists($progressJson)) {
+			$pData = json_decode(@file_get_contents($progressJson), true) ?? [];
+			if (!empty($pData['is_running']) && !empty($pData['updated_at']) && (time() - $pData['updated_at'] < 180)) {
+				return $this->response->setJSON(['status' => 'success', 'message' => 'Worker rekap sudah berjalan', 'already_running' => true]);
+			}
+		}
+
+		// Inisialisasi status progress
+		$initProg = [
+			'status' => 'running',
+			'source' => $source,
+			'is_running' => true,
+			'completed' => 0,
+			'total' => 0,
+			'percent' => 0,
+			'current_table' => 'Menyiapkan proses...',
+			'updated_at' => time()
+		];
+		@file_put_contents($progressJson, json_encode($initProg));
+
+		$pyScript = FCPATH . "../python_engine/export_global_excel.py";
+		$errLog = $uploadPath . "dda_export_stderr_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".log";
+		$cmd = "start /B python " . escapeshellarg($pyScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($matchedJson) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($stateJson) . " " . escapeshellarg($canonicalExcel) . " 0.0 " . escapeshellarg($progressJson) . " " . escapeshellarg($source) . " > NUL 2>" . escapeshellarg($errLog);
+
+		pclose(popen($cmd, "r"));
+
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Background worker rekap excel berhasil dimulai', 'source' => $source]);
+	}
+
+	/**
+	 * Mengambil progres terkini dari background worker Rekap Global Excel
+	 */
+	public function get_export_progress()
+	{
+		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getGetPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
+		$canonicalExcel = $uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}{$suffix}.xlsx";
+
+		$prog = [
+			'status' => 'idle',
+			'source' => $source,
+			'is_running' => false,
+			'completed' => 0,
+			'total' => 0,
+			'percent' => 0,
+			'current_table' => '',
+			'file_ready' => false
+		];
+
+		if (file_exists($progressJson)) {
+			$raw = @file_get_contents($progressJson);
+			if (!empty($raw)) {
+				$parsed = json_decode($raw, true);
+				if (is_array($parsed)) {
+					$prog = array_merge($prog, $parsed);
+				}
+			}
+		}
+
+		if (file_exists($canonicalExcel) && filesize($canonicalExcel) > 5000) {
+			$prog['file_ready'] = true;
+			$prog['download_url'] = base_url("admin/export_rekap_matching?ta={$ta}&source={$source}");
+			$prog['filesize_kb'] = round(filesize($canonicalExcel) / 1024, 1);
+			$prog['updated_at'] = date('d M Y H:i', filemtime($canonicalExcel));
+		}
+
+		return $this->response->setJSON($prog);
+	}
+
+	/**
+	 * Menghentikan proses background worker Rekap Global Excel
+	 */
+	public function stop_export_rekap()
+	{
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
+		$source = strtolower(trim((string)($this->request->getPost('source') ?? 'all')));
+		if (!in_array($source, ['api', 'dinamis', 'all'], true)) {
+			$source = 'all';
+		}
+		$suffix = '';
+		if ($source === 'api') {
+			$suffix = '_API';
+		} elseif ($source === 'dinamis') {
+			$suffix = '_Dinamis';
+		}
+
+		$uploadPath = WRITEPATH . 'uploads/';
+		$progressJson = $uploadPath . "dda_export_progress_{$ta}" . ($suffix ? strtolower($suffix) : '') . ".json";
+		$stopFile = $progressJson . '.stop';
+		@file_put_contents($stopFile, '1');
+
+		if (file_exists($progressJson)) {
+			$pData = json_decode(@file_get_contents($progressJson), true) ?? [];
+			$pData['is_running'] = false;
+			$pData['status'] = 'stopped';
+			$pData['current_table'] = 'Dibatalkan oleh pengguna';
+			@file_put_contents($progressJson, json_encode($pData));
+		}
+
+		return $this->response->setJSON(['status' => 'success', 'message' => 'Proses rekap excel berhasil dihentikan']);
+	}
+
+	/**
+	 * Legacy Fallback HTML-Table Export (.xls)
+	 */
+	public function export_rekap_matching_legacy()
+	{
 		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
 		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
 		$uploadPath = WRITEPATH . 'uploads/';
@@ -4473,7 +6275,7 @@ class Admin extends BaseController
 	 */
 	public function get_batch_progress()
 	{
-		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = $this->request->getGetPost('ta') ?? $this->session->get('admin_ta') ?? date('Y');
 		$uploadPath = WRITEPATH . 'uploads/';
 		$progressJson = $uploadPath . "dda_progress_{$ta}.json";
 		$stateJson = $uploadPath . "dda_state_{$ta}.json";
@@ -4544,7 +6346,7 @@ class Admin extends BaseController
 	 */
 	public function stop_batch_worker()
 	{
-		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = $this->request->getPost('ta') ?? $this->session->get('admin_ta') ?? date('Y');
 		$uploadPath = WRITEPATH . 'uploads/';
 		$progressJson = $uploadPath . "dda_progress_{$ta}.json";
 		$stopFile = $progressJson . '.stop';
@@ -4611,7 +6413,7 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Parameter tidak lengkap']);
 		}
 
-		$ta = $this->session->get('admin_ta') ?? '2026';
+		$ta = $this->session->get('admin_ta') ?? date('Y');
 		if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
 			$ta = $mYear[1];
 		}
@@ -4628,7 +6430,7 @@ class Admin extends BaseController
 	 */
 	public function get_batch_status()
 	{
-		$ta = $this->request->getGetPost("ta") ?? $this->session->get('admin_ta') ?? '2026';
+		$ta = $this->request->getGetPost("ta") ?? $this->session->get('admin_ta') ?? date('Y');
 		$statePath = WRITEPATH . "uploads/dda_state_{$ta}.json";
 		if (file_exists($statePath)) {
 			$data = json_decode(@file_get_contents($statePath), true);
@@ -4711,6 +6513,12 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+
+		if (!can('master_dimensi')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert"><i class="bi bi-shield-x me-2"></i>Akses ditolak: Anda tidak memiliki izin untuk mengelola Master Dimensi.</div>');
+			return redirect()->to('admin');
+		}
+
 
 		// Hak akses: hanya untuk akun BPS (Super Admin, Admin, LO, Supervisor)
 		$unitkerjalogin = $this->session->get('admin_unitkerja');
@@ -4803,7 +6611,7 @@ class Admin extends BaseController
 				$mTabelDinamis->syncKarakteristikItems($idKelompok, $items);
 			}
 
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Karakteristik Kolom '<strong>{$nama_ind}</strong>' berhasil ditambahkan!</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Karakteristik Kolom '<strong>" . esc($nama_ind) . "</strong>' berhasil ditambahkan!</div>");
 			return redirect()->to('admin/master_dimensi?tab=karakteristik');
 		}
 
@@ -4968,7 +6776,7 @@ class Admin extends BaseController
 				$mTabelDinamis->parseBarisFromText($idKelompok, $items_ind, $items_en);
 			}
 
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Baris '<strong>{$nama_ind}</strong>' berhasil ditambahkan!</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Baris '<strong>" . esc($nama_ind) . "</strong>' berhasil ditambahkan!</div>");
 			return redirect()->to('admin/master_dimensi?tab=baris');
 		}
 
@@ -5121,7 +6929,7 @@ class Admin extends BaseController
 				$mTabelDinamis->generatePeriodeYearRange($idKelompok, $year_start, $year_end, $year_order);
 			}
 
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Periode '<strong>{$nama_ind}</strong>' berhasil ditambahkan!</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Kelompok Periode '<strong>" . esc($nama_ind) . "</strong>' berhasil ditambahkan!</div>");
 			return redirect()->to('admin/master_dimensi?tab=periode');
 		}
 
@@ -5165,6 +6973,11 @@ class Admin extends BaseController
 		if ($action === 'del_periode') {
 			$id = (int)($param1 ?: $this->request->getPost('id'));
 			if ($id > 0) {
+				$pk = $mTabelDinamis->getPeriodeKelompok($id);
+				if ($pk && isset($pk->kategori_periode) && $pk->kategori_periode === 'standar') {
+					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal: Kelompok Periode Standar BPS tidak dapat dihapus!</div>");
+					return redirect()->to('admin/master_dimensi?tab=periode');
+				}
 				// Cek integritas relasi: apakah dimensi ini sedang digunakan oleh tabel dinamis aktif?
 				$usedCount = $this->db->table('m_indikator_tabel')
 					->where('id_periode_kelompok', $id)
@@ -5247,7 +7060,7 @@ class Admin extends BaseController
 		$tab = $this->request->getGet('tab') ?? 'karakteristik';
 		$a['active_tab'] = in_array($tab, ['karakteristik', 'baris', 'periode'], true) ? $tab : 'karakteristik';
 
-		// Data Karakteristik (Optimasi Single Aggregation Query)
+		// Data Karakteristik, Baris, dan Periode (sudah menyertakan total_items via LEFT JOIN COUNT)
 		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
 		$kCounts = $mTabelDinamis->getKarakteristikCounts();
 		foreach ($a['list_karakteristik'] as $k) {
@@ -5257,9 +7070,16 @@ class Admin extends BaseController
 		// Data Baris (Optimasi Single Aggregation Query)
 		$a['list_baris'] = $mTabelDinamis->getBarisKelompokAll();
 		$bCounts = $mTabelDinamis->getBarisCounts();
+		$bPipeCounts = $mTabelDinamis->getBarisPipeCounts();
+		$totalGroupsWithPipe = 0;
 		foreach ($a['list_baris'] as $b) {
 			$b->total_items = $bCounts[(int)$b->id] ?? 0;
+			$b->total_pipe  = $bPipeCounts[(int)$b->id] ?? 0;
+			if ($b->total_pipe > 0) {
+				$totalGroupsWithPipe++;
+			}
 		}
+		$a['total_baris_with_pipe'] = $totalGroupsWithPipe;
 
 		// Data Periode (Optimasi Single Aggregation Query)
 		$a['list_periode'] = $mTabelDinamis->getPeriodeKelompokAll();
@@ -5280,46 +7100,90 @@ class Admin extends BaseController
 	/**
 	 * Halaman Generator Indikator Tabel & Live Matrix Preview
 	 */
-	public function generator_tabel($id_tahun_tabel = null)
+	public function generator_tabel($id_param = null)
 	{
 		// Cek otentikasi login
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		// Hak akses: hanya untuk akun BPS
-		$unitkerjalogin = $this->session->get('admin_unitkerja');
-		if ($unitkerjalogin != 'bps') {
+		// Hak akses: khusus Admin BPS / Super Admin
+		if (!$this->isAdminBps()) {
 			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Generator Tabel Dinamis hanya dapat diakses oleh Admin BPS.</div>");
 			return redirect()->to('admin');
 		}
 
-		if (empty($id_tahun_tabel)) {
+		if (empty($id_param)) {
 			return redirect()->to('admin/master_tabel');
 		}
 
-		// Ambil data fisik tabel tahunan yang akan dirakit
-		$tabel = $this->db->query("
-			SELECT t.id as id_tahun_tabel, t.tahun, t.no_tabel, t.periode_id, t.periode_en, t.periode_id as periode, t.link_tabel, t.link_sebelumnya, t.is_dynamic,
-			       m.id as id_master_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, m.kondef,
-			       u.unitkerja_ind, u.user_wali
-			FROM t_tahun_tabel t
-			JOIN m_list_tabel m ON t.id_tabel = m.id
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			WHERE t.id = ?
-		", [$id_tahun_tabel])->getRow();
-
-		if (!$tabel) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Data tabel tahunan tidak ditemukan.</div>");
-			return redirect()->to('admin/master_tabel');
-		}
-
+		$ta = $this->session->get('admin_ta') ?: date('Y');
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$ctx = $mTabelDinamis->resolveTableContext($id_param, $ta);
 
-		// Cek apakah indikator untuk tabel ini sudah pernah dirakit
-		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+		if (!$ctx['tabel']) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Data tabel tidak ditemukan.</div>");
+			return redirect()->to('admin/master_tabel');
+		}
 
-		// Hitung jumlah data nilai sel dinamis yang sudah tersimpan
+		$tabel = $ctx['tabel'];
+		$indikator = $ctx['indikator'];
+		$tahunTabel = $ctx['tahun_tabel'];
+		$id_master = $ctx['id_tabel'];
+
+		// Jika indikator belum ada, buat entri kerangka default di m_indikator_tabel
+		if (!$indikator) {
+			$now = date('Y-m-d H:i:s');
+			$mTabelDinamis->insert([
+				'id_tabel'        => $id_master,
+				'no_tabel'        => $tabel->no_tabel ?? ($tahunTabel->no_tabel ?? ''),
+				'judul_ind'       => $tabel->judul_ind,
+				'judul_en'        => $tabel->judul_en,
+				'id_unitkerja'    => $tabel->id_unitkerja,
+				'tipe_periode'    => 'tahunan',
+				'desimal'         => -1,
+				'satuan'          => null,
+				'config_tampilan' => json_encode([
+					'total_horizontal' => false,
+					'jenis_total_horizontal' => 'sum',
+					'only_total_horizontal' => false,
+					'group_total_horizontal' => false,
+					'total_vertikal' => true,
+					'jenis_total_vertikal' => 'default',
+					'label_total_kustom' => '',
+					'group_by_region' => true,
+					'prioritas_karakteristik' => false,
+					'portrait_mode' => false,
+					'portrait_split_col' => false
+				]),
+				'created_at'      => $now,
+				'updated_at'      => $now
+			]);
+			$indikator = $mTabelDinamis->where('id_tabel', $id_master)->first();
+		}
+
+		// Properti kompatibilitas untuk view
+		$tabelView = (object)[
+			'id'              => $id_master,
+			'id_master_tabel' => $id_master,
+			'id_tahun_tabel'  => $tahunTabel ? $tahunTabel->id : $id_master,
+			'tahun'           => $tahunTabel ? $tahunTabel->tahun : $ta,
+			'no_tabel'        => $indikator->no_tabel ?? ($tabel->no_tabel ?? ($tahunTabel->no_tabel ?? '')),
+			'judul_ind'       => $tabel->judul_ind,
+			'judul_en'        => $tabel->judul_en,
+			'id_unitkerja'    => $tabel->id_unitkerja,
+			'kondef'          => $tabel->kondef ?? '',
+			'is_dynamic'      => 1,
+			'link_tabel'      => $tahunTabel ? ($tahunTabel->link_tabel ?? '') : '',
+			'link_sebelumnya' => $tahunTabel ? ($tahunTabel->link_sebelumnya ?? '') : '',
+		];
+
+		// Ambil unitkerja
+		$ukRow = $this->db->table('m_unitkerja')->where('id_unitkerja', $tabel->id_unitkerja)->get()->getRow();
+		$tabelView->unitkerja_ind = $ukRow->unitkerja_ind ?? '-';
+		$tabelView->user_wali = $ukRow->user_wali ?? '-';
+
+		// Hitung total nilai
 		$total_nilai = 0;
 		if ($indikator) {
 			$total_nilai = (int)$this->db->table('t_nilai_dinamis')
@@ -5327,28 +7191,18 @@ class Admin extends BaseController
 				->countAllResults();
 		}
 
-		// Ambil seluruh kamus dimensi master untuk dropdown
-		$a['tabel']              = $tabel;
+		// Ambil tahun yang sudah terisi data
+		$available_years = $indikator ? $mTabelDinamis->getAvailableYears((int)$indikator->id) : [];
+
+		// Master dimensi
+		$a['tabel']              = $tabelView;
 		$a['indikator']          = $indikator;
 		$a['total_nilai']        = $total_nilai;
+		$a['available_years']    = $available_years;
 		$a['list_karakteristik'] = $mTabelDinamis->getKarakteristikKelompokAll();
 		$a['list_baris']         = $mTabelDinamis->getBarisKelompokAll();
-		$a['list_periode']       = $mTabelDinamis->getPeriodeKelompokAll();
+		$a['list_periode']       = $mTabelDinamis->getPeriodeKelompokAll(); // sudah menyertakan total_items
 
-		// Hitung jumlah item di masing-masing master untuk visual preview di select option (Optimasi Single Aggregation Query)
-		$kCounts = $mTabelDinamis->getKarakteristikCounts();
-		$bCounts = $mTabelDinamis->getBarisCounts();
-		$pCounts = $mTabelDinamis->getPeriodeCounts();
-
-		foreach ($a['list_karakteristik'] as $k) {
-			$k->total_items = $kCounts[(int)$k->id] ?? 0;
-		}
-		foreach ($a['list_baris'] as $b) {
-			$b->total_items = $bCounts[(int)$b->id] ?? 0;
-		}
-		foreach ($a['list_periode'] as $p) {
-			$p->total_items = $pCounts[(int)$p->id] ?? 0;
-		}
 		$init_max_depth = 1;
 		if (!empty($indikator->id_karakteristik_kelompok)) {
 			$kItems = $mTabelDinamis->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
@@ -5371,9 +7225,9 @@ class Admin extends BaseController
 		}
 
 		$id_karakteristik     = (int)($this->request->getVar('id_karakteristik') ?? 0);
-		$id_sub_karakteristik = (int)($this->request->getVar('id_sub_karakteristik') ?? 0);
 		$id_baris             = (int)($this->request->getVar('id_baris') ?? 0);
 		$id_periode           = (int)($this->request->getVar('id_periode') ?? 0);
+		$tipe_periode         = trim((string)($this->request->getVar('tipe_periode') ?? ''));
 		$tingkat_kolom        = trim((string)($this->request->getVar('tingkat_kolom') ?? 'semua'));
 
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
@@ -5394,9 +7248,76 @@ class Admin extends BaseController
 
 		$itemsPeriode    = [];
 		$kelompokPeriode = null;
+
+		// Default ke tahunan jika tidak ada spesifikasi periode
+		if ($id_periode <= 0 && empty($tipe_periode)) {
+			$tipe_periode = 'tahunan';
+		}
+
+		// Jika ada id_periode spesifik
 		if ($id_periode > 0) {
 			$kelompokPeriode = $this->db->table('m_periode_kelompok')->where('id', $id_periode)->get()->getRow();
 			$itemsPeriode    = $mTabelDinamis->getPeriodeItems($id_periode);
+		} elseif (!empty($tipe_periode)) {
+			// Jika tipe_periode dipilih dari dropdown baru (tahunan/tahun_ajaran/bulanan/triwulanan/semesteran/custom)
+			if ($tipe_periode === 'tahunan') {
+				$currentYear = (int)date('Y');
+				$itemsPeriode = [];
+				for ($y = $currentYear - 4; $y <= $currentYear; $y++) {
+					$itemsPeriode[] = (object)[
+						'id'               => $y,
+						'id_kelompok'      => 0,
+						'nama_periode_ind' => (string)$y,
+						'nama_periode_en'  => (string)$y,
+						'nama_item_id'     => (string)$y,
+						'nama_item_en'     => (string)$y,
+						'no_urut'          => $y,
+						'is_subtotal'      => 0
+					];
+				}
+				$kelompokPeriode = (object)[
+					'id'                => 0,
+					'nama_kelompok_ind' => 'Tahunan',
+					'nama_kelompok_en'  => 'Annual',
+					'judul_periode_ind' => 'Tahun',
+					'judul_periode_en'  => 'Year'
+				];
+			} elseif ($tipe_periode === 'tahun_ajaran') {
+				$currentYear = (int)date('Y');
+				$itemsPeriode = [];
+				for ($y = $currentYear - 2; $y <= $currentYear; $y++) {
+					$label = $y . '/' . ($y + 1);
+					$itemsPeriode[] = (object)[
+						'id'               => $y,
+						'id_kelompok'      => 0,
+						'nama_periode_ind' => $label,
+						'nama_periode_en'  => $label,
+						'nama_item_id'     => $label,
+						'nama_item_en'     => $label,
+						'no_urut'          => $y,
+						'is_subtotal'      => 0
+					];
+				}
+				$kelompokPeriode = (object)[
+					'id'                => 0,
+					'nama_kelompok_ind' => 'Tahun Ajaran',
+					'nama_kelompok_en'  => 'Academic Year',
+					'judul_periode_ind' => 'Tahun Ajaran',
+					'judul_periode_en'  => 'Academic Year'
+				];
+			} elseif ($tipe_periode === 'bulanan' || $tipe_periode === 'triwulanan' || $tipe_periode === 'semesteran') {
+				$pGroup = $this->db->table('m_periode_kelompok')->where('kode_standar', $tipe_periode)->get()->getRow();
+				if ($pGroup) {
+					$kelompokPeriode = $pGroup;
+					$itemsPeriode = $mTabelDinamis->getPeriodeItems((int)$pGroup->id);
+				}
+			} elseif (strpos($tipe_periode, 'custom:') === 0) {
+				$customId = (int)substr($tipe_periode, 7);
+				if ($customId > 0) {
+					$kelompokPeriode = $this->db->table('m_periode_kelompok')->where('id', $customId)->get()->getRow();
+					$itemsPeriode = $mTabelDinamis->getPeriodeItems($customId);
+				}
+			}
 		}
 
 		return $this->response->setJSON([
@@ -5407,6 +7328,7 @@ class Admin extends BaseController
 			'baris_kelompok'   => $kelompokBaris,
 			'periode'          => $itemsPeriode,
 			'periode_kelompok' => $kelompokPeriode,
+			'tipe_periode'     => $tipe_periode,
 			'tingkat_kolom'    => $tingkat_kolom
 		]);
 	}
@@ -5427,13 +7349,23 @@ class Admin extends BaseController
 			return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Fitur ini hanya untuk Admin BPS.']);
 		}
 
-		$id_tahun_tabel = (int)$this->request->getPost('id_tahun_tabel');
-		if (empty($id_tahun_tabel)) {
+		$ta = $this->session->get('admin_ta') ?: date('Y');
+		$id_param = (int)($this->request->getPost('id_indikator') ?: ($this->request->getPost('id_tabel') ?: $this->request->getPost('id_tahun_tabel')));
+		if (empty($id_param)) {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'ID Tabel tidak valid.']);
 		}
 
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
-		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+		$indikator = null;
+		$id_indikator = (int)$this->request->getPost('id_indikator');
+		if ($id_indikator > 0) {
+			$indikator = $mTabelDinamis->find($id_indikator);
+		}
+		if (!$indikator) {
+			$ctx = $mTabelDinamis->resolveTableContext($id_param, $ta);
+			$indikator = $ctx['indikator'];
+		}
+
 		if (!$indikator) {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Konfigurasi indikator tabel tidak ditemukan.']);
 		}
@@ -5441,13 +7373,19 @@ class Admin extends BaseController
 		$countDeleted = (int)$this->db->table('t_nilai_dinamis')->where('id_indikator', (int)$indikator->id)->countAllResults();
 		$this->db->transStart();
 		$mTabelDinamis->clearNilai((int)$indikator->id);
-		$this->db->table('t_tahun_tabel')
-			->where('id', $id_tahun_tabel)
-			->update([
-				'is_periksa'      => 0,
-				'catatan_periksa' => '-',
-				'is_publish'      => 0
-			]);
+
+		if (!empty($indikator->id_tabel)) {
+			$this->db->table('t_status_tahunan')
+				->where('id_tabel', $indikator->id_tabel)
+				->update([
+					'is_periksa'      => 0,
+					'catatan_periksa' => '-',
+					'is_confirm'      => '0',
+					'is_publish'      => 0,
+					'published_at'    => null
+				]);
+		}
+
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
@@ -5456,8 +7394,65 @@ class Admin extends BaseController
 
 		return $this->response->setJSON([
 			'status'       => 'success',
-			'message'      => 'Berhasil menghapus ' . number_format($countDeleted, 0, ',', '.') . ' data nilai sel. Kunci dimensi telah dibuka dan Anda dapat memilih ulang dimensi tabel.',
+			'message'      => 'Berhasil menghapus ' . number_format($countDeleted, 0, ',', '.') . ' data nilai sel dari seluruh tahun. Kunci dimensi telah dibuka.',
 			'deleted_rows' => $countDeleted
+		]);
+	}
+
+	/**
+	 * AJAX Endpoint: Menghapus nilai t_nilai_dinamis untuk 1 tahun_data tertentu
+	 */
+	public function ajax_hapus_nilai_tahun()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+
+		$unitkerjalogin = $this->session->get('admin_unitkerja');
+		if ($unitkerjalogin != 'bps') {
+			return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Fitur ini hanya untuk Admin BPS.']);
+		}
+
+		$id_indikator = (int)$this->request->getPost('id_indikator');
+		$tahun_data   = (int)$this->request->getPost('tahun_data');
+
+		if (empty($id_indikator) || empty($tahun_data)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Parameter tidak valid.']);
+		}
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$countDeleted = (int)$this->db->table('t_nilai_dinamis')
+			->where('id_indikator', $id_indikator)
+			->where('tahun_data', $tahun_data)
+			->countAllResults();
+
+		$this->db->transStart();
+		$mTabelDinamis->deleteNilaiByTahun($id_indikator, $tahun_data);
+
+		// Ambil indikator untuk tahu id_tabel
+		$ind = $this->db->table('m_indikator_tabel')->where('id', $id_indikator)->get()->getRow();
+		if ($ind && !empty($ind->id_tabel)) {
+			$targetDdaYear = (int)$tahun_data + 1;
+			$mTabelDinamis->upsertStatusTahunan((int)$ind->id_tabel, $targetDdaYear, [
+				'is_periksa'      => 0,
+				'catatan_periksa' => 'Data tahun ' . $tahun_data . ' dihapus via Generator Tabel',
+				'is_confirm'      => '0',
+				'is_publish'      => 0,
+				'published_at'    => null,
+			]);
+		}
+
+		$this->db->transComplete();
+
+		if ($this->db->transStatus() === false) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menghapus data nilai tahun ' . $tahun_data]);
+		}
+
+		return $this->response->setJSON([
+			'status'       => 'success',
+			'message'      => 'Berhasil menghapus ' . number_format($countDeleted, 0, ',', '.') . ' data nilai sel untuk Tahun ' . $tahun_data . '.',
+			'deleted_rows' => $countDeleted,
+			'tahun_data'   => $tahun_data
 		]);
 	}
 
@@ -5469,100 +7464,127 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
-
-		$id_tahun_tabel       = (int)$this->request->getPost('id_tahun_tabel');
-		$id_karakteristik     = (int)($this->request->getPost('id_karakteristik_kelompok') ?: 0);
-		$id_baris             = (int)$this->request->getPost('id_baris_kelompok');
-		$id_periode           = (int)($this->request->getPost('id_periode_kelompok') ?: 0);
-		$posisi_hirarki       = trim((string)$this->request->getPost('posisi_hirarki'));
-		if (!in_array($posisi_hirarki, ['kolom_atas', 'periode_atas', 'periode_baris', 'periode_baris_pisah'], true)) {
-			$posisi_hirarki = 'kolom_atas';
-		}
-		$tingkat_kolom        = trim((string)$this->request->getPost('tingkat_kolom'));
-		if (empty($tingkat_kolom)) {
-			$tingkat_kolom = 'semua';
-		}
-		$konfigurasi_total    = trim((string)$this->request->getPost('konfigurasi_total'));
-		if (!in_array($konfigurasi_total, ['default', 'jawa_tengah', 'jumlah', 'none', 'kustom', 'runtun_waktu'], true)) {
-			$konfigurasi_total = 'default';
-		}
-		if ($konfigurasi_total === 'runtun_waktu') {
-			$posisi_hirarki = 'kolom_atas';
-		}
-		$label_total_kustom   = trim((string)$this->request->getPost('label_total_kustom'));
-		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
-			$label_total_kustom = null;
-		}
-		$tampilan_baris       = trim((string)$this->request->getPost('tampilan_baris'));
-		if (!in_array($tampilan_baris, ['1_kolom', '2_kolom'], true)) {
-			$tampilan_baris = '1_kolom';
-		}
-		$kolom_nomor          = trim((string)$this->request->getPost('kolom_nomor'));
-		if (!in_array($kolom_nomor, ['tampilkan', 'sembunyikan'], true)) {
-			$kolom_nomor = 'sembunyikan';
-		}
-		$catatan              = trim((string)$this->request->getPost('catatan'));
-
-		$selectedDimCount = (!empty($id_baris) ? 1 : 0) + (!empty($id_karakteristik) ? 1 : 0) + (!empty($id_periode) ? 1 : 0);
-
-		if (empty($id_tahun_tabel) || $selectedDimCount < 2) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Gagal! Mohon pilih minimal 2 dimensi (antara Judul Baris, Karakteristik Kolom, atau Periode Waktu) untuk merakit matriks tabel dinamis.</div>");
-			return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+		if (!$this->isAdminBps()) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Generator Tabel Dinamis hanya dapat diakses oleh Admin BPS.</div>");
+			return redirect()->to('admin');
 		}
 
-		// Ambil metadata tabel induk
-		$tabel = $this->db->query("
-			SELECT t.id, t.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja
-			FROM t_tahun_tabel t
-			JOIN m_list_tabel m ON t.id_tabel = m.id
-			WHERE t.id = ?
-		", [$id_tahun_tabel])->getRow();
+		$ta = $this->session->get('admin_ta') ?: date('Y');
+		$id_tahun_tabel   = (int)$this->request->getPost('id_tahun_tabel');
+		$id_tabel_post    = (int)$this->request->getPost('id_tabel');
+		$id_tabel_param   = $id_tabel_post ?: $id_tahun_tabel;
 
-		if (!$tabel) {
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$ctx = $mTabelDinamis->resolveTableContext($id_tabel_param, $ta, $id_tabel_post > 0);
+		if (!$ctx['tabel']) {
 			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Tabel tidak ditemukan!</div>");
 			return redirect()->to('admin/master_tabel');
 		}
 
-		$mTabelDinamis = new \App\Models\M_tabeldinamis();
-		$existing = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+		$id_master = $ctx['id_tabel'];
+		$existing = $ctx['indikator'];
 
-		// Safety Lock: Jika tabel sudah memiliki data nilai sel dinamis, kunci dimensi tidak boleh diubah
+		$tipe_periode_raw = trim((string)$this->request->getPost('tipe_periode'));
+		$id_periode_kelompok = null;
+		$tipe_periode = 'tahunan';
+
+		if ($tipe_periode_raw === 'tahun_ajaran') {
+			$tipe_periode = 'tahun_ajaran';
+			$id_periode_kelompok = null;
+		} elseif ($tipe_periode_raw === 'bulanan') {
+			$tipe_periode = 'bulanan';
+			$pRow = $this->db->table('m_periode_kelompok')->where('kode_standar', 'bulanan')->get()->getRow();
+			$id_periode_kelompok = $pRow ? (int)$pRow->id : null;
+		} elseif ($tipe_periode_raw === 'triwulanan') {
+			$tipe_periode = 'triwulanan';
+			$pRow = $this->db->table('m_periode_kelompok')->where('kode_standar', 'triwulanan')->get()->getRow();
+			$id_periode_kelompok = $pRow ? (int)$pRow->id : null;
+		} elseif ($tipe_periode_raw === 'semesteran') {
+			$tipe_periode = 'semesteran';
+			$pRow = $this->db->table('m_periode_kelompok')->where('kode_standar', 'semesteran')->get()->getRow();
+			$id_periode_kelompok = $pRow ? (int)$pRow->id : null;
+		} elseif (strpos($tipe_periode_raw, 'custom:') === 0) {
+			$tipe_periode = 'custom';
+			$id_periode_kelompok = (int)substr($tipe_periode_raw, 7);
+		} elseif (is_numeric($tipe_periode_raw) && (int)$tipe_periode_raw > 0) {
+			$tipe_periode = 'custom';
+			$id_periode_kelompok = (int)$tipe_periode_raw;
+		} else {
+			$tipe_periode = 'tahunan';
+			$id_periode_kelompok = null;
+		}
+
+		$id_baris = (int)$this->request->getPost('id_baris_kelompok');
+		$id_karakteristik = (int)($this->request->getPost('id_karakteristik_kelompok') ?: 0);
+		$satuan = trim((string)$this->request->getPost('satuan'));
+		$satuan = ($satuan !== '') ? $satuan : null;
+		$desimal = (int)$this->request->getPost('desimal');
+		if (!in_array($desimal, [-1, 0, 1, 2, 3], true)) {
+			$desimal = -1;
+		}
+
+		// Tata letak default selalu standard: periode_atas
+		$posisi_hirarki = 'periode_atas';
+
+		$tingkat_kolom = trim((string)$this->request->getPost('tingkat_kolom')) ?: 'semua';
+		$konfigurasi_total = trim((string)$this->request->getPost('konfigurasi_total'));
+		if (!in_array($konfigurasi_total, ['default', 'grand_total', 'jawa_tengah', 'jumlah', 'none', 'kustom', 'runtun_waktu'], true)) {
+			$konfigurasi_total = ($existing && !empty($existing->konfigurasi_total)) ? $existing->konfigurasi_total : 'default';
+		}
+		$label_total_kustom = trim((string)$this->request->getPost('label_total_kustom'));
+		if ($konfigurasi_total !== 'kustom' || empty($label_total_kustom)) {
+			$label_total_kustom = null;
+		}
+		$tampilan_baris = trim((string)$this->request->getPost('tampilan_baris'));
+		if (!in_array($tampilan_baris, ['1_kolom', '2_kolom'], true)) {
+			$tampilan_baris = ($existing && !empty($existing->tampilan_baris)) ? $existing->tampilan_baris : '1_kolom';
+		}
+		$kolom_nomor = trim((string)$this->request->getPost('kolom_nomor'));
+		if (!in_array($kolom_nomor, ['tampilkan', 'sembunyikan'], true)) {
+			$kolom_nomor = ($existing && !empty($existing->kolom_nomor)) ? $existing->kolom_nomor : 'sembunyikan';
+		}
+
+		// Smart Locking: jika tabel sudah memiliki nilai data
 		if ($existing) {
 			$total_nilai = (int)$this->db->table('t_nilai_dinamis')
 				->where('id_indikator', (int)$existing->id)
 				->countAllResults();
+
 			if ($total_nilai > 0) {
-				// Paksa menggunakan dimensi existing agar integritas koordinat tetap terjaga
-				$id_baris         = !empty($existing->id_baris_kelompok) ? (int)$existing->id_baris_kelompok : 0;
-				$id_karakteristik = (int)($existing->id_karakteristik_kelompok ?: 0);
-				$id_periode       = (int)($existing->id_periode_kelompok ?: 0);
+				// Dimensi baris dan kolom dikunci
+				$id_baris = !empty($existing->id_baris_kelompok) ? (int)$existing->id_baris_kelompok : $id_baris;
+				$id_karakteristik = !empty($existing->id_karakteristik_kelompok) ? (int)$existing->id_karakteristik_kelompok : $id_karakteristik;
+				// Jika perpindahan antara tahunan <-> tahun_ajaran, diperbolehkan
+				$isAnnualExisting = in_array($existing->tipe_periode, ['tahunan', 'tahunan_jumlah', 'tahunan_rata', 'tahun_ajaran'], true);
+				$isAnnualNew = in_array($tipe_periode, ['tahunan', 'tahun_ajaran'], true);
+				if ($isAnnualExisting && $isAnnualNew) {
+					// Diperbolehkan berganti antara tahunan dan tahun ajaran
+				} else {
+					$tipe_periode = $existing->tipe_periode;
+					$id_periode_kelompok = $existing->id_periode_kelompok;
+				}
 			}
 		}
 
-		// Catatan: jika tidak dikirim dalam form (karena UI compact), pertahankan data existing
-		$hasPostCatatan = $this->request->getPost('catatan') !== null;
-		$finalCatatan   = $hasPostCatatan
-			? (!empty($catatan) ? $catatan : null)
-			: ($existing->catatan ?? null);
-
 		$now = date('Y-m-d H:i:s');
 		$payload = [
-			'id_tahun_tabel'            => $id_tahun_tabel,
-			'no_tabel'                  => $tabel->no_tabel,
-			'judul_ind'                 => $tabel->judul_ind,
-			'judul_en'                  => $tabel->judul_en,
-			'id_unitkerja'              => $tabel->id_unitkerja,
+			'id_tabel'                  => $id_master,
+			'no_tabel'                  => $ctx['tabel']->no_tabel ?? '',
+			'judul_ind'                 => $ctx['tabel']->judul_ind,
+			'judul_en'                  => $ctx['tabel']->judul_en,
+			'id_unitkerja'              => $ctx['tabel']->id_unitkerja,
 			'id_karakteristik_kelompok' => !empty($id_karakteristik) ? $id_karakteristik : null,
 			'id_baris_kelompok'         => !empty($id_baris) ? $id_baris : null,
-			'id_periode_kelompok'       => !empty($id_periode) ? $id_periode : null,
+			'tipe_periode'              => $tipe_periode,
+			'id_periode_kelompok'       => !empty($id_periode_kelompok) ? $id_periode_kelompok : null,
 			'posisi_hirarki'            => $posisi_hirarki,
 			'tingkat_kolom'             => $tingkat_kolom,
 			'konfigurasi_total'         => $konfigurasi_total,
 			'label_total_kustom'        => $label_total_kustom,
 			'tampilan_baris'            => $tampilan_baris,
 			'kolom_nomor'               => $kolom_nomor,
-			'desimal'                   => !empty($existing->desimal) ? (int)$existing->desimal : 0,
-			'catatan'                   => $finalCatatan,
+			'satuan'                    => $satuan,
+			'desimal'                   => $desimal,
 			'updated_at'                => $now,
 		];
 
@@ -5573,131 +7595,249 @@ class Admin extends BaseController
 			$mTabelDinamis->insert($payload);
 		}
 
-		// Tandai bahwa tabel tahunan ini resmi menjadi Tabel Dinamis (is_dynamic = 1)
-		$this->db->table('t_tahun_tabel')
-			->where('id', $id_tahun_tabel)
-			->update(['is_dynamic' => 1]);
+		// Set m_list_tabel.jenis_sumber = 'dinamis'
+		$this->db->table('m_list_tabel')->where('id', $id_master)->update(['jenis_sumber' => 'dinamis']);
 
-		$this->session->setFlashdata("k", "<div class=\"alert alert-success d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-check-circle-fill fs-5\"></i><div><b>Berhasil!</b> Konfigurasi Tabel Dinamis berhasil dirakit dan diaktifkan.</div></div>");
-		return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+		// Upsert t_status_tahunan untuk tahun aktif saat ini
+		$mTabelDinamis->upsertStatusTahunan($id_master, (int)$ta, [
+			'is_confirm' => '2',
+			'catatan'    => '-',
+		]);
+
+
+		$this->session->setFlashdata("k", "<div class=\"alert alert-success d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-check-circle-fill fs-5\"></i><div><b>Berhasil!</b> Konfigurasi Tabel Dinamis berhasil dirakit dan disimpan.</div></div>");
+		return redirect()->to('admin/generator_tabel/' . $id_master . '?master=1');
 	}
 
 	/**
 	 * Lepas Status Tabel Dinamis (Kembalikan ke Non-Dinamis)
 	 */
-	public function unlink_generator_tabel($id_tahun_tabel = null)
+	public function unlink_generator_tabel($id_param = null)
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		$id_tahun_tabel = (int)$id_tahun_tabel;
-		if (empty($id_tahun_tabel)) {
+		if (!$this->isAdminBps()) {
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akses ditolak! Pelepasan Tabel Dinamis hanya dapat dilakukan oleh Admin BPS.</div>");
+			return redirect()->to('admin');
+		}
+
+		$ta = $this->session->get('admin_ta') ?: date('Y');
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$ctx = $mTabelDinamis->resolveTableContext($id_param, $ta);
+		if (!$ctx['tabel']) {
 			return redirect()->to('admin/master_tabel');
 		}
 
+		$id_master = $ctx['id_tabel'];
+
 		$this->db->transStart();
-		$mTabelDinamis = new \App\Models\M_tabeldinamis();
-		$existing = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
-		if ($existing) {
-			// Bersihkan nilai sel (data cell values) agar tidak menjadi orphan records di database
-			$mTabelDinamis->clearNilai((int)$existing->id);
-			$mTabelDinamis->delete($existing->id);
+		if ($ctx['indikator']) {
+			$mTabelDinamis->clearNilai((int)$ctx['indikator']->id);
+			$mTabelDinamis->delete($ctx['indikator']->id);
 		}
 
-		$this->db->table('t_tahun_tabel')
-			->where('id', $id_tahun_tabel)
+		$this->db->table('m_list_tabel')->where('id', $id_master)->update(['jenis_sumber' => 'api_kominfo']);
+
+		$this->db->table('t_status_tahunan')
+			->where('id_tabel', $id_master)
 			->update([
-				'is_dynamic'      => 0,
 				'is_periksa'      => 0,
 				'catatan_periksa' => '-',
-				'is_publish'      => 0
+				'is_confirm'      => '0',
+				'is_publish'      => 0,
+				'published_at'    => null
 			]);
 		$this->db->transComplete();
 
 		if ($this->db->transStatus() === false) {
 			$this->session->setFlashdata("k", "<div class=\"alert alert-danger d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill fs-5\"></i><div>Gagal mengembalikan tabel. Transaksi dibatalkan (rollback).</div></div>");
-			return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+			return redirect()->to('admin/generator_tabel/' . $id_master . '?master=1');
 		}
 
 		$this->session->setFlashdata("k", "<div class=\"alert alert-info d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-info-circle-fill fs-5\"></i><div>Tabel berhasil dikembalikan ke format biasa (Non-Dinamis). Seluruh konfigurasi dan sel data matriks telah dibersihkan.</div></div>");
-		return redirect()->to('admin/generator_tabel/' . $id_tahun_tabel);
+		return redirect()->to('admin/master_tabel');
 	}
+
 
 	// =========================================================================
 	// MODUL TABEL DINAMIS: SERVICE GENERATOR TEMPLATE EXCEL (SPRINT 4)
 	// =========================================================================
 
-	/**
-	 * Endpoint Unduh Template Excel Resmi (.xlsx) Tabel Dinamis
-	 * Standar Publikasi BPS Jawa Tengah dengan Proteksi Sel & Hidden Metadata
-	 */
-	public function download_template_tabel($id_tahun_tabel = null)
+	public function download_template_tabel($id_param = null, $tahun_param = null)
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		$id_tahun_tabel = (int)$id_tahun_tabel;
-		if (empty($id_tahun_tabel)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Tabel tidak valid!</div>");
+		$id_param = (int)$id_param;
+		if (empty($id_param)) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">ID Tabel tidak valid!</div>');
 			return redirect()->to('admin/master_tabel');
+		}
+
+		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+		$defaultTahunData = $ta - 1;
+		$tahunInput = (int)($tahun_param ?: ($this->request->getGet('tahun_data') ?: ($this->request->getGet('tahun') ?: $defaultTahunData)));
+
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$context = $mTabelDinamis->resolveTableContext($id_param, $ta);
+		$tabel = $context['tabel'];
+
+		if (!$tabel || !$this->canManageTable($tabel)) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda tidak memiliki izin untuk mengunduh template tabel instansi lain.</div>');
+			return redirect()->back();
 		}
 
 		try {
 			$generator = new \App\Libraries\ExcelTemplateGenerator();
-			$generator->download($id_tahun_tabel);
+			$generator->download($id_param, $tahunInput);
 			exit;
 		} catch (\Throwable $e) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill fs-5\"></i><div>Gagal mengunduh template Excel: " . htmlspecialchars($e->getMessage()) . "</div></div>");
+			$this->session->setFlashdata('k', '<div class="alert alert-danger d-flex align-items-center gap-2" id="alert"><i class="bi bi-exclamation-triangle-fill fs-5"></i><div>Gagal mengunduh template Excel: ' . htmlspecialchars($e->getMessage()) . '</div></div>');
 			return redirect()->back();
 		}
 	}
 
 	/**
 	 * Halaman Viewer Tabel Dinamis Publikasi Resmi BPS Jawa Tengah
-	 * Dapat diakses oleh Admin BPS, Supervisor, maupun Walidata/OPD
-	 * URL: admin/view_tabel_dinamis/{id_tahun_tabel}
+	 * Multi-tahun dengan Checklist Tahun, Modal Konfigurasi Tabel, & Judul Dinamis
+	 * URL: admin/view_tabel_dinamis/{id_param}
 	 */
-	public function view_tabel_dinamis($id_tahun_tabel = null)
+	public function view_tabel_dinamis($id_param = null)
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
 
-		$id_tahun_tabel = (int)$id_tahun_tabel;
-		if (empty($id_tahun_tabel)) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">ID Tabel tidak valid!</div>");
-			return redirect()->to('admin/dda');
+		$id_param = (int)$id_param;
+		if (empty($id_param)) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">ID Tabel tidak valid!</div>');
+			return redirect()->to('admin/master_tabel');
 		}
 
-		// Ambil metadata tabel induk & tahunan
-		$tabel = $this->db->query("
-			SELECT t.id as id_tahun_tabel, t.tahun, t.no_tabel, t.periode_id, t.periode_en, t.link_tabel, t.is_dynamic,
-			       m.id as id_master_tabel, m.judul_ind, m.judul_en, m.id_unitkerja, m.kondef,
-			       u.unitkerja_ind, u.user_wali
-			FROM t_tahun_tabel t
-			JOIN m_list_tabel m ON t.id_tabel = m.id
-			LEFT JOIN m_unitkerja u ON m.id_unitkerja = u.id_unitkerja
-			WHERE t.id = ?
-		", [$id_tahun_tabel])->getRow();
+		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+		$thDataDefault = (int)$ta - 1;
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$context = $mTabelDinamis->resolveTableContext($id_param, $ta);
+		$tabel = $context['tabel'];
+		$indikator = $context['indikator'];
+		$tahunTabel = $context['tahun_tabel'];
+		$id_tabel = $context['id_tabel'];
 
 		if (!$tabel) {
-			$this->session->setFlashdata("k", "<div class=\"alert alert-warning\" id=\"alert\">Data tabel tidak ditemukan.</div>");
+			$this->session->setFlashdata('k', '<div class="alert alert-warning" id="alert">Data tabel tidak ditemukan.</div>');
+			return redirect()->to('admin/master_tabel');
+		}
+
+		if (!$this->canManageTable($tabel)) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda tidak memiliki izin untuk melihat tabel instansi lain.</div>');
 			return redirect()->to('admin/dda');
 		}
 
-		$mTabelDinamis = new \App\Models\M_tabeldinamis();
-		$indikator = $mTabelDinamis->where('id_tahun_tabel', $id_tahun_tabel)->first();
+		// Lengkapi objek tabel
+		$tabel->id_tahun_tabel = (int)$tabel->id;
+		$tabel->id_master_tabel = (int)$tabel->id;
 
-		$structureKolom = null;
-		$itemsKolom     = [];
-		$itemsBaris     = [];
-		$kelompokBaris  = null;
-		$itemsPeriode   = [];
-		$nilaiMap       = [];
+		if (empty($tabel->unitkerja_ind) && !empty($tabel->id_unitkerja)) {
+			$uk = $this->db->table('m_unitkerja')->where('id_unitkerja', $tabel->id_unitkerja)->get()->getRow();
+			$tabel->unitkerja_ind = $uk->unitkerja_ind ?? 'BPS Provinsi Jawa Tengah';
+			$tabel->unitkerja_en  = $uk->unitkerja_en ?? 'BPS-Statistics of Jawa Tengah Province';
+		} else {
+			$tabel->unitkerja_ind = $tabel->unitkerja_ind ?? 'BPS Provinsi Jawa Tengah';
+			$tabel->unitkerja_en  = $tabel->unitkerja_en ?? 'BPS-Statistics of Jawa Tengah Province';
+		}
+
+		// Resolusi Back URL (Retensi Session agar riwayat halaman asal tidak hilang saat reload halaman / setelah input data)
+		$referer = $this->request->getServer('HTTP_REFERER');
+		if ($referer && strpos($referer, 'view_tabel_dinamis') === false && strpos($referer, base_url()) !== false) {
+			$this->session->set('dda_back_url_' . $id_param, $referer);
+		}
+
+		$smartFallback = (!empty($tabel->id_unitkerja))
+			? base_url('admin/dda/view_tabel?id=' . $tabel->id_unitkerja)
+			: base_url('admin/dda');
+
+		$back_url = $this->session->get('dda_back_url_' . $id_param) ?: $smartFallback;
+
+		$structureKolom  = null;
+		$itemsKolom      = [];
+		$itemsBaris      = [];
+		$kelompokBaris   = null;
+		$itemsPeriode    = [];
+		$kelompokPeriode = null;
+		$nilaiMap        = [];
+		$available_years = [];
+		$selected_years  = [];
+		$configTampilan  = [
+			'total_horizontal'        => false,
+			'jenis_total_horizontal'  => 'sum',
+			'only_total_horizontal'   => false,
+			'group_total_horizontal'  => false,
+			'total_vertikal'          => true,
+			'jenis_total_vertikal'    => 'default',
+			'label_total_kustom'      => '',
+			'group_by_region'         => true,
+			'prioritas_karakteristik' => false,
+			'portrait_mode'           => false,
+			'portrait_split_col'      => false,
+		];
 
 		if ($indikator) {
+			// Parse config_tampilan JSON jika ada
+			$hasSavedCfgJson = false;
+			if (!empty($indikator->config_tampilan)) {
+				$decodedCfg = json_decode($indikator->config_tampilan, true);
+				if (is_array($decodedCfg)) {
+					$configTampilan = array_merge($configTampilan, $decodedCfg);
+					$hasSavedCfgJson = true;
+				}
+			}
+
+			// Sinkronisasi dengan setting kolom jika config_tampilan belum terisi
+			if (!$hasSavedCfgJson) {
+				if (!empty($indikator->posisi_hirarki)) {
+					if ($indikator->posisi_hirarki === 'periode_baris') {
+						$configTampilan['portrait_mode'] = true;
+						$configTampilan['portrait_split_col'] = false;
+					} elseif ($indikator->posisi_hirarki === 'periode_baris_pisah') {
+						$configTampilan['portrait_mode'] = true;
+						$configTampilan['portrait_split_col'] = true;
+					} elseif ($indikator->posisi_hirarki === 'kolom_atas') {
+						$configTampilan['prioritas_karakteristik'] = true;
+					}
+				}
+				if (isset($indikator->konfigurasi_total)) {
+					if ($indikator->konfigurasi_total === 'none') {
+						$configTampilan['total_vertikal'] = false;
+					} else {
+						$configTampilan['total_vertikal'] = true;
+						$configTampilan['jenis_total_vertikal'] = $indikator->konfigurasi_total;
+					}
+				}
+				if (($indikator->tipe_periode ?? '') === 'tahunan_jumlah') {
+					$configTampilan['total_horizontal'] = true;
+				}
+			}
+			if (!empty($indikator->label_total_kustom) && empty($configTampilan['label_total_kustom'])) {
+				$configTampilan['label_total_kustom'] = $indikator->label_total_kustom;
+			}
+
+			// Dukungan Live Preview dari Modal Konfigurasi tanpa simpan permanen
+			$previewRaw = $this->request->getGet('preview_config');
+			if (!empty($previewRaw)) {
+				$prevCfg = json_decode($previewRaw, true);
+				if (is_array($prevCfg)) {
+					$configTampilan = array_merge($configTampilan, $prevCfg);
+					if (isset($prevCfg['satuan'])) $indikator->satuan = $prevCfg['satuan'];
+					if (isset($prevCfg['desimal'])) $indikator->desimal = (int)$prevCfg['desimal'];
+					if (isset($prevCfg['tampilan_baris'])) $indikator->tampilan_baris = $prevCfg['tampilan_baris'];
+					if (isset($prevCfg['kolom_nomor'])) $indikator->kolom_nomor = $prevCfg['kolom_nomor'];
+					if (isset($prevCfg['tingkat_kolom'])) $indikator->tingkat_kolom = $prevCfg['tingkat_kolom'];
+				}
+			}
+
 			if (!empty($indikator->id_karakteristik_kelompok)) {
 				$itemsKolom     = $mTabelDinamis->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
 				$structureKolom = $mTabelDinamis->buildColumnStructure($itemsKolom);
@@ -5713,44 +7853,507 @@ class Admin extends BaseController
 				$itemsPeriode    = $mTabelDinamis->getPeriodeItems((int)$indikator->id_periode_kelompok);
 			}
 
-			// Ambil nilai sel dari t_nilai_dinamis
-			$nilaiRows = $this->db->table('t_nilai_dinamis')
-				->where('id_indikator', (int)$indikator->id)
-				->get()
-				->getResult();
+			// Daftar tahun yang ada datanya di t_nilai_dinamis
+			$available_years = $mTabelDinamis->getAvailableYears((int)$indikator->id);
 
-			foreach ($nilaiRows as $nr) {
-				$pid = (int)($nr->id_periode_item ?? 0);
-				$key = $nr->id_baris_item . '_' . $nr->id_karakteristik_item . '_' . $pid;
-				$val = $nr->nilai !== null ? (float)$nr->nilai : ($nr->simbol ?: null);
-				$nilaiMap[$key] = $val;
+			// Pastikan tahun aktif data ($thDataDefault = $ta - 1) selalu masuk daftar pilihan tahun di dropdown
+			$thDataDefault = $ta - 1;
+			$allSelectableYears = $available_years;
+			if (!in_array($thDataDefault, $allSelectableYears, true)) {
+				$allSelectableYears[] = $thDataDefault;
 			}
+
+			// Resolusi tahun terpilih:
+			// - Jika ada parameter URL (?tahun= / ?years=), gunakan pilihan manual user
+			// - Jika default:
+			//   * Tabel 1 Tahun (<= 1 tahun): Otomatis menampilkan tahun data aktif ($thDataDefault)
+			//   * Tabel Runtun Waktu (> 1 tahun): Pilihan B (Expanding Window: tahun lama + tahun data aktif)
+			$reqYears = $this->request->getGet('tahun') ?: $this->request->getGet('years');
+			$rawReqList = [];
+			if (!empty($reqYears)) {
+				$rawReqList = is_array($reqYears) ? $reqYears : explode(',', (string)$reqYears);
+			}
+
+			$selected_years = $mTabelDinamis->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
+
+			// Pastikan seluruh tahun terpilih masuk dalam daftar pilihan checkbox dropdown
+			foreach ($selected_years as $sy) {
+				if (!in_array($sy, $allSelectableYears, true)) {
+					$allSelectableYears[] = $sy;
+				}
+			}
+			sort($allSelectableYears);
+			sort($selected_years);
+
+			// Ambil semua sel nilai dari t_nilai_dinamis untuk indikator ini (Optimasi Index Seek)
+			$cleanYears = array_values(array_filter(array_map('intval', $selected_years)));
+			$nilaiBuilder = $this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id);
+			if (!empty($cleanYears)) {
+				$nilaiBuilder->whereIn('tahun_data', $cleanYears);
+			}
+			$nilaiRows = $nilaiBuilder->get()->getResult();
+
+			// 4D Map: [$tahun_data][$id_baris_item][$id_karakteristik_item][$id_periode_item]
+			foreach ($nilaiRows as $nr) {
+				$th = (int)$nr->tahun_data;
+				$bId = (int)$nr->id_baris_item;
+				$kId = (int)$nr->id_karakteristik_item;
+				$pId = (int)($nr->id_periode_item ?? 0);
+
+				$nilaiMap[$th][$bId][$kId][$pId] = [
+					'nilai'          => $nr->nilai !== null ? (float)$nr->nilai : null,
+					'simbol'         => $nr->simbol ?: null,
+					'jumlah_desimal' => $nr->jumlah_desimal !== null ? (int)$nr->jumlah_desimal : null,
+				];
+			}
+		} else {
+			$allSelectableYears = [$ta];
+			$selected_years = [$ta];
 		}
 
-		$a['page']            = 'v_tabel_dinamis';
-		$a['page_title']      = 'Pratinjau Tabel Dinamis';
-		$a['tabel']           = $tabel;
-		$a['indikator']       = $indikator;
-		$a['structureKolom']  = $structureKolom;
-		$a['itemsKolom']      = $itemsKolom;
-		$a['itemsBaris']      = $itemsBaris;
-		$a['kelompokBaris']   = $kelompokBaris;
-		$a['itemsPeriode']    = $itemsPeriode;
-		$a['kelompokPeriode'] = $kelompokPeriode ?? null;
-		$a['nilaiMap']        = $nilaiMap;
-		$a['is_admin_bps']    = ($this->session->get('admin_unitkerja') == 'bps');
+		// Judul Tabel Dinamis Berdasarkan Tahun yang Dipilih
+		$tipePeriodeTabel = $indikator->tipe_periode ?? 'tahunan';
+		$display_title_ind = function_exists('formatDynamicTableTitle')
+			? formatDynamicTableTitle($tabel->judul_ind, $selected_years, 'id', $tipePeriodeTabel)
+			: $tabel->judul_ind . ', ' . implode(', ', $selected_years);
+		$display_title_en  = function_exists('formatDynamicTableTitle')
+			? formatDynamicTableTitle($tabel->judul_en ?? $tabel->judul_ind, $selected_years, 'en', $tipePeriodeTabel)
+			: ($tabel->judul_en ?? $tabel->judul_ind) . ', ' . implode(', ', $selected_years);
+
+		// Fallback notice jika tahun data aktif belum punya data
+		$fallbackNotice = null;
+		if ($indikator && !empty($available_years) && !in_array($thDataDefault, $available_years, true) && in_array(end($available_years), $selected_years, true)) {
+			$lastYr = end($available_years);
+			$fallbackNotice = "Menampilkan data tahun {$lastYr} (Data {$thDataDefault} belum tersedia)";
+		}
+
+		$a['page']                 = 'v_tabel_dinamis';
+		$a['page_title']           = 'Pratinjau Tabel Dinamis';
+		$a['tabel']                = $tabel;
+		$a['indikator']            = $indikator;
+		$a['structureKolom']       = $structureKolom;
+		$a['itemsKolom']           = $itemsKolom;
+		$a['itemsBaris']           = $itemsBaris;
+		$a['kelompokBaris']        = $kelompokBaris;
+		$a['itemsPeriode']         = $itemsPeriode;
+		$a['kelompokPeriode']      = $kelompokPeriode ?? null;
+		$a['nilaiMap']             = $nilaiMap;
+		$a['available_years']      = $available_years;
+		$a['selectable_years']     = $allSelectableYears;
+		$a['selected_years']       = $selected_years;
+		$a['config_tampilan']      = $configTampilan;
+		$a['display_title_ind']    = $display_title_ind;
+		$a['display_title_en']     = $display_title_en;
+		$a['fallback_notice']      = $fallbackNotice;
+		$a['ta']                   = $ta;
+		$a['is_admin_bps']         = ($this->session->get('admin_unitkerja') == 'bps' || in_array(strtolower((string)$this->session->get('admin_level')), ['admin', 'super admin', 'superadmin']));
+		$a['back_url']             = $back_url;
 
 		return view('admin/index', $a);
 	}
 
-	// =========================================================================
-	// MODUL TABEL DINAMIS: SERVICE PARSER & UPLOAD EXCEL WALIDATA (SPRINT 5)
-	// =========================================================================
+	/**
+	 * Endpoint Pratinjau Unggahan Excel Tabel Dinamis
+	 * Memvalidasi integritas struktur (anchor validation), parsing nilai,
+	 * menyimpan ke session cache sementara, dan mengembalikan HTML preview tabel matriks.
+	 */
+	public function preview_upload_excel_dinamis()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON([
+				'status'  => 'error',
+				'message' => 'Sesi login telah berakhir. Silakan login kembali.'
+			]);
+		}
+
+		if (!can('input_dda_input')) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'  => 'error',
+				'message' => 'Akses ditolak! Akun Anda (Walidata OPD) tidak berwenang mengunggah berkas Excel. Data OPD terhubung secara otomatis via Portal Satu Data Pemprov Jateng.'
+			]);
+		}
+
+		$id_tahun_tabel = (int)$this->request->getPost('id_tahun_tabel');
+		if (empty($id_tahun_tabel)) {
+			return $this->response->setStatusCode(400)->setJSON([
+				'status'  => 'error',
+				'message' => 'ID Tabel tidak valid.'
+			]);
+		}
+
+		// Proteksi IDOR
+		$tabel = $this->db->table('m_list_tabel')
+			->select('id, id_unitkerja, no_tabel, judul_ind, judul_en')
+			->where('id', $id_tahun_tabel)
+			->get()->getRow();
+
+		if (!$tabel) {
+			return $this->response->setStatusCode(404)->setJSON([
+				'status'  => 'error',
+				'message' => 'Data tabel tidak ditemukan.'
+			]);
+		}
+
+		if (!$this->canManageTable($tabel)) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'  => 'error',
+				'message' => 'Akses ditolak! Anda tidak memiliki izin untuk mengunggah data pada tabel milik OPD/instansi lain.'
+			]);
+		}
+
+		$file = $this->request->getFile('file_excel');
+		if (!$file || !$file->isValid()) {
+			return $this->response->setStatusCode(400)->setJSON([
+				'status'  => 'error',
+				'message' => 'Berkas Excel tidak valid atau belum dipilih.'
+			]);
+		}
+
+		$ext = strtolower($file->getClientExtension());
+		if ($ext !== 'xlsx') {
+			return $this->response->setStatusCode(400)->setJSON([
+				'status'  => 'error',
+				'message' => 'Format berkas tidak valid! Harap unggah berkas berekstensi .xlsx.'
+			]);
+		}
+
+		try {
+			$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+			$defaultTahunData = $ta - 1;
+			$tahun_data_post = (int)$this->request->getPost('tahun_data') ?: $defaultTahunData;
+
+			$parser = new \App\Libraries\ExcelDataParser();
+			$parseResult = $parser->parse($file->getTempName(), $id_tahun_tabel, $tahun_data_post);
+
+			// Tolak jika berkas 100% kosong (0 sel terisi)
+			if ((int)($parseResult['filled_cells'] ?? 0) === 0) {
+				return $this->response->setStatusCode(422)->setJSON([
+					'status'  => 'error',
+					'message' => 'Berkas Excel yang diunggah masih kosong (0 sel terisi). Harap lengkapi nilai atau simbol statistik BPS sebelum mengunggah.'
+				]);
+			}
+
+			// Simpan hasil parse ke session cache sementara
+			$uploadToken = bin2hex(random_bytes(16));
+			$this->session->set('upload_preview_' . $uploadToken, [
+				'id_tahun_tabel' => (int)$tabel->id,
+				'id_indikator'   => (int)$parseResult['id_indikator'],
+				'tahun_data'     => (int)$parseResult['tahun_data'],
+				'total_cells'    => (int)$parseResult['total_cells'],
+				'filled_cells'   => (int)$parseResult['filled_cells'],
+				'empty_cells'    => (int)$parseResult['empty_cells'],
+				'symbol_cells'   => (int)($parseResult['symbol_cells'] ?? 0),
+				'cells_data'     => $parseResult['cells_data'],
+				'file_name'      => $file->getClientName(),
+				'file_size'      => $file->getSize(),
+				'created_at'     => time(),
+			]);
+
+			// Siapkan data matriks untuk rendering pratinjau
+			$mTabelDinamis = new \App\Models\M_tabeldinamis();
+			$indikator = $mTabelDinamis->getIndikator((int)$parseResult['id_indikator']);
+			$id_baris = (int)($indikator->id_baris_kelompok ?? 0);
+			$itemsBaris = $id_baris > 0 ? $mTabelDinamis->getBarisItems($id_baris) : [];
+			$kelompokBaris = $id_baris > 0 ? $mTabelDinamis->getBarisKelompok($id_baris) : null;
+			$id_karakteristik = (int)($indikator->id_karakteristik_kelompok ?? 0);
+			$itemsKolom = $id_karakteristik > 0 ? $mTabelDinamis->getKarakteristikItems($id_karakteristik) : [];
+			$structureKolom = !empty($itemsKolom) ? $mTabelDinamis->buildColumnStructure($itemsKolom) : [];
+			$id_periode = (int)($indikator->id_periode_kelompok ?? 0);
+			$itemsPeriode = $id_periode > 0 ? $mTabelDinamis->getPeriodeItems($id_periode) : [];
+			$kelompokPeriode = $id_periode > 0 ? $mTabelDinamis->getPeriodeKelompok($id_periode) : null;
+			$configTampilan = !empty($indikator->config_tampilan) ? json_decode($indikator->config_tampilan, true) : [];
+
+			// Ambil data eksisting dari database untuk tahun_data ini (jika ada)
+			$targetTahun  = (int)$parseResult['tahun_data'];
+			$existingRows = $this->db->table('t_nilai_dinamis')
+				->select('id_baris_item, id_karakteristik_item, id_periode_item, nilai, simbol, jumlah_desimal')
+				->where('id_indikator', (int)$parseResult['id_indikator'])
+				->where('tahun_data', $targetTahun)
+				->get()->getResult();
+
+			$existingMap = [];
+			$existingFilledCount = 0;
+			foreach ($existingRows as $er) {
+				$ebId = (int)$er->id_baris_item;
+				$ekId = (int)$er->id_karakteristik_item;
+				$epId = (int)($er->id_periode_item ?? 0);
+				$isErFilled = ($er->nilai !== null && $er->nilai !== '') || !empty($er->simbol);
+				if ($isErFilled) {
+					$existingFilledCount++;
+				}
+				$existingMap[$ebId][$ekId][$epId] = [
+					'nilai'          => $er->nilai !== null ? (float)$er->nilai : null,
+					'simbol'         => $er->simbol ?: null,
+					'jumlah_desimal' => $er->jumlah_desimal !== null ? (int)$er->jumlah_desimal : null,
+					'is_filled'      => $isErFilled,
+				];
+			}
+
+			$hasExistingData = ($existingFilledCount > 0);
+			$modifiedCount   = 0;
+			$sameCount       = 0;
+			$newCount        = 0;
+
+			// Bentuk 4D map untuk tabel matriks dengan deteksi visual diffing
+			$previewNilaiMap = [];
+			foreach ($parseResult['cells_data'] as $c) {
+				$th  = (int)$c['tahun_data'];
+				$bId = (int)$c['id_baris_item'];
+				$kId = (int)$c['id_karakteristik_item'];
+				$pId = (int)($c['id_periode_item'] ?? 0);
+
+				$newVal  = $c['nilai'] !== null ? (float)$c['nilai'] : null;
+				$newSimb = !empty($c['simbol']) ? trim((string)$c['simbol']) : null;
+				$newDec  = $c['jumlah_desimal'] !== null ? (int)$c['jumlah_desimal'] : null;
+				$isNewFilled = ($newVal !== null) || (!empty($newSimb));
+
+				$statusDiff = 'empty';
+				$oldVal     = null;
+				$oldSimb    = null;
+
+				if ($hasExistingData) {
+					$oldCell = $existingMap[$bId][$kId][$pId] ?? null;
+					$isOldFilled = !empty($oldCell['is_filled']);
+					$oldVal      = $oldCell['nilai'] ?? null;
+					$oldSimb     = $oldCell['simbol'] ?? null;
+
+					if ($isNewFilled && $isOldFilled) {
+						$isValSame = true;
+						if ($newVal !== null && $oldVal !== null) {
+							$isValSame = (abs($newVal - $oldVal) < 0.00001);
+						} elseif ($newVal !== null || $oldVal !== null) {
+							$isValSame = false;
+						}
+
+						$isSimbSame = ($newSimb === $oldSimb);
+
+						if ($isValSame && $isSimbSame) {
+							$statusDiff = 'same';
+							$sameCount++;
+						} else {
+							$statusDiff = 'modified';
+							$modifiedCount++;
+						}
+					} elseif ($isNewFilled && !$isOldFilled) {
+						$statusDiff = 'new';
+						$newCount++;
+					} elseif (!$isNewFilled && $isOldFilled) {
+						$statusDiff = 'removed';
+						$modifiedCount++;
+					} else {
+						$statusDiff = 'empty';
+					}
+				} else {
+					$statusDiff = $isNewFilled ? 'new' : 'empty';
+				}
+
+				$previewNilaiMap[$th][$bId][$kId][$pId] = [
+					'nilai'          => $newVal,
+					'simbol'         => $newSimb,
+					'jumlah_desimal' => $newDec,
+					'status_diff'    => $statusDiff,
+					'old_nilai'      => $oldVal,
+					'old_simbol'     => $oldSimb,
+				];
+			}
+
+			$summaryData = [
+				'total_cells'        => (int)$parseResult['total_cells'],
+				'filled_cells'       => (int)$parseResult['filled_cells'],
+				'empty_cells'        => (int)$parseResult['empty_cells'],
+				'has_existing_data'  => $hasExistingData,
+				'modified_cells'     => $modifiedCount,
+				'same_cells'         => $sameCount,
+				'new_cells'          => $newCount,
+			];
+
+			$htmlPreview = view('admin/parts/preview_upload_dinamis', [
+				'tabel'           => $tabel,
+				'indikator'       => $indikator,
+				'tahun_data'      => $targetTahun,
+				'file_name'       => $file->getClientName(),
+				'file_size'       => $file->getSize(),
+				'summary'         => $summaryData,
+				'hasExistingData' => $hasExistingData,
+				'upload_token'    => $uploadToken,
+				'structureKolom'  => $structureKolom,
+				'itemsKolom'      => $itemsKolom,
+				'itemsBaris'      => $itemsBaris,
+				'kelompokBaris'   => $kelompokBaris,
+				'itemsPeriode'    => $itemsPeriode,
+				'kelompokPeriode' => $kelompokPeriode,
+				'nilaiMap'        => $previewNilaiMap,
+				'config_tampilan' => $configTampilan,
+			]);
+
+			return $this->response->setJSON([
+				'status'       => 'success',
+				'upload_token' => $uploadToken,
+				'summary'      => $summaryData,
+				'html_preview' => $htmlPreview,
+				'csrf_token'   => csrf_token(),
+				'csrf_hash'    => csrf_hash(),
+			]);
+		} catch (\Throwable $e) {
+			log_message('error', 'Error preview_upload_excel_dinamis: ' . $e->getMessage());
+			return $this->response->setStatusCode(422)->setJSON([
+				'status'     => 'error',
+				'message'    => $e->getMessage(),
+				'csrf_token' => csrf_token(),
+				'csrf_hash'  => csrf_hash(),
+			]);
+		}
+	}
 
 	/**
-	 * Endpoint Upload & Parsing Berkas Excel Walidata (.xlsx)
-	 * Membaca lembar tersembunyi __METADATA_DDA__ dan melakukan batch upsert ke t_nilai_dinamis
+	 * Endpoint Konfirmasi Impor Data Excel ke Database
+	 * Mengambil data dari session staging token, melakukan transaksi batch upsert ke t_nilai_dinamis,
+	 * memperbarui t_status_tahunan, dan menyinkronkan snapshot cache JSON DDA.
 	 */
+	public function confirm_upload_excel_dinamis()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON([
+				'status'  => 'error',
+				'message' => 'Sesi login telah berakhir. Silakan login kembali.'
+			]);
+		}
+
+		if (!can('input_dda_input')) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'  => 'error',
+				'message' => 'Akses ditolak! Akun Anda (Walidata OPD) tidak berwenang menyimpan data Excel. Data OPD terhubung secara otomatis via Portal Satu Data Pemprov Jateng.'
+			]);
+		}
+
+		$uploadToken    = trim((string)$this->request->getPost('upload_token'));
+		$id_tahun_tabel = (int)$this->request->getPost('id_tahun_tabel');
+
+		if (empty($uploadToken)) {
+			return $this->response->setStatusCode(400)->setJSON([
+				'status'  => 'error',
+				'message' => 'Token unggahan tidak valid atau telah kadaluarsa.'
+			]);
+		}
+
+		$sessionKey = 'upload_preview_' . $uploadToken;
+		$stagedData = $this->session->get($sessionKey);
+
+		if (empty($stagedData) || !is_array($stagedData)) {
+			return $this->response->setStatusCode(410)->setJSON([
+				'status'  => 'error',
+				'message' => 'Sesi pratinjau telah berakhir atau berkas telah kedaluwarsa. Silakan pilih dan unggah kembali berkas Anda.'
+			]);
+		}
+
+		// Validasi IDOR
+		$tabel = $this->db->table('m_list_tabel')
+			->select('id, id_unitkerja, no_tabel')
+			->where('id', (int)$stagedData['id_tahun_tabel'])
+			->get()->getRow();
+
+		if (!$tabel) {
+			return $this->response->setStatusCode(404)->setJSON([
+				'status'  => 'error',
+				'message' => 'Data tabel tidak ditemukan.'
+			]);
+		}
+
+		if (!$this->canManageTable($tabel)) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'     => 'error',
+				'message'    => 'Akses ditolak! Anda tidak memiliki izin untuk mengunggah data pada tabel milik OPD/instansi lain.',
+				'csrf_token' => csrf_token(),
+				'csrf_hash'  => csrf_hash(),
+			]);
+		}
+
+		$filledCount = (int)($stagedData['filled_cells'] ?? 0);
+		if ($filledCount === 0) {
+			return $this->response->setStatusCode(422)->setJSON([
+				'status'     => 'error',
+				'message'    => 'Tidak ada data yang dapat disimpan karena seluruh sel data dalam berkas Excel masih kosong (0 sel terisi). Silakan isi angka pada kolom data berkas template terlebih dahulu.',
+				'csrf_token' => csrf_token(),
+				'csrf_hash'  => csrf_hash(),
+			]);
+		}
+
+		try {
+			$this->db->transStart();
+
+			$mTabelDinamis   = new \App\Models\M_tabeldinamis();
+			$tahunDataTarget = (int)$stagedData['tahun_data'];
+			$cellsData       = $stagedData['cells_data'] ?? [];
+
+			$affected = $mTabelDinamis->saveNilaiBatch((int)$stagedData['id_indikator'], $cellsData, $tahunDataTarget);
+
+			// Update status pengisian di t_status_tahunan
+			$ta           = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Walidata');
+			$catatan      = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
+
+			$tahunTargetDda = !empty($tahunDataTarget) ? ($tahunDataTarget + 1) : (int)$ta;
+			$mTabelDinamis->upsertStatusTahunan((int)$tabel->id, (int)$tahunTargetDda, [
+				'is_periksa'      => 1,
+				'is_confirm'      => '2',
+				'catatan_periksa' => $catatan
+			]);
+
+			$this->db->transComplete();
+
+			if ($this->db->transStatus() === false) {
+				throw new \Exception("Gagal menyimpan data ke database. Seluruh transaksi dibatalkan (rollback).");
+			}
+
+			// Hapus session staging token setelah berhasil commit
+			$this->session->remove($sessionKey);
+
+			// Sinkronisasi Cache Snapshot DDA (Matching PDF & Live Validation)
+			try {
+				$tahunTabel = (string)$ta;
+				$cleanNo    = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $tabel->no_tabel ?? ''));
+				$cleanNo    = rtrim($cleanNo, '.');
+
+				$dbJsonPath = WRITEPATH . "uploads/dda_db_{$tahunTabel}.json";
+				if (file_exists($dbJsonPath)) {
+					$dynInfoAfter = $mTabelDinamis->exportSingleDynamicTable((int)$tabel->id);
+					$dbList       = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
+					foreach ($dbList as &$dbItem) {
+						if ((int)($dbItem['id_db'] ?? 0) === (int)$tabel->id || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
+							$dbItem['dynamic_empty'] = false;
+							if (!empty($dynInfoAfter['dynamic_grid'])) {
+								$dbItem['dynamic_grid'] = $dynInfoAfter['dynamic_grid'];
+							}
+							$dbItem['cell_count'] = $dynInfoAfter['cell_count'] ?? $filledCount;
+							break;
+						}
+					}
+					unset($dbItem);
+					@file_put_contents($dbJsonPath, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+				}
+			} catch (\Throwable $eSnap) {
+				log_message('error', 'Gagal update snapshot JSON: ' . $eSnap->getMessage());
+			}
+
+			return $this->response->setJSON([
+				'status'       => 'success',
+				'message'      => 'Data pengisian tabel dinamis berhasil diverifikasi dan disimpan ke database.',
+				'filled_cells' => $filledCount,
+				'csrf_token'   => csrf_token(),
+				'csrf_hash'    => csrf_hash(),
+			]);
+		} catch (\Throwable $e) {
+			$this->db->transRollback();
+			log_message('error', 'Error confirm_upload_excel_dinamis: ' . $e->getMessage());
+			return $this->response->setStatusCode(500)->setJSON([
+				'status'     => 'error',
+				'message'    => 'Terjadi kesalahan sistem saat menyimpan data: ' . $e->getMessage(),
+				'csrf_token' => csrf_token(),
+				'csrf_hash'  => csrf_hash(),
+			]);
+		}
+	}
 	public function upload_excel_dinamis()
 	{
 		// Cek otentikasi login
@@ -5764,6 +8367,17 @@ class Admin extends BaseController
 			return redirect()->to("admin/login");
 		}
 
+		if (!can('input_dda_input')) {
+			if ($this->request->isAJAX()) {
+				return $this->response->setStatusCode(403)->setJSON([
+					'status'  => 'error',
+					'message' => 'Akses ditolak: Walidata OPD tidak berwenang mengunggah berkas Excel.'
+				]);
+			}
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak: Walidata OPD tidak berwenang mengunggah berkas Excel.</div>');
+			return redirect()->back();
+		}
+
 		$id_tahun_tabel = (int)$this->request->getPost('id_tahun_tabel');
 		if (empty($id_tahun_tabel)) {
 			$errMsg = 'ID Tabel tidak valid.';
@@ -5775,10 +8389,9 @@ class Admin extends BaseController
 		}
 
 		// Proteksi IDOR: Validasi keberadaan tabel & otorisasi kepemilikan OPD
-		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, m.id_unitkerja')
-			->join('m_list_tabel m', 't.id_tabel = m.id')
-			->where('t.id', $id_tahun_tabel)
+		$tabel = $this->db->table('m_list_tabel')
+			->select('id, id_unitkerja, no_tabel')
+			->where('id', $id_tahun_tabel)
 			->get()->getRow();
 
 		if (!$tabel) {
@@ -5790,19 +8403,13 @@ class Admin extends BaseController
 			return redirect()->back();
 		}
 
-		$user_level     = strtolower(trim((string)$this->session->get('admin_level')));
-		$unitkerjalogin = $this->session->get('admin_unitkerja');
-
-		// Hanya Admin/Super Admin atau akun BPS yang berwenang mengunggah ke tabel instansi mana saja
-		if (!in_array($user_level, ['admin', 'super admin', 'superadmin']) && $unitkerjalogin !== 'bps') {
-			if ($tabel->id_unitkerja != $unitkerjalogin) {
-				$errMsg = 'Akses ditolak! Anda tidak memiliki izin untuk mengunggah data pada tabel milik OPD/instansi lain.';
-				if ($this->request->isAJAX()) {
-					return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => $errMsg]);
-				}
-				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">{$errMsg}</div>");
-				return redirect()->back();
+		if (!$this->canManageTable($tabel)) {
+			$errMsg = 'Akses ditolak! Anda tidak memiliki izin untuk mengunggah data pada tabel milik OPD/instansi lain.';
+			if ($this->request->isAJAX()) {
+				return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => $errMsg]);
 			}
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">{$errMsg}</div>");
+			return redirect()->back();
 		}
 
 		$file = $this->request->getFile('file_excel');
@@ -5828,22 +8435,40 @@ class Admin extends BaseController
 		try {
 			$this->db->transStart();
 
+			$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+			$defaultTahunData = $ta - 1;
+			$tahun_data_post = (int)$this->request->getPost('tahun_data') ?: $defaultTahunData;
 			$parser = new \App\Libraries\ExcelDataParser();
-			$parseResult = $parser->parse($file->getTempName(), $id_tahun_tabel);
+			$parseResult = $parser->parse($file->getTempName(), $id_tahun_tabel, $tahun_data_post);
+
+			// Validasi Opsi A: Tolak jika berkas template 100% kosong (0 sel terisi)
+			if ((int)($parseResult['filled_cells'] ?? 0) === 0) {
+				$this->db->transRollback();
+				$errMsg = 'Berkas Excel yang diunggah masih kosong (0 sel terisi). Harap lengkapi nilai atau simbol statistik BPS (misal: "-" atau "...") sebelum mengunggah.';
+				if ($this->request->isAJAX()) {
+					return $this->response->setStatusCode(422)->setJSON([
+						'status'  => 'error',
+						'message' => $errMsg
+					]);
+				}
+				$this->session->setFlashdata("k", "<div class=\"alert alert-warning d-flex align-items-center gap-2\" id=\"alert\"><i class=\"bi bi-exclamation-triangle-fill fs-5\"></i><div>{$errMsg}</div></div>");
+				return redirect()->back();
+			}
 
 			$mTabelDinamis = new \App\Models\M_tabeldinamis();
-			$affected = $mTabelDinamis->batchUpsertNilai((int)$parseResult['id_indikator'], $parseResult['cells_data']);
+			$tahunDataTarget = (int)($parseResult['tahun_data'] ?? $defaultTahunData);
+			$affected = $mTabelDinamis->saveNilaiBatch((int)$parseResult['id_indikator'], $parseResult['cells_data'], $tahunDataTarget);
 
-			// Update status pengisian di t_tahun_tabel
+			// Update status pengisian di t_status_tahunan
 			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Walidata');
 			$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
 
-			$this->db->table('t_tahun_tabel')
-				->where('id', $id_tahun_tabel)
-				->update([
-					'is_periksa'      => 1,
-					'catatan_periksa' => $catatan
-				]);
+			$tahunTargetDda = !empty($tahunDataTarget) ? ($tahunDataTarget + 1) : (int)$ta;
+			$mTabelDinamis->upsertStatusTahunan((int)$tabel->id, (int)$tahunTargetDda, [
+				'is_periksa'      => 1,
+				'is_confirm'      => '2',
+				'catatan_periksa' => $catatan
+			]);
 
 			$this->db->transComplete();
 
@@ -5853,17 +8478,16 @@ class Admin extends BaseController
 
 			// Sinkronisasi Cache Snapshot DDA (Matching PDF & Live Validation)
 			try {
-				$tabelInfo = $this->db->table('t_tahun_tabel')->where('id', $id_tahun_tabel)->get()->getRow();
-				$tahunTabel = $tabelInfo->tahun ?? date('Y');
-				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $tabelInfo->no_tabel ?? ''));
+				$tahunTabel = (string)$ta;
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $tabel->no_tabel ?? ''));
 				$cleanNo = rtrim($cleanNo, '.');
 
 				$dbJsonPath = WRITEPATH . "uploads/dda_db_{$tahunTabel}.json";
 				if (file_exists($dbJsonPath)) {
-					$dynInfoAfter = $mTabelDinamis->exportSingleDynamicTable($id_tahun_tabel);
+					$dynInfoAfter = $mTabelDinamis->exportSingleDynamicTable((int)$tabel->id);
 					$dbList = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
 					foreach ($dbList as &$dbItem) {
-						if ((int)($dbItem['id_db'] ?? 0) === $id_tahun_tabel || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
+						if ((int)($dbItem['id_db'] ?? 0) === (int)$tabel->id || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
 							$dbItem['dynamic_empty'] = false;
 							if (!empty($dynInfoAfter['dynamic_grid'])) {
 								$dbItem['dynamic_grid'] = $dynInfoAfter['dynamic_grid'];
@@ -5905,9 +8529,10 @@ class Admin extends BaseController
 
 			return redirect()->back();
 		} catch (\Throwable $e) {
+			$this->db->transRollback();
 			$errMsg = $e->getMessage();
 			if ($this->request->isAJAX()) {
-				return $this->response->setJSON([
+				return $this->response->setStatusCode(422)->setJSON([
 					'status'  => 'error',
 					'message' => $errMsg
 				]);
@@ -5934,10 +8559,10 @@ class Admin extends BaseController
 		}
 
 		// Proteksi IDOR: Cek keberadaan tabel & otorisasi kepemilikan OPD
-		$tabel = $this->db->table('t_tahun_tabel t')
-			->select('t.id, m.id_unitkerja')
-			->join('m_list_tabel m', 't.id_tabel = m.id')
-			->where('t.id', $id)
+		$ta = (int)($this->session->get('admin_ta') ?: date('Y'));
+		$tabel = $this->db->table('m_list_tabel')
+			->select('id, id_unitkerja')
+			->where('id', $id)
 			->get()->getRow();
 
 		if (!$tabel) {
@@ -5947,22 +8572,15 @@ class Admin extends BaseController
 			]);
 		}
 
-		$user_level     = strtolower(trim((string)$this->session->get('admin_level')));
-		$unitkerjalogin = $this->session->get('admin_unitkerja');
-
-		// Hanya Admin/Super Admin atau akun BPS yang berwenang mengubah catatan tabel instansi mana saja
-		if (!in_array($user_level, ['admin', 'super admin', 'superadmin']) && $unitkerjalogin !== 'bps') {
-			if ($tabel->id_unitkerja != $unitkerjalogin) {
-				return $this->response->setStatusCode(403)->setJSON([
-					'status'  => 'error',
-					'message' => 'Akses ditolak! Anda tidak memiliki izin untuk memperbarui catatan tabel instansi lain.'
-				]);
-			}
+		if (!$this->canManageTable($tabel)) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'  => 'error',
+				'message' => 'Akses ditolak! Anda tidak memiliki izin untuk memperbarui catatan tabel instansi lain.'
+			]);
 		}
 
-		$this->db->table('t_tahun_tabel')
-			->where('id', $id)
-			->update(['catatan' => $catatan]);
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$mTabelDinamis->upsertStatusTahunan((int)$id, $ta, ['catatan' => $catatan]);
 
 		return $this->response->setJSON([
 			'status'  => 'success',
@@ -5970,6 +8588,339 @@ class Admin extends BaseController
 			'catatan' => $catatan
 		]);
 	}
+
+	/**
+	 * Endpoint AJAX: Simpan Konfigurasi Tampilan Tabel Dinamis
+	 * Menyimpan ke m_indikator_tabel.config_tampilan serta sinkronisasi posisi_hirarki & konfigurasi_total
+	 */
+	public function ajax_save_konfigurasi_tampilan_dinamis()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Sesi berakhir']);
+		}
+
+		$id_indikator = (int)$this->request->getPost('id_indikator');
+		if (!$id_indikator) {
+			$id_tabel = (int)$this->request->getPost('id_tabel');
+			if ($id_tabel > 0) {
+				$ind = $this->db->table('m_indikator_tabel')->where('id_tabel', $id_tabel)->get()->getRow();
+				if ($ind) $id_indikator = (int)$ind->id;
+			}
+		}
+
+		if (!$id_indikator) {
+			return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'ID Indikator tidak valid']);
+		}
+
+		$indRow = $this->db->table('m_indikator_tabel')->where('id', $id_indikator)->get()->getRow();
+		if (!$indRow) {
+			return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Indikator tabel tidak ditemukan']);
+		}
+
+		if (!empty($indRow->id_tabel)) {
+			$tabelRow = $this->db->table('m_list_tabel')->where('id', (int)$indRow->id_tabel)->get()->getRow();
+			if ($tabelRow && !$this->canManageTable($tabelRow)) {
+				return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Anda tidak berwenang mengubah konfigurasi tabel instansi lain.']);
+			}
+		}
+
+		$configRaw = $this->request->getPost('config_json');
+		$cfg = [];
+		if (!empty($configRaw)) {
+			$cfg = json_decode($configRaw, true) ?: [];
+		}
+
+		$mergedConfig = [
+			'total_horizontal'        => isset($cfg['total_horizontal']) ? (bool)$cfg['total_horizontal'] : ($this->request->getPost('total_horizontal') === '1' || $this->request->getPost('total_horizontal') === 'true'),
+			'jenis_total_horizontal'  => $cfg['jenis_total_horizontal'] ?? ($this->request->getPost('jenis_total_horizontal') ?: 'sum'),
+			'only_total_horizontal'   => isset($cfg['only_total_horizontal']) ? (bool)$cfg['only_total_horizontal'] : ($this->request->getPost('only_total_horizontal') === '1' || $this->request->getPost('only_total_horizontal') === 'true'),
+			'group_total_horizontal'  => isset($cfg['group_total_horizontal']) ? (bool)$cfg['group_total_horizontal'] : ($this->request->getPost('group_total_horizontal') === '1' || $this->request->getPost('group_total_horizontal') === 'true'),
+			'total_vertikal'          => isset($cfg['total_vertikal']) ? (bool)$cfg['total_vertikal'] : ($this->request->getPost('total_vertikal') === '1' || $this->request->getPost('total_vertikal') === 'true'),
+			'jenis_total_vertikal'    => $cfg['jenis_total_vertikal'] ?? ($this->request->getPost('jenis_total_vertikal') ?: 'default'),
+			'label_total_kustom'      => $cfg['label_total_kustom'] ?? ($this->request->getPost('label_total_kustom') ?: ''),
+			'tahun_runtun_waktu'      => $cfg['tahun_runtun_waktu'] ?? ($this->request->getPost('tahun_runtun_waktu') ?: []),
+			'group_by_region'         => isset($cfg['group_by_region']) ? (bool)$cfg['group_by_region'] : ($this->request->getPost('group_by_region') === '1' || $this->request->getPost('group_by_region') === 'true'),
+			'prioritas_karakteristik' => isset($cfg['prioritas_karakteristik']) ? (bool)$cfg['prioritas_karakteristik'] : ($this->request->getPost('prioritas_karakteristik') === '1' || $this->request->getPost('prioritas_karakteristik') === 'true'),
+			'portrait_mode'           => isset($cfg['portrait_mode']) ? (bool)$cfg['portrait_mode'] : ($this->request->getPost('portrait_mode') === '1' || $this->request->getPost('portrait_mode') === 'true'),
+			'portrait_split_col'      => isset($cfg['portrait_split_col']) ? (bool)$cfg['portrait_split_col'] : ($this->request->getPost('portrait_split_col') === '1' || $this->request->getPost('portrait_split_col') === 'true'),
+		];
+
+		// Sinkronisasi posisi_hirarki
+		$posisi_hirarki = 'periode_atas';
+		if ($mergedConfig['portrait_mode']) {
+			$posisi_hirarki = $mergedConfig['portrait_split_col'] ? 'periode_baris_pisah' : 'periode_baris';
+		} elseif ($mergedConfig['prioritas_karakteristik']) {
+			$posisi_hirarki = 'kolom_atas';
+		}
+
+		// Sinkronisasi konfigurasi_total
+		$konfigurasi_total = 'default';
+		if (!$mergedConfig['total_vertikal']) {
+			$konfigurasi_total = 'none';
+		} else {
+			$konfigurasi_total = $mergedConfig['jenis_total_vertikal'] ?: 'default';
+		}
+
+		$updateData = [
+			'config_tampilan'    => json_encode($mergedConfig),
+			'posisi_hirarki'     => $posisi_hirarki,
+			'konfigurasi_total'  => $konfigurasi_total,
+			'label_total_kustom' => !empty($mergedConfig['label_total_kustom']) ? $mergedConfig['label_total_kustom'] : null,
+			'updated_at'         => date('Y-m-d H:i:s'),
+		];
+
+		if ($this->request->getPost('satuan') !== null) {
+			$updateData['satuan'] = trim((string)$this->request->getPost('satuan'));
+		}
+		if ($this->request->getPost('desimal') !== null) {
+			$updateData['desimal'] = (int)$this->request->getPost('desimal');
+		}
+		if ($this->request->getPost('tampilan_baris') !== null) {
+			$updateData['tampilan_baris'] = trim((string)$this->request->getPost('tampilan_baris'));
+		}
+		if ($this->request->getPost('kolom_nomor') !== null) {
+			$updateData['kolom_nomor'] = trim((string)$this->request->getPost('kolom_nomor'));
+		}
+
+		$this->db->table('m_indikator_tabel')->where('id', $id_indikator)->update($updateData);
+
+		return $this->response->setJSON([
+			'status'  => 'success',
+			'message' => 'Konfigurasi tampilan tabel berhasil disimpan.',
+			'config'  => $mergedConfig,
+		]);
+	}
+
+	/**
+	 * Endpoint AJAX: Kunci Pilihan Tahun Ini Sebagai Default Tampil
+	 */
+	public function ajax_save_default_tahun_tampil()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Sesi berakhir']);
+		}
+
+		$id_indikator = (int)$this->request->getPost('id_indikator');
+		if (!$id_indikator) {
+			$id_tabel = (int)$this->request->getPost('id_tabel');
+			if ($id_tabel > 0) {
+				$ind = $this->db->table('m_indikator_tabel')->where('id_tabel', $id_tabel)->get()->getRow();
+				if ($ind) $id_indikator = (int)$ind->id;
+			}
+		}
+
+		if (!$id_indikator) {
+			return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'ID Indikator tidak valid']);
+		}
+
+		$indRow = $this->db->table('m_indikator_tabel')->where('id', $id_indikator)->get()->getRow();
+		if (!$indRow) {
+			return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Indikator tabel tidak ditemukan']);
+		}
+
+		if (!empty($indRow->id_tabel)) {
+			$tabelRow = $this->db->table('m_list_tabel')->where('id', (int)$indRow->id_tabel)->get()->getRow();
+			if ($tabelRow && !$this->canManageTable($tabelRow)) {
+				return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Anda tidak berwenang mengubah konfigurasi tabel instansi lain.']);
+			}
+		}
+
+		$tahun_tampil_raw = $this->request->getPost('tahun_tampil');
+		$years = [];
+		if (is_array($tahun_tampil_raw)) {
+			$years = $tahun_tampil_raw;
+		} elseif (!empty($tahun_tampil_raw)) {
+			$years = explode(',', (string)$tahun_tampil_raw);
+		}
+
+		$cleanYears = array_values(array_unique(array_filter(array_map('intval', $years))));
+		sort($cleanYears);
+		$tahunStr = implode(',', $cleanYears);
+
+		$this->db->table('m_indikator_tabel')
+			->where('id', $id_indikator)
+			->update([
+				'tahun_tampil' => $tahunStr ?: null,
+				'updated_at'   => date('Y-m-d H:i:s'),
+			]);
+
+		return $this->response->setJSON([
+			'status'       => 'success',
+			'message'      => 'Tahun tampil default berhasil dikunci.',
+			'tahun_tampil' => $tahunStr,
+		]);
+	}
+
+	/**
+	 * Endpoint AJAX: Preview Cepat 5 Baris Matriks Tabel Dinamis
+	 * Menghasilkan cuplikan HTML 5 baris table_matrix_dinamis tanpa menyimpan ke database.
+	 */
+	public function ajax_preview_matrix_dinamis()
+	{
+		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
+			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Sesi berakhir']);
+		}
+
+		$id_tabel = (int)$this->request->getPost('id_tabel');
+		$id_indikator = (int)$this->request->getPost('id_indikator');
+		if (!$id_tabel && !$id_indikator) {
+			return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => 'ID Tabel atau Indikator tidak valid']);
+		}
+
+		$ta = (int)($this->session->get('admin_ta') ?: ($this->session->get('tahun') ?: date('Y')));
+		$thDataDefault = (int)$ta - 1;
+		$mTabelDinamis = new \App\Models\M_tabeldinamis();
+		$context = $mTabelDinamis->resolveTableContext($id_tabel ?: $id_indikator, $ta);
+		$tabel = $context['tabel'] ?? null;
+		$indikator = $context['indikator'] ?? null;
+
+		if (!$tabel) {
+			return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Data tabel tidak ditemukan']);
+		}
+
+		// Lengkapi objek tabel
+		$tabel->id_tahun_tabel = (int)$tabel->id;
+		$tabel->id_master_tabel = (int)$tabel->id;
+
+		$structureKolom  = null;
+		$itemsKolom      = [];
+		$itemsBaris      = [];
+		$kelompokBaris   = null;
+		$itemsPeriode    = [];
+		$kelompokPeriode = null;
+		$nilaiMap        = [];
+		$available_years = [];
+		$selected_years  = [];
+		$configTampilan  = [
+			'total_horizontal'        => false,
+			'jenis_total_horizontal'  => 'sum',
+			'only_total_horizontal'   => false,
+			'group_total_horizontal'  => false,
+			'total_vertikal'          => true,
+			'jenis_total_vertikal'    => 'default',
+			'label_total_kustom'      => '',
+			'group_by_region'         => true,
+			'prioritas_karakteristik' => false,
+			'portrait_mode'           => false,
+			'portrait_split_col'      => false,
+		];
+
+		if ($indikator) {
+			if (!empty($indikator->config_tampilan)) {
+				$decodedCfg = json_decode($indikator->config_tampilan, true);
+				if (is_array($decodedCfg)) {
+					$configTampilan = array_merge($configTampilan, $decodedCfg);
+				}
+			}
+
+			// Timpa konfigurasi dari payload preview
+			$configRaw = $this->request->getPost('config_json');
+			if (!empty($configRaw)) {
+				$prevCfg = is_array($configRaw) ? $configRaw : json_decode($configRaw, true);
+				if (is_array($prevCfg)) {
+					$configTampilan = array_merge($configTampilan, $prevCfg);
+					if (isset($prevCfg['satuan'])) $indikator->satuan = $prevCfg['satuan'];
+					if (isset($prevCfg['desimal'])) $indikator->desimal = (int)$prevCfg['desimal'];
+					if (isset($prevCfg['tampilan_baris'])) $indikator->tampilan_baris = $prevCfg['tampilan_baris'];
+					if (isset($prevCfg['kolom_nomor'])) $indikator->kolom_nomor = $prevCfg['kolom_nomor'];
+					if (isset($prevCfg['tingkat_kolom'])) $indikator->tingkat_kolom = $prevCfg['tingkat_kolom'];
+				}
+			}
+
+			if (!empty($indikator->id_karakteristik_kelompok)) {
+				$itemsKolom     = $mTabelDinamis->getKarakteristikItems((int)$indikator->id_karakteristik_kelompok);
+				$structureKolom = $mTabelDinamis->buildColumnStructure($itemsKolom);
+			}
+
+			if (!empty($indikator->id_baris_kelompok)) {
+				$kelompokBaris = $mTabelDinamis->getBarisKelompok((int)$indikator->id_baris_kelompok);
+				$itemsBaris    = $mTabelDinamis->getBarisItems((int)$indikator->id_baris_kelompok);
+			}
+
+			if (!empty($indikator->id_periode_kelompok)) {
+				$kelompokPeriode = $mTabelDinamis->getPeriodeKelompok((int)$indikator->id_periode_kelompok);
+				$itemsPeriode    = $mTabelDinamis->getPeriodeItems((int)$indikator->id_periode_kelompok);
+			}
+
+			$available_years = $mTabelDinamis->getAvailableYears((int)$indikator->id);
+
+			$reqYears = $this->request->getPost('tahun') ?: $this->request->getPost('years') ?: $this->request->getGet('tahun');
+			$rawReqList = [];
+			if (!empty($reqYears)) {
+				$rawReqList = is_array($reqYears) ? $reqYears : explode(',', (string)$reqYears);
+			}
+
+			$selected_years = $mTabelDinamis->resolveDisplayYears($indikator->tahun_tampil ?? null, (int)$ta, $rawReqList, $indikator);
+			sort($selected_years);
+
+			// Ambil nilai dari t_nilai_dinamis (Optimasi Index Seek)
+			$cleanYears = array_values(array_filter(array_map('intval', $selected_years)));
+			$nilaiBuilder = $this->db->table('t_nilai_dinamis')
+				->where('id_indikator', (int)$indikator->id);
+			if (!empty($cleanYears)) {
+				$nilaiBuilder->whereIn('tahun_data', $cleanYears);
+			}
+			$nilaiRows = $nilaiBuilder->get()->getResult();
+
+			foreach ($nilaiRows as $nr) {
+				$th = (int)$nr->tahun_data;
+				$bId = (int)$nr->id_baris_item;
+				$kId = (int)$nr->id_karakteristik_item;
+				$pId = (int)($nr->id_periode_item ?? 0);
+
+				$nilaiMap[$th][$bId][$kId][$pId] = [
+					'nilai'          => $nr->nilai !== null ? (float)$nr->nilai : null,
+					'simbol'         => $nr->simbol ?: null,
+					'jumlah_desimal' => $nr->jumlah_desimal !== null ? (int)$nr->jumlah_desimal : null,
+				];
+			}
+		} else {
+			$available_years = [$ta];
+			$selected_years = [$ta];
+		}
+
+		// Batasi hanya 5 baris data pertama untuk preview cepat (dengan menyertakan header kategori jika ada)
+		$previewItemsBaris = [];
+		$dataRowCount = 0;
+		foreach ($itemsBaris as $b) {
+			$previewItemsBaris[] = $b;
+			$tipeBaris = strtolower(trim($b->tipe_baris ?? 'data'));
+			$lowerBaris = strtolower(trim($b->nama_baris_ind ?? ''));
+			$isHeader = ($tipeBaris === 'kategori' || $lowerBaris === 'kabupaten' || $lowerBaris === 'kota');
+			if (!$isHeader) {
+				$dataRowCount++;
+				if ($dataRowCount >= 5) {
+					break;
+				}
+			}
+		}
+		if (empty($previewItemsBaris)) {
+			$previewItemsBaris = array_slice($itemsBaris, 0, 5);
+		}
+
+		$viewData = [
+			'tabel'            => $tabel,
+			'indikator'        => $indikator,
+			'structureKolom'   => $structureKolom,
+			'itemsKolom'       => $itemsKolom,
+			'itemsBaris'       => $previewItemsBaris,
+			'kelompokBaris'    => $kelompokBaris,
+			'itemsPeriode'     => $itemsPeriode,
+			'kelompokPeriode'  => $kelompokPeriode,
+			'nilaiMap'         => $nilaiMap,
+			'available_years'  => $available_years,
+			'selected_years'   => $selected_years,
+			'config_tampilan'  => $configTampilan,
+			'matrix_dom_id'    => 'table-dinamis-matrix-preview',
+			'isPreview'        => true,
+		];
+
+		$html = view('admin/parts/table_matrix_dinamis', $viewData);
+
+		return $this->response->setJSON([
+			'status' => 'success',
+			'html'   => $html,
+		]);
+	}
+
 }
-
-

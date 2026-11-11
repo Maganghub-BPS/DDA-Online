@@ -7,25 +7,78 @@
 ?>
 
 <style>
+    /* Pastikan flexbox container luar tidak mengompres kartu Pemeriksaan Tabel DDA */
+    .main-content {
+        min-height: auto !important;
+        padding-bottom: 12px !important;
+    }
+    .content-body {
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+    }
+    #mainDdaPeriksaCard {
+        height: auto !important;
+        max-height: calc(100vh - 82px) !important;
+        min-height: 0 !important;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        flex-shrink: 0 !important;
+    }
+
     #tableTabelPeriksa thead th { 
         font-size: 0.75rem; 
         text-transform: uppercase; 
-        letter-spacing: 0.05em;
-        background-color: #f8f9fa; 
-        color: #6c757d; 
+        letter-spacing: 0.04em;
+        background-color: #f8fafc !important; 
+        color: #475569; 
         font-weight: 700; 
         border-top: none;
-        padding: 12px 15px;
+        padding: 10px 14px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle;
+    }
+    /* Kontainer scroll internal agar scrollbar ada di dalam dan header tetap terlihat */
+    .table-scroll-container {
+        height: auto !important;
+        max-height: calc(100vh - 82px - 65px) !important;
+        min-height: 0 !important;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
     }
     .tabel-pemeriksaan-container { overflow-x: auto; }
-    .tabel-judul-cell { min-width: 350px; white-space: normal !important; }
-    .status-badge { font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 50rem; }
-    .btn-action-sm { padding: 4px 12px; font-size: 0.75rem; font-weight: 600; border-radius: 6px; }
+    .tabel-judul-cell { min-width: 320px; white-space: normal !important; }
+    .tabel-judul-link { font-size: 0.92rem !important; font-weight: 600; line-height: 1.4 !important; }
+    .status-badge { font-size: 0.72rem !important; font-weight: 700; padding: 3px 10px !important; border-radius: 50rem; }
+    .btn-action-sm { padding: 4px 10px !important; font-size: 0.75rem !important; font-weight: 600; border-radius: 6px; }
     .status-container { display: flex; flex-direction: column; gap: 4px; }
-    .note-text { font-size: 0.8rem; color: #6c757d; line-height: 1.4; }
+    .note-text { font-size: 0.78rem !important; color: #64748b; line-height: 1.35 !important; }
     .table-hover tbody tr:hover { background-color: rgba(255, 109, 31, 0.03); transition: background-color 0.2s ease; }
-    .tabel-periksa-row td { padding: 1.25rem 1rem; border-bottom: 1px solid #f1f3f5; }
-    .action-group { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+    .tabel-periksa-row td { padding: 0.85rem 1rem !important; border-bottom: 1px solid #f1f3f5; }
+    .action-group { margin-top: 6px !important; display: flex; align-items: center; gap: 6px; }
+    .catatan-preview-box { padding: 6px 10px !important; font-size: 0.75rem !important; line-height: 1.35 !important; }
     .hover-primary:hover { color: #FF6D1F !important; }
     .badge { letter-spacing: 0.02em; }
     .form-check-input.publish-switch {
@@ -87,118 +140,182 @@
     .tooltip-publish-lock.bs-tooltip-auto[data-popper-placement^="right"] .tooltip-arrow::before {
         border-right-color: #1e293b !important;
     }
-    @media (max-width: 991.98px) { .tabel-judul-cell { min-width: 280px; } }
+    @media (max-width: 991.98px) { .tabel-judul-cell { min-width: 260px; } }
     @media (max-width: 575.98px) {
         .filter-search-container { flex-wrap: wrap !important; width: 100%; }
         .filter-search-container .input-group { width: 100% !important; }
     }
 </style>
 
-<div class="row mb-3">
-    <div class="col-lg-12">
-        <div class="card border-0 shadow-sm overflow-hidden" style="border-radius: 12px;">
-            <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div class="d-flex align-items-center">
-                    <a href="<?php echo base_url(); ?>admin/dda" class="btn btn-sm btn-light border-0 me-3 shadow-none bg-light-subtle" style="border-radius: 8px;"><i class="bi bi-arrow-left"></i></a>
-                    <div>
-                        <h5 class="fw-bold mb-0 text-dark" style="letter-spacing: -0.02em;">
-                            Pemeriksaan Tabel DDA
-                        </h5>
-                        <p class="text-muted small mb-0">Verifikasi kelengkapan data sektoral</p>
-                    </div>
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainDdaPeriksaCard" style="height: auto; max-height: calc(100vh - 82px); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+    <!-- Header Toolbar: Tombol Kembali, Judul, Filter Publish Pills & Search Input -->
+    <div class="card-header pb-2 pt-3 px-4 bg-white border-0 flex-shrink-0">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <?php
+                $is_bps_user = (session()->get('admin_unitkerja') == 'bps') || (!empty($is_bps));
+                $back_url = $is_bps_user ? base_url('admin/dda') : base_url('admin');
+            ?>
+            <div class="d-flex align-items-center">
+                <a href="<?= $back_url; ?>" class="btn btn-sm btn-light border-0 me-3 shadow-none bg-light-subtle d-inline-flex align-items-center justify-content-center" style="border-radius: 8px; width: 34px; height: 34px;" title="Kembali"><i class="bi bi-arrow-left"></i></a>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark" style="letter-spacing: -0.02em; font-size: 1.05rem;">
+                        Pemeriksaan Tabel DDA
+                    </h5>
+                    <p class="text-muted small mb-0" style="font-size: 0.76rem;">Verifikasi kelengkapan data sektoral</p>
                 </div>
-                <div class="d-flex align-items-center gap-2 flex-nowrap filter-search-container">
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-nowrap filter-search-container">
+                <?php if (can('input_dda_publish')): ?>
                     <!-- Filter Publish Pill Buttons -->
-                    <div class="btn-group btn-group-sm bg-light p-1 rounded-3 flex-shrink-0 d-inline-flex align-items-center" role="group" id="filterPublishGroup" style="border: 1px solid #e9ecef; height: 38px;">
-                        <button type="button" class="btn btn-sm active fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="all" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                    <div class="btn-group btn-group-sm bg-light p-1 rounded-3 flex-shrink-0 d-inline-flex align-items-center" role="group" id="filterPublishGroup" style="border: 1px solid #e9ecef; height: 34px;">
+                        <button type="button" class="btn btn-sm active fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="all" style="border-radius: 6px; font-size: 0.75rem; padding: 0 0.75rem;">
                             Semua
                         </button>
-                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="published" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="published" style="border-radius: 6px; font-size: 0.75rem; padding: 0 0.75rem;">
                             <i class="bi bi-eye-fill text-success me-1"></i> Publik
                         </button>
-                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="draft" style="border-radius: 6px; font-size: 0.78rem; padding: 0 0.75rem;">
+                        <button type="button" class="btn btn-sm text-secondary fw-semibold filter-publish-btn h-100 d-inline-flex align-items-center" data-filter="draft" style="border-radius: 6px; font-size: 0.75rem; padding: 0 0.75rem;">
                             <i class="bi bi-eye-slash-fill text-secondary me-1"></i> Draft
                         </button>
                     </div>
+                <?php endif; ?>
 
-                    <!-- Search Input -->
-                    <div class="input-group input-group-sm flex-nowrap flex-shrink-0" style="width: 250px; height: 38px;">
-                        <span class="input-group-text bg-light border-0 text-muted px-3" style="border-radius: 8px 0 0 8px; font-size: 0.85rem;"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control bg-light border-0 ps-0 pe-3" id="searchTabelPeriksa" placeholder="Cari judul tabel..." autocomplete="off" style="border-radius: 0 8px 8px 0; font-size: 0.85rem; height: 38px;">
-                    </div>
+                <?php if (!$is_bps_user && (can('usulan_tabel') || can('input_dda_input') || can('view_dda'))): ?>
+                    <a href="<?= base_url('admin/master_tabel_opd/add'); ?>" class="btn btn-sm btn-primary fw-bold d-inline-flex align-items-center gap-1 shadow-none flex-shrink-0" style="height: 34px; border-radius: 8px; font-size: 0.78rem; background: linear-gradient(45deg, #154679, #1e5c9e); border: none;">
+                        <i class="bi bi-plus-circle"></i>
+                        <span class="d-none d-sm-inline">Usulkan Tabel Baru</span>
+                    </a>
+                <?php endif; ?>
+
+                <!-- Search Input -->
+                <div class="input-group input-group-sm flex-nowrap flex-shrink-0" style="width: 230px; height: 34px;">
+                    <span class="input-group-text bg-light border-0 text-muted px-2.5" style="border-radius: 8px 0 0 8px; font-size: 0.8rem;"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control bg-light border-0 ps-0 pe-2" id="searchTabelPeriksa" placeholder="Cari judul tabel..." autocomplete="off" style="border-radius: 0 8px 8px 0; font-size: 0.8rem; height: 34px;">
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="card border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
-    <div class="card-body p-0">
-        <div class="table-responsive">
+    <hr class="horizontal dark my-0 flex-shrink-0">
+
+    <!-- Body: Table Container with Internal Scroll -->
+    <div class="card-body p-0 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+        <div class="table-responsive table-scroll-container flex-grow-1" style="height: auto; min-height: 0; overflow-y: auto; overflow-x: auto;">
             <table class="table table-hover align-middle mb-0" id="tableTabelPeriksa">
                 <thead>
                     <tr>
                         <th width="4%" class="text-center">#</th>
-                        <th width="40%">Informasi Tabel</th>
-                        <th width="21%">Status Pengisian</th>
-                        <th width="21%">Status Verifikasi</th>
-                        <th width="14%" class="text-center">Status Tampil</th>
+                        <th width="<?= can('input_dda_publish') ? '40%' : '48%'; ?>">Informasi Tabel</th>
+                        <th width="<?= can('input_dda_publish') ? '21%' : '24%'; ?>">Status Pengisian</th>
+                        <th width="<?= can('input_dda_publish') ? '21%' : '24%'; ?>">Status Verifikasi</th>
+                        <?php if (can('input_dda_publish')): ?>
+                            <th width="14%" class="text-center">Status Tampil</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                     <?php 
                     if (empty($data)) {
-                        echo "<tr><td colspan='5' class='text-center py-5 text-muted'><i class='bi bi-info-circle me-2 d-block mb-3 display-6 opacity-25'></i>Tabel tidak ditemukan</td></tr>";
+                        echo "<tr><td colspan='" . (can('input_dda_publish') ? 5 : 4) . "' class='text-center py-5 text-muted'><i class='bi bi-info-circle me-2 d-block mb-3 display-6 opacity-25'></i>Tabel tidak ditemukan</td></tr>";
                     } else {
                         $no = (isset($offset) ? $offset : 0) + 1;
                         foreach ($data as $b) {
-                            $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, $b->periode_id ?? $b->periode ?? ""));
+                            $thPeriodeDda = $b->periode_id ?? $b->periode ?? (!empty($b->tahun) ? (int)$b->tahun - 1 : ((int)$ta - 1));
+                            $judul_bersih = preg_replace("/\r|\n/", " ", (!empty($b->no_tabel) ? $b->no_tabel . " " : "") . format_judul_tabel($b->judul_ind, (string)$thPeriodeDda));
                             $is_dynamic = !empty($b->is_dynamic);
                             $is_portal = (stripos($b->link_tabel, 'portal') !== false || 
                                           stripos($b->link_tabel, 'satudata') !== false || 
                                           (isset($b->id_api) && !empty($b->id_api)));
                             $is_published = ((int)($b->is_publish ?? 0) === 1);
-                            $has_link = !empty(trim($b->link_tabel ?? '')) || $is_dynamic;
+                            $has_real_link = !empty(trim($b->link_tabel ?? ''));
+                            $has_link = $has_real_link || $is_dynamic;
+                            $is_sheet = $has_real_link && (stripos($b->link_tabel, 'docs.google.com') !== false || stripos($b->link_tabel, 'spreadsheet') !== false);
                     ?>
                     <tr class="tabel-periksa-row" id="row-<?php echo $b->id; ?>" data-published="<?= $is_published ? '1' : '0' ?>" data-has-link="<?= $has_link ? '1' : '0' ?>">
-                        <td class="text-center text-muted fw-bold row-no" style="font-size: 0.85rem;"><?php echo $no++; ?></td>
+                        <td class="text-center text-muted fw-bold row-no" style="font-size: 0.78rem;"><?php echo $no++; ?></td>
                         <td class="tabel-judul-cell">
                             <?php 
                             if ($is_dynamic) {
-                                $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id);
-                            } else {
+                                $thTargetView = !empty($thPeriodeDda) ? $thPeriodeDda : (!empty($ta) ? ((int)$ta - 1) : (date('Y') - 1));
+                                $tabel_url = base_url('admin/view_tabel_dinamis/' . $b->id) . '?tahun=' . $thTargetView;
+                                $link_title = "Klik untuk membuka dan mengisi tabel dinamis";
+                            } elseif ($is_portal) {
                                 $tabel_url = $b->link_tabel;
                                 if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
-                                    $tabel_url = base_url() . $tabel_url;
+                                    $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
+                                    $tabel_url = base_url($clean_tabel);
+                                }
+                                if (!empty($b->id) && (stripos($tabel_url, 'portal') !== false || stripos($tabel_url, 'satudata') !== false)) {
+                                    $tabel_url .= (strpos($tabel_url, '?') !== false ? '&' : '?') . 'table_id=' . $b->id;
+                                }
+                                $link_title = "Klik untuk membuka dan memeriksa data portal";
+                            } elseif ($has_real_link) {
+                                $tabel_url = $b->link_tabel;
+                                if (stripos($tabel_url, 'http') !== 0 && !empty($tabel_url)) {
+                                    $clean_tabel = preg_replace('#^/?(index\.php/)?#', '', $tabel_url);
+                                    $tabel_url = base_url($clean_tabel);
+                                }
+                                $link_title = "Klik untuk membuka tautan tabel";
+                            } else {
+                                if ($is_bps_user) {
+                                    $tabel_url = base_url('admin/master_tabel/edt/' . $b->id);
+                                    $link_title = "Tabel belum dikonfigurasi. Klik untuk mengatur sumber data di Master Tabel";
+                                } else {
+                                    $tabel_url = "javascript:void(0);";
+                                    $link_title = "Sumber data tabel ini belum dikonfigurasi oleh Admin BPS";
                                 }
                             }
                             ?>
                             <div class="d-flex flex-column gap-1">
-                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary" style="font-size: 0.95rem; line-height: 1.4;">
+                                <a href="<?php echo $tabel_url; ?>" class="text-decoration-none fw-bold text-dark hover-primary tabel-judul-link" title="<?php echo esc($link_title); ?>">
                                     <?php echo htmlspecialchars($judul_bersih); ?>
                                 </a>
-                                <div class="d-flex align-items-center gap-2 mt-1">
+                                <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
                                     <?php if($is_dynamic): ?>
                                         <a href="<?php echo $tabel_url; ?>" 
-                                           class="badge text-white border-0 px-2 py-1 text-decoration-none shadow-xs d-inline-flex align-items-center" 
-                                           style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px; font-weight: 700; transition: all 0.2s ease;"
+                                           class="badge text-white border-0 text-decoration-none shadow-xs d-inline-flex align-items-center" 
+                                           style="background: linear-gradient(135deg, #4f46e5, #7c3aed); font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; transition: all 0.2s ease;"
                                            title="Buka Viewer Tabel Dinamis">
                                             <i class="bi bi-boxes me-1"></i> TABEL DINAMIS
                                         </a>
                                     <?php elseif($is_portal): ?>
                                         <a href="<?php echo $tabel_url; ?>" 
-                                           class="badge bg-info-subtle text-info border-0 px-2 py-1 text-decoration-none" 
-                                           style="font-size: 10px; font-weight: 700;">
+                                           class="badge bg-info-subtle text-info border-0 text-decoration-none d-inline-flex align-items-center" 
+                                           style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                           title="Buka Data Portal">
                                             <i class="bi bi-cloud-check-fill me-1"></i> PORTAL DATA
                                         </a>
-                                    <?php else: ?>
+                                    <?php elseif($has_real_link): ?>
                                         <a href="<?php echo $tabel_url; ?>" 
-                                           class="badge bg-success-subtle text-success border-0 px-2 py-1 text-decoration-none" 
-                                           style="font-size: 10px; font-weight: 700;">
-                                            <i class="bi bi-file-spreadsheet me-1"></i> GOOGLE SHEET
+                                           target="_blank"
+                                           class="badge bg-success-subtle text-success border-0 text-decoration-none d-inline-flex align-items-center" 
+                                           style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                           title="Buka Tautan Tabel">
+                                            <i class="bi <?= $is_sheet ? 'bi-file-spreadsheet' : 'bi-link-45deg'; ?> me-1"></i> <?= $is_sheet ? 'GOOGLE SHEET' : 'LINK EKSTERNAL'; ?>
                                         </a>
+                                    <?php else: ?>
+                                        <?php if ($is_bps_user): ?>
+                                            <a href="<?php echo $tabel_url; ?>" 
+                                               class="badge bg-secondary-subtle text-secondary border border-secondary-subtle text-decoration-none d-inline-flex align-items-center" 
+                                               style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                               title="Klik untuk mengatur sumber data di Master Tabel">
+                                                <i class="bi bi-gear me-1"></i> BELUM DIKONFIGURASI
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle d-inline-flex align-items-center" 
+                                                  style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;"
+                                                  title="Sumber data tabel ini belum dikonfigurasi oleh Admin BPS">
+                                                <i class="bi bi-gear me-1"></i> BELUM DIKONFIGURASI
+                                            </span>
+                                        <?php endif; ?>
                                     <?php endif; ?>
-                                    <span class="text-muted" style="font-size: 10px;"><i class="bi bi-hash me-1"></i>ID: <?php echo $b->id; ?></span>
+                                    <a href="<?= base_url('admin/dda/kondef?id=' . $b->id); ?>" 
+                                       class="badge bg-secondary-subtle text-secondary border border-secondary-subtle text-decoration-none shadow-xs d-inline-flex align-items-center" 
+                                       style="font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px;" 
+                                       title="Lihat Konsep & Definisi">
+                                        <i class="bi bi-info-circle me-1"></i> KONDEF
+                                    </a>
+                                    <span class="text-muted" style="font-size: 10px;"><i class="bi bi-hash"></i>ID: <?php echo $b->id; ?></span>
                                 </div>
                             </div>
                         </td>
@@ -207,8 +324,8 @@
                         <td>
                             <div class="status-container">
                                 <?php 
-                                $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([\d\/\-\:\s]+)/iu', $b->catatan_periksa, $m));
-                                $is_sudah_diisi = ($is_portal) || ($is_dynamic ? ($b->is_periksa == '1' && $is_dynamic_uploaded) : ($b->is_periksa == '1'));
+                                $is_dynamic_uploaded = ($is_dynamic && !empty($b->catatan_periksa) && preg_match('/Diunggah(?:\s+via\s+Excel)?\s+oleh\s+(.+?)\s+pada\s+([^\r\n]+)/iu', $b->catatan_periksa, $m));
+                                $is_sudah_diisi = ((int)($b->is_periksa ?? 0) === 1);
                                 ?>
                                 <?php if($is_sudah_diisi): ?>
                                     <span class="badge bg-success-subtle text-success border-0 align-self-start status-badge">
@@ -219,41 +336,50 @@
                                             Tersinkronisasi otomatis dengan Portal Data
                                         <?php elseif($is_dynamic && $is_dynamic_uploaded): ?>
                                             <?php
-                                            $uploader = trim($m[1]);
-                                            $waktu    = trim($m[2]);
+                                             $uploader = trim($m[1]);
+                                             $waktu    = trim($m[2]);
                                             ?>
-                                            <div class="text-dark fw-semibold" style="font-size: 0.77rem; line-height: 1.35;">
+                                            <div class="text-dark fw-semibold" style="font-size: 0.78rem; line-height: 1.35;">
                                                 <i class="bi bi-file-earmark-excel-fill text-success me-1"></i>Diunggah oleh <?= htmlspecialchars($uploader); ?>
                                             </div>
-                                            <div class="text-muted mt-1" style="font-size: 0.72rem;">
-                                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?>
+                                            <div class="text-muted mt-0.5" style="font-size: 0.72rem;">
+                                                <i class="bi bi-clock me-1 text-secondary"></i>pada <?= htmlspecialchars($waktu); ?><?= (!str_ends_with($waktu, 'WIB') ? ' WIB' : ''); ?>
                                             </div>
                                         <?php else: ?>
-                                            <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? htmlspecialchars($b->catatan_periksa) : 'Diinput melalui sheet manual'; ?>
+                                            <?php echo (!empty($b->catatan_periksa) && $b->catatan_periksa != '-') ? htmlspecialchars($b->catatan_periksa) : ($is_dynamic ? 'Data telah terisi di sistem' : 'Diinput melalui sheet manual'); ?>
                                         <?php endif; ?>
                                     </div>
                                     <?php if($is_dynamic): ?>
-                                        <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-2">
-                                            <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
-                                                    data-id="<?php echo $b->id; ?>" 
-                                                    data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
-                                                    data-catatan="<?php echo htmlspecialchars($b->catatan ?? '', ENT_QUOTES); ?>"
-                                                    title="Tambahkan atau Ubah Catatan untuk Walidata">
-                                                <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
-                                            </button>
-                                        </div>
-                                        <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
-                                            <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
-                                                <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
-                                                <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                        <?php if ($is_bps_user): ?>
+                                            <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-2">
+                                                <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
+                                                        data-id="<?php echo $b->id; ?>" 
+                                                        data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                                        data-catatan="<?php echo htmlspecialchars($b->catatan ?? '', ENT_QUOTES); ?>"
+                                                        title="Tambahkan atau Ubah Catatan untuk Walidata">
+                                                    <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
+                                                </button>
                                             </div>
+                                            <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
+                                                <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                                    <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
+                                                    <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning d-none" style="background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                                    <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
+                                                    <div class="text-secondary catatan-text"></div>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php else: ?>
-                                            <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning d-none" style="font-size: 0.74rem; background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
-                                                <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
-                                                <div class="text-secondary catatan-text"></div>
-                                            </div>
+                                            <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
+                                                <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                                    <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-exclamation-circle-fill me-1 text-warning"></i>Catatan dari BPS / Pembina LO:</div>
+                                                    <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php endif; ?>
-                                    <?php elseif(!$is_portal): ?>
+                                    <?php elseif(!$is_portal && $is_bps_user): ?>
                                         <div class="action-group">
                                             <a href="<?php echo base_url(); ?>admin/batal_isi/<?php echo $b->id; ?>" 
                                                class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-isi" 
@@ -267,14 +393,40 @@
                                     <span class="badge bg-danger-subtle text-danger border-0 align-self-start status-badge">
                                         <i class="bi bi-dash-circle-fill me-1"></i> BELUM DIISI
                                     </span>
-                                    <div class="action-group">
-                                        <?php if($is_dynamic): ?>
-                                            <a href="<?php echo $tabel_url; ?>"
-                                               class="btn btn-action-sm btn-primary text-white shadow-sm"
-                                               title="Buka Viewer Tabel Dinamis untuk Mengisi Data">
-                                                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Isi Data
-                                            </a>
-                                        <?php else: ?>
+                                    <?php if($is_portal): ?>
+                                        <div class="note-text text-danger mt-1" style="font-size: 0.73rem;">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Tahun data (<?= $thPeriodeDda; ?>) belum tersedia di Portal Data
+                                            <?php if(!empty($b->tahun_tersedia)): ?>
+                                                <div class="text-muted" style="font-size: 0.70rem;">(Tersedia: <?= htmlspecialchars($b->tahun_tersedia); ?>)</div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php elseif($is_dynamic): ?>
+                                        <?php if ($is_bps_user): ?>
+                                            <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
+                                                <button type="button" class="btn btn-action-sm btn-outline-warning text-dark btn-catatan-admin shadow-xs" 
+                                                        data-id="<?php echo $b->id; ?>" 
+                                                        data-judul="<?php echo htmlspecialchars($judul_bersih, ENT_QUOTES); ?>"
+                                                        data-catatan="<?php echo htmlspecialchars($b->catatan ?? '', ENT_QUOTES); ?>"
+                                                        title="Tambahkan atau Ubah Catatan untuk Walidata">
+                                                    <i class="bi bi-chat-square-text me-1"></i> <?php echo (!empty($b->catatan) && $b->catatan != '-') ? 'Ubah Catatan' : 'Tambah Catatan'; ?>
+                                                </button>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php elseif(!$has_real_link): ?>
+                                        <div class="note-text text-muted mt-1" style="font-size: 0.73rem;">
+                                            <i class="bi bi-info-circle me-1"></i> Sumber data belum diatur
+                                        </div>
+                                        <?php if ($is_bps_user): ?>
+                                            <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
+                                                <a href="<?= base_url('admin/master_tabel/edt/' . $b->id); ?>"
+                                                   class="btn btn-action-sm btn-outline-secondary border shadow-xs"
+                                                   title="Atur format/sumber data di Master Tabel">
+                                                    <i class="bi bi-gear me-1"></i> Konfigurasi Sumber
+                                                </a>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <div class="action-group d-flex align-items-center gap-1 flex-wrap mt-1">
                                             <a href="javascript:;"
                                                class="btn btn-action-sm btn-warning text-white btn-isi-data shadow-sm"
                                                data-id="<?php echo $b->id; ?>"
@@ -282,8 +434,22 @@
                                                data-unit="<?php echo htmlspecialchars($b->id_unitkerja, ENT_QUOTES); ?>">
                                                 <i class="bi bi-plus-circle me-1"></i> Update Status
                                             </a>
-                                        <?php endif; ?>
-                                    </div>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($b->catatan) && $b->catatan != '-'): ?>
+                                        <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning" style="background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                            <div class="fw-bold text-warning-emphasis mb-0.5">
+                                                <i class="bi <?= $is_bps_user ? 'bi-chat-left-quote-fill' : 'bi-exclamation-circle-fill text-warning'; ?> me-1"></i>
+                                                <?= $is_bps_user ? 'Catatan Anda untuk Walidata:' : 'Catatan dari BPS / Pembina LO:'; ?>
+                                            </div>
+                                            <div class="text-secondary catatan-text"><?= nl2br(htmlspecialchars($b->catatan)); ?></div>
+                                        </div>
+                                    <?php elseif ($is_bps_user && $is_dynamic): ?>
+                                        <div class="catatan-preview-box mt-2 p-2 rounded text-start border-start border-3 border-warning d-none" style="background: #fff8e1;" id="catatan-box-<?= $b->id; ?>">
+                                            <div class="fw-bold text-warning-emphasis mb-0.5"><i class="bi bi-chat-left-quote-fill me-1"></i>Catatan Anda untuk Walidata:</div>
+                                            <div class="text-secondary catatan-text"></div>
+                                        </div>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </td>
@@ -298,7 +464,7 @@
                                     <div class="note-text">
                                         <i class="bi bi-chat-right-text me-1 opacity-50"></i> <?php echo (!empty($b->catatan)) ? htmlspecialchars($b->catatan) : 'Tanpa catatan'; ?>
                                     </div>
-                                    <?php if(session()->get('admin_unitkerja') == 'bps'): ?>
+                                    <?php if($is_bps_user): ?>
                                         <div class="action-group">
                                             <a href="<?php echo base_url(); ?>admin/batal_verif/<?php echo $b->id; ?>" 
                                                class="btn btn-action-sm btn-outline-danger border-0 bg-danger-subtle text-danger btn-batal-verif" 
@@ -312,17 +478,22 @@
                                     <span class="badge bg-warning-subtle text-warning border-0 align-self-start status-badge">
                                         <i class="bi bi-clock-history me-1"></i> MENUNGGU CEK
                                     </span>
-                                    <?php if(session()->get('admin_unitkerja') == 'bps'): ?>
+                                    <?php if($is_bps_user && !empty($is_sudah_diisi)): ?>
                                         <div class="action-group">
                                             <button class="btn btn-action-sm btn-info text-white konfirmasi_modal shadow-sm" id="<?php echo $b->id;?>">
                                                 <i class="bi bi-shield-check me-1"></i> Verifikasi Data
                                             </button>
+                                        </div>
+                                    <?php elseif($is_bps_user): ?>
+                                        <div class="note-text text-muted mt-1" style="font-size: 0.72rem;">
+                                            <i class="bi bi-info-circle me-1"></i>Menunggu data diisi
                                         </div>
                                     <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </td>
 
+                    <?php if (can('input_dda_publish')): ?>
                         <!-- STATUS TAMPIL (PUBLISH SWITCH) -->
                         <?php
                             $user_lvl_sess = strtolower(trim(session()->get('admin_level') ?? ''));
@@ -333,7 +504,7 @@
 
                             if (!$is_admin_or_super) {
                                 $switch_disabled = true;
-                                $switch_title = '<i class="bi bi-shield-x text-danger me-1"></i>Hanya Admin & Super Admin';
+                                $switch_title = '<i class="bi bi-shield-x text-danger me-1"></i>Hanya Admin yang berwenang mengubah status publikasi';
                                 $switch_cursor = 'not-allowed';
                             } elseif ($is_published) {
                                 // Jika tabel saat ini sedang aktif (Publik), admin dapat mematikan ke Draft kapan saja (tanpa tooltip)
@@ -377,7 +548,7 @@
                                          data-bs-custom-class="tooltip-publish-lock"
                                          title="<?= htmlspecialchars($switch_title, ENT_QUOTES) ?>"
                                          style="cursor: not-allowed;">
-                                        <div class="form-check form-switch m-0" style="min-height: 24px; pointer-events: none;">
+                                        <div class="form-check form-switch m-0" style="min-height: 22px; pointer-events: none;">
                                             <input class="form-check-input publish-switch" 
                                                    type="checkbox" 
                                                    role="switch" 
@@ -385,24 +556,24 @@
                                                    data-id="<?= $b->id ?>"
                                                    <?= $is_published ? 'checked' : '' ?>
                                                    disabled
-                                                   style="width: 2.8em; height: 1.45em; cursor: not-allowed;">
+                                                   style="width: 2.6em; height: 1.35em; cursor: not-allowed;">
                                         </div>
                                     </div>
                                 <?php else: ?>
-                                    <div class="form-check form-switch m-0" style="min-height: 24px;">
+                                    <div class="form-check form-switch m-0" style="min-height: 22px;">
                                         <input class="form-check-input publish-switch" 
                                                type="checkbox" 
                                                role="switch" 
                                                id="switch-pub-<?= $b->id ?>" 
                                                data-id="<?= $b->id ?>"
                                                <?= $is_published ? 'checked' : '' ?>
-                                               style="width: 2.8em; height: 1.45em; cursor: pointer;">
+                                               style="width: 2.6em; height: 1.35em; cursor: pointer;">
                                     </div>
                                 <?php endif; ?>
                                 <div id="pub-status-label-<?= $b->id ?>" class="mt-1">
                                     <?php if (!$has_link): ?>
                                         <span class="badge bg-light text-muted border px-2 py-0.5" style="font-size: 10px; font-weight: 600;">
-                                            <i class="bi bi-link-45deg me-0.5"></i> Tanpa Link
+                                             <i class="bi bi-link-45deg me-0.5"></i> Tanpa Link
                                         </span>
                                     <?php elseif ($is_published): ?>
                                         <span class="badge bg-success-subtle text-success border-0 px-2 py-0.5" style="font-size: 10px; font-weight: 700;">
@@ -416,13 +587,14 @@
                                 </div>
                             </div>
                         </td>
+                    <?php endif; ?>
                     </tr>
                     <?php 
                         }
                     }
                     ?>
                     <tr class="no-result-row d-none" id="noResultRow">
-                        <td colspan="5" class="text-center py-5">
+                        <td colspan="<?= can('input_dda_publish') ? 5 : 4; ?>" class="text-center py-5">
                             <i class="bi bi-search-heart display-4 text-muted opacity-25 d-block mb-3"></i>
                             <span class="text-secondary fw-medium">Tidak ada tabel yang sesuai dengan kata kunci Anda</span>
                         </td>

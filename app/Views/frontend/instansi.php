@@ -265,8 +265,8 @@
                     <a href="<?= base_url('home/search?opd_search=' . urlencode($opd->unitkerja_ind)) ?>" class="opd-card">
                         <div class="opd-icon"><i class="fa-solid fa-building-user"></i></div>
                         <div class="opd-content">
-                            <h6 class="opd-name" title="<?= htmlspecialchars($opd->unitkerja_ind) ?>">
-                                <?= htmlspecialchars($opd->unitkerja_ind) ?>
+                            <h6 class="opd-name" title="<?= htmlspecialchars(formatInstansiName($opd->unitkerja_ind, $opd->id_unitkerja ?? '')) ?>">
+                                <?= htmlspecialchars(formatInstansiName($opd->unitkerja_ind, $opd->id_unitkerja ?? '')) ?>
                             </h6>
                             <span class="opd-count"><?= $opd->total_tabel ?> Tabel Data</span>
                         </div>

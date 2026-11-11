@@ -43,19 +43,6 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
     with open(matched_json_path, "r", encoding="utf-8") as f:
         matched_data = json.load(f)
 
-    tables = matched_data.get("matched_in_pdf", matched_data.get("matched_tables", []))
-    if source_filter == "dinamis":
-        tables = [t for t in tables if t.get("source_type") == "dinamis" or int(t.get("is_dynamic", 0) or 0) == 1]
-    elif source_filter == "api":
-        tables = [t for t in tables if t.get("source_type") == "api" and int(t.get("is_dynamic", 0) or 0) == 0]
-    if not tables:
-        log_debug("ERROR: No matched tables found")
-        print(json.dumps({"status": "error", "message": "No matched tables found to verify"}))
-        return 1
-
-    total = len(tables)
-    log_debug(f"Total tables to verify: {total}")
-
     # Load existing state (or start fresh)
     state = {}
     if os.path.exists(state_json_path):
@@ -70,6 +57,50 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
         except Exception as e:
             log_debug(f"WARNING: Could not load state file: {e}. Starting fresh.")
             state = {}
+
+    tables = matched_data.get("matched_in_pdf", matched_data.get("matched_tables", []))
+    if source_filter == "dinamis":
+        tables = [t for t in tables if t.get("source_type") == "dinamis" or int(t.get("is_dynamic", 0) or 0) == 1]
+    elif source_filter == "api":
+        tables = [t for t in tables if t.get("source_type") == "api" and int(t.get("is_dynamic", 0) or 0) == 0]
+    elif source_filter == "unverified":
+        def is_unverified(t):
+            t_num = (t.get("nomor_tabel") or "").strip()
+            if not t_num:
+                return False
+            if t.get("dynamic_empty", False):
+                return False
+            st_info = state.get(t_num, {})
+            st = st_info.get("status", "unverified") if isinstance(st_info, dict) else "unverified"
+            return st in ("unverified", "pending", "")
+        tables = [t for t in tables if is_unverified(t)]
+    if not tables:
+        log_debug("ERROR: No matched tables found")
+        print(json.dumps({"status": "error", "message": "No matched tables found to verify"}))
+        return 1
+
+    total = len(tables)
+    log_debug(f"Total tables to verify: {total}")
+
+    # Preload DB JSON and Index JSON once into memory to eliminate 359 redundant disk reads
+    db_tables_cached = None
+    if os.path.exists(db_json_path):
+        try:
+            with open(db_json_path, "r", encoding="utf-8") as f:
+                db_tables_cached = json.load(f)
+            log_debug("Preloaded db_json successfully into memory.")
+        except Exception as e:
+            log_debug(f"WARNING: Could not preload db_json: {e}")
+
+    index_cached = None
+    index_cache_path = pdf_path + ".index.json"
+    if os.path.exists(index_cache_path):
+        try:
+            with open(index_cache_path, "r", encoding="utf-8") as f:
+                index_cached = json.load(f)
+            log_debug("Preloaded index_json successfully into memory.")
+        except Exception as e:
+            log_debug(f"WARNING: Could not preload index_json: {e}")
 
     # Single lock for ALL file operations and counter updates
     file_lock = threading.Lock()
@@ -147,11 +178,29 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
             return None
 
         try:
+            # INSTANT BYPASS UNTUK TABEL KOSONG:
+            # Jika tabel dinamis memang kosong di DB (dynamic_empty: True), langsung beri status api_empty dalam 0ms
+            is_dyn = (table_item.get("source_type") == "dinamis" or int(table_item.get("is_dynamic", 0) or 0) == 1)
+            if is_dyn and table_item.get("dynamic_empty", False):
+                return {
+                    "nomor_tabel": t_num,
+                    "status": "api_empty",
+                    "diff_count": 0,
+                    "match_count": 0,
+                    "reason": "Data nilai Tabel Dinamis belum diisi di database.",
+                    "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+
             # Small random delay to stagger API requests
             if table_item.get("source_type") != "dinamis":
                 time.sleep(0.05 * (hash(t_num) % 5))
             
-            res = compare_head_to_head(pdf_path, t_num, db_json_path, tolerance=tolerance, id_db=id_db)
+            res = compare_head_to_head(
+                pdf_path, t_num, db_json_path,
+                tolerance=tolerance, id_db=id_db,
+                preloaded_db_tables=db_tables_cached,
+                preloaded_index=index_cached
+            )
             
             if res.get("status") == "success":
                 summary = res.get("summary", {})
@@ -218,8 +267,32 @@ def run_batch(pdf_path, matched_json_path, db_json_path, state_json_path, progre
     error_count = 0
     success_count = 0
     
+    # Fast path: Tabel dinamis yang memang belum ada datanya di DB langsung diberi status api_empty di awal (0ms)
+    active_tables = []
+    for item in tables:
+        t_num = item.get("nomor_tabel", "").strip()
+        is_dyn = (item.get("source_type") == "dinamis" or int(item.get("is_dynamic", 0) or 0) == 1)
+        if is_dyn and item.get("dynamic_empty", False):
+            res_info = {
+                "nomor_tabel": t_num,
+                "status": "api_empty",
+                "diff_count": 0,
+                "match_count": 0,
+                "reason": "Data nilai Tabel Dinamis belum diisi di database.",
+                "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            state[t_num] = res_info
+            completed[0] += 1
+            error_count += 1
+        else:
+            active_tables.append(item)
+
+    if completed[0] > 0:
+        log_debug(f"Fast-path completed for {completed[0]} empty tables instantly.")
+        write_state_and_progress(None, is_running=True)
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(verify_single, item): item for item in tables}
+        futures = {executor.submit(verify_single, item): item for item in active_tables}
         
         for future in as_completed(futures):
             if os.path.exists(stop_file):
@@ -276,6 +349,6 @@ if __name__ == "__main__":
     progress_p = sys.argv[5]
     tol = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0
     src_f = sys.argv[7].strip().lower() if len(sys.argv) > 7 else "all"
-    workers = 6 if src_f == "dinamis" else 3
+    workers = 6 if src_f in ("dinamis", "unverified") else 3
 
     sys.exit(run_batch(pdf_p, matched_p, db_p, state_p, progress_p, tolerance=tol, max_workers=workers, source_filter=src_f))

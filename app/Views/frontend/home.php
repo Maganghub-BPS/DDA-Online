@@ -1257,74 +1257,85 @@
         <div class="text-center mb-4 pb-1">
             <h2 class="stats-section-title">Jelajahi Instansi</h2>
             <p class="stats-section-subtitle">
-                Telusuri ketersediaan data statistik resmi berdasarkan Organisasi Perangkat Daerah (OPD) dan Instansi Vertikal di Jawa Tengah.
+                Telusuri ketersediaan data statistik resmi berdasarkan Organisasi Perangkat Daerah (OPD), Instansi Vertikal, dan Tim Kerja BPS di Jawa Tengah.
             </p>
         </div>
 
         <?php
-        if (!function_exists('isOpdCategory')) {
-            function isOpdCategory($id, $name) {
+        if (!function_exists('getInstansiCategorySlug')) {
+            function getInstansiCategorySlug($id, $name) {
                 $id = strtolower(trim((string)$id));
                 $nameLower = strtolower(trim((string)$name));
 
-                // Daftar ID resmi Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah
-                $opd_ids = [
-                    'bkd', 'bpbd', 'bpkad', 'bppd', 'biropem', 'esdm', 'arsip', 'dkp', 'pemudaor',
-                    'dinkes', 'koperasi', 'lingkunganhidup', 'binamarga', 'disdukcapil', 'dinsos',
-                    'pertanian', 'ternaksehat', 'disnaker', 'modal', 'perakim', 'dishub', 'inspektorat',
-                    'sekdprd', 'dinpendidikan', 'disperindag', 'dp3akb', 'kesbangpol', 'bappeda'
-                ];
-
-                if (in_array($id, $opd_ids)) {
-                    return true;
+                // 1. Identifikasi BPS (4 Tim BPS Jawa Tengah)
+                $bps_ids = ['nerwilis', 'distribusi', 'produksi', 'sosial', 'bps', 'ipds'];
+                if (in_array($id, $bps_ids)) {
+                    return 'bps';
                 }
 
-                // Kata kunci pengecualian untuk Instansi Vertikal / Lembaga Pusat / BUMN / Non-OPD
-                $vertikal_keywords = [
-                    'kanwil', 'kementerian', 'kantor wilayah', 'bkn', 'bkkbn', 'bpkp', 'bpom',
-                    'balai pom', 'bank indonesia', 'ojk', 'polda', 'kejaksaan', 'pengadilan',
-                    'ptun', 'kpu', 'koni', 'kadin', 'lldikti', 'kopertais', 'stasiun klimatologi',
-                    'bmkg', 'perum', 'pt.', 'pt ', 'bpjs', 'taspen', 'pelabuhan', 'tanjung emas',
-                    'bea dan cukai', 'perbendaharaan', 'pajak', 'imigrasi', 'pemasyarakatan',
-                    'aliran sungai', 'tim statistik'
+                $bps_keywords = [
+                    'tim neraca', 'nerwilis', 'neraca wilayah',
+                    'tim statistik distribusi', 'statistik distribusi',
+                    'tim statistik produksi', 'statistik produksi',
+                    'tim statistik sosial', 'statistik sosial',
+                    'badan pusat statistik'
                 ];
-
-                foreach ($vertikal_keywords as $vk) {
-                    if (strpos($nameLower, $vk) !== false) {
-                        return false;
+                foreach ($bps_keywords as $bk) {
+                    if (strpos($nameLower, $bk) !== false) {
+                        return 'bps';
                     }
                 }
 
-                // Kata kunci OPD Pemprov
-                if (strpos($nameLower, 'dinas') !== false || 
-                    strpos($nameLower, 'badan kepegawaian') !== false ||
-                    strpos($nameLower, 'badan penanggulangan') !== false ||
-                    strpos($nameLower, 'badan pengelola') !== false ||
-                    strpos($nameLower, 'badan perencanaan') !== false ||
-                    strpos($nameLower, 'badan kesatuan bangsa') !== false ||
-                    strpos($nameLower, 'inspektorat') !== false ||
-                    strpos($nameLower, 'sekretariat dprd') !== false ||
-                    strpos($nameLower, 'biro ') !== false) {
-                    return true;
+                // 2. Identifikasi Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah berdasarkan ID resmi
+                $opd_ids = [
+                    'bkd', 'bpbd', 'bpkad', 'bppd', 'bapenda', 'biropem', 'esdm', 'arsip', 'dkp', 'pemudaor',
+                    'dinkes', 'koperasi', 'lingkunganhidup', 'binamarga', 'disdukcapil', 'dinsos',
+                    'pertanian', 'ternaksehat', 'disnaker', 'modal', 'perakim', 'dishub', 'inspektorat',
+                    'sekdprd', 'dinpendidikan', 'disperindag', 'dp3akb', 'kesbangpol', 'bappeda',
+                    'diskominfo', 'kominfo', 'satpolpp', 'rsud'
+                ];
+                if (in_array($id, $opd_ids)) {
+                    return 'opd';
                 }
 
-                return false;
+                // 3. Kata kunci Organisasi Perangkat Daerah (OPD) Pemprov Jawa Tengah
+                $opd_keywords = [
+                    'dinas', 'organisasi perangkat daerah', 'opd', 'badan kepegawaian', 'badan penanggulangan',
+                    'badan pengelola', 'badan perencanaan', 'bappeda', 'badan pendapatan', 'bapenda',
+                    'badan kesatuan bangsa', 'kesbangpol', 'inspektorat', 'sekretariat dprd', 'sekdprd',
+                    'sekretariat daerah', 'setda', 'biro ', 'satpol pp', 'satuan polisi pamong praja', 'rsud'
+                ];
+
+                foreach ($opd_keywords as $ok) {
+                    if (strpos($nameLower, $ok) !== false) {
+                        return 'opd';
+                    }
+                }
+
+                // 4. Sisanya adalah Instansi Vertikal & Lembaga Lainnya
+                return 'vertikal';
+            }
+        }
+
+        if (!function_exists('isOpdCategory')) {
+            function isOpdCategory($id, $name) {
+                return getInstansiCategorySlug($id, $name) === 'opd';
             }
         }
 
         $cat_counts = [
             'all' => !empty($opd_list) ? count($opd_list) : 0,
             'opd' => 0,
-            'vertikal' => 0
+            'vertikal' => 0,
+            'bps' => 0
         ];
 
         if (!empty($opd_list)) {
             foreach ($opd_list as $opd_item) {
                 $uid = isset($opd_item->id_unitkerja) ? $opd_item->id_unitkerja : '';
-                if (isOpdCategory($uid, $opd_item->unitkerja_ind)) {
-                    $cat_counts['opd']++;
-                } else {
-                    $cat_counts['vertikal']++;
+                $slug = getInstansiCategorySlug($uid, $opd_item->unitkerja_ind);
+                if (isset($cat_counts[$slug])) {
+                    $cat_counts[$slug]++;
                 }
             }
         }
@@ -1332,18 +1343,28 @@
         if (!function_exists('getOpdDirectoryMeta')) {
             function getOpdDirectoryMeta($name, $index, $id = '') {
                 $lower = strtolower($name);
+                $idLower = strtolower(trim((string)$id));
+                $catSlug = getInstansiCategorySlug($id, $name);
                 
-                // Category classification (OPD vs Instansi Vertikal)
-                if (isOpdCategory($id, $name)) {
-                    $catSlug = 'opd';
+                // Category classification (BPS, OPD, Instansi Vertikal)
+                if ($catSlug === 'bps') {
+                    $catLabel = 'Badan Pusat Statistik (BPS)';
+                } elseif ($catSlug === 'opd') {
                     $catLabel = 'Organisasi Perangkat Daerah';
                 } else {
-                    $catSlug = 'vertikal';
                     $catLabel = 'Instansi Vertikal & Lembaga';
                 }
 
-                // Specific Icon per instansi
-                if (strpos($lower, 'kepegawaian') !== false || strpos($lower, 'sdm') !== false || strpos($lower, 'bkd') !== false) {
+                // Specific Icon per instansi / tim BPS
+                if (strpos($lower, 'neraca') !== false || $idLower === 'nerwilis') {
+                    $icon = 'fa-solid fa-chart-line';
+                } elseif (strpos($lower, 'distribusi') !== false || $idLower === 'distribusi') {
+                    $icon = 'fa-solid fa-boxes-packing';
+                } elseif ((strpos($lower, 'produksi') !== false && strpos($lower, 'statistik') !== false) || $idLower === 'produksi') {
+                    $icon = 'fa-solid fa-industry';
+                } elseif (((strpos($lower, 'statistik sosial') !== false || strpos($lower, 'tim sosial') !== false) || $idLower === 'sosial') && strpos($lower, 'dinas') === false) {
+                    $icon = 'fa-solid fa-users';
+                } elseif (strpos($lower, 'kepegawaian') !== false || strpos($lower, 'sdm') !== false || strpos($lower, 'bkd') !== false) {
                     $icon = 'fa-solid fa-id-card-clip';
                 } elseif (strpos($lower, 'bencana') !== false || strpos($lower, 'bpbd') !== false) {
                     $icon = 'fa-solid fa-house-fire';
@@ -1437,6 +1458,13 @@
                             </span>
                             <span class="opd-sidebar-badge"><?= $cat_counts['vertikal'] ?></span>
                         </button>
+                        <button type="button" class="opd-sidebar-item" data-filter="bps">
+                            <span class="opd-sidebar-label">
+                                <i class="fa-solid fa-chart-pie"></i>
+                                <span>BPS</span>
+                            </span>
+                            <span class="opd-sidebar-badge"><?= $cat_counts['bps'] ?></span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1447,9 +1475,10 @@
                     <?php if (!empty($opd_list)) { ?>
                         <?php foreach($opd_list as $index => $opd) { 
                             $meta = getOpdDirectoryMeta($opd->unitkerja_ind, $index, $opd->id_unitkerja ?? '');
+                            $displayName = formatInstansiName($opd->unitkerja_ind, $opd->id_unitkerja ?? '');
                         ?>
-                            <div class="col-md-6 col-12 opd-item" data-category="<?= $meta['catSlug'] ?>" data-name="<?= strtolower(htmlspecialchars($opd->unitkerja_ind)) ?>" <?= $index >= 8 ? 'style="display:none;"' : '' ?>>
-                                <a href="<?= base_url('home/search?opd_search=' . urlencode($opd->unitkerja_ind)) ?>" class="opd-strip-card" title="<?= htmlspecialchars($opd->unitkerja_ind) ?>">
+                            <div class="col-md-6 col-12 opd-item" data-category="<?= $meta['catSlug'] ?>" data-name="<?= strtolower(htmlspecialchars($displayName . ' ' . $opd->unitkerja_ind)) ?>" <?= $index >= 8 ? 'style="display:none;"' : '' ?>>
+                                <a href="<?= base_url('home/search?opd_search=' . urlencode($opd->unitkerja_ind)) ?>" class="opd-strip-card" title="<?= htmlspecialchars($displayName) ?>">
                                     <!-- Left Round Icon with unified brand color -->
                                     <div class="opd-strip-icon">
                                         <i class="<?= $meta['icon'] ?>"></i>
@@ -1457,7 +1486,7 @@
 
                                     <!-- Middle Details -->
                                     <div class="opd-strip-info">
-                                        <h6 class="opd-strip-name"><?= htmlspecialchars($opd->unitkerja_ind) ?></h6>
+                                        <h6 class="opd-strip-name"><?= htmlspecialchars($displayName) ?></h6>
                                         <span class="opd-strip-meta"><?= $opd->total_tabel ?> Tabel Data</span>
                                     </div>
 
@@ -1480,9 +1509,9 @@
                 </div>
 
                 <!-- Bottom Button: Exactly matching Image 2 -->
-                <?php if (!empty($opd_list) && count($opd_list) > 8) { ?>
-                <div class="text-center mt-4 pt-3">
-                    <button type="button" id="btn-load-more-opd" class="btn-opd-expand">
+                <?php if (!empty($opd_list)) { ?>
+                <div class="text-center mt-4 pt-3" id="opd-actions-container">
+                    <button type="button" id="btn-load-more-opd" class="btn-opd-expand" style="<?= count($opd_list) > 8 ? '' : 'display: none;' ?>">
                         <span>Tampilkan Lebih Banyak (<?= count($opd_list) ?> Instansi)</span>
                         <i class="fa-solid fa-chevron-down"></i>
                     </button>
@@ -1511,9 +1540,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var searchQuery = '';
     var defaultVisible = 8;
     var currentlyShown = defaultVisible;
+    var currentMatches = [];
 
     function updateDisplay() {
-        var matches = opdItems.filter(function(item) {
+        currentMatches = opdItems.filter(function(item) {
             var cat = item.getAttribute('data-category');
             var name = item.getAttribute('data-name');
             var matchesCat = (activeFilter === 'all' || cat === activeFilter);
@@ -1526,7 +1556,7 @@ document.addEventListener('DOMContentLoaded', function() {
             item.style.display = 'none';
         });
 
-        if (matches.length === 0) {
+        if (currentMatches.length === 0) {
             if (emptyState) emptyState.style.display = 'block';
             if (loadMoreBtn) loadMoreBtn.style.display = 'none';
             if (hideBtn) hideBtn.style.display = 'none';
@@ -1537,31 +1567,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (searchQuery !== '') {
             // Show all search matches
-            matches.forEach(function(item) {
+            currentMatches.forEach(function(item) {
                 item.style.display = 'block';
             });
             if (loadMoreBtn) loadMoreBtn.style.display = 'none';
             if (hideBtn) hideBtn.style.display = 'none';
         } else {
             // Paginated view
-            var toShow = matches.slice(0, currentlyShown);
+            var toShow = currentMatches.slice(0, currentlyShown);
             toShow.forEach(function(item) {
                 item.style.display = 'block';
             });
 
             if (loadMoreBtn) {
-                if (matches.length > currentlyShown) {
+                if (currentMatches.length > currentlyShown) {
                     loadMoreBtn.style.display = 'inline-flex';
                     var btnText = loadMoreBtn.querySelector('span');
                     if (btnText) {
-                        btnText.textContent = 'Tampilkan Lebih Banyak (' + matches.length + ' Instansi)';
+                        var catText = (activeFilter === 'opd') ? 'OPD' : ((activeFilter === 'vertikal') ? 'Instansi Vertikal' : ((activeFilter === 'bps') ? 'Tim BPS' : 'Instansi'));
+                        btnText.textContent = 'Tampilkan Lebih Banyak (' + currentMatches.length + ' ' + catText + ')';
                     }
                 } else {
                     loadMoreBtn.style.display = 'none';
                 }
             }
             if (hideBtn) {
-                hideBtn.style.display = (currentlyShown > defaultVisible && matches.length > defaultVisible) ? 'inline-flex' : 'none';
+                hideBtn.style.display = (currentlyShown > defaultVisible && currentMatches.length > defaultVisible) ? 'inline-flex' : 'none';
             }
         }
     }
@@ -1601,10 +1632,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Load More Click
+    // Load More Click - Tampilkan seluruh instansi yang tersisa
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener('click', function() {
-            currentlyShown += 8;
+            currentlyShown = currentMatches.length;
             updateDisplay();
         });
     }
@@ -1620,6 +1651,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Initial sync
+    updateDisplay();
 });
 </script>
 
@@ -1646,10 +1680,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <?php if (!empty($recent_tables)) { ?>
                         <?php foreach ($recent_tables as $idx => $row) { ?>
                             <?php 
-                                if (!empty($row->is_dynamic)) {
-                                    $href = base_url('home/view_dinamis/' . $row->id);
-                                    $source_type = 'dinamis';
-                                } elseif (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
+                                if (strpos($row->link_tabel ?? '', 'view_portal_tabel') !== false) {
                                     $portal_id = $row->link_tabel;
                                     if (preg_match('/[?&]id=([^&]+)/', $row->link_tabel, $m_id)) {
                                         $portal_id = $m_id[1];
@@ -1657,31 +1688,34 @@ document.addEventListener('DOMContentLoaded', function() {
                                     $href = base_url('home/view_tabel?id=' . urlencode($portal_id) . '&table_id=' . $row->id);
                                     $source_type = 'portal';
                                 } else {
-                                    $href = base_url('home/view_sheet?url=' . urlencode($row->link_tabel ?? '') . '&table_id=' . $row->id);
-                                    $source_type = 'sheet';
+                                    $href = base_url('home/view_dinamis/' . $row->id);
+                                    $source_type = 'dinamis';
                                 }
+
+                                $raw_judul = $row->judul_ind ?? '';
+                                if (stripos($raw_judul, '[PERIODE]') !== false && function_exists('format_judul_tabel')) {
+                                    $raw_judul = format_judul_tabel($raw_judul, $row->periode_id ?? '');
+                                }
+                                $no_tabel_clean = trim((string)($row->no_tabel ?? ''));
+                                $display_title = (!empty($no_tabel_clean) && !preg_match('/^' . preg_quote($no_tabel_clean, '/') . '\b/i', $raw_judul) ? $no_tabel_clean . ' ' : '') . $raw_judul;
                             ?>
                             <div class="swiper-slide" style="height: auto;">
                                 <div class="table-clean-card">
                                     <!-- 1. Instansi -->
                                     <div class="tcc-header d-flex align-items-center">
-                                        <span class="tcc-agency text-truncate" title="<?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?>">
+                                        <span class="tcc-agency text-truncate" title="<?= htmlspecialchars(formatInstansiName($row->unitkerja_ind ?? 'Instansi Daerah', $row->id_unitkerja ?? '')) ?>">
                                             <i class="fa-solid fa-building-columns"></i>
-                                            <span><?= htmlspecialchars($row->unitkerja_ind ?? 'Instansi Daerah') ?></span>
+                                            <span><?= htmlspecialchars(formatInstansiName($row->unitkerja_ind ?? 'Instansi Daerah', $row->id_unitkerja ?? '')) ?></span>
                                         </span>
                                     </div>
 
                                     <!-- 2. Judul -->
-                                    <a href="<?= $href ?>" class="tcc-title" title="<?= htmlspecialchars($row->judul_ind) ?>">
-                                        <?= htmlspecialchars($row->judul_ind) ?>
+                                    <a href="<?= $href ?>" class="tcc-title" title="<?= htmlspecialchars($display_title) ?>">
+                                        <?= htmlspecialchars($display_title) ?>
                                     </a>
 
-                                    <!-- 3. Tahun & 4. Button Buka -->
-                                    <div class="tcc-footer">
-                                        <span class="tcc-year">
-                                            <i class="fa-regular fa-calendar-days"></i>
-                                            <span>Tahun <?= htmlspecialchars($row->tahun ?? date('Y')) ?></span>
-                                        </span>
+                                    <!-- Button Buka -->
+                                    <div class="tcc-footer justify-content-end">
                                         <a href="<?= $href ?>" class="tcc-btn">
                                             <span>Buka</span>
                                             <i class="fa-solid fa-arrow-right"></i>
@@ -1764,7 +1798,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="col-lg-7">
                             <h3 class="kc-title">Pencarian Dataset Cepat & Filter Presisi</h3>
                             <p class="kc-desc">
-                                Temukan data yang Anda butuhkan dalam hitungan detik dengan sistem pencarian dinamis, filter multi-instansi, dan pengelompokan tahun yang presisi.
+                                Temukan data yang Anda butuhkan dalam hitungan detik dengan sistem pencarian dinamis serta filter multi-instansi yang presisi.
                             </p>
 
                             <div class="kc-highlight-list mb-4">
@@ -1774,7 +1808,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </div>
                                     <div class="kc-highlight-text">
                                         <h6>Filter Multi-Kriteria</h6>
-                                        <p>Saring dataset berdasarkan instansi (OPD), rentang tahun spesifik, hingga topik statistik dalam satu antarmuka terpadu.</p>
+                                        <p>Saring dataset berdasarkan instansi (OPD dan Instansi Vertikal) hingga topik statistik dalam satu antarmuka terpadu.</p>
                                     </div>
                                 </div>
                                 <div class="kc-highlight-item">
@@ -1860,7 +1894,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <div class="sim-search-bar mb-3">
                                         <i class="fa-solid fa-magnifying-glass text-muted"></i>
                                         <span class="sim-search-text"><?= htmlspecialchars($sample_query) ?></span>
-                                        <span class="sim-search-badge"><?= htmlspecialchars($sample_year) ?></span>
+                                        <span class="sim-search-badge">Cari</span>
                                     </div>
 
                                     <!-- Simulated Result List (1 Contoh Nyata Judul Tabel) -->
@@ -1874,8 +1908,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     <?= htmlspecialchars($sample_title) ?>
                                                 </div>
                                                 <div class="sim-result-meta">
-                                                    <span><i class="fa-solid fa-building me-1"></i> <?= htmlspecialchars($sample_opd) ?></span>
-                                                    <span class="sim-badge-year"><?= htmlspecialchars($sample_year) ?></span>
+                                                    <span><i class="fa-solid fa-building-columns me-1"></i> <?= htmlspecialchars($sample_opd) ?></span>
+
                                                 </div>
                                             </div>
                                         </div>
@@ -2711,9 +2745,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 $(document).ready(function() {
     $('select[name="opd_search"]').select2();
-    $('select[name="tahun"]').select2({
-        minimumResultsForSearch: Infinity
-    });
 
     // Hero search clear (X) button logic
     const $heroQ = $('#hero-search-q');

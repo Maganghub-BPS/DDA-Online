@@ -17,13 +17,16 @@ if ($mode == "edt" || $mode == "act_edt") {
     $idp                    = $datpil->id;
     $judul_ind              = $datpil->judul_ind;
     $judul_en               = $datpil->judul_en;
-    $link_tabel             = $datpil->link_tabel;
-    $link_sebelumnya        = $datpil->link_sebelumnya;
+    $link_tabel             = $datpil->link_tabel ?? '';
+    $link_sebelumnya        = $datpil->link_sebelumnya ?? '';
     $id_unitkerja           = $datpil->id_unitkerja;
     $periode_id             = $datpil->periode_id ?? $datpil->periode ?? '';
     $periode_en             = $datpil->periode_en ?? $periode_id;
     $no_tabel               = $datpil->no_tabel;
     $is_dynamic             = !empty($datpil->is_dynamic) ? (int)$datpil->is_dynamic : 0;
+    $jenis_sumber           = $datpil->jenis_sumber ?? ($is_dynamic ? 'dinamis' : 'api_kominfo');
+    $id_api                 = $datpil->id_api ?? '';
+    $link_api               = $datpil->link_api ?? $link_tabel;
     
     $query_unitkerja =\Config\Database::connect()->query("SELECT * from m_unitkerja where id_unitkerja=? LIMIT 1", [$id_unitkerja])->getRow();
     if($query_unitkerja) {
@@ -48,6 +51,9 @@ if ($mode == "edt" || $mode == "act_edt") {
     $periode_en             = "";
     $no_tabel               = "";
     $is_dynamic             = 0;
+    $jenis_sumber           = "api_kominfo";
+    $id_api                 = "";
+    $link_api               = "";
 }
 ?>
 
@@ -75,7 +81,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                         <div class="col-md-6">
                             <div class="mb-3 position-relative">
                                 <label class="form-label fw-bold text-dark d-flex justify-content-between align-items-center">
-                                    <span><i class="bi bi-translate me-1 text-primary"></i> Judul Bahasa Indonesia</span>
+                                    <span><i class="bi bi-translate me-1 text-primary"></i> Judul Dasar (Bahasa Indonesia)</span>
                                     <?php if ($act == "act_add"): ?>
                                     <span class="badge bg-light text-muted border fw-normal" style="font-size: 10px;">
                                         <i class="bi bi-lightning-charge text-warning"></i> Cek Master Otomatis
@@ -83,14 +89,17 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <?php endif; ?>
                                 </label>
                                 <div class="position-relative">
-                                    <textarea name="judul_ind" id="judul_ind" tabindex="1" required class="form-control" rows="3" placeholder="Ketik judul tabel bahasa Indonesia..." autocomplete="off"><?php echo $judul_ind; ?></textarea>
+                                    <textarea name="judul_ind" id="judul_ind" tabindex="1" required class="form-control" rows="3" autocomplete="off"><?php echo esc($judul_ind); ?></textarea>
+                                    <small class="text-muted" style="font-size: 11px;">
+                                        <i class="bi bi-info-circle me-1 text-primary"></i>Tulis judul dasar tabel tanpa angka tahun di ujungnya. Tahun akan dirakit otomatis oleh sistem sesuai tahun data yang ditampilkan.
+                                    </small>
                                     <!-- Indikator loading saat AJAX mencari master tabel serupa -->
                                     <div id="judul_spinner" class="position-absolute end-0 top-0 mt-2 me-2 d-none">
                                         <div class="spinner-border spinner-border-sm text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
                                     </div>
-                                    <!-- Dropdown Live Suggestion Master ID: Muncul otomatis saat mengetik judul >= 3 karakter -->
+                                    <!-- Dropdown Live Suggestion Master ID -->
                                     <div id="master_suggestions_box" class="dropdown-menu shadow-lg w-100 p-2 border-0 mt-1" style="display:none; position:absolute; z-index:1050; max-height:360px; overflow-y:auto; border-radius: 0.75rem; border: 1px solid #cbd5e1; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;">
                                         <div class="px-2 py-1 text-muted small fw-bold text-uppercase border-bottom mb-1 d-flex justify-content-between align-items-center" style="font-size: 11px;">
                                             <span><i class="bi bi-search me-1 text-primary"></i> Master Tabel Serupa di Database:</span>
@@ -100,7 +109,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     </div>
                                 </div>
 
-                                <!-- Alert Saat Master Ditautkan: Mengonfirmasi bahwa tabel baru ini tidak membuat entri duplikat baru di kamus m_list_tabel -->
+                                <!-- Alert Saat Master Ditautkan -->
                                 <div id="linked_master_badge" class="alert alert-info border-0 rounded-3 p-3 mt-2 d-none shadow-sm" style="background: #eef7ff; border-left: 4px solid #0284c7 !important;">
                                     <div class="d-flex align-items-start justify-content-between">
                                         <div class="d-flex align-items-start">
@@ -110,7 +119,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                                     Menautkan ke Master ID: <span class="badge bg-primary text-white" id="linked_master_id_text">#</span>
                                                 </div>
                                                 <div class="text-muted small mt-1" style="font-size: 11px;">
-                                                    Tabel ini akan didaftarkan ke DDA <b>Tahun <?php echo $ta ?? date('Y'); ?></b> menggunakan ID Master yang sama (mencegah duplikasi kamus master).
+                                                    Master tabel ini berlaku untuk seluruh edisi tahun buku tanpa duplikasi kamus master.
                                                 </div>
                                             </div>
                                         </div>
@@ -120,23 +129,16 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     </div>
                                 </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-dark"><i class="bi bi-calendar3 me-1 text-primary"></i> Periode Tabel (Indonesia)</label>
-                                <input type="text" name="periode_id" class="form-control" value="<?php echo $periode_id; ?>" placeholder="Contoh: 2024, Semester I 2024, 2021-2025" required>
-                                <small class="text-muted" style="font-size: 11px;">Otomatis digabung di akhir judul (kecuali menyisipkan tag <code>[PERIODE]</code> di tengah).</small>
-                            </div>
                         </div>
 
                         <!-- SISI KANAN: BAHASA INGGRIS -->
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label fw-bold text-dark"><i class="bi bi-translate me-1 text-primary"></i> Table Title (English)</label>
-                                <textarea name="judul_en" tabindex="2" required class="form-control" rows="3" placeholder="Type english table title..."><?php echo $judul_en; ?></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-dark"><i class="bi bi-calendar3 me-1 text-primary"></i> Table Period (English)</label>
-                                <input type="text" name="periode_en" class="form-control" value="<?php echo $periode_en; ?>" placeholder="Example: 2024, 1st Semester 2024, 2021-2025">
-                                <small class="text-muted" style="font-size: 11px;">Automatically appended to title (unless <code>[PERIODE]</code> tag is used inline).</small>
+                                <label class="form-label fw-bold text-dark"><i class="bi bi-translate me-1 text-primary"></i> Base Title (English)</label>
+                                <textarea name="judul_en" tabindex="2" required class="form-control" rows="3"><?php echo esc($judul_en); ?></textarea>
+                                <small class="text-muted" style="font-size: 11px;">
+                                    <i class="bi bi-info-circle me-1 text-primary"></i>Write base title without static year at the end. The year suffix will be automatically assembled.
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -144,7 +146,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
                             <label class="form-label fw-bold text-dark"><i class="bi bi-hash me-1 text-primary"></i> No Tabel</label>
-                            <input type="text" name="no_tabel" id="no_tabel" class="form-control" value="<?php echo $no_tabel; ?>" placeholder="Contoh: 1.1">
+                            <input type="text" name="no_tabel" id="no_tabel" class="form-control" value="<?php echo esc($no_tabel); ?>">
                             <div id="no_tabel_suggestion" class="mt-1" style="display: none;"></div>
                         </div>
                         <div class="col-md-8">
@@ -152,19 +154,19 @@ if ($mode == "edt" || $mode == "act_edt") {
                             <select name="id_unitkerja" id="id_unitkerja" class="form-select" tabindex="5" required>
                                 <?php
                                 $db = \Config\Database::connect();
-                                $unitkerja = $db->query("select * from m_unitkerja order by unitkerja_ind")->getResultArray();
+                                $unitkerja = $db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind")->getResultArray();
                                 
                                 if ($mode == "edt" || $mode == "act_edt") {
-                                    echo "<option selected value='".$idunitkerja_terpilih."'>".$unitkerja_terpilih."</option>";
+                                    echo "<option selected value='" . esc($idunitkerja_terpilih, 'attr') . "'>" . esc($unitkerja_terpilih) . "</option>";
                                     foreach($unitkerja as $p){
                                         if ($p['id_unitkerja'] != $idunitkerja_terpilih) {
-                                            echo "<option value='".$p['id_unitkerja']."'>".$p['unitkerja_ind']."</option>";
+                                            echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
                                         }
                                     }
                                 } else {
                                     echo "<option selected value=''>- Pilih Instansi Penanggung Jawab -</option>";
                                     foreach($unitkerja as $p){
-                                        echo "<option value='".$p['id_unitkerja']."'>".$p['unitkerja_ind']."</option>";
+                                        echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
                                     }
                                 }
                                 ?>
@@ -172,28 +174,37 @@ if ($mode == "edt" || $mode == "act_edt") {
                         </div>
                     </div>
 
-                    <!-- PILIHAN FORMAT SUMBER DATA TABEL -->
+                    <!-- PILIHAN FORMAT SUMBER DATA TABEL (PILIHAN 1) -->
                     <div class="mb-4">
                         <label class="form-label fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                            <i class="bi bi-hdd-network text-primary"></i> Pilihan Format Sumber Data Tabel
+                            <i class="bi bi-hdd-network text-primary"></i> Sumber Data Tabel
                         </label>
                         <div class="row g-3">
+                            <!-- Kartu 1: API Satu Data Kominfo -->
                             <div class="col-md-6">
-                                <div class="card p-3 rounded-3 format-option-card <?= empty($is_dynamic) ? 'active' : ''; ?>" id="card_format_link">
+                                <div class="card p-3 rounded-3 format-option-card <?= ($jenis_sumber === 'api_kominfo') ? 'active' : ''; ?>" id="card_format_api">
                                     <div class="form-check d-flex align-items-center gap-2 mb-0">
-                                        <input class="form-check-input" type="radio" name="is_dynamic" id="format_link" value="0" <?= empty($is_dynamic) ? 'checked' : ''; ?>>
-                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="format_link" style="cursor: pointer;">
-                                            <i class="bi bi-link-45deg text-success fs-5"></i> URL
+                                        <input class="form-check-input" type="radio" name="jenis_sumber" id="sumber_api" value="api_kominfo" <?= ($jenis_sumber === 'api_kominfo') ? 'checked' : ''; ?>>
+                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="sumber_api" style="cursor: pointer;">
+
+                                            <i class="bi bi-link-45deg text-success fs-5"></i> API Satu Data Kominfo
+
+
                                         </label>
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Kartu 2: Tabel Dinamis -->
                             <div class="col-md-6">
-                                <div class="card p-3 rounded-3 format-option-card <?= !empty($is_dynamic) ? 'active' : ''; ?>" id="card_format_dynamic">
+                                <div class="card p-3 rounded-3 format-option-card <?= ($jenis_sumber === 'dinamis') ? 'active' : ''; ?>" id="card_format_dynamic">
                                     <div class="form-check d-flex align-items-center gap-2 mb-0">
-                                        <input class="form-check-input" type="radio" name="is_dynamic" id="format_dynamic" value="1" <?= !empty($is_dynamic) ? 'checked' : ''; ?>>
-                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="format_dynamic" style="cursor: pointer;">
+                                        <input class="form-check-input" type="radio" name="jenis_sumber" id="sumber_dinamis" value="dinamis" <?= ($jenis_sumber === 'dinamis') ? 'checked' : ''; ?>>
+                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="sumber_dinamis" style="cursor: pointer;">
+
                                             <i class="bi bi-boxes text-primary fs-5"></i> Tabel Dinamis
+
+
                                         </label>
                                     </div>
                                 </div>
@@ -201,30 +212,32 @@ if ($mode == "edt" || $mode == "act_edt") {
                         </div>
                     </div>
 
-                    <!-- KONTEN A: FORMAT LINK SPREADSHEET (MUNCUL JIKA LINK DIPILIH) -->
-                    <div id="section_format_link" class="<?= !empty($is_dynamic) ? 'd-none' : ''; ?>">
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark"><i class="bi bi-link-45deg me-1 text-primary"></i> Link Tabel (Tahun Berjalan)</label>
-                                <textarea name="link_tabel" id="link_tabel" tabindex="3" class="form-control" rows="2" placeholder="Masukkan url/link tabel"><?php echo $link_tabel; ?></textarea>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold text-dark"><i class="bi bi-link-45deg me-1 text-primary"></i> Link Tabel (Tahun Sebelumnya)</label>
-                                <textarea name="link_sebelumnya" id="link_sebelumnya" tabindex="4" class="form-control" rows="2" placeholder="Masukkan url/link tabel tahun sebelumnya"><?php echo $link_sebelumnya; ?></textarea>
-                            </div>
+                    <!-- KONTEN A: FORMAT API SATU DATA KOMINFO (MUNCUL JIKA API KOMINFO DIPILIH) -->
+                    <div id="section_format_api" class="<?= ($jenis_sumber !== 'api_kominfo') ? 'd-none' : ''; ?>">
+                        <div class="card border rounded-3 mb-4 p-3 shadow-xs bg-light">
+                            <label class="form-label fw-bold text-dark d-flex align-items-center justify-content-between">
+                                <span><i class="bi bi-link-45deg me-1 text-primary"></i> ID / Link API Portal Satu Data Jateng</span>
+                                <span id="badge_detected_uuid" class="badge bg-primary-subtle text-primary border border-primary-subtle <?= empty($id_api) ? 'd-none' : ''; ?>" style="font-size: 11px;">
+                                    UUID: <span id="text_detected_uuid"><?= esc($id_api); ?></span>
+                                </span>
+                            </label>
+                            <textarea name="link_api" id="input_link_api" tabindex="3" class="form-control" rows="2"><?= esc($link_api); ?></textarea>
+                            <small class="text-muted mt-1" style="font-size: 11px;">
+                                <i class="bi bi-lightbulb text-warning me-1"></i>Sistem otomatis mengekstrak UUID tabel jika Anda menempelkan URL lengkap dari browser.
+                            </small>
                         </div>
                     </div>
 
-                    <!-- KONTEN B: FORMAT TABEL DINAMIS (OPSI 1: STATUS DIMENSI & TOMBOL GENERATOR) -->
-                    <div id="section_format_dynamic" class="<?= empty($is_dynamic) ? 'd-none' : ''; ?>">
+                    <!-- KONTEN B: FORMAT TABEL DINAMIS (STATUS DIMENSI & TOMBOL GENERATOR) -->
+                    <div id="section_format_dynamic" class="<?= ($jenis_sumber !== 'dinamis') ? 'd-none' : ''; ?>">
                         <div class="card border rounded-3 mb-4 shadow-xs" style="background: #ffffff; border-color: #cbd5e1 !important;">
                             <div class="card-header bg-light border-bottom py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
                                 <span class="fw-bold text-dark small">
-                                    <i class="bi bi-sliders text-primary me-1"></i> Konfigurasi Dimensi Matriks Dinamis
+                                    <i class="bi bi-sliders text-primary me-1"></i> Konfigurasi Dimensi Matriks Dinamis (Lintas Tahun)
                                 </span>
                                 <?php if (!empty($idp)): ?>
                                 <a href="<?= base_url('admin/generator_tabel/' . $idp); ?>" class="btn btn-sm btn-primary px-3 py-1.5 rounded-pill fw-semibold text-xs shadow-xs d-inline-flex align-items-center gap-1">
-                                    <i class="bi bi-tools"></i> Kelola Dimensi Matriks
+                                    <i class="bi bi-tools"></i> Kelola Dimensi di Generator Tabel
                                 </a>
                                 <?php endif; ?>
                             </div>
@@ -256,8 +269,8 @@ if ($mode == "edt" || $mode == "act_edt") {
                                                 <div class="text-muted text-xxs fw-bold text-uppercase d-flex align-items-center gap-1">
                                                     <i class="bi bi-calendar3 text-success"></i> Periode : Waktu
                                                 </div>
-                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : 'Belum ditentukan'; ?>">
-                                                    <?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
+                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : 'Tahunan (Multi-Tahun)'; ?>">
+                                                    <?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : '<span class="text-success fw-semibold">Tahunan (Multi-Tahun)</span>'; ?>
                                                 </div>
                                             </div>
                                         </div>
@@ -266,7 +279,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                     <div class="text-center py-3 text-muted">
                                         <i class="bi bi-boxes fs-3 text-primary d-block mb-1"></i>
                                         <div class="small fw-semibold text-dark">Tabel Baru: Siap Dirakit Menjadi Tabel Dinamis</div>
-                                        <div class="text-xxs text-muted mt-1">Simpan data tabel terlebih dahulu, kemudian Anda dapat merakit dimensi Kolom, Baris, dan Periode melalui Generator Tabel.</div>
+                                        <div class="text-xxs text-muted mt-1">Setelah menyimpan tabel ini, Anda dapat langsung mengelola dimensi Baris, Kolom Karakteristik, Satuan, dan Desimal di Generator Tabel.</div>
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -275,10 +288,13 @@ if ($mode == "edt" || $mode == "act_edt") {
                     
                     <hr class="text-secondary opacity-25 mt-4 mb-3">
                     
-                    <div class="d-flex justify-content-end gap-2">
+                    <div class="d-flex justify-content-end align-items-center gap-2">
                         <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel" class="btn btn-light border" tabindex="7">
                             <i class="bi bi-arrow-left me-1"></i> Kembali
                         </a>
+                        <button type="submit" name="simpan_lanjut_generator" value="1" id="btn_simpan_generator" class="btn btn-success px-4 <?= ($jenis_sumber !== 'dinamis') ? 'd-none' : ''; ?>">
+                            <i class="bi bi-tools me-1"></i> Simpan & Lanjut ke Generator Tabel
+                        </button>
                         <button type="submit" class="btn btn-primary px-4" tabindex="6">
                             <i class="bi bi-check2-circle me-1"></i> Simpan Data Tabel
                         </button>
@@ -395,7 +411,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                 <button type="button" class="btn btn-light px-4 border" style="border-radius: 8px;" data-bs-dismiss="modal">
                     Batal
                 </button>
-                <button type="button" id="btn_confirm_conflict" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                <button type="button" id="btn_confirm_conflict" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border: none;">
                     <i class="bi bi-check2-circle"></i>
                     <span>Terapkan & Simpan</span>
                 </button>
@@ -457,13 +473,13 @@ if ($mode == "edt" || $mode == "act_edt") {
         transform: translateY(-1px);
     }
     .conflict-card-option.active {
-        border-color: #FF6D1F !important;
-        background: rgba(255, 109, 31, 0.04) !important;
-        box-shadow: 0 3px 10px rgba(255, 109, 31, 0.1) !important;
+        border-color: #154679 !important;
+        background: rgba(21, 70, 121, 0.04) !important;
+        box-shadow: 0 3px 10px rgba(21, 70, 121, 0.12) !important;
     }
     .conflict-card-option .form-check-input:checked {
-        background-color: #FF6D1F;
-        border-color: #FF6D1F;
+        background-color: #154679;
+        border-color: #154679;
     }
     /* Format Option Cards (Tabel Dinamis vs Link) */
     .format-option-card {
@@ -491,36 +507,49 @@ if ($mode == "edt" || $mode == "act_edt") {
 <script>
 $(document).ready(function() {
     // =========================================================================
-    // TOGGLE FORMAT SUMBER DATA TABEL (LINK SPREADSHEET VS TABEL DINAMIS)
-    // =========================================================================
+    // TOGGLE FORMAT SUMBER DATA TABEL (API SATU DATA KOMINFO VS TABEL DINAMIS)
     function updateFormatView() {
-        var formatVal = $('input[name="is_dynamic"]:checked').val();
-        if (formatVal === '1') {
-            $('#section_format_link').addClass('d-none');
+        var jenisSumber = $('input[name="jenis_sumber"]:checked').val() || 'api_kominfo';
+        if (jenisSumber === 'dinamis') {
+            $('#section_format_api').addClass('d-none');
             $('#section_format_dynamic').removeClass('d-none');
             $('#card_format_dynamic').addClass('active');
-            $('#card_format_link').removeClass('active');
+            $('#card_format_api').removeClass('active');
+            $('#btn_simpan_generator').removeClass('d-none');
         } else {
-            $('#section_format_link').removeClass('d-none');
+            $('#section_format_api').removeClass('d-none');
             $('#section_format_dynamic').addClass('d-none');
-            $('#card_format_link').addClass('active');
+            $('#card_format_api').addClass('active');
             $('#card_format_dynamic').removeClass('active');
+            $('#btn_simpan_generator').addClass('d-none');
         }
     }
 
-    $('input[name="is_dynamic"]').on('change', function() {
+    $('input[name="jenis_sumber"]').on('change', function() {
         updateFormatView();
     });
 
-    $('#card_format_link').on('click', function(e) {
+    $('#card_format_api').on('click', function(e) {
         if (!$(e.target).is('input')) {
-            $('#format_link').prop('checked', true).trigger('change');
+            $('#sumber_api').prop('checked', true).trigger('change');
         }
     });
 
     $('#card_format_dynamic').on('click', function(e) {
         if (!$(e.target).is('input')) {
-            $('#format_dynamic').prop('checked', true).trigger('change');
+            $('#sumber_dinamis').prop('checked', true).trigger('change');
+        }
+    });
+
+    // Auto-extract UUID saat paste / ketik di link API
+    $('#input_link_api').on('input change paste', function() {
+        var val = $(this).val() || '';
+        var match = val.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+        if (match) {
+            $('#text_detected_uuid').text(match[0]);
+            $('#badge_detected_uuid').removeClass('d-none');
+        } else {
+            $('#badge_detected_uuid').addClass('d-none');
         }
     });
 

@@ -49,6 +49,10 @@ env*
 .vagrant
 Vagrantfile
 
+# Database Dumps
+*.sql
+*.sql.gz
+
 #-------------------------
 # Temporary Files
 #-------------------------
@@ -147,3 +151,21 @@ debug_output.txt
 mock_db.json
 simdasi.html
 python_engine/backup_pre_upgrade/
+
+# Excluded documentation & non-system files
+documentation/
+guide-book/
+.agent/
+.agents/
+AUDIT_*
+DIAGRAM_*
+DOKUMENTASI_*
+FLOW_*
+LAPORAN_AUDIT_*
+MASTER_PROMPT_*
+PLAN_AUDIT_*
+FORM_CHECKLIST_*
+IMPLEMENTASI_DRAG_*
+PANDUAN_PENGUJIAN_*
+# Excluded documentation & non-system files
+diagram_visual.html

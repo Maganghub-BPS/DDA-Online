@@ -2,6 +2,7 @@
 $idp = $datpil->id;
 $judul_ind = $datpil->judul_ind;
 $kondef = $datpil->kondef;
+$canEditKondef = function_exists('can') ? can('input_dda_input') : true;
 ?>
 
 <div class="row justify-content-center">
@@ -15,18 +16,18 @@ $kondef = $datpil->kondef;
             
             <div class="card-body p-4">
                 <form action="<?php echo base_URL()?>index.php/admin/dda/kondef_update" method="POST">
-                    <input type="hidden" name="idp" value="<?php echo $idp; ?>">
+                    <input type="hidden" name="idp" value="<?php echo esc($idp); ?>">
                     
                     <div class="mb-4">
                         <label class="form-label fw-bold text-secondary mb-2">Internal Judul Tabel</label>
                         <div class="p-3 bg-light rounded-3 border-start border-4 border-primary">
-                            <?php echo htmlspecialchars($judul_ind); ?>
+                            <?php echo esc($judul_ind); ?>
                         </div>
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label fw-bold text-secondary mb-2">Penjelasan Konsep Dan Definisi</label>
-                        <textarea name="kondef" tabindex="1" required class="form-control" rows="6" placeholder="Masukkan penjelasan konsep dan definisi operasional untuk tabel ini..."><?php echo $kondef; ?></textarea>
+                        <textarea name="kondef" tabindex="1" required class="form-control" rows="6" <?php echo !$canEditKondef ? 'readonly' : ''; ?> placeholder="Masukkan penjelasan konsep dan definisi operasional untuk tabel ini..."><?php echo esc($kondef); ?></textarea>
                         <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i>Informasi ini akan membantu pengguna memahami data yang disajikan.</div>
                     </div>
                     
@@ -36,9 +37,11 @@ $kondef = $datpil->kondef;
                         <a href="<?php echo base_URL(); ?>index.php/admin/dda" class="btn btn-light border" tabindex="3">
                             <i class="bi bi-arrow-left me-1"></i> Kembali
                         </a>
+                        <?php if ($canEditKondef): ?>
                         <button type="submit" class="btn btn-primary px-4" tabindex="2">
                             <i class="bi bi-check2-circle me-1"></i> Perbarui Kondef
                         </button>
+                        <?php endif; ?>
                     </div>
                 </form>
             </div>

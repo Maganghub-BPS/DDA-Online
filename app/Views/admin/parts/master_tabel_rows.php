@@ -62,7 +62,7 @@ if (empty($data)) {
             <!-- Kolom Aksi Dropdown (Edit Detail & Hapus Modal Aman) -->
             <td class="text-center">
                 <div class="dropdown">
-                    <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown">
+                    <button class="btn btn-link text-secondary mb-0 shadow-none border-0" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}'>
                         <i class="bi bi-three-dots-vertical fs-6"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 border-radius-lg p-2">
@@ -86,6 +86,20 @@ if (empty($data)) {
                         <li>
                             <a href="<?php echo base_url('admin/download_template_tabel/' . $b->id); ?>" class="dropdown-item border-radius-md py-2 text-sm text-success fw-semibold">
                                 <i class="bi bi-file-earmark-excel me-2"></i> Unduh Template Excel
+                            </a>
+                        </li>
+                        <?php elseif (!empty($b->id_api) || !empty($b->link_api) || (!empty($b->link_tabel) && strpos($b->link_tabel, 'view_portal_tabel') !== false)): ?>
+                        <li>
+                            <?php 
+                            $portal_link = !empty($b->link_api) 
+                                ? (stripos($b->link_api, 'http') === 0 ? $b->link_api : base_url($b->link_api)) 
+                                : (!empty($b->link_tabel) ? (stripos($b->link_tabel, 'http') === 0 ? $b->link_tabel : base_url($b->link_tabel)) : base_url('admin/view_portal_tabel?id=' . urlencode($b->id_api)));
+                            if (strpos($portal_link, 'view_portal_tabel') !== false && strpos($portal_link, 'table_id=') === false) {
+                                $portal_link .= (strpos($portal_link, '?') !== false ? '&' : '?') . 'table_id=' . $b->id;
+                            }
+                            ?>
+                            <a href="<?php echo $portal_link; ?>" class="dropdown-item border-radius-md py-2 text-sm text-info fw-semibold">
+                                <i class="bi bi-table me-2"></i> Lihat Tabel API
                             </a>
                         </li>
                         <?php endif; ?>

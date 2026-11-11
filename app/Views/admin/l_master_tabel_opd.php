@@ -1,27 +1,34 @@
 <?php
 /**
  * VIEW: DAFTAR USULAN TABEL DARI DINAS/OPD (l_master_tabel_opd.php)
- * Menampilkan seluruh draf tabel baru yang diajukan oleh OPD/produsen data.
- * Admin BPS dapat:
- * 1. Mencari usulan berdasarkan judul atau nama instansi.
- * 2. Mengunduh berkas pendukung (Excel/PDF) yang dilampirkan OPD.
- * 3. Menyetujui usulan (tombol ACC hijau) yang membuka form konfirmasi f_add_opd.
- * 4. Menolak/menghapus usulan (tombol merah) melalui dialog konfirmasi aman.
+ * Menampilkan draf tabel baru yang diajukan oleh OPD/produsen data.
+ * - Mode Admin BPS: Meninjau seluruh usulan, mengunduh file, dan menyetujui (ACC).
+ * - Mode Instansi (OPD/Vertikal): Menampilkan usulan milik instansi sendiri + status telaah + tombol tambah usulan.
  */
-echo session()->getFlashdata("k"); 
+$is_bps = isset($is_bps) ? (bool)$is_bps : (session()->get('admin_unitkerja') === 'bps');
 ?>
 
-<div class="card border-0 shadow-lg border-radius-2xl mb-4 overflow-hidden">
-    <div class="card-header pb-3 pt-3 px-4 bg-white border-0">
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainMasterTabelOpdCard" style="height: auto; max-height: calc(100vh - 82px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+    <div class="card-header pb-3 pt-3 px-4 bg-white border-0 flex-shrink-0">
         <div class="row align-items-center g-3">
             <div class="col-lg-7">
                 <div class="d-flex align-items-center gap-3">
+                    <?php if ($is_bps): ?>
                     <a href="<?php echo base_url(); ?>index.php/admin/master_tabel/" class="btn btn-sm btn-outline-secondary border-radius-lg px-3 mb-0 shadow-none d-flex align-items-center">
                         <i class="bi bi-arrow-left me-1"></i> Kembali
                     </a>
                     <h5 class="fw-bold mb-0 text-dark">
-                        <i class="bi bi-patch-question me-2 text-primary-orange"></i>Review Tabel Usulan
+                        <i class="bi bi-patch-question me-2 text-primary"></i>Review Tabel Usulan
                     </h5>
+                    <?php else: ?>
+                    <a href="<?php echo base_url(); ?>index.php/admin/master_tabel_opd/add" class="btn btn-primary btn-sm px-3 border-radius-lg mb-0 shadow-sm fw-bold d-inline-flex align-items-center gap-2" style="background: linear-gradient(45deg, #154679, #1e5c9e); border: none;">
+                        <i class="bi bi-plus-circle fs-6"></i>
+                        <span>Usulkan Tabel Baru</span>
+                    </a>
+                    <h5 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-file-earmark-plus me-2 text-primary"></i>Daftar Usulan Tabel
+                    </h5>
+                    <?php endif; ?>
                 </div>
             </div>
             <!-- Input Pencarian Cepat Usulan (Real-time Filter) -->
@@ -29,42 +36,52 @@ echo session()->getFlashdata("k");
                 <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/cari" onsubmit="return false;">
                     <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                         <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="inputSearchUsulan" class="form-control bg-transparent border-0 ps-0" name="q" placeholder="Ketik untuk mencari usulan..." style="box-shadow: none;">
+                        <input type="text" id="inputSearchUsulan" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Ketik untuk mencari usulan..." style="box-shadow: none;" autocomplete="off">
                     </div>
                 </form>
             </div>
         </div>
     </div>
     
-    <div class="card-body px-4 pt-0 pb-4">
-        <!-- Informasi Petunjuk Bagi Admin -->
-        <div class="alert bg-gray-100 border-0 text-sm mb-4 px-3 py-2 border-radius-lg">
+    <div class="card-body px-4 pt-0 pb-3 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: hidden;">
+        <!-- Informasi Petunjuk -->
+        <div class="alert bg-gray-100 border-0 text-sm mb-3 px-3 py-2 border-radius-lg flex-shrink-0">
             <i class="bi bi-info-circle text-primary me-2"></i>
-            Halaman ini menampilkan tabel baru yang diusulkan oleh OPD. Klik <strong>ACC</strong> untuk mendaftarkan ke Master Tabel.
+            <?php if ($is_bps): ?>
+                Halaman ini menampilkan tabel baru yang diusulkan oleh OPD. Klik <strong>ACC</strong> untuk mendaftarkan ke Master Tabel.
+            <?php else: ?>
+                Halaman ini menampilkan riwayat usulan tabel baru dari instansi Anda. Klik tombol <strong>Usulkan Tabel Baru</strong> untuk mengajukan draf tabel tambahan ke BPS.
+            <?php endif; ?>
         </div>
 
-        <div class="table-responsive rounded-3 border border-light overflow-hidden">
-            <table class="table table-hover align-items-center mb-0">
+        <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: auto; min-height: 0; overflow-y: auto; overflow-x: auto;">
+            <table class="table table-hover align-items-center mb-0 table-sticky-header">
                 <thead class="bg-gray-100 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">
                     <tr>
                         <th width="45" class="text-center py-3">No</th>
                         <th class="py-3">Judul Indonesia (Draft)</th>
                         <th class="py-3">Judul Inggris</th>
                         <th width="120" class="text-center py-3">Dokumen</th>
+                        <?php if ($is_bps): ?>
                         <th width="180" class="py-3">Instansi Pengusul</th>
                         <th width="120" class="text-center py-3">Pengirim</th>
                         <th width="100" class="text-center py-3">Aksi</th>
+                        <?php else: ?>
+                        <th width="150" class="text-center py-3">Status Usulan</th>
+                        <th width="100" class="text-center py-3">Aksi</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody id="tableUsulanBody" class="divide-y divide-gray-100 bg-white">
                     <?php 
                     if (empty($data)) {
-                        echo "<tr><td colspan='7' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Belum ada usulan baru</td></tr>";
+                        $colspan = $is_bps ? 7 : 6;
+                        echo "<tr id='emptyInitialRow'><td colspan='{$colspan}' class='text-center py-5 text-secondary font-weight-bold opacity-5'><i class='bi bi-inbox fs-2 d-block mb-2'></i>Belum ada usulan baru</td></tr>";
                     } else {
-                        $no = (isset($offset) ? $offset : 0) + 1;
+                        $no = 1;
                         foreach ($data as $b) {
                     ?>
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="hover:bg-gray-50 transition-colors usulan-row">
                         <td class="text-center">
                             <span class="text-secondary text-sm"><?php echo $no; ?></span>
                         </td>
@@ -79,6 +96,7 @@ echo session()->getFlashdata("k");
                                 <i class="bi bi-file-earmark-arrow-down me-1"></i> Unduh
                             </a>
                         </td>
+                        <?php if ($is_bps): ?>
                         <td>
                             <span class="text-xs font-weight-bold text-dark lh-sm"><?php echo $b->unitkerja_ind; ?></span>
                         </td>
@@ -95,6 +113,32 @@ echo session()->getFlashdata("k");
                                 </a>
                             </div>  
                         </td>
+                        <?php else: ?>
+                        <td class="text-center">
+                            <?php if ($b->is_setujui == '1'): ?>
+                                <span class="badge bg-success-soft text-success border-success-soft px-3 py-2 border-radius-lg fw-bold" style="font-size: 0.78rem;">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Disetujui
+                                </span>
+                            <?php else: ?>
+                                <span class="badge bg-warning-soft text-warning border-warning-soft px-3 py-2 border-radius-lg fw-bold" style="font-size: 0.78rem;">
+                                    <i class="bi bi-clock-history me-1"></i> Menunggu Telaah
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex gap-1 justify-content-center align-items-center">
+                                <?php if ($b->is_setujui == '0'): ?>
+                                <a href="#" class="open_modal btn btn-icon-only btn-outline-danger btn-sm border-radius-lg shadow-none" id="<?php echo $b->id; ?>" title="Batalkan / Hapus Usulan">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                <?php else: ?>
+                                <span class="badge bg-light text-secondary border border-radius-lg p-2" title="Tabel telah resmi terdaftar di Master Tabel DDA">
+                                    <i class="bi bi-lock-fill"></i>
+                                </span>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                        <?php endif; ?>
                     </tr>
                     <?php 
                             $no++;
@@ -117,6 +161,65 @@ echo session()->getFlashdata("k");
 <div id="ModalDelete" class="modal fade" tabindex="-1" aria-hidden="true"></div>
 
 <style>
+    /* Pastikan flexbox container luar tidak mengompres kartu Master Tabel OPD */
+    .main-content {
+        min-height: auto !important;
+        padding-bottom: 12px !important;
+    }
+    .content-body {
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+    }
+    #mainMasterTabelOpdCard {
+        height: auto !important;
+        max-height: calc(100vh - 82px) !important;
+        min-height: 0 !important;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0 !important;
+        overflow: hidden;
+    }
+
+    /* Kontainer scroll internal adaptif */
+    .table-scroll-container {
+        height: auto !important;
+        max-height: calc(100vh - 82px - 130px) !important;
+        min-height: 0 !important;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+    /* Custom Slim Scrollbar */
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Sticky Table Header */
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle !important;
+    }
+
     .ls-1 { letter-spacing: 0.8px; }
     .text-xxs { font-size: 0.75rem !important; }
     .text-xs { font-size: 0.82rem !important; }
@@ -128,13 +231,13 @@ echo session()->getFlashdata("k");
     .border-radius-md { border-radius: 0.4rem !important; }
     
     .bg-gray-100 { background-color: #f8f9fa !important; }
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
-    .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.2) !important; }
     .bg-success-soft { background-color: rgba(25, 135, 84, 0.1) !important; color: #198754 !important; }
     .border-success-soft { border: 1px solid rgba(25, 135, 84, 0.25) !important; }
     .bg-warning-soft { background-color: rgba(245, 158, 11, 0.12) !important; color: #b45309 !important; }
     .border-warning-soft { border: 1px solid rgba(245, 158, 11, 0.28) !important; }
-    .text-primary-orange { color: #FF6D1F !important; }
+    .text-primary-orange { color: #154679 !important; }
 
     .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }
     .table thead th { border-bottom: 0 !important; font-size: 0.75rem !important; }
@@ -144,8 +247,8 @@ echo session()->getFlashdata("k");
     }
     .input-group-alternative:focus-within {
         background-color: #fff !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
-        border-color: #FF6D1F !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
+        border-color: #154679 !important;
     }
     
     .btn-icon-only {
@@ -164,24 +267,39 @@ echo session()->getFlashdata("k");
 <script type="text/javascript">
 $(document).ready(function () {
     // =========================================================================
-    // FITUR PENCARIAN REAL-TIME CLIENT-SIDE
-    // Menyaring baris tabel usulan OPD secara instan berdasarkan input ketikan.
-    // Menampilkan pesan state kosong jika tidak ada judul/instansi yang cocok.
+    // FITUR PENCARIAN REAL-TIME CLIENT-SIDE DENGAN TINGGI ADAPTIF
+    // Menyaring baris usulan OPD secara instan.
+    // Tinggi kartu dan kontainer tabel otomatis menyusut mengikuti jumlah data yang tampak.
     // =========================================================================
-    $("#inputSearchUsulan").on("keyup", function() {
-        var value = $(this).val().toLowerCase();
-        $("#tableUsulanBody tr").filter(function() {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+    $("#inputSearchUsulan").on("input keyup", function() {
+        var value = $(this).val().toLowerCase().trim();
+        var $rows = $("#tableUsulanBody tr.usulan-row");
+        var visibleCount = 0;
+
+        $rows.each(function() {
+            var text = $(this).text().toLowerCase();
+            if (text.indexOf(value) > -1) {
+                $(this).show();
+                visibleCount++;
+            } else {
+                $(this).hide();
+            }
         });
         
-        // Cek apakah ada baris yang tampak di layar
-        var visibleRows = $("#tableUsulanBody tr:visible").length;
-        if (visibleRows === 0) {
+        // Handle state jika tidak ada baris yang cocok
+        if (visibleCount === 0 && value.length > 0) {
             if ($("#emptySearchState").length === 0) {
-                $("#tableUsulanBody").append('<tr id="emptySearchState"><td colspan="7" class="text-center py-5 text-secondary font-weight-bold opacity-5"><i class="bi bi-search fs-2 d-block mb-2"></i>Tidak ada usulan yang cocok</td></tr>');
+                $("#tableUsulanBody").append('<tr id="emptySearchState"><td colspan="<?= $is_bps ? 7 : 6; ?>" class="text-center py-5 text-secondary font-weight-bold opacity-7"><i class="bi bi-search fs-2 d-block mb-2 text-muted"></i>Tidak ada usulan yang cocok dengan kata kunci</td></tr>');
+            } else {
+                $("#emptySearchState").show();
             }
         } else {
-            $("#emptySearchState").remove();
+            $("#emptySearchState").hide();
+        }
+
+        // Jika baris yang tampak sedikit, kembalikan posisi scroll luar ke atas agar tidak ada ruang kosong
+        if (visibleCount <= 4 && $('#content').scrollTop() > 0) {
+            $('#content').scrollTop(0);
         }
     });
 

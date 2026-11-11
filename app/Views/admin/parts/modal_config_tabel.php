@@ -12,9 +12,12 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem;">
             <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
                     <h5 class="modal-title fw-bold text-dark mb-0"><i class="bi bi-sliders me-2 text-primary"></i> KONFIGURASI TABEL</h5>
-                    <button type="button" class="btn-sm btn btn-outline-secondary rounded-pill px-3 fw-bold" onclick="toggleGuide()" style="font-size: 10px;">
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold shadow-xs" onclick="resetConfigToDefault()" style="font-size: 11px;" title="Reset seluruh kolom dan pengaturan pivot kembali ke kolom asli API">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> RESET KE DEFAULT API
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" onclick="toggleGuide()" style="font-size: 11px;">
                         <i class="bi bi-question-circle me-1"></i> PANDUAN PENGGUNA
                     </button>
                 </div>
@@ -249,15 +252,37 @@
                 if (typeof currentTableConfig === 'string') currentTableConfig = JSON.parse(currentTableConfig); // In case double encoded
             } catch(e) {}
         }
+
+        // AUTO-SCHEMA RECONCILIATION:
+        // Cek apakah kolom di currentTableConfig masih cocok dengan kolom asli API baru (baseKeys).
+        // Jika tabel baru punya skema kolom berbeda (misal clone tahun lalu atau ganti link API),
+        // otomatis reset currentTableConfig agar kolom terbaru API langsung muncul tanpa inspect console!
+        if (currentTableConfig && typeof currentTableConfig === 'object' && Array.isArray(currentTableConfig.columns) && baseKeys.length > 0) {
+            const cfgKeys = currentTableConfig.columns.map(c => c.key);
+            const commonKeys = baseKeys.filter(k => cfgKeys.includes(k));
+            if (commonKeys.length === 0) {
+                console.warn("Skema kolom API berbeda dengan config lama. Mereset config ke kolom default API...");
+                currentTableConfig = null;
+            }
+        }
+
+        const hasIndicatorPattern = baseKeys.some(k => k.toLowerCase() === 'indikator') && baseKeys.some(k => k.toLowerCase() === 'nilai') && baseKeys.length >= 4;
+
         if (!currentTableConfig || typeof currentTableConfig !== 'object') {
-            currentTableConfig = {
-                columns: baseKeys.map(k => ({ key: k, label_id: k, label_en: '', visible: true, format: 'number' })),
-                pivot: { enabled: false, row: [], col: [], val: [], total_row: true, total_col: true, prefix: '', prefix_en: '', mappings: {} },
-                merge_datasets: false,
-                show_total_col: false,
-                show_group_total: false,
-                group_by_region: true
-            };
+            if (hasIndicatorPattern) {
+                currentTableConfig = buildSmartPivotConfig(baseKeys, dataRows);
+            } else {
+                currentTableConfig = {
+                    columns: baseKeys.map(k => ({ key: k, label_id: k, label_en: '', visible: true, format: 'number' })),
+                    pivot: { enabled: false, row: [], col: [], val: [], total_row: true, total_col: true, prefix: '', prefix_en: '', mappings: {} },
+                    merge_datasets: false,
+                    show_total_col: false,
+                    show_group_total: false,
+                    group_by_region: true
+                };
+            }
+        } else if (hasIndicatorPattern && (!currentTableConfig.pivot || (!currentTableConfig.pivot.enabled && (!currentTableConfig.pivot.col || currentTableConfig.pivot.col.length === 0)))) {
+            currentTableConfig = buildSmartPivotConfig(baseKeys, dataRows);
         }
         
         // MIGRASI/NORMALISASI CONFIG LAMA
@@ -391,6 +416,71 @@
       }
     }
     
+    function buildSmartPivotConfig(baseKeys, dataRows) {
+        const ignoreCols = ['id', 'tahun', 'tahun_data', 'year', 'periode', 'satuan', 'unit', 'kode_wilayah', 'kode_kabupatenkota'];
+        const valCandidates = baseKeys.filter(k => ['nilai', 'jumlah', 'total', 'value', 'realisasi'].includes(k.toLowerCase()));
+        const valCol = valCandidates.length > 0 ? valCandidates[0] : baseKeys[baseKeys.length - 1];
+        const catCandidates = baseKeys.filter(k => !ignoreCols.includes(k.toLowerCase()) && k !== valCol);
+
+        let rowCol = catCandidates[0] || baseKeys[0];
+        let colCol = catCandidates.find(k => ['indikator', 'jenis_kelamin', 'gender', 'kategori', 'sub_kategori'].includes(k.toLowerCase())) || catCandidates[1] || 'tahun_data';
+
+        if (catCandidates.length >= 2 && dataRows && dataRows.length > 0) {
+            const cardA = new Set(dataRows.map(r => r[catCandidates[0]])).size;
+            const cardB = new Set(dataRows.map(r => r[catCandidates[1]])).size;
+            if (cardA >= cardB) {
+                rowCol = catCandidates[0];
+                colCol = catCandidates[1];
+            } else {
+                rowCol = catCandidates[1];
+                colCol = catCandidates[0];
+            }
+        }
+
+        return {
+            columns: baseKeys.map(k => ({ key: k, label_id: k, label_en: '', visible: true, format: 'number' })),
+            pivot: {
+                enabled: true,
+                row: rowCol ? [rowCol] : [],
+                col: colCol ? [colCol] : [],
+                val: valCol ? [valCol] : [],
+                total_row: true,
+                only_total: false,
+                total_col: true,
+                metric_first: false,
+                metrics_as_row: false,
+                prefix: '',
+                prefix_en: '',
+                mappings: {},
+                mapping_order: []
+            },
+            merge_datasets: false,
+            show_total_col: false,
+            show_group_total: false,
+            group_by_region: true
+        };
+    }
+
+    function autoPivotConfig() {
+        const firstTable = rawApiResults[0];
+        const dataRows = getRowsFromApiResult(firstTable);
+        const baseKeys = (dataRows.length > 0) ? Object.keys(dataRows[0]) : [];
+        if (baseKeys.length === 0) return;
+        currentTableConfig = buildSmartPivotConfig(baseKeys, dataRows);
+        openConfigModal();
+        const pivotTabBtn = document.querySelector('button[data-bs-target="#pivot-pane"]');
+        if (pivotTabBtn) bootstrap.Tab.getOrCreateInstance(pivotTabBtn).show();
+    }
+
+    function resetConfigToDefault() {
+        if (!confirm("Reset semua pengaturan kolom dan pivot kembali ke format default API saat ini?")) return;
+        currentTableConfig = null;
+        if (Array.isArray(rawApiResults)) {
+            rawApiResults.forEach(r => { r.config_tabel = null; });
+        }
+        openConfigModal();
+    }
+
     function toggleGuide() {
         const guide = document.getElementById('guide-section');
         guide.style.display = (guide.style.display === 'none') ? 'block' : 'none';

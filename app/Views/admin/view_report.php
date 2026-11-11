@@ -5,23 +5,62 @@ $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0'
 if ($jenis_rekap == '0') {
     $ta = session()->get('admin_ta');
     if (empty($ta)) $ta = date('Y');
+    $thDda = (string)$ta;
+    $thData = ((int)$ta) - 1;
+    $thDataStr = (string)$thData;
 
-    // Ambil data progres pengisian tabel berdasarkan instansi (JOIN m_list_tabel dan t_tahun_tabel)
+    // Ambil data progres pengisian tabel berdasarkan instansi (selaras 100% dengan Dashboard)
     $data = \Config\Database::connect()->query("
         SELECT 
             m.unitkerja_ind,
-            COUNT(t.id) as jumlah_tabel,
-            SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
-            SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
-            SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
-        FROM m_unitkerja m 
-        LEFT JOIN m_list_tabel mt ON m.id_unitkerja = mt.id_unitkerja 
-        LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
+            COUNT(mt.id) as jumlah_tabel,
+            SUM(CASE 
+                WHEN (tt.is_confirm = '1') OR (
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
+                ) THEN 0 
+                ELSE 1 
+            END) as belum_isi,
+            SUM(CASE 
+                WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
+                ) THEN 1 
+                ELSE 0 
+            END) as menunggu_validasi,
+            SUM(CASE 
+                WHEN tt.is_confirm = '1' THEN 1 
+                ELSE 0 
+            END) as sudah_validasi
+        FROM m_list_tabel mt
+        JOIN m_unitkerja m ON mt.id_unitkerja = m.id_unitkerja 
+        LEFT JOIN (
+            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa 
+            FROM t_status_tahunan WHERE tahun = ? GROUP BY id_tabel
+        ) tt ON tt.id_tabel = mt.id
+        LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+        LEFT JOIN (
+            SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+        ) nd ON nd.id_indikator = mi.id
+        LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+        WHERE mt.is_active = 1
         GROUP BY m.id_unitkerja 
         ORDER BY m.unitkerja_ind ASC
-    ", [$ta])->getResult();
+    ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 ?>
-    <div class="row align-items-center mb-4">
+    <div class="row align-items-center mb-3 flex-shrink-0">
         <div class="col">
             <h6 class="text-uppercase text-secondary font-weight-bold mb-0" style="letter-spacing: 1px; font-size: 0.85rem;">
                 Daftar Progres Berdasarkan Instansi
@@ -34,16 +73,16 @@ if ($jenis_rekap == '0') {
         </div>
     </div>
 
-    <div class="table-responsive bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0">
-        <table class="table align-items-center mb-0" id="tblInstansi">
+    <div class="table-responsive table-scroll-container flex-grow-1 bg-white rounded-3 shadow-sm border border-light p-0" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden !important;">
+        <table class="table align-items-center mb-0 table-sticky-header w-100" id="tblInstansi" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="valign-middle py-3 ps-4">Nama Instansi</th>
-                    <th class="valign-middle text-center py-3 px-2">Total</th>
-                    <th class="valign-middle text-center text-danger py-3 px-2">Belum Diisi</th>
-                    <th class="valign-middle text-center text-warning py-3 px-2">Sudah Diisi</th>
-                    <th class="valign-middle text-center text-success py-3 px-2">Validasi</th>
-                    <th class="valign-middle text-center py-3 ps-3" style="min-width: 180px;">Progress</th>
+                    <th class="valign-middle py-3 ps-3 text-start" style="width: 36%;">Nama Instansi</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 8%;">Total</th>
+                    <th class="valign-middle text-center text-danger py-3 px-1" style="width: 9%;">Belum Diisi</th>
+                    <th class="valign-middle text-center text-warning py-3 px-1" style="width: 9%;">Sudah Diisi</th>
+                    <th class="valign-middle text-center text-success py-3 px-1" style="width: 9%;">Validasi</th>
+                    <th class="valign-middle text-center py-3 px-2" style="width: 29%;">Progress</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -61,7 +100,7 @@ if ($jenis_rekap == '0') {
                         $persen_total = $persen_v + $persen_i;
                 ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="font-weight-bold ps-4 text-wrap" style="max-width: 320px; line-height: 1.6;"><?php echo $b->unitkerja_ind; ?></td>
+                            <td class="font-weight-bold ps-3 text-wrap" style="line-height: 1.5; word-break: break-word;"><?php echo $b->unitkerja_ind; ?></td>
                             <td class="text-center font-weight-bold">
                                 <span class="badge bg-light text-dark"><?php echo $b->jumlah_tabel; ?></span>
                             </td>
@@ -87,8 +126,8 @@ if ($jenis_rekap == '0') {
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <div class="d-flex align-items-center px-4">
-                                    <div class="me-2 text-end" style="min-width: 120px; line-height: 1.2;">
+                                <div class="d-flex align-items-center px-2">
+                                    <div class="me-2 text-end" style="min-width: 100px; line-height: 1.2;">
                                         <div class="text-success font-weight-bolder" style="font-size: 10px;">Sudah Validasi: <?php echo number_format($persen_v, 0); ?>%</div>
                                         <div class="text-warning font-weight-bolder" style="font-size: 10px;">Sudah Diisi: <?php echo number_format($persen_i, 0); ?>%</div>
                                     </div>
@@ -113,24 +152,63 @@ if ($jenis_rekap == '0') {
 if ($jenis_rekap == '1') {
     $ta = session()->get('admin_ta');
     if (empty($ta)) $ta = date('Y');
+    $thDda = (string)$ta;
+    $thData = ((int)$ta) - 1;
+    $thDataStr = (string)$thData;
 
-    // Ambil data progres pengisian tabel berdasarkan tim (JOIN m_list_tabel dan t_tahun_tabel)
+    // Ambil data progres pengisian tabel berdasarkan tim (selaras 100% dengan Dashboard)
     $data = \Config\Database::connect()->query("
         SELECT 
             u.user_wali,
-            COUNT(t.id) as jumlah_tabel,
-            SUM(CASE WHEN t.is_confirm != 1 AND t.is_periksa = 0 AND NOT (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%') THEN 1 ELSE 0 END) as belum_isi,
-            SUM(CASE WHEN t.is_confirm != 1 AND (t.is_periksa = 1 OR (t.link_tabel LIKE '%portal%' OR t.link_tabel LIKE '%satudata%')) THEN 1 ELSE 0 END) as menunggu_validasi,
-            SUM(CASE WHEN t.is_confirm = 1 THEN 1 ELSE 0 END) as sudah_validasi
+            COUNT(mt.id) as jumlah_tabel,
+            SUM(CASE 
+                WHEN (tt.is_confirm = '1') OR (
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
+                ) THEN 0 
+                ELSE 1 
+            END) as belum_isi,
+            SUM(CASE 
+                WHEN (tt.is_confirm IS NULL OR tt.is_confirm != '1') AND (
+                    CASE 
+                        WHEN (mt.jenis_sumber = 'dinamis' OR mi.id IS NOT NULL) THEN 
+                            CASE WHEN nd.id_indikator IS NOT NULL THEN 1 ELSE 0 END
+                        WHEN mt.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR (ka.id_api IS NOT NULL AND ka.id_api != '')) THEN
+                            CASE WHEN ka.tahun_tersedia IS NOT NULL AND ka.tahun_tersedia != '' AND (FIND_IN_SET(?, ka.tahun_tersedia) > 0 OR ka.tahun_tersedia LIKE ?) THEN 1 ELSE 0 END
+                        WHEN tt.is_periksa = 1 THEN 1
+                        ELSE 0
+                    END = 1
+                ) THEN 1 
+                ELSE 0 
+            END) as menunggu_validasi,
+            SUM(CASE 
+                WHEN tt.is_confirm = '1' THEN 1 
+                ELSE 0 
+            END) as sudah_validasi
         FROM m_unitkerja u
-        LEFT JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja 
-        LEFT JOIN t_tahun_tabel t ON mt.id = t.id_tabel AND t.tahun = ?
-        WHERE u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
+        JOIN m_list_tabel mt ON u.id_unitkerja = mt.id_unitkerja 
+        LEFT JOIN (
+            SELECT id_tabel, MAX(is_confirm) as is_confirm, MAX(is_periksa) as is_periksa 
+            FROM t_status_tahunan WHERE tahun = ? GROUP BY id_tabel
+        ) tt ON tt.id_tabel = mt.id
+        LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = mt.id
+        LEFT JOIN (
+            SELECT DISTINCT id_indikator FROM t_nilai_dinamis WHERE tahun_data = ? AND (nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != ''))
+        ) nd ON nd.id_indikator = mi.id
+        LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = mt.id
+        WHERE mt.is_active = 1
+          AND u.user_wali IS NOT NULL AND u.user_wali != '' AND u.user_wali != '-'
         GROUP BY u.user_wali 
         ORDER BY u.user_wali ASC
-    ", [$ta])->getResult();
+    ", [$thDataStr, "%$thDataStr%", $thDataStr, "%$thDataStr%", $thDda, $thData])->getResult();
 ?>
-    <div class="row align-items-center mb-4">
+    <div class="row align-items-center mb-3 flex-shrink-0">
         <div class="col">
             <h6 class="text-uppercase text-secondary font-weight-bold mb-0" style="letter-spacing: 1px; font-size: 0.85rem;">
                 Daftar Progres Berdasarkan Tim
@@ -143,16 +221,16 @@ if ($jenis_rekap == '1') {
         </div>
     </div>
 
-    <div class="table-responsive bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0">
-        <table class="table align-items-center mb-0">
+    <div class="table-responsive table-scroll-container flex-grow-1 bg-white rounded-3 shadow-sm border border-light p-0" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden !important;">
+        <table class="table align-items-center mb-0 table-sticky-header w-100" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="valign-middle py-3 ps-4">Nama Tim</th>
-                    <th class="valign-middle text-center py-3 px-2">Total</th>
-                    <th class="valign-middle text-center text-danger py-3 px-2">Belum Diisi</th>
-                    <th class="valign-middle text-center text-warning py-3 px-2">Sudah Diisi</th>
-                    <th class="valign-middle text-center text-success py-3 px-2">Validasi</th>
-                    <th class="valign-middle text-center py-3 ps-3" style="min-width: 180px;">Progress</th>
+                    <th class="valign-middle py-3 ps-3 text-start" style="width: 36%;">Nama Tim</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 8%;">Total</th>
+                    <th class="valign-middle text-center text-danger py-3 px-1" style="width: 9%;">Belum Diisi</th>
+                    <th class="valign-middle text-center text-warning py-3 px-1" style="width: 9%;">Sudah Diisi</th>
+                    <th class="valign-middle text-center text-success py-3 px-1" style="width: 9%;">Validasi</th>
+                    <th class="valign-middle text-center py-3 px-2" style="width: 29%;">Progress</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -170,7 +248,7 @@ if ($jenis_rekap == '1') {
                         $persen_total = $persen_v + $persen_i;
                 ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="font-weight-bold text-uppercase ps-4 text-dark"><?php echo $b->user_wali; ?></td>
+                            <td class="font-weight-bold text-uppercase ps-3 text-dark text-wrap" style="line-height: 1.5; word-break: break-word;"><?php echo $b->user_wali; ?></td>
                             <td class="text-center font-weight-bold">
                                 <span class="badge bg-light text-dark"><?php echo $b->jumlah_tabel; ?></span>
                             </td>
@@ -196,8 +274,8 @@ if ($jenis_rekap == '1') {
                                 <?php endif; ?>
                             </td>
                             <td class="text-center">
-                                <div class="d-flex align-items-center px-4">
-                                    <div class="me-2 text-end" style="min-width: 120px; line-height: 1.2;">
+                                <div class="d-flex align-items-center px-2">
+                                    <div class="me-2 text-end" style="min-width: 100px; line-height: 1.2;">
                                         <div class="text-success font-weight-bolder" style="font-size: 10px;">Sudah Validasi: <?php echo number_format($persen_v, 0); ?>%</div>
                                         <div class="text-warning font-weight-bolder" style="font-size: 10px;">Sudah Diisi: <?php echo number_format($persen_i, 0); ?>%</div>
                                     </div>
@@ -221,7 +299,7 @@ if ($jenis_rekap == '1') {
 // REPORT PORTAL 
 if ($jenis_rekap == '2') {
 ?>
-    <div class="row align-items-center mb-4">
+    <div class="row align-items-center mb-3 flex-shrink-0">
         <div class="col">
             <h6 class="text-uppercase text-secondary font-weight-bold mb-0" style="letter-spacing: 1px; font-size: 0.85rem;">
                 Daftar Sinkronisasi Portal Data
@@ -229,46 +307,65 @@ if ($jenis_rekap == '2') {
         </div>
     </div>
 
-    <div class="table-responsive bg-white rounded-3 shadow-sm border border-light overflow-hidden p-0">
-        <table class="table align-items-center mb-0">
+    <div class="table-responsive table-scroll-container flex-grow-1 bg-white rounded-3 shadow-sm border border-light p-0" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden !important;">
+        <table class="table table-hover align-items-center mb-0 table-sticky-header w-100" style="table-layout: fixed; width: 100%;">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="valign-middle py-3 ps-4" style="width: 15%;">Satker</th>
-                    <th class="valign-middle py-3 px-2" style="width: 30%;">Judul DDA</th>
-                    <th class="valign-middle py-3 px-2" style="width: 30%;">Judul Portal</th>
-                    <th class="valign-middle text-center py-3 px-2">Tahun</th>
-                    <th class="valign-middle text-center py-3 px-2">Status</th>
+                    <th class="valign-middle py-3 ps-3 text-start" style="width: 19%; font-size: 0.78rem;">Satker</th>
+                    <th class="valign-middle py-3 px-2 text-start" style="width: 32%; font-size: 0.78rem;">Judul DDA</th>
+                    <th class="valign-middle py-3 px-2 text-start" style="width: 28%; font-size: 0.78rem;">Judul Portal</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 7%; font-size: 0.78rem;">Tahun</th>
+                    <th class="valign-middle text-center py-3 px-1" style="width: 14%; font-size: 0.78rem;">Status</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
                 <?php
+                $ta = session()->get('admin_ta');
+                if (empty($ta)) $ta = date('Y');
+                $thData = ((int)$ta) - 1;
                 $data = \Config\Database::connect()->query("
-                    select satker, judul_dda, judul_portal, tahun_data from t_tabel_match m left join t_dataportal p on m.id_api=p.id_portal order by satker")->getResult();
+                    SELECT 
+                        COALESCE(u.unitkerja_ind, mt.id_unitkerja) as satker, 
+                        mt.judul_ind as judul_dda, 
+                        COALESCE(ka.id_api, mt.judul_ind) as judul_portal, 
+                        ka.tahun_tersedia
+                    FROM m_list_tabel mt
+                    JOIN m_konfigurasi_api ka ON mt.id = ka.id_tabel
+                    LEFT JOIN m_unitkerja u ON mt.id_unitkerja = u.id_unitkerja
+                    WHERE mt.is_active = 1
+                    ORDER BY satker ASC, mt.no_tabel ASC
+                ")->getResult();
 
                 if (empty($data)) {
                     echo "<tr><td colspan='5' class='text-center py-5 text-secondary font-weight-bold opacity-5'>-- Belum Ada Data --</td></tr>";
                 } else {
                     foreach ($data as $b) {
-                        $is_filled = ($b->tahun_data == '2025');
+                        $is_filled = (stripos($b->tahun_tersedia ?? '', (string)$thData) !== false);
                         $status_label = $is_filled ? 'Sinkron' : 'Belum Sinkron';
                         $status_class = $is_filled ? 'bg-success-soft text-success border-success' : 'bg-light text-secondary border-secondary';
+                        $tahun_display = !empty($b->tahun_tersedia) ? $b->tahun_tersedia : '-';
                 ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="text-xs font-weight-bold ps-4 text-uppercase text-secondary"><?php echo $b->satker ?></td>
-                            <td class="text-xs text-wrap py-3" style="max-width: 250px; line-height: 1.4;">
-                                <span class="font-weight-bold text-dark"><?php echo $b->judul_dda ?></span>
+                            <td class="ps-3 pe-2 py-2.5" style="word-break: break-word; line-height: 1.4;">
+                                <span class="fw-bold text-dark text-xs"><?php echo esc($b->satker); ?></span>
                             </td>
-                            <td class="text-xs text-wrap" style="max-width: 250px; line-height: 1.4;">
-                                <i class="bi bi-link me-1 text-info opacity-3 small"></i>
-                                <span class="text-secondary"><?php echo $b->judul_portal ?></span>
+                            <td class="px-2 py-2.5" style="word-break: break-word; line-height: 1.4;">
+                                <span class="fw-bold text-dark text-xs"><?php echo esc($b->judul_dda); ?></span>
                             </td>
-                            <td class="text-center">
-                                <span class="badge bg-light text-dark font-weight-bold text-xs px-2"><?php echo $b->tahun_data ?></span>
+                            <td class="px-2 py-2.5" style="word-break: break-word; line-height: 1.4;">
+                                <div class="d-flex align-items-start gap-1">
+                                    <i class="bi bi-link-45deg me-1 text-primary opacity-6 small flex-shrink-0 mt-0.5"></i>
+                                    <span class="text-secondary text-xs" style="word-break: break-word;"><?php echo esc($b->judul_portal); ?></span>
+                                </div>
                             </td>
-                            <td class="text-center">
-                                <span class="badge border <?php echo $status_class; ?> text-uppercase font-weight-bold" style="font-size: 9px; padding: 4px 8px;">
-                                    <?php echo $status_label ?>
+                            <td class="text-center px-1 py-2.5" style="word-break: break-word;">
+                                <span class="badge bg-light text-dark font-weight-bold text-xxs px-1.5 py-0.5"><?php echo esc($tahun_display); ?></span>
+                            </td>
+                            <td class="text-center px-1 py-2.5">
+                                <span class="badge border <?php echo $status_class; ?> text-uppercase fw-bold badge-portal-status">
+                                    <?php echo $status_label; ?>
                                 </span>
+                                <div class="text-secondary" style="font-size: 9px; margin-top: 2px;">(<?php echo $thData; ?>)</div>
                             </td>
                         </tr>
                 <?php

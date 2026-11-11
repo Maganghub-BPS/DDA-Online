@@ -1107,6 +1107,9 @@ if ($primary_result):
             $judul_only_main .= ', ' . $m[3];
         }
     }
+    if (empty($tabel_nomor_main) && !empty($primary_result['no_tabel'])) {
+        $tabel_nomor_main = trim((string)$primary_result['no_tabel']);
+    }
     $judul_only_main = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_only_main);
 
     // Format judul ringkas untuk breadcrumb agar tidak panjang dan merusak baris
@@ -1134,6 +1137,82 @@ if ($primary_result):
     if ($unitkerja_nm_main === '-' || empty($unitkerja_nm_main)) {
         $unitkerja_nm_main = 'Provinsi Jawa Tengah';
     }
+    $unitkerja_nm_main = formatInstansiName($unitkerja_nm_main, $primary_result['id_unitkerja'] ?? '');
+
+    // --- 1. DETEKSI SEMUA TAHUN UNIK DARI DATA API ---
+    $unique_years = [];
+    foreach ($api_results as $res) {
+        $rows_data = [];
+        if (isset($res['data']) && is_array($res['data'])) {
+            if (isset($res['data'][0]) && is_array($res['data'][0])) {
+                $rows_data = $res['data'];
+            } elseif (isset($res['data']['rows']) && is_array($res['data']['rows'])) {
+                $rows_data = $res['data']['rows'];
+            }
+        } elseif (isset($res[0]) && is_array($res[0])) {
+            $rows_data = $res;
+        }
+
+        if (!empty($rows_data)) {
+            $firstRow = $rows_data[0];
+            $thCols = [];
+            foreach (array_keys($firstRow) as $colKey) {
+                $lowC = strtolower($colKey);
+                if (strpos($lowC, 'tahun') !== false || strpos($lowC, 'year') !== false || strpos($lowC, 'thn') !== false || strpos($lowC, 'periode') !== false) {
+                    $thCols[] = $colKey;
+                }
+            }
+
+            foreach ($rows_data as $rd) {
+                foreach ($thCols as $colKey) {
+                    if (!empty($rd[$colKey])) {
+                        $val = trim((string)$rd[$colKey]);
+                        if (preg_match('/\b(19\d\d|20\d\d)\b/', $val, $my)) {
+                            $unique_years[] = $my[1];
+                        }
+                    }
+                }
+                foreach (['tahun_data', 'tahun', 'year', 'thn'] as $stdKey) {
+                    if (!empty($rd[$stdKey])) {
+                        $val = trim((string)$rd[$stdKey]);
+                        if (preg_match('/\b(19\d\d|20\d\d)\b/', $val, $my)) {
+                            $unique_years[] = $my[1];
+                        }
+                    }
+                }
+            }
+        }
+
+        if (empty($unique_years)) {
+            $periodeStr = $res['periode_id'] ?? $res['tahun_tersedia'] ?? '';
+            if (!empty($periodeStr) && preg_match_all('/\b(19\d\d|20\d\d)\b/', $periodeStr, $myAll)) {
+                foreach ($myAll[1] as $yr) {
+                    $unique_years[] = $yr;
+                }
+            }
+        }
+    }
+    $unique_years = array_values(array_unique(array_filter($unique_years)));
+    rsort($unique_years);
+
+    // --- 2. RESOLUSI TAHUN TERPILIH (DISESUAIKAN PER TABEL) ---
+    $req_tahun = $_GET['tahun'] ?? $_GET['years'] ?? null;
+    $selected_years = [];
+    if (!empty($req_tahun)) {
+        $req_list = is_array($req_tahun) ? $req_tahun : explode(',', (string)$req_tahun);
+        $selected_years = array_values(array_intersect(array_map('trim', $req_list), $unique_years));
+    }
+    if (empty($selected_years) && !empty($unique_years)) {
+        $selected_years = $unique_years; // Default: Tampilkan semua tahun yang ada
+    }
+
+    // Format Judul Dinamis Standar BPS Berdasarkan Tahun Terpilih
+    if (function_exists('formatDynamicTableTitle') && !empty($selected_years)) {
+        $judul_only_main = formatDynamicTableTitle($judul_only_main, $selected_years, 'id');
+        if (!empty($judul_en_only_main)) {
+            $judul_en_only_main = formatDynamicTableTitle($judul_en_only_main, $selected_years, 'en');
+        }
+    }
 ?>
 <div class="header-modern-v2">
     <div class="container">
@@ -1155,31 +1234,59 @@ if ($primary_result):
                 </ol>
             </nav>
             
-            <!-- Right: Unduh Data -->
-            <div class="table-actions-dropdown dropdown">
-                <button class="btn btn-download-modern d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-cloud-arrow-down" style="font-size: 15px; color: #bbc9d5;"></i> <span class="d-none d-sm-inline">Unduh Data</span><span class="d-inline d-sm-none">Unduh</span>
-                </button>
-                <?php 
-                    $clean_nomor = trim((string)($tabel_nomor_main ?? ''));
-                    $clean_judul = trim(preg_replace('/[\r\n\t]+/', ' ', (string)($judul_only_main ?? '')));
-                    if (!empty($clean_nomor)) {
-                        $full_title_for_export = 'Tabel ' . $clean_nomor . ' ' . preg_replace('/^Tabel\s+[\d\.\w]+\s+/i', '', $clean_judul);
-                    } else {
-                        $full_title_for_export = $clean_judul;
-                    }
-                ?>
-                <ul class="dropdown-menu dropdown-menu-download dropdown-menu-end p-2 border-0 mt-2">
-                    <li><a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" data-export-title="<?php echo htmlspecialchars($full_title_for_export, ENT_QUOTES, 'UTF-8'); ?>" onclick="exportTableToExcel('dda-table-0', this.getAttribute('data-export-title'))"><i class="bi bi-file-earmark-excel me-2.5 fs-5" style="color: #198754;"></i> Format Excel (.xlsx)</a></li>
-                    <li><a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" 
-                           data-nomor="<?php echo htmlspecialchars($tabel_nomor_main, ENT_QUOTES, 'UTF-8'); ?>"
-                           data-judul-id="<?php echo htmlspecialchars($judul_only_main, ENT_QUOTES, 'UTF-8'); ?>"
-                           data-judul-en="<?php echo htmlspecialchars($judul_en_only_main, ENT_QUOTES, 'UTF-8'); ?>"
-                           onclick="exportTableToPDF('dda-table-0', this.getAttribute('data-nomor'), this.getAttribute('data-judul-id'), this.getAttribute('data-judul-en'))">
-                           <i class="bi bi-file-earmark-pdf me-2.5 fs-5" style="color: #dc3545;"></i> Format PDF (.pdf)
-                        </a>
-                    </li>
-                </ul>
+            <!-- Right: Filter Tahun & Unduh Data -->
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                <?php if (!empty($unique_years)): ?>
+                    <div class="dropdown">
+                        <button class="btn btn-download-modern d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                            <i class="bi bi-calendar-event" style="font-size: 15px; color: #bbc9d5;"></i> <span id="year-filter-label">Tahun (<?= count($selected_years); ?>)</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border-0 mt-2" style="border-radius: 12px; min-width: 220px; font-size: 13px;">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="dropdown-header px-0 mb-0 fw-bold text-dark" style="font-size: 11px;">PILIH TAHUN DATA</h6>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary fw-semibold" style="font-size: 11px;" onclick="toggleAllYears()">Pilih Semua</button>
+                            </div>
+                            <div id="year-checklist-container" style="max-height: 200px; overflow-y: auto;">
+                                <?php foreach ($unique_years as $yr): ?>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input year-filter-check" type="checkbox" value="<?= $yr; ?>" id="yr-<?= $yr; ?>" <?= in_array((string)$yr, array_map('strval', $selected_years), true) ? 'checked' : ''; ?> onchange="applyYearFilter()">
+                                        <label class="form-check-label small fw-bold" for="yr-<?= $yr; ?>">
+                                            Tahun <?= $yr; ?>
+                                        </label>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <hr class="my-2">
+                            <button type="button" onclick="resetYearFilter()" class="btn btn-sm btn-link text-muted p-0 text-decoration-none small w-100 text-center" style="font-size: 11px;">Reset ke Default</button>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <div class="table-actions-dropdown dropdown">
+                    <button class="btn btn-download-modern d-flex align-items-center gap-2 dropdown-toggle px-3 py-1.5" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-cloud-arrow-down" style="font-size: 15px; color: #bbc9d5;"></i> <span class="d-none d-sm-inline">Unduh Data</span><span class="d-inline d-sm-none">Unduh</span>
+                    </button>
+                    <?php 
+                        $clean_nomor = trim((string)($tabel_nomor_main ?? ''));
+                        $clean_judul = trim(preg_replace('/[\r\n\t]+/', ' ', (string)($judul_only_main ?? '')));
+                        if (!empty($clean_nomor)) {
+                            $full_title_for_export = 'Tabel ' . $clean_nomor . ' ' . preg_replace('/^Tabel\s+[\d\.\w]+\s+/i', '', $clean_judul);
+                        } else {
+                            $full_title_for_export = $clean_judul;
+                        }
+                    ?>
+                    <ul class="dropdown-menu dropdown-menu-download dropdown-menu-end p-2 border-0 mt-2">
+                        <li><a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" data-export-title="<?php echo htmlspecialchars($full_title_for_export, ENT_QUOTES, 'UTF-8'); ?>" onclick="exportTableToExcel('dda-table-0', this.getAttribute('data-export-title'))"><i class="bi bi-file-earmark-excel me-2.5 fs-5" style="color: #198754;"></i> Format Excel (.xlsx)</a></li>
+                        <li><a class="dropdown-item d-flex align-items-center py-2 px-3 rounded-3" href="#" 
+                               data-nomor="<?php echo htmlspecialchars($tabel_nomor_main, ENT_QUOTES, 'UTF-8'); ?>"
+                               data-judul-id="<?php echo htmlspecialchars($judul_only_main, ENT_QUOTES, 'UTF-8'); ?>"
+                               data-judul-en="<?php echo htmlspecialchars($judul_en_only_main, ENT_QUOTES, 'UTF-8'); ?>"
+                               onclick="exportTableToPDF('dda-table-0', this.getAttribute('data-nomor'), this.getAttribute('data-judul-id'), this.getAttribute('data-judul-en'))">
+                               <i class="bi bi-file-earmark-pdf me-2.5 fs-5" style="color: #dc3545;"></i> Format PDF (.pdf)
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -1326,15 +1433,8 @@ if ($primary_result):
     </style>
 
     <script>
-        function filterByYear() {
-            const checkedYears = Array.from(document.querySelectorAll('.year-filter-check:checked')).map(cb => cb.value);
-            currentSelectedYears = checkedYears; // Update global state
-
-            const label = document.getElementById('year-filter-label');
-            if (checkedYears.length === 0) label.innerText = "Tahun";
-            else if (checkedYears.length === 1) label.innerText = "Tahun " + checkedYears[0];
-            else label.innerText = checkedYears.length + " Tahun";
-
+        function filterByYearExecute() {
+            const checkedYears = currentSelectedYears;
             const tables = document.querySelectorAll('.table-wrapper');
             tables.forEach((wrapper, idx) => {
                 const customTable = wrapper.querySelector('.main-table');
@@ -1375,9 +1475,32 @@ if ($primary_result):
             });
         }
 
+        function applyYearFilter() {
+            const checked = Array.from(document.querySelectorAll('.year-filter-check:checked')).map(cb => cb.value);
+            if (!checked.length) {
+                alert('Pilih minimal 1 tahun untuk ditampilkan.');
+                document.querySelectorAll('.year-filter-check').forEach(cb => {
+                    cb.checked = currentSelectedYears.includes(cb.value);
+                });
+                return;
+            }
+            const url = new URL(window.location.href);
+            url.searchParams.set('tahun', checked.join(','));
+            window.location.href = url.toString();
+        }
+
+        function toggleAllYears() {
+            const checkboxes = document.querySelectorAll('.year-filter-check');
+            const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+            checkboxes.forEach(cb => { cb.checked = anyUnchecked; });
+            applyYearFilter();
+        }
+
         function resetYearFilter() {
-            document.querySelectorAll('.year-filter-check').forEach(cb => cb.checked = false);
-            filterByYear();
+            const url = new URL(window.location.href);
+            url.searchParams.delete('tahun');
+            url.searchParams.delete('years');
+            window.location.href = url.toString();
         }
     </script>
 
@@ -1585,6 +1708,9 @@ if ($primary_result):
                                     $judul_only .= ', ' . $m[3];
                                 }
                             }
+                            if (empty($tabel_nomor) && !empty($api_result['no_tabel'])) {
+                                $tabel_nomor = trim((string)$api_result['no_tabel']);
+                            }
                             $judul_only = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_only);
 
                             // Format judul ringkas untuk breadcrumb agar tidak panjang dan merusak baris
@@ -1613,10 +1739,18 @@ if ($primary_result):
                             }
                             $judul_en_only = str_replace(['?Çô', '?Cô', 'â€“', 'â€”', '–', '—', '&ndash;', '&mdash;'], '-', $judul_en_only);
                             
+                            if (function_exists('formatDynamicTableTitle') && !empty($selected_years)) {
+                                $judul_only = formatDynamicTableTitle($judul_only, $selected_years, 'id');
+                                if (!empty($judul_en_only)) {
+                                    $judul_en_only = formatDynamicTableTitle($judul_en_only, $selected_years, 'en');
+                                }
+                            }
+                            
                             $unitkerja_nm = $api_result['unitkerja_ind'] ?? 'Provinsi Jawa Tengah';
                             if ($unitkerja_nm === '-' || empty($unitkerja_nm)) {
                                 $unitkerja_nm = 'Provinsi Jawa Tengah';
                             }
+                            $unitkerja_nm = formatInstansiName($unitkerja_nm, $api_result['id_unitkerja'] ?? '');
                     ?>
                     
                     <?php if ($idx_res > 0): ?>
@@ -1725,7 +1859,15 @@ if ($primary_result):
                             if (empty($kabKey)) $kabKey = $columns[0];
 
                             foreach ($rows as $r_idx => $row):
-                                $rowYearValue = (string)($row[$thKey] ?? '');
+                                $rowYearValue = '';
+                                if (!empty($thKey) && isset($row[$thKey])) {
+                                    $rowYearValue = (string)$row[$thKey];
+                                } else {
+                                    $rowYearValue = (string)($row['tahun_data'] ?? $row['tahun'] ?? $row['year'] ?? $row['thn'] ?? '');
+                                }
+                                if (preg_match('/\b(19\d\d|20\d\d)\b/', $rowYearValue, $myr)) {
+                                    $rowYearValue = $myr[1];
+                                }
                             ?>
                                 <?php $sRowBg = ($r_idx % 2 === 0) ? '#f1f6fc' : '#ffffff'; ?>
                                 <tr data-tahun="<?php echo $rowYearValue; ?>" class="<?php echo ($r_idx % 2 === 0) ? 'row-odd' : 'row-even'; ?>" style="background:<?php echo $sRowBg; ?>;">
@@ -1747,8 +1889,8 @@ if ($primary_result):
                     </div>
                     <?php endif; ?>
 
-                    <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;">
-                        <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($api_result['unitkerja_ind'] ?? '-'); ?></div>
+                    <div style="font-size: 11px; margin-top: 10px; opacity: 0.6; line-height: 1.5;" class="table-footer-notes">
+                        <div><b>Sumber/</b><i>Source</i>: <?php echo htmlspecialchars($unitkerja_nm); ?></div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -2142,7 +2284,17 @@ if ($primary_result):
         let rawData = rawDataFull;
         if (currentSelectedYears.length > 0) {
             rawData = rawDataFull.filter(item => {
-                const itemYear = String(item.tahun || item.tahun_data || item.year || "");
+                let itemYear = "";
+                for (const k in item) {
+                    if (/tahun|year|thn|periode/i.test(k) && item[k]) {
+                        const m = String(item[k]).match(/\b(19\d\d|20\d\d)\b/);
+                        if (m) { itemYear = m[1]; break; }
+                        else if (!itemYear) { itemYear = String(item[k]); }
+                    }
+                }
+                if (!itemYear) {
+                    itemYear = String(item.tahun || item.tahun_data || item.year || item.thn || "");
+                }
                 return currentSelectedYears.includes(itemYear);
             });
         }
@@ -2472,7 +2624,8 @@ if ($primary_result):
     <script>
         // Store raw data from PHP
         let rawApiResults = <?php echo json_encode($api_results); ?>;
-        let currentSelectedYears = []; // Global state multi-tahun
+        let currentSelectedYears = <?php echo json_encode(array_values(array_map('strval', $selected_years ?? []))); ?>;
+        window.defaultSelectedYears = <?php echo json_encode(array_values(array_map('strval', $selected_years ?? []))); ?>;
         let currentTableConfig = null;
         let tableSkeletonDismissed = false;
 
@@ -2501,6 +2654,28 @@ if ($primary_result):
                     }
                 }
             });
+
+            // Filter tabel standar (non-pivot) pada load awal sesuai selected years
+            if (currentSelectedYears && currentSelectedYears.length > 0) {
+                const tables = document.querySelectorAll('.table-wrapper');
+                tables.forEach(wrapper => {
+                    const customTable = wrapper.querySelector('.main-table');
+                    if (!customTable || (!currentTableConfig && !customTable.innerHTML.includes('style='))) {
+                        const rows = wrapper.querySelectorAll('.main-table tbody tr');
+                        let hasVisibleRow = false;
+                        rows.forEach(row => {
+                            const rowYear = row.getAttribute('data-tahun');
+                            if (currentSelectedYears.length === 0 || currentSelectedYears.includes(rowYear)) {
+                                row.style.display = "";
+                                hasVisibleRow = true;
+                            } else {
+                                row.style.display = "none";
+                            }
+                        });
+                        wrapper.style.display = hasVisibleRow ? "" : "none";
+                    }
+                });
+            }
 
             // Hapus elemen progress box ekspor ke excel agar tidak muncul di frontend
             const progressBox = document.getElementById('export-progress-container');
@@ -2614,15 +2789,43 @@ if ($primary_result):
                 }
 
                 // 4. Fallback deteksi teks untuk Total dan Kategori
-                const rowFullText = trEl ? (trEl.textContent || '').trim().toLowerCase() : '';
+                let labelText = '';
+                if (trEl && trEl.children && trEl.children.length > 0) {
+                    for (let i = 0; i < Math.min(3, trEl.children.length); i++) {
+                        const cTxt = (trEl.children[i].textContent || '').trim();
+                        if (cTxt && !/^\d+$/.test(cTxt)) {
+                            labelText = cTxt.toLowerCase().replace(/\s+/g, ' ');
+                            break;
+                        }
+                    }
+                }
+                if (!labelText) {
+                    labelText = trEl ? (trEl.textContent || '').trim().toLowerCase().replace(/\s+/g, ' ') : '';
+                }
+
                 const isLastRow = domBodyRows && data.row.index === (domBodyRows.length - 1);
-                if ((isLastRow && (rowFullText.includes('jumlah') || rowFullText.includes('total') || rowFullText.includes('jawa tengah') || rowFullText.includes('pdrb'))) 
-                    || rowFullText.startsWith('jumlah') 
-                    || rowFullText.startsWith('total') 
-                    || rowFullText.startsWith('jawa tengah')) {
+                const isGenuineTotal = (txt) => {
+                    if (!txt) return false;
+                    const clean = txt.trim().toLowerCase().replace(/\s+/g, ' ');
+                    // Murni label total / jumlah (bukan nama indikator seperti "curah hujan", "hari hujan", "penduduk", dll)
+                    if (/^(jumlah|total|grand\s+total|total\s+keseluruhan)(\s*[:\/\-]\s*(total|jumlah|grand\s+total))?$/i.test(clean)) {
+                        return true;
+                    }
+                    // Label total provinsi Jawa Tengah (di tabel kabupaten/kota)
+                    if (/^(provinsi\s+)?jawa\s+tengah(\s*[:\/\-]\s*(central\s+java|central\s+java\s+province))?$/i.test(clean)) {
+                        return true;
+                    }
+                    // Label total PDRB murni pada baris akhir
+                    if (/^(total\s+pdrb|jumlah\s+pdrb|pdrb)(\s*[:\/\-]\s*.*)?$/i.test(clean) && isLastRow) {
+                        return true;
+                    }
+                    return false;
+                };
+
+                if (isGenuineTotal(labelText) || (isLastRow && /^(jumlah|total|grand\s+total|jawa\s+tengah)\b/i.test(labelText) && !/(curah\s+hujan|hari\s+hujan|penduduk|tenaga\s+kerja|perusahaan|sekolah|guru|siswa|luas|kasus|fasilitas)/i.test(labelText))) {
                     return 'total';
                 }
-                if (trEl && trEl.children && trEl.children.length === 1 && (rowFullText.includes('kabupaten') || rowFullText.includes('kota'))) {
+                if (trEl && trEl.children && trEl.children.length === 1 && (labelText.includes('kabupaten') || labelText.includes('kota'))) {
                     return 'category';
                 }
 

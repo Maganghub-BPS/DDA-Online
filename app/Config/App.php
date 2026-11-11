@@ -16,7 +16,7 @@ class App extends BaseConfig
      *
      * E.g., http://example.com/
      */
-    public string $baseURL = 'http://localhost/dda-online-ci4/public/';
+    public string $baseURL = 'https://dda.jateng.pro/';
 
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.
@@ -29,7 +29,38 @@ class App extends BaseConfig
      *
      * @var list<string>
      */
-    public array $allowedHostnames = [];
+    public array $allowedHostnames = [
+        'dda.feinah.web.id',
+        'dda.jateng.pro',
+        'dda.jatengprov.go.id',
+        'localhost',
+        '127.0.0.1',
+    ];
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Deteksi domain secara dinamis jika diakses via Web Browser (bukan CLI / Spark)
+        if (isset($_SERVER['HTTP_HOST'])) {
+            $rawHost = $_SERVER['HTTP_HOST'];
+            [$hostName, $port] = array_pad(explode(':', $rawHost, 2), 2, null);
+
+            // Validasi apakah hostname terdaftar di whitelist (mencegah Host Header Injection)
+            if (in_array($hostName, $this->allowedHostnames, true)) {
+                // Deteksi HTTPS yang akurat (mendukung SSL langsung maupun Nginx/Cloudflare reverse proxy)
+                $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                    || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+                    || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+
+                $protocol = $isHttps ? 'https' : 'http';
+                $portSuffix = ($port && !in_array((int)$port, [80, 443], true)) ? ':' . $port : '';
+
+                // Set baseURL dinamis lengkap dengan trailing slash
+                $this->baseURL = "{$protocol}://{$hostName}{$portSuffix}/";
+            }
+        }
+    }
 
     /**
      * --------------------------------------------------------------------------
@@ -133,7 +164,7 @@ class App extends BaseConfig
      * @see https://www.php.net/manual/en/timezones.php for list of timezones
      *      supported by PHP.
      */
-    public string $appTimezone = 'UTC';
+    public string $appTimezone = 'Asia/Jakarta';
 
     /**
      * --------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 #Untuk menentukan nomor baris untuk kolom 
 import re
+import json
 import threading
 from normalizer import (
     parse_num, clean_header_text, find_wilayah_with_type,
@@ -117,16 +118,22 @@ def detect_active_data_cols(source_data):
                     
                     first_3_digits = [re.sub(r'[^\d]', '', v) for v in non_meta[:3]]
                     is_row_num = (col_idx <= 1) and (len(first_3_digits) == 3 and first_3_digits == ['1', '2', '3'])
-                    num_count = sum(1 for v in non_meta if parse_num(v) is not None)
+                    num_count = sum(1 for v in non_meta if parse_num(v) is not None or v in ('-', '–', '—', '−'))
                     is_mostly_numeric = (num_count >= 1 and num_count >= len(non_meta) * 0.3) if non_meta else False
+                    is_empty_target_col = (not non_meta or all(v in ['', 'None', '-', '–', '—', '−', 'NA', 'na', 'null'] for v in non_meta))
                     
                     if num_val >= 2:
                         is_unit_col = any(
                             re.search(r'\b(?:satuan|unit)\b', clean_header_text(r[col_idx]).lower())
+                            and not re.search(r'\b(?:jumlah|banyaknya|total|nilai|pendidikan|kapal|kerja|usaha|rumah)\b', clean_header_text(r[col_idx]).lower())
                             for r in source_data[:bps_row_idx]
                             if isinstance(r, list) and col_idx < len(r) and r[col_idx]
                         )
-                        if not is_row_num and is_mostly_numeric and not is_unit_col:
+                        has_valid_hdr = any(
+                            isinstance(r, list) and col_idx < len(r) and r[col_idx] is not None and str(r[col_idx]).strip()
+                            for r in source_data[:bps_row_idx]
+                        )
+                        if not is_row_num and (is_mostly_numeric or (is_empty_target_col and has_valid_hdr)) and not is_unit_col:
                             data_col_indices.append(col_idx)
         if data_col_indices: return data_col_indices
     
@@ -178,8 +185,9 @@ def detect_active_data_cols(source_data):
         if not non_empty_vals or len(non_empty_vals) < len(data_rows) * 0.3: continue
         
         clean_ints = [int(v.rstrip('.')) for v in non_empty_vals if v.rstrip('.').isdigit()]
-        if c_idx <= 1 and len(clean_ints) >= len(data_rows) * 0.8 and all(1 <= x <= 40 for x in clean_ints) and (clean_ints[0] == 1 and clean_ints[1] == 2): continue
+        if c_idx <= 1 and len(clean_ints) >= len(data_rows) * 0.8 and all(0 <= x <= 50 for x in clean_ints) and (len(clean_ints) >= 2 and clean_ints[0] in [0, 1] and clean_ints[1] in [1, 2]): continue
         if c_idx <= 2 and non_empty_vals and all(re.match(r'^33\.\d{2}$', v) for v in non_empty_vals): continue
+        if c_idx == 0 and max_c >= 2 and all(re.match(r'^(?:19|20)\d{2}$', v) for v in non_empty_vals if v.lower() not in ['jumlah', 'total', 'jumlah/total', 'rata-rata']): continue
         if sum(1 for n in [parse_num(v) for v in non_empty_vals] if n is not None) >= len(non_empty_vals) * 0.5:
             data_cols.append(c_idx)
     
@@ -347,32 +355,42 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
             p_rows = extract_clean_page_tables(pdf_path, p_num)
             if not p_rows: continue
             
-            d_start = -1
-            for i, r in enumerate(p_rows):
-                if not isinstance(r, list): continue
-                txt = ' '.join(str(c).replace('\n', ' ') for c in r[:3] if str(c).strip()).lower()
-                if any(re.search(rf'\b{w}\b', txt) for w in ['cilacap', 'banyumas', 'purbalingga', 'magelang', 'surakarta', 'jawa tengah', 'semarang']):
-                    d_start = i
-                    break
-                c0 = str(r[0]).strip().rstrip('.')
-                if c0.isdigit() and int(c0) <= 40 and any(parse_num(str(c), is_pdf=True) is not None for c in r[1:]):
-                    d_start = i
-                    break
-            if d_start <= 0: continue
-            hdr_rows = [r for r in p_rows[:d_start] if isinstance(r, list) and not is_title_row(r)]
+            bps_idx, bps_cells, _ = find_bps_numbering_row(p_rows)
+            if bps_idx >= 0 and bps_cells:
+                data_cols = [col_idx for col_idx, val in bps_cells if int(re.match(r'^\(?(\d+)\)?$', str(val).strip()).group(1)) >= 2]
+                hdr_rows = [r for r in p_rows[:bps_idx] if isinstance(r, list) and not is_title_row(r)]
+                first_data_col = data_cols[0] if data_cols else 1
+            else:
+                d_start = -1
+                for i, r in enumerate(p_rows):
+                    if not isinstance(r, list): continue
+                    txt = ' '.join(str(c).replace('\n', ' ') for c in r[:3] if str(c).strip()).lower()
+                    if any(re.search(rf'\b{w}\b', txt) for w in ['cilacap', 'banyumas', 'purbalingga', 'magelang', 'surakarta', 'jawa tengah', 'semarang']):
+                        d_start = i
+                        break
+                    c0 = str(r[0]).strip().rstrip('.')
+                    if c0.isdigit() and int(c0) <= 40 and any(parse_num(str(c), is_pdf=True) is not None for c in r[1:]):
+                        d_start = i
+                        break
+                    if resolve_provinsi_entity(txt)[0] or sum(1 for c in r if parse_num(str(c), is_pdf=True) is not None) >= 2:
+                        d_start = i
+                        break
+                if d_start <= 0: continue
+                hdr_rows = [r for r in p_rows[:d_start] if isinstance(r, list) and not is_title_row(r)]
+                first_data_row = p_rows[d_start]
+                first_data_col = -1
+                for idx, c in enumerate(first_data_row):
+                    c_str = str(c).strip()
+                    if not c_str: continue
+                    if idx == 0 and c_str.rstrip('.').isdigit(): continue
+                    if idx <= 3 and re.match(r'^33\.\d{2}$', c_str): continue
+                    if parse_num(c_str, is_pdf=True) is not None:
+                        first_data_col = idx
+                        break
+                if first_data_col == -1: first_data_col = 2
+                data_cols = None
+
             if not hdr_rows: continue
-            
-            first_data_row = p_rows[d_start]
-            first_data_col = -1
-            for idx, c in enumerate(first_data_row):
-                c_str = str(c).strip()
-                if not c_str: continue
-                if idx == 0 and c_str.rstrip('.').isdigit(): continue
-                if idx <= 3 and re.match(r'^33\.\d{2}$', c_str): continue
-                if parse_num(c_str, is_pdf=True) is not None:
-                    first_data_col = idx
-                    break
-            if first_data_col == -1: first_data_col = 2
             
             max_c = max(len(r) for r in hdr_rows)
             filled_hdr = []
@@ -391,7 +409,9 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
                         f_row.append(cur if not is_last_hdr and cur and not is_bps_col_num(cur) else "")
                 filled_hdr.append(f_row)
                 
-            for c_idx in range(first_data_col, max_c):
+            cur_page_headers = []
+            active_col_range = data_cols if data_cols is not None else list(range(first_data_col, max_c))
+            for c_idx in active_col_range:
                 parts = []
                 for r in filled_hdr:
                     if c_idx < len(r):
@@ -399,8 +419,19 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
                         if val and not is_bps_col_num(val) and val not in parts:
                             parts.append(val)
                 lbl = ' - '.join(parts) if parts else ""
+                lbl = re.sub(r'^(?:Tahun\s+)?(19\d{2}|20\d{2})\d$', r'\1', lbl)
                 if lbl:
-                    all_headers.append(f"Tahun {lbl}" if re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', lbl) else lbl)
+                    cur_page_headers.append(f"Tahun {lbl}" if re.match(r'^(?:19|20)\d{2}(?:/\d{4,6})?$', lbl) else lbl)
+            
+            if not all_headers:
+                all_headers.extend(cur_page_headers)
+            else:
+                if cur_page_headers != all_headers[-len(cur_page_headers):]:
+                    all_headers.extend(cur_page_headers)
+
+            if expected_p_len and len(all_headers) >= expected_p_len:
+                break
+
         if all_headers and (not expected_p_len or len(all_headers) == expected_p_len):
             return all_headers
 
@@ -516,7 +547,11 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
 
     def extract_year(text):
         if not text: return None
-        m = re.findall(r'\b(19\d{2}|20\d{2}(?:/\d{4,6})?)\b', str(text))
+        cleaned = re.sub(r'\b(19\d{2}|20\d{2})[\d\*\^rR\†\‡]+(?:\s*,\s*[\d\*\^rR\†\‡]+)?', r'\1', str(text))
+        m_range = re.findall(r'(?:19\d{2}|20\d{2})\s*[\-–—/]\s*(19\d{2}|20\d{2})', cleaned)
+        if m_range:
+            return m_range[-1]
+        m = re.findall(r'\b(19\d{2}|20\d{2}(?:/\d{4,6})?)\b', cleaned)
         if m: return m[-1]
         m_glued = re.findall(r'\b(19\d{2}|20\d{2})[\d\*\^rR\†\‡]', str(text))
         if m_glued: return m_glued[-1]
@@ -539,6 +574,12 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                 norm_toks.add('murid')
             elif any(k in t for k in ['sekolah', 'school', 'satuan']) and 'kepala' not in t_full:
                 norm_toks.add('sekolah')
+            elif t in ('pria', 'male', 'laki'):
+                norm_toks.add('laki')
+            elif t in ('wanita', 'female', 'perempuan'):
+                norm_toks.add('perempuan')
+            elif t in ('persen', 'percentage', 'persentase'):
+                norm_toks.add('persentase')
 
         if 'kepala' in raw_toks or 'pendidik' in raw_toks or 'guru' in raw_toks:
             norm_toks.add('guru')
@@ -552,6 +593,23 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
     pdf_tokens = [extract_tokens(h) for h in pdf_headers]
 
     common_w = [w for w in src_dict if w in pdf_dict and w not in ['Total Jawa Tengah', 'Provinsi Jawa Tengah']]
+
+    src_years_with_data = set()
+    if src_dict:
+        for idx_s, sy_chk in enumerate(src_years):
+            if not sy_chk:
+                continue
+            has_val = any(
+                (idx_s < len(s_vals) and s_vals[idx_s] is not None and s_vals[idx_s] != 0.0 and s_vals[idx_s] > -900000)
+                for s_vals in src_dict.values()
+            )
+            if has_val:
+                src_years_with_data.add(sy_chk)
+
+    shared_dim_tokens = {
+        tok for tok in ('laki', 'perempuan', 'masuk', 'keluar', 'negeri', 'swasta', 'persentase', 'tps')
+        if any(any(tok in w for w in ts) for ts in src_tokens) and any(any(tok in w for w in ts) for ts in pdf_tokens)
+    }
 
     score_matrix = [[0.0 for _ in range(p_len)] for _ in range(s_len)]
     
@@ -604,12 +662,20 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                 if sy == py:
                     score += 80.0
                 else:
-                    score -= 80.0
+                    score -= 200.0
             elif target_year and py:
-                if target_year == py:
+                if target_year == py or str(py).endswith('/' + str(target_year)) or str(py).startswith(str(target_year) + '/'):
                     score += 40.0
                 else:
                     score -= 20.0
+
+            all_valid_years = [y for y in ((list(src_years_with_data) if src_years_with_data else src_years) + pdf_years) if y]
+            max_yr_in_tbl = max(all_valid_years) if all_valid_years else None
+            is_empty_s_col = all((s_vals[s_idx] is None or s_vals[s_idx] == 0.0) for s_vals in src_dict.values() if s_idx < len(s_vals)) if src_dict else False
+            if is_empty_s_col and sy and max_yr_in_tbl and sy < max_yr_in_tbl and sy != py:
+                score -= 200.0
+            if sy and src_years_with_data and sy not in src_years_with_data and not (py and sy == py):
+                score -= 220.0
 
             # 3. SEMANTIC TOKEN MATCHING
             st = src_tokens[s_idx]
@@ -621,8 +687,8 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                     score += (overlap / union) * 40.0
                     
                 for cat_a, cat_b in [
-                    ('laki', 'perempuan'), ('negeri', 'swasta'), ('pns', 'pppk'), ('darat', 'laut'),
-                    ('guru', 'murid'), ('sekolah', 'guru'), ('sekolah', 'murid')
+                    ('laki', 'perempuan'), ('masuk', 'keluar'), ('negeri', 'swasta'), ('pns', 'pppk'), ('darat', 'laut'),
+                    ('desa', 'kelurahan'), ('guru', 'murid'), ('sekolah', 'guru'), ('sekolah', 'murid')
                 ]:
                     has_a_src = any(cat_a in w for w in st)
                     has_b_src = any(cat_b in w for w in st)
@@ -631,7 +697,13 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                     if (has_a_src and has_a_pdf) or (has_b_src and has_b_pdf):
                         score += 35.0
                     elif (has_a_src and has_b_pdf) or (has_b_src and has_a_pdf):
-                        score -= 200.0 if any(k in (cat_a, cat_b) for k in ['guru', 'murid', 'sekolah']) else 50.0
+                        score -= 250.0
+
+                for d_tok in shared_dim_tokens:
+                    has_d_src = any(d_tok in w for w in st)
+                    has_d_pdf = any(d_tok in w for w in pt)
+                    if has_d_src != has_d_pdf:
+                        score -= 250.0
 
             if s_len == p_len and s_idx == p_idx:
                 score += 1.0
@@ -741,8 +813,8 @@ def detect_table_archetype(pdf_path, target_table, target_pages, source_data):
     if p2_first_ints and p2_first_ints[0] > 20:
         return "MULTI_PAGE_ROW_CONTINUATION"
 
-    p1_jateng = sum(1 for r in p1_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] is not None)
-    p2_jateng = sum(1 for r in p2_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] is not None)
+    p1_jateng = sum(1 for r in p1_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] not in [None, '33.00', '00'])
+    p2_jateng = sum(1 for r in p2_rows if isinstance(r, list) and resolve_jateng_entity(' '.join(str(c) for c in r[:3]))[0] not in [None, '33.00', '00'])
 
     if p1_jateng >= 5 and p2_jateng >= 5:
         return "MULTI_PAGE_COLUMN_SPLIT"
@@ -765,9 +837,12 @@ def profile_api_schema(api_records):
     col_roles = {}
     for col in keys:
         cl = col.lower().strip()
-        # 1. System / Metadata keys
+        # 1. System / Metadata / Unit keys
         if cl in {'id', '_id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'deleted_at'}:
             col_roles[col] = 'system'
+            continue
+        if cl in {'satuan', 'unit', 'units'}:
+            col_roles[col] = 'unit'
             continue
 
         # 2. Temporal dimensions (filter tahun/waktu) vs Periodic row dimension (bulan, triwulan, semester)
@@ -789,7 +864,7 @@ def profile_api_schema(api_records):
             continue
 
         # 4. Regional / Geographic dimension
-        if any(w in cl for w in ['wilayah', 'kabupaten', 'kota', 'regency', 'municipality', 'daerah', 'provinsi']):
+        if any(w in cl for w in ['wilayah', 'wiayah', 'wialyah', 'kabupaten', 'kota', 'regency', 'municipality', 'daerah', 'provinsi']):
             jateng_matches = sum(1 for v in set(vals) if resolve_jateng_entity(v)[0] not in [None, 'Total Jawa Tengah'])
             if jateng_matches >= 3 or len(set(vals)) >= 25:
                 col_roles[col] = 'region'
@@ -825,7 +900,139 @@ def _filter_api_records_by_target_year(records, temporal_cols, pdf_rows):
     return [r for r in records if str(r.get(t_col)).strip() == latest_y]
 
 
-def normalize_api_data(api_records, pdf_rows=None, target_table=None):
+
+def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_table=None):
+    """
+    Menerapkan konfigurasi layout (config_tabel) dari database ke raw records API Satudata.
+    Mendukung kolom visibilitas kustom, reordering, custom labels, baris/kolom total,
+    serta pivot mode yang disetel admin di portal tabel dinamis.
+    """
+    if not api_records or not isinstance(api_records, list) or not isinstance(api_records[0], dict):
+        return None
+    if not config_tabel:
+        return None
+
+    config = config_tabel
+    if isinstance(config, str):
+        try:
+            c_str = config.strip()
+            if c_str.startswith('"') and c_str.endswith('"'):
+                c_str = c_str[1:-1]
+            config = json.loads(c_str)
+            if isinstance(config, str):
+                config = json.loads(config)
+        except Exception:
+            return None
+
+    if not isinstance(config, dict):
+        return None
+
+    cfg_cols = config.get('columns', [])
+    if not cfg_cols or not isinstance(cfg_cols, list):
+        return None
+
+    api_keys = set(api_records[0].keys())
+    cfg_keys = {c.get('key') for c in cfg_cols if isinstance(c, dict) and c.get('key')}
+    overlap = api_keys.intersection(cfg_keys)
+    if len(overlap) < min(2, len(api_keys)):
+        # Config basi/lama yang tidak cocok dengan skema API baru -> fallback
+        return None
+
+    # Filter target year jika dataset multi-tahun
+    temporal_keys = [k for k in api_keys if any(t in k.lower() for t in ['tahun', 'year', 'periode'])]
+    if temporal_keys:
+        t_key = temporal_keys[0]
+        pdf_text = " ".join(str(c) for r in (pdf_rows or [])[:15] if isinstance(r, list) for c in r if c)
+        pdf_years = re.findall(r'\b(20\d{2})\b', pdf_text)
+        if pdf_years:
+            ty = pdf_years[-1]
+            f_recs = [r for r in api_records if str(r.get(t_key, '')).strip() == ty]
+            if f_recs:
+                api_records = f_recs
+
+    pivot = config.get('pivot', {})
+    if pivot.get('enabled'):
+        # Jika di PDF kolomnya adalah deret multi-tahun (>= 3 tahun, misal 2020..2025 pada 10.3.21)
+        # sedangkan di API pivot-nya memutar indikator ke kolom, serahkan ke normalizer bertingkat
+        if pdf_rows:
+            hdr_txt = " ".join(str(c) for r in pdf_rows[:5] if isinstance(r, list) for c in r if c)
+            hdr_years = set(re.findall(r'\b(20\d{2})\b', hdr_txt))
+            if len(hdr_years) >= 3:
+                return None
+
+        row_keys = pivot.get('row', [])
+        col_keys = pivot.get('col', [])
+        val_keys = pivot.get('val', [])
+        if col_keys and val_keys:
+            mappings = pivot.get('mappings', {})
+            mapping_order = pivot.get('mapping_order', [])
+
+            def gen_key(r, keys):
+                return " || ".join(str(r.get(k, '')).strip() for k in keys)
+
+            cats = []
+            for r in api_records:
+                c = gen_key(r, col_keys)
+                if c and c not in cats:
+                    cats.append(c)
+
+            if mapping_order:
+                def sort_c(cat):
+                    return mapping_order.index(cat) if cat in mapping_order else 999
+                cats.sort(key=sort_c)
+
+            entities = []
+            for r in api_records:
+                ent = gen_key(r, row_keys) if row_keys else 'All'
+                if ent not in entities:
+                    entities.append(ent)
+
+            headers = [mappings.get(rk, {}).get('label_id', rk) for rk in row_keys] if row_keys else ['Uraian']
+            for c in cats:
+                cat_lbl = mappings.get(c, {}).get('label_id', c)
+                for vk in val_keys:
+                    val_lbl = mappings.get(vk, {}).get('label_id', vk)
+                    hdr = f"{cat_lbl} - {val_lbl}" if len(val_keys) > 1 else cat_lbl
+                    headers.append(hdr)
+            if pivot.get('total_row', True):
+                headers.append('Jumlah')
+
+            grid = [headers]
+            num_data_cols = len(cats) * len(val_keys)
+            col_sums = [0.0] * num_data_cols
+
+            for ent in entities:
+                ent_recs = [r for r in api_records if (gen_key(r, row_keys) == ent if row_keys else True)]
+                row = [ent]
+                r_sum = 0.0
+                v_idx = 0
+                for c in cats:
+                    c_recs = [r for r in ent_recs if gen_key(r, col_keys) == c]
+                    for vk in val_keys:
+                        v = sum(parse_num(r.get(vk), is_pdf=False) or 0.0 for r in c_recs)
+                        row.append(int(v) if v.is_integer() else v)
+                        r_sum += v
+                        col_sums[v_idx] += v
+                        v_idx += 1
+                if pivot.get('total_row', True):
+                    row.append(int(r_sum) if r_sum.is_integer() else r_sum)
+                grid.append(row)
+
+            if pivot.get('total_col', True):
+                tot_row = ['Jumlah/Total'] if len(row_keys) <= 1 else ['Jumlah/Total'] + [''] * (len(row_keys) - 1)
+                for cs in col_sums:
+                    tot_row.append(int(cs) if cs.is_integer() else cs)
+                if pivot.get('total_row', True):
+                    grand_tot = sum(col_sums)
+                    tot_row.append(int(grand_tot) if grand_tot.is_integer() else grand_tot)
+                grid.append(tot_row)
+
+            return grid
+
+    # Jika pivot tidak diaktifkan (masih format mentah default API), serahkan ke smart schema profiler
+    return None
+
+def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tabel=None):
     """
     Mengonversi list of dict dari API Satudata menjadi representasi 2D tabular generik
     yang kompatibel dengan matching engine compare_table.py (CASE 2).
@@ -838,6 +1045,12 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
     """
     if not isinstance(api_records, list) or not api_records or not isinstance(api_records[0], dict):
         return None
+
+    # Prioritaskan layout config_tabel yang disetel admin di portal
+    if config_tabel:
+        user_grid = apply_user_table_config(api_records, config_tabel, pdf_rows=pdf_rows, target_table=target_table)
+        if user_grid and len(user_grid) > 1:
+            return user_grid
 
     roles = profile_api_schema(api_records)
     if not roles:
@@ -877,14 +1090,43 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
                     grid.append(row)
                 return grid
 
-        # Standar Regional: Baris = 35 Kab/Kota, Kolom = Metrik numerik
+        # Standar Regional: Baris = 35 Kab/Kota (atau Kab/Kota x Sub-Kategori), Kolom = Metrik numerik
+        is_multi_row_reg_cat = False
+        any_valid_metric = False
+        if cat_cols and pdf_rows:
+            unique_regs = len(set(str(r.get(reg_col, '')).strip() for r in api_records if r.get(reg_col)))
+            cat_vals_set = set(str(r.get(cat_cols[0], '')).strip().lower() for r in api_records if r.get(cat_cols[0]))
+            cat_in_pdf = sum(1 for v in cat_vals_set if len(v) >= 3 and v in pdf_text) >= 2
+            if pdf_has_regions and cat_in_pdf and len(api_records) > max(40, unique_regs * 1.3):
+                is_multi_row_reg_cat = True
+                any_valid_metric = any(parse_num(r.get(mk), is_pdf=False) is not None for r in api_records for mk in metric_cols)
+
         headers = ['Wilayah'] + [m.replace('_', ' ').title() for m in metric_cols]
         grid = [headers]
+        brebes_seen = False
         for r in api_records:
-            row = [r.get(reg_col)]
+            w_name = str(r.get(reg_col, '')).strip()
+            if 'Brebes' in w_name:
+                brebes_seen = True
+            elif brebes_seen and w_name.startswith('Kab. '):
+                c_name = w_name[5:].strip()
+                if c_name in ['Magelang', 'Semarang', 'Pekalongan', 'Tegal']:
+                    w_name = f"Kota {c_name}"
+            if is_multi_row_reg_cat:
+                c_val = str(r.get(cat_cols[0], '')).strip()
+                w_clean = re.sub(r'^Kab\.\s*', '', w_name)
+                row_lbl = f"{w_clean} - {c_val}" if c_val else w_name
+            else:
+                row_lbl = w_name
+            row = [row_lbl]
             for mk in metric_cols:
                 v = parse_num(r.get(mk), is_pdf=False)
-                row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
+                if v is not None:
+                    row.append(int(v) if isinstance(v, float) and v.is_integer() else v)
+                elif is_multi_row_reg_cat and any_valid_metric:
+                    row.append('-')
+                else:
+                    row.append(r.get(mk))
             grid.append(row)
         return grid
 
@@ -924,6 +1166,32 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
             s_val = str(r.get(chosen_sub, '')).strip()
             if s_val and s_val not in sub_vals_raw:
                 sub_vals_raw.append(s_val)
+
+        # Deteksi jika PDF menyajikan kolom multi-tahun (>= 3 tahun, misal 2020..2025 pada 10.3.21)
+        # dan nilai sub-indikator ditumpuk secara vertikal sebagai baris di bawah tiap kategori utama
+        if pdf_rows:
+            hdr_txt = " ".join(str(c) for r in pdf_rows[:5] if isinstance(r, list) for c in r if c)
+            hdr_years = sorted(list(set(re.findall(r'\b(20\d{2})\b', hdr_txt))))
+            if len(hdr_years) >= 3:
+                time_col = temporal_cols[0] if temporal_cols else None
+                api_years = sorted(list(set(str(r.get(time_col)).strip() for r in api_records if time_col and r.get(time_col))))
+                if not api_years:
+                    api_years = [hdr_years[-1]]
+                grid = [[primary_dim.replace('_', ' ').title()] + [f"Tahun {y}" for y in api_years]]
+                for p in primary_entities:
+                    for sv in sub_vals_raw:
+                        row = [f"{p} - {sv}"]
+                        for y in api_years:
+                            v = sum(
+                                parse_num(r.get(val_col), is_pdf=False) or 0.0
+                                for r in api_records
+                                if str(r.get(primary_dim, '')).strip() == p
+                                and str(r.get(chosen_sub, '')).strip() == sv
+                                and (not time_col or str(r.get(time_col, '')).strip() == y)
+                            )
+                            row.append(int(v) if v.is_integer() else v)
+                        grid.append(row)
+                return grid
 
         # Pisahkan sub-kategori yang sudah bernilai 'Jumlah' / 'Total'
         sub_vals_clean = []
@@ -1057,14 +1325,26 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None):
             return m.replace('_', ' ').title()
 
         clean_metrics = [clean_metric_label(m) for m in metric_cols]
-        grid_headers = ([code_col.replace('_', ' ').title()] if code_col else []) + [dim_col.replace('_', ' ').title()] + clean_metrics
+        pdf_text = " ".join(str(c) for r in (pdf_rows or [])[:20] if isinstance(r, list) for c in r if c).lower()
+        dim_in_pdf = any(str(r.get(dim_col, '')).strip().lower() in pdf_text for r in api_records[:5] if r.get(dim_col))
+        use_code_only = bool(code_col and not dim_in_pdf)
+
+        grid_headers = ([code_col.replace('_', ' ').title()] if code_col else []) + ([] if use_code_only else [dim_col.replace('_', ' ').title()]) + clean_metrics
         grid = [grid_headers]
         for r in api_records:
-            row = ([r.get(code_col)] if code_col else []) + [r.get(dim_col)]
+            row = ([r.get(code_col)] if code_col else []) + ([] if use_code_only else [r.get(dim_col)])
             for mk in metric_cols:
                 v = parse_num(r.get(mk), is_pdf=False)
                 row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
             grid.append(row)
+
+        pdf_has_total = any(isinstance(r, list) and any(re.sub(r'[\s/]+', ' ', str(c).strip().lower()) in ['jumlah total', 'total jumlah', 'jumlah', 'total'] for c in r[:2] if c is not None) for r in (pdf_rows or []))
+        if pdf_has_total:
+            tot_row = ['Jumlah/Total']
+            for col_i in range(1, len(grid_headers)):
+                vals = [r[col_i] for r in grid[1:] if isinstance(r[col_i], (int, float))]
+                tot_row.append(int(sum(vals)) if sum(vals).is_integer() else sum(vals))
+            grid.append(tot_row)
         return grid
 
     # 5. TEMPORAL ROWS (misal 8.7 Wisatawan Mancanegara & Domestik per Tahun)

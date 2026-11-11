@@ -26,7 +26,7 @@ abstract class BaseController extends Controller
     protected $input;
     protected $uri;
     protected $security;
-    protected $helpers = ['url', 'form', 'file', 'my'];
+    protected $helpers = ['url', 'form', 'file', 'my', 'rbac'];
 
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {
@@ -85,23 +85,42 @@ abstract class BaseController extends Controller
                                 $path = FCPATH . substr($path, 2);
                             }
 
+                            // Pastikan folder tujuan upload ada
+                            if (!is_dir($path)) {
+                                mkdir($path, 0777, true);
+                            }
+
+                            // Ambil properti file SEBELUM $file->move(),
+                            // karena file temporary di tmp/ akan hilang setelah dipindahkan
+                            $clientName = $file->getClientName();
+                            $clientMime = $file->getClientMimeType();
+                            $clientExt  = $file->getClientExtension();
+                            $clientSize = $file->getSizeByUnit('kb');
+                            $isImage    = strpos($clientMime, 'image') !== false;
+
+                            // Tentukan ekstensi aman saat file temp masih ada
+                            $ext = $file->getExtension();
+                            if (empty($ext)) {
+                                $ext = $clientExt ?: pathinfo($clientName, PATHINFO_EXTENSION);
+                            }
+
                             $newName = $file->getRandomName();
                             if (!empty($this->config['file_name'])) {
-                                $newName = $this->config['file_name'] . '.' . $file->getExtension();
+                                $newName = $this->config['file_name'] . '.' . $ext;
                             }
 
                             if ($file->move($path, $newName)) {
                                 $this->uploadData = [
-                                    'file_name' => $file->getName(),
-                                    'file_type' => $file->getClientMimeType(),
-                                    'file_path' => $path,
-                                    'full_path' => $path . '/' . $file->getName(),
-                                    'raw_name'  => pathinfo($file->getName(), PATHINFO_FILENAME),
-                                    'orig_name' => $file->getClientName(),
-                                    'client_name' => $file->getClientName(),
-                                    'file_ext'  => '.' . $file->getExtension(),
-                                    'file_size' => $file->getSizeByUnit('kb'),
-                                    'is_image'  => strpos($file->getClientMimeType(), 'image') !== false,
+                                    'file_name'   => $newName,
+                                    'file_type'   => $clientMime,
+                                    'file_path'   => $path,
+                                    'full_path'   => rtrim($path, '/\\') . '/' . $newName,
+                                    'raw_name'    => pathinfo($newName, PATHINFO_FILENAME),
+                                    'orig_name'   => $clientName,
+                                    'client_name' => $clientName,
+                                    'file_ext'    => '.' . $ext,
+                                    'file_size'   => $clientSize,
+                                    'is_image'    => $isImage,
                                 ];
                                 return true;
                             }
@@ -147,12 +166,12 @@ abstract class BaseController extends Controller
 
         // --- GLOBAL DATA SHARING ---
         // Cache static instansi config in session to eliminate remote DB query latency on every HTTP request
-        $instansi = $this->session->get('cached_instansi_config');
-        if (!$instansi) {
+        if (!$this->session->has('cached_instansi_config')) {
             $instansi = $this->db->query("SELECT * FROM tr_instansi LIMIT 1")->getRow();
-            if ($instansi) {
-                $this->session->set('cached_instansi_config', $instansi);
-            }
+            $this->session->set('cached_instansi_config', $instansi ?: '__EMPTY__');
+        } else {
+            $cached = $this->session->get('cached_instansi_config');
+            $instansi = ($cached === '__EMPTY__') ? null : $cached;
         }
         
         // Share with all views globally

@@ -80,7 +80,8 @@ _VALID_SHORT_TOKENS = {
     'iii/a', 'iii/b', 'iii/c', 'iii/d',
     'ii/a', 'ii/b', 'ii/c', 'ii/d',
     'i/a', 'i/b', 'i/c', 'i/d',
-    'sd', 'smp', 'sma', 'smk', 'di', 'pt', 'tb', 'ha', 'kg', 'm2', 'm3', 'km', 'rp'
+    'sd', 'smp', 'sma', 'smk', 'di', 'pt', 'tb', 'ha', 'kg', 'm2', 'm3', 'km', 'rp',
+    'na', 'n.a', 'n.a.', 'na.', 'n/a'
 }
 
 def is_watermark_only_token(tok):
@@ -212,7 +213,7 @@ PROVINSI_REGISTRY = [
     ("18", "Lampung", ["lampung"]),
     ("19", "Kep. Bangka Belitung", ["bangka belitung", "babel", "kep. bangka belitung", "kepulauan bangka belitung"]),
     ("21", "Kepulauan Riau", ["kepulauan riau", "kep. riau", "kepri"]),
-    ("31", "DKI Jakarta", ["dki jakarta", "jakarta"]),
+    ("31", "DKI Jakarta", ["dki jakarta", "dki jakaarta", "jakarta"]),
     ("32", "Jawa Barat", ["jawa barat", "jabar"]),
     ("33", "Jawa Tengah", ["jawa tengah", "jateng"]),
     ("34", "DI Yogyakarta", ["yogyakarta", "d.i. yogyakarta", "diy"]),
@@ -277,6 +278,10 @@ def is_safe_fuzzy_match(s1, s2):
     grades2 = set(re.findall(r'\b[a-e]\b', str(s2).lower()))
     if grades1 != grades2:
         return False
+    p1 = find_provinsi(str(s1).rsplit(' - ', 1)[-1].rsplit(' || ', 1)[-1])
+    p2 = find_provinsi(str(s2).rsplit(' - ', 1)[-1].rsplit(' || ', 1)[-1])
+    if (p1 or p2) and p1 != p2:
+        return False
     return True
 
 class AmbiguousFloat(float):
@@ -299,7 +304,7 @@ def is_interval_label(s):
     if not s: return False
     s_clean = clean_pdf_watermark_text(str(s))
     s_clean = re.sub(r'[\s\*]', '', s_clean)
-    return bool(re.match(r'^(?:\d+[\-–—\ufffd]\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]\s*\d+)$', s_clean))
+    return bool(re.match(r'^(?:\d+(?:[\-–—\ufffd]|s/?d|s\.d\.?)\d+|\d+\+|\<\s*\d+|\>\s*\d+|\≤\s*\d+|\≥\s*\d+|[<\>≤≥]=?\s*\d+)$', s_clean, re.IGNORECASE))
 
 def parse_num(val_str, is_pdf=False):
     if val_str is None: return None
@@ -335,7 +340,22 @@ def parse_num(val_str, is_pdf=False):
     # Strip vertical watermark artifacts (e.g., newline followed by single letter)
     s = re.sub(r'[\r\n]+[a-z][\r\n]*', '', s)
 
+    s_clean_token = s.strip().lower()
+    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', 'na', 'n.a', 'n.a.', 'na.', 'n/a', '...', '', '\ufffd', '\u2026', '…'}
+    if s_clean_token in dash_nihil:
+        return 0.0
+    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isalnum() for c in s):
+        return 0.0
+
     s_raw_token = s.strip()
+
+    # Deteksi Cerdas Format Waktu (e.g. '05:23:46' atau '18:56:28' atau '1:09:06')
+    m_time = re.match(r'^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?$', s_raw_token)
+    if m_time:
+        hh = m_time.group(1).zfill(2)
+        mm = m_time.group(2)
+        ss = m_time.group(3) if m_time.group(3) else '00'
+        return f"{hh}:{mm}:{ss}"
 
     # Cek kata alfabet bermakna >= 2 huruf SEBELUM stripping agar label teks seperti '1.1 Pajak Daerah' tidak terkonversi ke 1.1
     s_cleaned_no_wm = re.sub(r'(?i)\b(?:km[23]?|m[23]?|cm[23]?|dm[23]?|mm[23]?|ha|kg|ton|jiwa|orang|rupiah|persen|ribu|juta|miliar|triliun|sm)\b', '', s_raw_token)
@@ -354,13 +374,6 @@ def parse_num(val_str, is_pdf=False):
     s_no_units = re.sub(r'[a-zA-Z\s\.\/:\(\)]+$', '', s_no_units)
     if not any(c.isdigit() for c in s_no_units) and any(c.isalpha() for c in s_raw_token):
         return None
-
-    s_clean_token = s.strip().lower()
-    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', 'na', 'n.a', 'n.a.', 'n/a', '...', '', '\ufffd', '\u2026', '…'}
-    if s_clean_token in dash_nihil:
-        return 0.0
-    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isalnum() for c in s):
-        return 0.0
 
     if is_pdf:
         # Strip watermark prefixes before numbers or symbols (e.g. 'net7.478', 'gne1.470')
@@ -435,8 +448,17 @@ def parse_num(val_str, is_pdf=False):
 
 def clean_header_text(c):
     if not c: return ""
-    lines = [line.strip() for line in str(c).split('\n') if line.strip()]
-    s = lines[0] if lines else ""
+    raw_lines = [line.strip() for line in str(c).split('\n') if line.strip()]
+    if not raw_lines: return ""
+    
+    # Rekonstruksi baris bahasa Indonesia yang terpotong baris baru (misal: 'Pembenihan (ribu' + 'ekor)')
+    indo_lines = []
+    for line in raw_lines:
+        indo_lines.append(line)
+        full = ' '.join(indo_lines)
+        if full.count('(') == full.count(')'):
+            break
+    s = ' '.join(indo_lines).strip()
     s = s.rstrip('*').strip()
     if '/' in s and not re.search(r'\d/\d', s):
         p = s.split('/')
@@ -516,7 +538,7 @@ def is_header_or_metadata_row(row):
     if any(k in ctx for k in ['laki-laki', 'perempuan', 'female', 'male', 'jenis kelamin', 'sex', 'pangkat', 'golongan', 'tingkat pendidikan']):
         if plain_nums == 0: return True
 
-    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit']):
+    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit', 'jenis pelayaran', 'ship sector', 'unit kapal', 'ship unit', 'gross tonage', 'non pelayaran', 'non-shipping', 'samudra', 'nusantara', 'tunker', 'kementerian', 'ministry', 'pagu dipa', 'realisasi']):
         if plain_nums == 0: return True
         
     return False
@@ -609,6 +631,10 @@ def evaluate_cell_match(pv, sv, tolerance=0.0):
     """
     if pv is None or sv is None:
         return False, False, 0.0
+
+    if isinstance(pv, str) or isinstance(sv, str):
+        is_same = str(pv).strip() == str(sv).strip()
+        return is_same, False, (0.0 if is_same else None)
 
     diff_val = round(sv - pv, 3)
 

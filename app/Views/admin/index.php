@@ -40,13 +40,13 @@
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 85px;
             --sidebar-bg: #ffffff;
-            --sidebar-hover: rgba(255, 109, 31, 0.06);
-            --primary-color: #FF6D1F;
+            --sidebar-hover: rgba(21, 70, 121, 0.06);
+            --primary-color: #154679;
             --content-bg: #f5f7f9;
-            --bs-primary: #FF6D1F;
-            --bs-primary-rgb: 255, 109, 31;
-            --bs-link-color: #FF6D1F;
-            --bs-link-hover-color: #e05e15;
+            --bs-primary: #154679;
+            --bs-primary-rgb: 21, 70, 121;
+            --bs-link-color: #154679;
+            --bs-link-hover-color: #0f355c;
         }
 
         * {
@@ -67,58 +67,68 @@
 
         /* ===== OVERRIDE BOOTSTRAP PRIMARY ===== */
         .text-primary {
-            color: #FF6D1F !important;
+            color: #154679 !important;
         }
 
         .text-primary-orange {
-            color: #FF6D1F !important;
+            color: #154679 !important;
         }
 
         .bg-primary {
-            background-color: #FF6D1F !important;
+            background-color: #154679 !important;
         }
 
         .bg-primary-orange {
-            background-color: #FF6D1F !important;
+            background-color: #154679 !important;
+        }
+
+        .bg-primary-subtle,
+        .bg-primary-soft {
+            background-color: rgba(21, 70, 121, 0.08) !important;
+        }
+
+        .border-primary-subtle,
+        .border-primary-soft {
+            border-color: rgba(21, 70, 121, 0.2) !important;
         }
 
         .shadow-primary {
-            box-shadow: 0 4px 6px rgba(255, 109, 31, 0.11), 0 1px 3px rgba(255, 109, 31, 0.08) !important;
+            box-shadow: 0 4px 6px rgba(21, 70, 121, 0.11), 0 1px 3px rgba(21, 70, 121, 0.08) !important;
         }
 
         .btn-primary {
-            background-color: #FF6D1F !important;
-            border-color: #FF6D1F !important;
+            background-color: #154679 !important;
+            border-color: #154679 !important;
         }
 
         .btn-primary:hover {
-            background-color: #e05e15 !important;
-            border-color: #d45510 !important;
+            background-color: #0f355c !important;
+            border-color: #0b2847 !important;
         }
 
         .btn-outline-primary {
-            color: #FF6D1F !important;
-            border-color: #FF6D1F !important;
+            color: #154679 !important;
+            border-color: #154679 !important;
         }
 
         .btn-outline-primary:hover {
-            background-color: #FF6D1F !important;
-            border-color: #FF6D1F !important;
+            background-color: #154679 !important;
+            border-color: #154679 !important;
             color: #fff !important;
         }
 
         .form-control:focus,
         .form-select:focus {
-            border-color: #FF6D1F;
-            box-shadow: 0 0 0 0.25rem rgba(255, 109, 31, 0.15);
+            border-color: #154679;
+            box-shadow: 0 0 0 0.25rem rgba(21, 70, 121, 0.15);
         }
 
         a {
-            color: #FF6D1F;
+            color: #154679;
         }
 
         a:hover {
-            color: #e05e15;
+            color: #0f355c;
         }
 
         /* ===== PAGINATION ORANGE OVERRIDE ===== */
@@ -129,19 +139,19 @@
         }
 
         .pagination .page-item.active .page-link {
-            background-color: #FF6D1F !important;
-            border-color: #FF6D1F !important;
+            background-color: #154679 !important;
+            border-color: #154679 !important;
             color: #fff !important;
-            box-shadow: 0 4px 6px rgba(255, 109, 31, 0.2) !important;
+            box-shadow: 0 4px 6px rgba(21, 70, 121, 0.2) !important;
         }
 
         .pagination .page-link:hover {
             background-color: #f8f9fa;
-            color: #FF6D1F;
+            color: #154679;
         }
 
         .pagination .page-link:focus {
-            box-shadow: 0 0 0 0.25rem rgba(255, 109, 31, 0.1) !important;
+            box-shadow: 0 0 0 0.25rem rgba(21, 70, 121, 0.1) !important;
         }
 
         /* ===== WRAPPER LAYOUT ===== */
@@ -245,7 +255,7 @@
         }
 
         .sidebar-link.active {
-            background: rgba(255, 109, 31, 0.08);
+            background: rgba(21, 70, 121, 0.08);
             color: var(--primary-color);
             font-weight: 600;
             border-left-color: var(--primary-color);
@@ -269,12 +279,21 @@
         }
 
         .sidebar-footer .badge {
-            background: rgba(255, 109, 31, 0.1);
+            background: rgba(21, 70, 121, 0.1);
             color: var(--primary-color);
             font-weight: 600;
             font-size: 0.7rem;
             padding: 4px 10px;
             border-radius: 6px;
+        }
+
+        .sidebar-copyright {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            line-height: 1.35;
+            border-top: 1px dashed #e2e8f0;
+            padding-top: 6px;
+            margin-top: 6px;
         }
 
         /* ===== MAIN CONTENT AREA (HANYA SECTION INI YANG SCROLLABLE) ===== */
@@ -360,7 +379,7 @@
             justify-content: center;
             font-weight: 700;
             font-size: 0.9rem;
-            box-shadow: 0 4px 6px rgba(255, 109, 31, 0.2);
+            box-shadow: 0 4px 6px rgba(21, 70, 121, 0.25);
         }
 
         .user-info {
@@ -385,22 +404,28 @@
         /* ===== MAIN CONTENT ===== */
         .main-content {
             flex-grow: 1;
-            padding: 30px;
+            padding: 20px 24px;
             min-width: 0;
             width: 100%;
             max-width: 100%;
             overflow-x: hidden;
-            min-height: calc(100vh - 70px + 60px);
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
         }
 
         .content-body {
             min-width: 0;
             width: 100%;
             max-width: 100%;
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .breadcrumb-container {
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
 
         .breadcrumb-container .page-title {
@@ -427,18 +452,6 @@
             color: var(--primary-color);
         }
 
-        /* ===== FOOTER (HANYA MUNCUL KETIKA SCROLL PALING BAWAH) ===== */
-        .footer {
-            padding: 16px 30px;
-            text-align: center;
-            font-size: 0.8rem;
-            color: #94a3b8;
-            border-top: 1px solid #e2e8f0;
-            background: #ffffff;
-            flex-shrink: 0;
-            display: none;
-        }
-
         /* ===== DESKTOP SIDEBAR COLLAPSE ===== */
         @media (min-width: 769px) {
             #sidebar.active {
@@ -450,6 +463,7 @@
             #sidebar.active .link-text,
             #sidebar.active .menu-label,
             #sidebar.active .sidebar-footer-text,
+            #sidebar.active .sidebar-copyright,
             #sidebar.active .brand-text,
             #sidebar.active .brand-sub {
                 display: none;
@@ -540,9 +554,11 @@
         'l_dda_periksa'  => 'Pemeriksaan Data DDA',
         'l_master_tabel' => 'Master Tabel DDA',
         'l_master_dimensi' => 'Master Dimensi Tabel Dinamis',
-        'l_master_tabel_opd' => 'Master Tabel OPD',
+        'l_master_tabel_opd' => (session()->get('admin_unitkerja') !== 'bps') ? 'Usulan Tabel Baru' : 'Review Tabel Usulan OPD',
         'l_unitkerja'    => 'Manajemen OPD',
+        'f_unitkerja'    => 'Form Master OPD',
         'l_manage_admin' => 'Manajemen Admin',
+        'f_manage_admin' => 'Form Manajemen Admin',
         'l_master_tim'   => 'Master Tim',
         'l_forum'        => 'Forum Diskusi',
         'l_forum_topik'  => 'Forum Topik',
@@ -555,7 +571,7 @@
         'v_portal_tabel' => 'View Portal Tabel',
         'v_preview_bulk' => 'Preview Bulk Update',
         'f_generator_tabel' => 'Generator Indikator Tabel & Matriks Dinamis',
-        'v_tabel_dinamis' => 'Tabel Dinamis DDA',
+        'v_tabel_dinamis' => 'View Tabel Dinamis',
     ];
 
     $page_key = is_scalar($page) ? $page : 'dashboard';
@@ -578,94 +594,129 @@
                 <!-- MAIN NAVIGATION -->
                 <div class="menu-label">Main Navigation</div>
 
-                <a href="<?php echo base_url(); ?>admin/" class="sidebar-link <?php echo ($page == 'd_amain' || $page == 'dashboard') ? 'active' : ''; ?>">
-                    <i class="bi bi-grid-1x2-fill"></i>
-                    <span class="link-text">Dashboard</span>
-                </a>
-
-                <?php if ($level != 'kominfo'): ?>
-                    <a href="<?php echo base_url(); ?>admin/dda" class="sidebar-link <?php echo (strpos($page, 'l_dda') !== false) ? 'active' : ''; ?>">
-                        <i class="bi bi-pencil-square"></i>
-                        <span class="link-text">Input Data DDA</span>
+                <?php if (can('dashboard')): ?>
+                    <a href="<?php echo base_url(); ?>admin/" class="sidebar-link <?php echo ($page == 'd_amain' || $page == 'dashboard') ? 'active' : ''; ?>">
+                        <i class="bi bi-grid-1x2-fill"></i>
+                        <span class="link-text">Dashboard</span>
                     </a>
                 <?php endif; ?>
 
-                <a href="<?php echo base_url(); ?>admin/forum_diskusi/" class="sidebar-link <?php echo (strpos($page, 'forum') !== false) ? 'active' : ''; ?>">
-                    <i class="bi bi-chat-dots"></i>
-                    <span class="link-text">Forum Diskusi</span>
-                </a>
+                <?php if (can('input_dda_input') || can('view_dda')): ?>
+                    <a href="<?php echo base_url(); ?>admin/dda" class="sidebar-link <?php echo (strpos($page, 'l_dda') !== false) ? 'active' : ''; ?>">
+                        <i class="bi bi-pencil-square"></i>
+                        <span class="link-text"><?php echo (current_user_role() === 'walidata_opd') ? 'Lihat Data DDA' : 'Input Data DDA'; ?></span>
+                    </a>
 
-                <?php if ($unitkerja == 'bps'): ?>
+                    <?php if (session()->get('admin_unitkerja') !== 'bps'): ?>
+                    <a href="<?php echo base_url(); ?>admin/master_tabel_opd" class="sidebar-link <?php echo (strpos($page, 'master_tabel_opd') !== false || $page === 'f_add_opd') ? 'active' : ''; ?>">
+                        <i class="bi bi-file-earmark-plus"></i>
+                        <span class="link-text">Usulan Tabel Baru</span>
+                    </a>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <?php if (can('forum_diskusi')): ?>
+                    <a href="<?php echo base_url(); ?>admin/forum_diskusi/" class="sidebar-link <?php echo (strpos($page, 'forum') !== false) ? 'active' : ''; ?>">
+                        <i class="bi bi-chat-dots"></i>
+                        <span class="link-text">Forum Diskusi</span>
+                    </a>
+                <?php endif; ?>
+
+                <?php if (can('matching') || can('matching_pdf') || can('report') || can('master_tabel') || can('master_dimensi') || can('master_opd') || can('pengguna') || can('manage_admin') || can('master_tim')): ?>
                     <!-- SYSTEM ADMIN -->
                     <div class="menu-label">System Admin</div>
 
-                    <a href="<?php echo base_url(); ?>admin/matching/" class="sidebar-link <?php echo ($page == 'matching') ? 'active' : ''; ?>">
-                        <i class="bi bi-arrow-left-right"></i>
-                        <span class="link-text">Sinkronisasi/Matching</span>
-                    </a>
+                    <?php if (can('matching')): ?>
+                        <a href="<?php echo base_url(); ?>admin/matching/" class="sidebar-link <?php echo ($page == 'matching') ? 'active' : ''; ?>">
+                            <i class="bi bi-arrow-left-right"></i>
+                            <span class="link-text">Sinkronisasi/Matching</span>
+                        </a>
+                    <?php endif; ?>
 
                     <!-- [Penambahan Fitur Matching PDF]: Navigasi Menu Sidebar ke modul Matching PDF DDA (Python Engine) -->
-                    <a href="<?php echo base_url(); ?>admin/matching_pdf/" class="sidebar-link <?php echo ($page == 'matching_pdf') ? 'active' : ''; ?>">
-                        <i class="bi bi-file-earmark-pdf"></i>
-                        <span class="link-text">Matching PDF (Python)</span>
-                    </a>
+                    <?php if (can('matching_pdf')): ?>
+                        <a href="<?php echo base_url(); ?>admin/matching_pdf/" class="sidebar-link <?php echo ($page == 'matching_pdf') ? 'active' : ''; ?>">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                            <span class="link-text">Matching PDF (Python)</span>
+                        </a>
+                    <?php endif; ?>
 
-                    <a href="<?php echo base_url(); ?>admin/report/" class="sidebar-link <?php echo ($page == 'report') ? 'active' : ''; ?>">
-                        <i class="bi bi-bar-chart-line"></i>
-                        <span class="link-text">Laporan Rekap</span>
-                    </a>
+                    <?php if (can('report')): ?>
+                        <a href="<?php echo base_url(); ?>admin/report/" class="sidebar-link <?php echo ($page == 'report') ? 'active' : ''; ?>">
+                            <i class="bi bi-bar-chart-line"></i>
+                            <span class="link-text">Laporan Rekap</span>
+                        </a>
+                    <?php endif; ?>
 
-                    <a href="<?php echo base_url(); ?>admin/master_tabel/" class="sidebar-link <?php echo (strpos($page, 'master_tabel') !== false) ? 'active' : ''; ?>">
-                        <i class="bi bi-table"></i>
-                        <span class="link-text">Master Tabel</span>
-                    </a>
+                    <?php if (can('master_tabel')): ?>
+                        <a href="<?php echo base_url(); ?>admin/master_tabel/" class="sidebar-link <?php echo (strpos($page, 'master_tabel') !== false) ? 'active' : ''; ?>">
+                            <i class="bi bi-table"></i>
+                            <span class="link-text">Master Tabel</span>
+                        </a>
+                    <?php endif; ?>
 
-                    <a href="<?php echo base_url(); ?>admin/master_dimensi/" class="sidebar-link <?php echo (strpos($page, 'dimensi') !== false) ? 'active' : ''; ?>">
-                        <i class="bi bi-grid-3x3-gap-fill"></i>
-                        <span class="link-text">Master Dimensi Tabel</span>
-                    </a>
+                    <?php if (can('master_dimensi')): ?>
+                        <a href="<?php echo base_url(); ?>admin/master_dimensi/" class="sidebar-link <?php echo (strpos($page, 'dimensi') !== false) ? 'active' : ''; ?>">
+                            <i class="bi bi-grid-3x3-gap-fill"></i>
+                            <span class="link-text">Master Dimensi Tabel</span>
+                        </a>
+                    <?php endif; ?>
 
-                    <?php if ($user == 'diseminasi' || $level == 'Admin' || $level == 'Super Admin'): ?>
+                    <?php if (can('master_opd')): ?>
                         <a href="<?php echo base_url(); ?>admin/master_opd/" class="sidebar-link <?php echo ($page == 'l_unitkerja') ? 'active' : ''; ?>">
                             <i class="bi bi-building"></i>
                             <span class="link-text">Master OPD</span>
                         </a>
+                    <?php endif; ?>
 
+                    <?php if (can('pengguna')): ?>
                         <a href="<?php echo base_url(); ?>admin/pengguna" class="sidebar-link <?php echo (strpos($page, 'pengguna') !== false) ? 'active' : ''; ?>">
                             <i class="bi bi-people"></i>
                             <span class="link-text">Instansi Pengguna</span>
                         </a>
+                    <?php endif; ?>
 
+                    <?php if (can('manage_admin')): ?>
                         <a href="<?php echo base_url(); ?>admin/manage_admin/" class="sidebar-link <?php echo (strpos($page, 'manage_admin') !== false) ? 'active' : ''; ?>">
                             <i class="bi bi-person-gear"></i>
                             <span class="link-text">Manajemen Admin</span>
                         </a>
+                    <?php endif; ?>
 
+                    <?php if (can('master_tim')): ?>
                         <a href="<?php echo base_url(); ?>admin/master_tim/" class="sidebar-link <?php echo ($page == 'l_master_tim') ? 'active' : ''; ?>">
                             <i class="bi bi-diagram-3"></i>
                             <span class="link-text">Master Tim</span>
                         </a>
-
                     <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- ACCOUNT -->
                 <div class="menu-label">Account Settings</div>
 
-                <a href="<?php echo base_url(); ?>admin/passwod" class="sidebar-link <?php echo ($page == 'f_passwod') ? 'active' : ''; ?>">
-                    <i class="bi bi-key"></i>
-                    <span class="link-text">Ganti Password</span>
-                </a>
+                <?php if (can('ganti_password')): ?>
+                    <a href="<?php echo base_url(); ?>admin/passwod" class="sidebar-link <?php echo ($page == 'f_passwod') ? 'active' : ''; ?>">
+                        <i class="bi bi-key"></i>
+                        <span class="link-text">Ganti Password</span>
+                    </a>
+                <?php endif; ?>
 
-                <a href="<?php echo base_url(); ?>admin/logout" class="sidebar-link">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span class="link-text">Logout</span>
-                </a>
+                <?php if (can('logout')): ?>
+                    <a href="<?php echo base_url(); ?>admin/logout" class="sidebar-link">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="link-text">Logout</span>
+                    </a>
+                <?php endif; ?>
             </div>
 
             <div class="sidebar-footer">
-                <div class="sidebar-footer-text mb-1">Tahun Data Aktif</div>
-                <span class="badge"><?php echo $tahun ?: date('Y'); ?></span>
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="sidebar-footer-text font-weight-bold">Tahun Data Aktif</span>
+                    <span class="badge"><?php echo $tahun ?: date('Y'); ?></span>
+                </div>
+                <div class="sidebar-copyright">
+                    <span>BPS Provinsi Jawa Tengah — DDA Online</span>
+                </div>
             </div>
         </aside>
 
@@ -690,9 +741,14 @@
                             <li>
                                 <h6 class="dropdown-header">Pilih Tahun Data</h6>
                             </li>
+                            <?php 
+                            $currentUri = uri_string();
+                            $queryString = $_SERVER['QUERY_STRING'] ?? '';
+                            $returnTarget = $currentUri . ($queryString !== '' ? '?' . $queryString : '');
+                            ?>
                             <?php for ($i = 2020; $i <= (date('Y') + 1); $i++): ?>
                                 <li>
-                                    <a class="dropdown-item <?= ($tahun == $i) ? 'active' : '' ?>" href="<?php echo base_url(); ?>admin/set_tahun/<?= $i ?>/">
+                                    <a class="dropdown-item <?= ($tahun == $i) ? 'active' : '' ?>" href="<?php echo base_url(); ?>admin/set_tahun/<?= $i ?>/?redirect_to=<?= urlencode($returnTarget); ?>">
                                         <i class="bi bi-calendar3 me-2"></i><?= $i ?>
                                     </a>
                                 </li>
@@ -704,14 +760,14 @@
                     <div class="dropdown">
                         <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="user-info d-none d-md-block">
-                                <div class="user-name"><?php echo $nama; ?></div>
-                                <div class="user-role"><?php echo $level; ?></div>
+                                <div class="user-name"><?php echo esc($nama); ?></div>
+                                <div class="user-role"><?php echo esc(function_exists('current_user_role_label') ? current_user_role_label() : $level); ?></div>
                             </div>
-                            <div class="user-avatar"><?php echo $initial; ?></div>
+                            <div class="user-avatar"><?php echo esc($initial); ?></div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                             <li>
-                                <h6 class="dropdown-header"><?php echo $nama; ?></h6>
+                                <h6 class="dropdown-header"><?php echo esc($nama); ?></h6>
                             </li>
                             <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/profil"><i class="bi bi-person-circle me-2"></i>Profil Saya</a></li>
                             <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/passwod"><i class="bi bi-key me-2"></i>Ganti Password</a></li>
@@ -746,11 +802,6 @@
                     <?php echo view('admin/' . $page); ?>
                 </div>
             </div>
-
-            <!-- Footer -->
-            <footer class="footer">
-                <strong>BPS Jateng</strong> &copy; BPS Provinsi Jawa Tengah — DDA Online
-            </footer>
         </main>
     </div>
 
@@ -761,22 +812,30 @@
             var csrfTokenName = '<?= csrf_token() ?>';
             var csrfHash = '<?= csrf_hash() ?>';
 
+            function getLatestCsrfHash() {
+                return $('#meta-csrf').attr('content') || csrfHash;
+            }
+
             // Global jQuery AJAX Setup: Otomatis kirim X-CSRF-TOKEN header pada request non-GET
             $.ajaxSetup({
                 beforeSend: function(xhr, settings) {
                     if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-                        xhr.setRequestHeader('X-CSRF-TOKEN', csrfHash);
+                        xhr.setRequestHeader('X-CSRF-TOKEN', getLatestCsrfHash());
                     }
                 }
             });
 
             // Injeksi otomatis input hidden CSRF pada semua form POST yang belum memilikinya
             function injectCsrfToForms() {
+                var curHash = getLatestCsrfHash();
                 $('form').each(function() {
                     var method = ($(this).attr('method') || '').toUpperCase();
                     if (method === 'POST') {
-                        if ($(this).find('input[name="' + csrfTokenName + '"]').length === 0) {
-                            $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + csrfHash + '">');
+                        var $input = $(this).find('input[name="' + csrfTokenName + '"]');
+                        if ($input.length === 0) {
+                            $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + curHash + '">');
+                        } else if (!$input.val()) {
+                            $input.val(curHash);
                         }
                     }
                 });
@@ -787,8 +846,12 @@
             $(document).on('submit', 'form', function() {
                 var method = ($(this).attr('method') || '').toUpperCase();
                 if (method === 'POST') {
-                    if ($(this).find('input[name="' + csrfTokenName + '"]').length === 0) {
-                        $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + csrfHash + '">');
+                    var curHash = getLatestCsrfHash();
+                    var $input = $(this).find('input[name="' + csrfTokenName + '"]');
+                    if ($input.length === 0) {
+                        $(this).prepend('<input type="hidden" name="' + csrfTokenName + '" value="' + curHash + '">');
+                    } else if (!$input.val()) {
+                        $input.val(curHash);
                     }
                 }
             });
@@ -796,29 +859,6 @@
             $('#sidebarCollapse').on('click', function() {
                 $('#sidebar').toggleClass('active');
             });
-
-            // Handler: Footer hanya muncul ketika scroll berada di paling bawah
-            function handleFooterVisibility() {
-                var contentEl = document.getElementById('content');
-                if (!contentEl) return;
-
-                var scrollTop = contentEl.scrollTop;
-                var scrollHeight = contentEl.scrollHeight;
-                var clientHeight = contentEl.clientHeight;
-
-                // Cek apakah user telah melakukan scroll dan berada di dekat dasar (jarak <= 40px)
-                var isAtBottom = (scrollHeight - scrollTop - clientHeight) <= 40 && scrollTop > 20;
-
-                if (isAtBottom) {
-                    $('.footer').stop(true, true).fadeIn(200);
-                } else {
-                    $('.footer').stop(true, true).fadeOut(150);
-                }
-            }
-
-            $('#content').on('scroll', handleFooterVisibility);
-            $(window).on('resize', handleFooterVisibility);
-            handleFooterVisibility();
 
             // Auto-dismiss alerts
             setTimeout(function() {
@@ -834,7 +874,7 @@
                     title: 'Batalkan Verifikasi?',
                     text: 'Status data akan kembali ke Menunggu Cek dan publikasi tabel otomatis kembali ke Draft.',
                     icon: 'warning',
-                    iconColor: '#ff6d1f',
+                    iconColor: '#154679',
                     showCancelButton: true,
                     confirmButtonText: 'Ya, Batalkan',
                     cancelButtonText: 'Batal',
@@ -866,7 +906,7 @@
                     title: 'Batalkan Pengisian?',
                     text: 'Status pengisian OPD untuk tabel ini akan dikembalikan ke Belum Diisi.',
                     icon: 'question',
-                    iconColor: '#ff6d1f',
+                    iconColor: '#154679',
                     showCancelButton: true,
                     confirmButtonText: 'Ya, Batalkan',
                     cancelButtonText: 'Batal',
@@ -887,6 +927,18 @@
                         window.location.href = url;
                     }
                 });
+            });
+
+            // Global Dropdown Safety: Pastikan dropdown di dalam .table-responsive menggunakan strategy 'fixed'
+            // agar menu tidak terpotong (clipped) oleh overflow kontainer tabel
+            document.addEventListener('show.bs.dropdown', function(e) {
+                var toggleBtn = e.target;
+                if (toggleBtn && (toggleBtn.closest('.table-responsive') || toggleBtn.closest('table'))) {
+                    var dd = bootstrap.Dropdown.getInstance(toggleBtn);
+                    if (dd && (!dd._config.popperConfig || dd._config.popperConfig.strategy !== 'fixed')) {
+                        dd._config.popperConfig = { strategy: 'fixed' };
+                    }
+                }
             });
         });
     </script>

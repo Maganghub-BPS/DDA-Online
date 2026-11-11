@@ -6,329 +6,426 @@ use CodeIgniter\Model;
 
 class M_frontend extends Model
 {
-    protected $DBGroup    = 'default';
-    protected $table      = 't_tahun_tabel';
+    protected $table = 'm_list_tabel';
     protected $primaryKey = 'id';
+    protected $returnType = 'object';
 
     /**
-     * Helper untuk ekspresi SELECT standar tabel DDA
-     * Memformat nomor tabel, judul, dan penggantian placeholder periode [PERIODE]
+     * Base select untuk kartu & daftar tabel di Frontend Publik.
+     * Entitas utama adalah m_list_tabel (1 baris = 1 tabel master unik),
+     * di-join dengan status publikasi terbaru (atau tahun tertentu) dari t_status_tahunan.
      */
-    public function getBaseTableSelect(): string
+    private function getBaseTableSelect()
     {
-        return "
-            t.id,
-            t.id_tabel,
-            t.tahun,
-            t.no_tabel,
-            t.periode_id,
-            t.periode_en,
-            t.link_tabel,
-            t.link_sebelumnya,
-            t.config_tabel,
-            t.is_confirm,
-            t.is_publish,
-            t.published_at,
-            t.is_dynamic,
-            m.id_unitkerja,
-            m.kondef,
-            CONCAT(
-                CASE 
-                    WHEN t.no_tabel IS NOT NULL AND TRIM(t.no_tabel) != '' 
-                    THEN CONCAT('Tabel ', TRIM(t.no_tabel), ' ')
-                    ELSE '' 
-                END,
-                CASE 
-                    WHEN m.judul_ind LIKE '%[PERIODE]%' 
-                    THEN REPLACE(m.judul_ind, '[PERIODE]', COALESCE(TRIM(t.periode_id), ''))
-                    ELSE CONCAT(
-                        m.judul_ind,
-                        CASE 
-                            WHEN t.periode_id IS NOT NULL AND TRIM(t.periode_id) != '' 
-                            THEN CONCAT(', ', TRIM(t.periode_id))
-                            ELSE '' 
-                        END
-                    )
-                END
-            ) AS judul_ind,
-            CASE 
-                WHEN m.judul_en IS NOT NULL AND TRIM(m.judul_en) != '' 
-                THEN CONCAT(
-                    CASE 
-                        WHEN t.no_tabel IS NOT NULL AND TRIM(t.no_tabel) != '' 
-                        THEN CONCAT('Table ', TRIM(t.no_tabel), ' ')
-                        ELSE '' 
-                    END,
-                    CASE 
-                        WHEN m.judul_en LIKE '%[PERIODE]%' 
-                        THEN REPLACE(m.judul_en, '[PERIODE]', COALESCE(TRIM(t.periode_en), COALESCE(TRIM(t.periode_id), '')))
-                        ELSE CONCAT(
-                            TRIM(m.judul_en),
-                            CASE 
-                                WHEN t.periode_en IS NOT NULL AND TRIM(t.periode_en) != '' 
-                                THEN CONCAT(', ', TRIM(t.periode_en))
-                                WHEN t.periode_id IS NOT NULL AND TRIM(t.periode_id) != ''
-                                THEN CONCAT(', ', TRIM(t.periode_id))
-                                ELSE '' 
-                            END
-                        )
-                    END
-                )
-                ELSE '' 
-            END AS judul_en,
-            m.judul_ind AS raw_judul_ind,
-            m_unitkerja.unitkerja_ind,
-            m_unitkerja.unitkerja_en
-        ";
+        return "m_list_tabel.id,
+                m_list_tabel.id as id_tabel,
+                s.tahun,
+                m_list_tabel.no_tabel,
+                COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((s.tahun - 1) AS CHAR)) as periode_id,
+                COALESCE(ka.link_api, '') as link_tabel,
+                ka.config_tabel,
+                s.is_confirm,
+                s.is_publish,
+                s.published_at,
+                (CASE WHEN m_list_tabel.jenis_sumber = 'api_kominfo' THEN 0 WHEN m_list_tabel.jenis_sumber = 'dinamis' THEN 1 WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic,
+                m_list_tabel.id_unitkerja,
+                m_list_tabel.kondef,
+                m_list_tabel.jenis_sumber,
+                m_list_tabel.judul_ind,
+                m_list_tabel.judul_en,
+                m_unitkerja.unitkerja_ind,
+                m_unitkerja.unitkerja_en";
     }
 
     /**
-     * Ambil tabel-tabel terbaru untuk section carousel Beranda
+     * Subquery status publikasi per tabel:
+     * Jika $tahun diberikan, ambil status sah pada tahun tersebut.
+     * Jika $tahun kosong, ambil baris status publikasi dari tahun DDA sah terbaru (is_publish=1, is_periksa=1, is_confirm='1').
      */
-    public function getRecentTables(int $limit = 15): array
+    private function applyPublishedStatusJoin($builder, $tahun = null)
     {
-        return $this->db->table('t_tahun_tabel t')
-            ->select($this->getBaseTableSelect(), false)
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
-            ->where('t.is_publish', 1)
-            ->orderBy('t.published_at', 'DESC')
-            ->orderBy('t.id', 'DESC')
-            ->limit($limit)
-            ->get()
-            ->getResult();
+        if (!empty($tahun)) {
+            $tahunEsc = $this->db->escape((int)$tahun);
+            $builder->join(
+                "t_status_tahunan s",
+                "s.id_tabel = m_list_tabel.id AND s.tahun = {$tahunEsc} AND s.is_publish = 1 AND s.is_periksa = 1 AND s.is_confirm = '1'",
+                "inner"
+            );
+        } else {
+            $subSql = "(SELECT s1.* FROM t_status_tahunan s1
+                        INNER JOIN (
+                            SELECT id_tabel, MAX(tahun) AS max_tahun
+                            FROM t_status_tahunan
+                            WHERE is_publish = 1
+                              AND is_periksa = 1
+                              AND is_confirm = '1'
+                            GROUP BY id_tabel
+                        ) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun
+                        WHERE s1.is_publish = 1
+                          AND s1.is_periksa = 1
+                          AND s1.is_confirm = '1') s";
+            $builder->join($subSql, 's.id_tabel = m_list_tabel.id', 'inner');
+        }
+
+        $builder->join('m_unitkerja', 'm_list_tabel.id_unitkerja = m_unitkerja.id_unitkerja', 'left')
+                ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
+                ->join('m_indikator_tabel mi', 'mi.id_tabel = m_list_tabel.id', 'left')
+                ->where('m_list_tabel.is_active', 1)
+                ->where("(m_list_tabel.jenis_sumber = 'dinamis' OR (m_list_tabel.jenis_sumber = 'api_kominfo' AND (ka.link_api LIKE '%view_portal_tabel%' OR ka.link_api LIKE '%portal%' OR ka.link_api LIKE '%satudata%' OR (ka.id_api IS NOT NULL AND ka.id_api != ''))))");
+
+        return $builder;
     }
 
-    /**
-     * Ambil daftar OPD teratas beserta jumlah tabel untuk Beranda
-     */
-    public function getTopOpdList(): array
+    public function getRecentTables($limit = 5, $tahun = null)
     {
-        return $this->db->table('t_tahun_tabel t')
-            ->select('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, COUNT(t.id) as total_tabel')
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
-            ->where('m_unitkerja.unitkerja_ind IS NOT NULL')
-            ->where('t.is_publish', 1)
-            ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind')
-            ->orderBy('m_unitkerja.unitkerja_ind', 'ASC')
-            ->get()
-            ->getResult();
+        $builder = $this->db->table('m_list_tabel')->select($this->getBaseTableSelect());
+        $this->applyPublishedStatusJoin($builder, $tahun);
+
+        $results = $builder->orderBy('s.published_at', 'DESC')
+                       ->orderBy('s.tahun', 'DESC')
+                       ->orderBy('m_list_tabel.id', 'DESC')
+                       ->limit($limit)
+                       ->get()
+                       ->getResult();
+
+        if (!empty($results)) {
+            foreach ($results as $r) {
+                if (!empty($r->judul_ind)) {
+                    $r->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_ind);
+                }
+                if (!empty($r->judul_en)) {
+                    $r->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_en);
+                }
+            }
+        }
+
+        return $results;
     }
 
-    /**
-     * Ambil statistik ringkasan portal (total tabel dan total OPD)
-     */
-    public function getPortalStats(): array
+    public function getTopOpdList($limit = null, $tahun = null)
     {
-        $total_tabel = $this->db->table('t_tahun_tabel t')
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->where('t.is_publish', 1)
-            ->countAllResults();
-        $total_opd = $this->db->table('m_unitkerja')->countAllResults();
+        $builder = $this->db->table('m_list_tabel')
+                        ->select('m_unitkerja.id_unitkerja as id, m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en, COUNT(DISTINCT m_list_tabel.id) as total_tabel');
+        $this->applyPublishedStatusJoin($builder, $tahun);
 
-        return [
-            'total_tabel' => $total_tabel,
-            'total_opd' => $total_opd
+        $builder->where('m_unitkerja.id_unitkerja IS NOT NULL')
+                ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en')
+                ->orderBy('total_tabel', 'DESC')
+                ->orderBy('m_unitkerja.unitkerja_ind', 'ASC');
+
+        if (!empty($limit)) {
+            $builder->limit($limit);
+        }
+
+        return $builder->get()->getResult();
+    }
+
+    public function getPortalStats($tahun = null)
+    {
+        $db = \Config\Database::connect();
+
+        $tabelBuilder = $db->table('m_list_tabel')->select('COUNT(DISTINCT m_list_tabel.id) as total');
+        $this->applyPublishedStatusJoin($tabelBuilder, $tahun);
+        $rowTabel = $tabelBuilder->get()->getRow();
+        $totalTabel = $rowTabel ? (int)$rowTabel->total : 0;
+
+        $opdBuilder = $db->table('m_list_tabel')->select('COUNT(DISTINCT m_unitkerja.id_unitkerja) as total_opd');
+        $this->applyPublishedStatusJoin($opdBuilder, $tahun);
+        $opdBuilder->where('m_unitkerja.id_unitkerja IS NOT NULL');
+        $opdRow = $opdBuilder->get()->getRow();
+        $totalOpd = $opdRow ? (int)$opdRow->total_opd : 0;
+
+        $tahunRow = $db->table('t_status_tahunan')
+                       ->select('MAX(tahun) as max_tahun, MIN(tahun) as min_tahun')
+                       ->where('is_publish', 1)
+                       ->where('is_periksa', 1)
+                       ->where('is_confirm', '1')
+                       ->get()
+                       ->getRow();
+
+        return (object)[
+            'total_tabel' => $totalTabel,
+            'total_opd'   => $totalOpd,
+            'max_tahun'   => $tahunRow->max_tahun ?? date('Y'),
+            'min_tahun'   => $tahunRow->min_tahun ?? date('Y')
         ];
     }
 
-    /**
-     * Ambil unit kerja unik untuk dropdown filter sidebar
-     */
-    public function getUniqueUnits(): array
+    public function getAvailableYears()
     {
-        return $this->db->table('t_tahun_tabel t')
-            ->select('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, COUNT(t.id) as total')
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
-            ->where('m_unitkerja.unitkerja_ind IS NOT NULL')
-            ->where('t.is_publish', 1)
-            ->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind')
-            ->orderBy('m_unitkerja.unitkerja_ind', 'ASC')
-            ->get()
-            ->getResult();
+        return $this->db->table('t_status_tahunan')
+                        ->select('DISTINCT(tahun) as tahun')
+                        ->where('is_publish', 1)
+                        ->where('is_periksa', 1)
+                        ->where('is_confirm', '1')
+                        ->orderBy('tahun', 'DESC')
+                        ->get()
+                        ->getResult();
+    }
+
+    public function getUniqueUnits($tahun = null)
+    {
+        $builder = $this->db->table('m_list_tabel')
+                        ->select('DISTINCT(m_unitkerja.unitkerja_ind) as unitkerja_ind, m_unitkerja.unitkerja_en, m_unitkerja.id_unitkerja as id, m_unitkerja.id_unitkerja');
+        $this->applyPublishedStatusJoin($builder, $tahun);
+
+        return $builder->where('m_unitkerja.unitkerja_ind IS NOT NULL')
+                       ->orderBy('m_unitkerja.unitkerja_ind', 'ASC')
+                       ->get()
+                       ->getResult();
     }
 
     /**
-     * Ambil daftar tahun unik yang tersedia di t_tahun_tabel untuk filter dropdown
+     * Pencarian tabel dengan filter keyword, unit/instansi, OPD, dan tahun beserta paginasi
+     * Mendukung pemanggilan via array filter (Home::search) maupun parameter skalar
      */
-    public function getAvailableYears(): array
+    public function searchTables($filters = [], int $page = 1, int $perPage = 12): array
     {
-        $rows = $this->db->table('t_tahun_tabel')
-            ->select('DISTINCT(tahun) as tahun')
-            ->where('tahun IS NOT NULL')
-            ->where("tahun != ''")
-            ->orderBy('tahun', 'DESC')
-            ->get()
-            ->getResultArray();
+        // Normalisasi parameter jika dipanggil dengan parameter skalar (legacy / direct call)
+        if (!is_array($filters)) {
+            $filters = [
+                'q'     => (string)$filters,
+                'tahun' => is_numeric($page) && $page > 1900 ? (string)$page : '',
+                'opd'   => is_string($perPage) ? $perPage : '',
+                'bab'   => func_num_args() > 3 ? func_get_arg(3) : ''
+            ];
+            $page = 1;
+            $perPage = 12;
+        }
 
-        return array_column($rows, 'tahun');
-    }
+        $q          = $filters['q'] ?? ($filters['keyword'] ?? '');
+        $unit       = $filters['unit'] ?? ($filters['id_unitkerja'] ?? '');
+        $opd_search = $filters['opd_search'] ?? ($filters['opd'] ?? '');
+        $tahun      = $filters['tahun'] ?? '';
+        $bab        = $filters['bab'] ?? '';
 
-    /**
-     * Pencarian tabel dengan filter keyword, unit, nama OPD, dan tahun beserta paginasi
-
-     */
-    public function searchTables(array $filters, int $page = 1, int $perPage = 12): array
-    {
-        $builder = $this->db->table('t_tahun_tabel t')
-            ->select($this->getBaseTableSelect(), false)
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
-            ->where('t.is_publish', 1);
-
-        $q = $filters['q'] ?? '';
-        $unit = $filters['unit'] ?? '';
-        $opd_search = $filters['opd_search'] ?? '';
-        $tahun = $filters['tahun'] ?? '';
+        $builder = $this->db->table('m_list_tabel')->select($this->getBaseTableSelect());
+        $this->applyPublishedStatusJoin($builder, $tahun);
 
         if (!empty($q)) {
-            $q_clean = trim(preg_replace('/\s+/', ' ', $q));
+            $q_clean = trim(preg_replace('/\s+/', ' ', (string)$q));
             $q_normalized = preg_replace('/^(nomor|no\.?|tabel)\s+/i', '', $q_clean);
-            $tokens = explode(' ', $q_normalized);
+            $tokens = array_filter(explode(' ', $q_normalized), fn($t) => trim($t) !== '');
 
-            $builder->groupStart();
-            foreach ($tokens as $token) {
-                $token = trim($token);
-                if (!empty($token)) {
+            if (!empty($tokens)) {
+                $builder->groupStart();
+                foreach ($tokens as $token) {
                     $builder->groupStart();
-                    $builder->like('m.judul_ind', $token);
-                    $builder->orLike('m.judul_en', $token);
-                    $builder->orLike('t.no_tabel', $token);
-                    $builder->orLike('t.periode_id', $token);
-                    $builder->orLike('t.periode_en', $token);
+                    $builder->like('m_list_tabel.judul_ind', $token);
+                    $builder->orLike('m_list_tabel.judul_en', $token);
+                    $builder->orLike('m_list_tabel.no_tabel', $token);
+                    $builder->orLike('m_unitkerja.unitkerja_ind', $token);
                     $builder->groupEnd();
                 }
+                $builder->groupEnd();
             }
-            $builder->groupEnd();
         }
 
         if (!empty($unit)) {
-            $builder->where('m.id_unitkerja', $unit);
+            $builder->where('m_list_tabel.id_unitkerja', $unit);
         }
 
         if (!empty($opd_search)) {
             $builder->like('m_unitkerja.unitkerja_ind', $opd_search);
         }
 
-        if (!empty($tahun)) {
-            $builder->where('t.tahun', $tahun);
+        if (!empty($bab)) {
+            $builder->groupStart()
+                    ->like('m_list_tabel.no_tabel', $bab . '.', 'after')
+                    ->orWhere('m_list_tabel.no_tabel', $bab)
+                    ->groupEnd();
         }
 
-        $builder->orderBy('t.published_at', 'DESC')->orderBy('t.id', 'DESC');
+        $builder->orderBy("CAST(SUBSTRING_INDEX(COALESCE(m_list_tabel.no_tabel, '999'), '.', 1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(m_list_tabel.no_tabel, '999'),'.0'), '.', 2), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(m_list_tabel.no_tabel, '999'),'.0.0'), '.', 3), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(COALESCE(m_list_tabel.no_tabel, '999'),'.0.0.0'), '.', 4), '.', -1) AS UNSIGNED)", 'ASC', false)
+               ->orderBy('m_list_tabel.id', 'ASC');
 
-        // Hitung total sebelum limit
+        // Hitung total data sebelum limit untuk paginasi
         $total = $builder->countAllResults(false);
+
+        // Terapkan limit dan offset
         $builder->limit($perPage, ($page - 1) * $perPage);
         $results = $builder->get()->getResult();
 
+        if (!empty($results)) {
+            foreach ($results as $r) {
+                if (!empty($r->judul_ind)) {
+                    $r->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_ind);
+                }
+                if (!empty($r->judul_en)) {
+                    $r->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $r->judul_en);
+                }
+            }
+        }
+
         return [
-            'results' => $results,
-            'total' => $total
+            'results' => $results ?: [],
+            'total'   => (int)$total
         ];
     }
 
-    /**
-     * Dapatkan mapping id_api ke id_api_new dari t_tabel_match
-     */
-    public function getMatchMapping(array $ids): array
+    public function getInstansiList($q = null, $tahun = null)
     {
-        return $this->db->table('t_tabel_match')
-            ->select('id_api, id_api_new')
-            ->whereIn('id_api', $ids)
-            ->get()
-            ->getResultArray();
-    }
-
-    /**
-     * Ambil metadata tabel spesifik untuk view_tabel
-     */
-    public function getTableMetadata(?int $table_id, string $id_p)
-    {
-        $select_sql = $this->getBaseTableSelect();
-        $dda_info = null;
-
-        if (!empty($table_id)) {
-            $dda_info = $this->db->query("
-                SELECT 
-                    {$select_sql}
-                FROM t_tahun_tabel t 
-                JOIN m_list_tabel m ON t.id_tabel = m.id
-                LEFT JOIN m_unitkerja ON m.id_unitkerja = m_unitkerja.id_unitkerja
-                WHERE t.id = ?
-                LIMIT 1
-            ", [$table_id])->getRow();
+        if (is_numeric($q) && (int)$q > 1900 && (int)$q < 2100 && empty($tahun)) {
+            $tahun = (int)$q;
+            $q = null;
         }
 
-        if (!$dda_info) {
-            $dda_info = $this->db->query("
-                SELECT 
-                    {$select_sql}
-                FROM t_tahun_tabel t 
-                JOIN m_list_tabel m ON t.id_tabel = m.id
-                LEFT JOIN m_unitkerja ON m.id_unitkerja = m_unitkerja.id_unitkerja
-                WHERE t.link_tabel REGEXP ?
-                ORDER BY t.tahun DESC, t.id DESC
-                LIMIT 1
-            ", ['id=' . $id_p . '([^0-9]|$)'])->getRow();
-        }
+        $builder = $this->db->table('m_list_tabel')
+                        ->select('m_unitkerja.id_unitkerja as id, m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en, COUNT(DISTINCT m_list_tabel.id) as total_tabel');
+        $this->applyPublishedStatusJoin($builder, $tahun);
 
-        return $dda_info;
-    }
-
-    /**
-     * Ambil metadata spreadsheet spesifik untuk view_sheet
-     */
-    public function getSheetMetadata(?int $table_id, ?string $url)
-    {
-        $query = $this->db->table('t_tahun_tabel t')
-            ->select($this->getBaseTableSelect(), false)
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left');
-
-        if (!empty($table_id)) {
-            $query->where('t.id', $table_id);
-        } else {
-            $query->where('t.link_tabel', $url);
-        }
-
-        return $query->orderBy('t.tahun', 'DESC')->orderBy('t.id', 'DESC')->get()->getRow();
-    }
-
-    /**
-     * Ambil metadata tabel dinamis spesifik untuk view_dinamis
-     */
-    public function getDynamicTableMetadata(int $table_id)
-    {
-        return $this->db->table('t_tahun_tabel t')
-            ->select($this->getBaseTableSelect(), false)
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
-            ->where('t.id', $table_id)
-            ->get()
-            ->getRow();
-    }
-
-    /**
-     * Ambil daftar OPD untuk halaman Jelajah Instansi
-     */
-    public function getInstansiList(?string $q = null): array
-    {
-        $builder = $this->db->table('t_tahun_tabel t')
-            ->select('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, COUNT(t.id) as total_tabel')
-            ->join('m_list_tabel m', 'm.id = t.id_tabel', 'inner')
-            ->join('m_unitkerja', 'm_unitkerja.id_unitkerja = m.id_unitkerja', 'left')
-            ->where('m_unitkerja.unitkerja_ind IS NOT NULL')
-            ->where('t.is_publish', 1);
+        $builder->where('m_unitkerja.id_unitkerja IS NOT NULL');
 
         if (!empty($q)) {
-            $builder->like('m_unitkerja.unitkerja_ind', $q);
+            $builder->like('m_unitkerja.unitkerja_ind', trim($q));
         }
 
-        return $builder->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind')
-            ->orderBy('total_tabel', 'DESC')
-            ->get()
-            ->getResult();
+        return $builder->groupBy('m_unitkerja.id_unitkerja, m_unitkerja.unitkerja_ind, m_unitkerja.unitkerja_en')
+                       ->orderBy('total_tabel', 'DESC')
+                       ->orderBy('m_unitkerja.unitkerja_ind', 'ASC')
+                       ->get()
+                       ->getResult();
+    }
+
+    private function buildMetadataRow($table_id)
+    {
+        $table_id = (int)$table_id;
+        $row = $this->db->table('m_list_tabel')
+                        ->select("
+                            m_list_tabel.id,
+                            m_list_tabel.id as id_tabel,
+                            COALESCE(s.tahun, " . (int)date('Y') . ") as tahun,
+                            m_list_tabel.no_tabel,
+                            COALESCE(NULLIF(mi.tahun_tampil, ''), NULLIF(ka.tahun_tersedia, ''), CAST((COALESCE(s.tahun, " . (int)date('Y') . ") - 1) AS CHAR)) as periode_id,
+                            COALESCE(ka.link_api, '') as link_tabel,
+                            ka.config_tabel,
+                            COALESCE(s.is_confirm, '0') as is_confirm,
+                            COALESCE(s.is_publish, 0) as is_publish,
+                            s.published_at,
+                            (CASE WHEN m_list_tabel.jenis_sumber = 'api_kominfo' THEN 0 WHEN m_list_tabel.jenis_sumber = 'dinamis' THEN 1 WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END) as is_dynamic,
+                            m_list_tabel.id_unitkerja,
+                            m_list_tabel.kondef,
+                            m_list_tabel.jenis_sumber,
+                            m_list_tabel.judul_ind,
+                            m_list_tabel.judul_en,
+                            m_unitkerja.unitkerja_ind,
+                            m_unitkerja.unitkerja_en
+                        ")
+                        ->join('m_unitkerja', 'm_list_tabel.id_unitkerja = m_unitkerja.id_unitkerja', 'left')
+                        ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
+                        ->join('m_indikator_tabel mi', 'mi.id_tabel = m_list_tabel.id', 'left')
+                        ->join(
+                            '(SELECT s1.* FROM t_status_tahunan s1 INNER JOIN (SELECT id_tabel, MAX(tahun) as max_tahun FROM t_status_tahunan WHERE is_publish = 1 AND is_periksa = 1 AND is_confirm = \'1\' GROUP BY id_tabel) s2 ON s1.id_tabel = s2.id_tabel AND s1.tahun = s2.max_tahun WHERE s1.is_publish = 1 AND s1.is_periksa = 1 AND s1.is_confirm = \'1\') s',
+                            's.id_tabel = m_list_tabel.id',
+                            'left'
+                        )
+                        ->where('m_list_tabel.id', $table_id)
+                        ->get()
+                        ->getRow();
+
+        if ($row) {
+            if (!empty($row->judul_ind)) {
+                $row->judul_ind = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $row->judul_ind);
+            }
+            if (!empty($row->judul_en)) {
+                $row->judul_en = preg_replace('/,\s*\d{4}(\s*[-–\/]\s*\d{4})?$/u', '', $row->judul_en);
+            }
+        }
+
+        return $row;
+    }
+
+    public function getMatchMapping(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        $cleanIds = array_values(array_filter(array_map('trim', $ids)));
+        if (empty($cleanIds)) {
+            return [];
+        }
+
+        if ($this->db->tableExists('t_tabel_match')) {
+            $rows = $this->db->table('t_tabel_match')
+                             ->select('id_api, id_api_new')
+                             ->whereIn('id_api', $cleanIds)
+                             ->get()
+                             ->getResultArray();
+            if (!empty($rows)) {
+                return $rows;
+            }
+        }
+
+        if ($this->db->tableExists('m_konfigurasi_api')) {
+            return $this->db->table('m_konfigurasi_api')
+                            ->select('id_api, id_api as id_api_new')
+                            ->whereIn('id_api', $cleanIds)
+                            ->get()
+                            ->getResultArray();
+        }
+
+        return [];
+    }
+
+    public function getTableMetadata($table_id = null, $id_api = null)
+    {
+        if (!empty($table_id) && is_numeric($table_id)) {
+            $row = $this->buildMetadataRow((int)$table_id);
+            if ($row) {
+                return $row;
+            }
+        }
+
+        if (!empty($id_api)) {
+            $idClean = trim((string)$id_api);
+            if (strpos($idClean, '?') !== false) {
+                $idClean = explode('?', $idClean)[0];
+            }
+            if (strpos($idClean, 'data/') !== false) {
+                $idClean = explode('data/', $idClean)[1];
+            }
+            $idClean = trim($idClean, '/ ');
+
+            $builder = $this->db->table('m_list_tabel')
+                                ->select('m_list_tabel.id')
+                                ->join('m_konfigurasi_api ka', 'ka.id_tabel = m_list_tabel.id', 'left')
+                                ->groupStart()
+                                    ->where('ka.id_api', $idClean)
+                                    ->orLike('ka.link_api', 'id=' . $idClean)
+                                    ->orLike('ka.link_api', 'data/' . $idClean)
+                                ->groupEnd()
+                                ->limit(1);
+            $found = $builder->get()->getRow();
+            if ($found && !empty($found->id)) {
+                return $this->buildMetadataRow((int)$found->id);
+            }
+        }
+
+        return null;
+    }
+
+    public function getSheetMetadata($table_id)
+    {
+        $row = $this->buildMetadataRow($table_id);
+        if ($row && !empty($row->link_tabel) && strpos($row->link_tabel, 'docs.google.com/spreadsheets') !== false) {
+            return $row;
+        }
+        return null;
+    }
+
+    public function getDynamicTableMetadata($table_id)
+    {
+        $row = $this->buildMetadataRow($table_id);
+        if (!$row) {
+            return null;
+        }
+        if ((int)$row->is_dynamic === 1 || ($row->jenis_sumber ?? '') === 'dinamis' || strpos($row->link_tabel ?? '', 'view_portal_tabel') === false) {
+            return $row;
+        }
+        return null;
     }
 }
