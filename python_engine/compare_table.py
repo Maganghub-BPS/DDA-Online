@@ -77,6 +77,7 @@ def format_display_val(val):
         if isinstance(val, float):
             return round(val, 3)
         return val
+    return val
 _OPD_ALIAS_MAP = {
     'SETDA': 'SEKRETARIAT_DAERAH',
     'SEKRETARIAT DAERAH': 'SEKRETARIAT_DAERAH',
@@ -1891,9 +1892,13 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             if not any(v is not None for v in raw_vals) and not is_dynamic:
                                 continue
                             for c_idx in active_cols:
-                                c_str = str(r[c_idx]).strip() if c_idx < len(r) else ''
-                                v = parse_num(c_str, is_pdf=False)
-                                nums.append(0.0 if v is None else v)
+                                raw_c = r[c_idx] if c_idx < len(r) else None
+                                if raw_c is None or str(raw_c).strip().lower() in ('', 'none', 'null'):
+                                    nums.append(None)
+                                else:
+                                    c_str = str(raw_c).strip()
+                                    v = parse_num(c_str, is_pdf=False)
+                                    nums.append(v)
                         elif w in ('Total Jawa Tengah', 'Jawa Tengah', 'Provinsi Jawa Tengah') and common_first_data_col is not None:
                             first_data_col = common_first_data_col
                         else:
@@ -1931,12 +1936,12 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             else:
                                 row_data = r[first_data_col: first_data_col + expected_len]
                                 for c in row_data:
-                                    c_str = str(c).strip()
-                                    if not c_str:
-                                        nums.append(0.0)
+                                    if c is None or str(c).strip().lower() in ('', 'none', 'null'):
+                                        nums.append(None)
                                     else:
+                                        c_str = str(c).strip()
                                         v = parse_num(c_str, is_pdf=False)
-                                        nums.append(0.0 if v is None else v)
+                                        nums.append(v)
 
                     if nums:
                         if w not in out:

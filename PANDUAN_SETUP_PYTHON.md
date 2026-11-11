@@ -107,3 +107,4 @@ python3 python_engine/compare_table.py
   chmod -R 775 writable
   chown -R www-data:www-data writable  # atau www:www jika Nginx aaPanel
   ```
+
