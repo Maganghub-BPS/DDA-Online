@@ -715,7 +715,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if p:
                     if p == 'Jawa Tengah' and not is_provincial_table:
                         return 'TOTAL'
-                    return f"PROV_{re.sub(r'[^\w]', '', p.upper())}"
+                    return "PROV_" + re.sub(r'[^\w]', '', p.upper())
 
                 s = re.sub(r'(\b(?:19|20)\d{2})\d+\b', r'\1', t_raw).upper()
                 if 'CURAH HUJAN' in s or 'PRECIP' in s:
