@@ -20,6 +20,40 @@ if (empty($api_results)) {
     }
 }
 
+if (!function_exists('parse_portal_api_error')) {
+    function parse_portal_api_error($raw_msg, $id_api = '') {
+        $info = [
+            'code'        => 'ERROR',
+            'badge_class' => 'bg-danger-subtle text-danger border-danger-subtle',
+            'title'       => 'Gagal Memuat Data dari Portal',
+            'desc'        => 'Terjadi kendala saat menghubungi server Portal Satu Data Jawa Tengah.',
+            'raw'         => $raw_msg
+        ];
+
+        if (stripos($raw_msg, 'HTTP_ERROR_404') !== false || stripos($raw_msg, 'No query results') !== false) {
+            $info['code']        = 'HTTP 404 (Not Found)';
+            $info['title']       = 'Dataset Tidak Ditemukan di Portal';
+            $info['desc']        = 'Dataset dengan ID tersebut tidak ditemukan di server Portal Satu Data Jawa Tengah. Kemungkinan ID belum sesuai atau dataset telah dihapus/diubah oleh walidata di portal.';
+        } elseif (stripos($raw_msg, 'HTTP_ERROR_500') !== false || stripos($raw_msg, 'Server Error') !== false) {
+            $info['code']        = 'HTTP 500 (Server Error)';
+            $info['title']       = 'Gangguan Server Portal / Format ID Lama';
+            $info['desc']        = 'Server Portal Satu Data Jawa Tengah merespons dengan kendala internal (Server Error). Jika ID berupa format UUID lama, server baru memerlukan pemetaan ke ID numerik portal.';
+        } elseif (stripos($raw_msg, 'HTTP_ERROR_401') !== false || stripos($raw_msg, 'HTTP_ERROR_403') !== false || stripos($raw_msg, 'MISSING_TOKEN') !== false) {
+            $info['code']        = 'Autentikasi Gagal';
+            $info['badge_class'] = 'bg-warning-subtle text-warning border-warning-subtle';
+            $info['title']       = 'Akses Token API Ditolak';
+            $info['desc']        = 'Token otorisasi API ke Portal Satu Data Jawa Tengah tidak valid atau belum dikonfigurasi.';
+        } elseif (stripos($raw_msg, 'CURL_FAIL') !== false || stripos($raw_msg, 'timeout') !== false) {
+            $info['code']        = 'Koneksi Terputus';
+            $info['badge_class'] = 'bg-secondary-subtle text-secondary border-secondary-subtle';
+            $info['title']       = 'Gagal Terhubung ke Server Portal';
+            $info['desc']        = 'Koneksi ke server satudata.jatengprov.go.id mengalami waktu habis (timeout) atau jaringan sedang tidak stabil.';
+        }
+
+        return $info;
+    }
+}
+
 
 // -------------------------------------------------------------------------
 // TEMPLATE CONFIGURATION (Hardcoded for specific res_id or Titles)
@@ -296,14 +330,34 @@ function get_dda_label_nested($col)
 ?>
 
 <style>
+    /* Pastikan scroll vertikal mengalir bebas di luar (natural outer scroll) */
+    .main-content {
+        height: auto !important;
+        min-height: auto !important;
+        overflow-y: visible !important;
+        padding-bottom: 36px !important;
+    }
+
+    .content-body {
+        height: auto !important;
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+        overflow-y: visible !important;
+    }
+
     .dda-body {
         background: #fff;
-        padding: 20px;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         font-family: 'Arial', sans-serif;
         color: #000;
         line-height: 1.2;
         width: 100%;
         max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: hidden;
         display: block;
         box-sizing: border-box;
@@ -455,16 +509,20 @@ function get_dda_label_nested($col)
         border: 1px solid rgba(255, 255, 255, 0.25) !important;
     }
 
+    /* Kontainer Scrollable Mulus (Murni horizontal, bebas dari scroll vertikal dalam) */
     .table-responsive-dda {
         width: 100%;
-        max-width: 100%; /* Penting: Batasi lebar maksimal */
+        max-width: 100%;
+        height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         margin-bottom: 25px;
         background: #fff;
-        border: 1px solid #f1f5f9; /* Bingkai halus */
+        border: 1px solid #f1f5f9;
         border-radius: 12px;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.02); /* Sedikit kedalaman */
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
     }
 
     /* Scrollbar style yang lebih terlihat */
@@ -770,8 +828,8 @@ function get_dda_label_nested($col)
                 </div>
             <?php endif; ?>
 
-            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm">
-                <i class="bi bi-gear-fill"></i> KONFIGURASI
+            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm" title="Buka Pengaturan Konfigurasi Tabel">
+                <i class="bi bi-sliders text-primary"></i> KONFIGURASI
             </button>
 
             <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
@@ -952,7 +1010,7 @@ function get_dda_label_nested($col)
 
     <?php 
     $target_year_found = !empty($th_target_data) && in_array((string)$th_target_data, array_map('strval', $unique_years));
-    if (!empty($th_target_data) && !$target_year_found): 
+    if (!$hasError && !empty($th_target_data) && !$target_year_found): 
     ?>
         <div class="alert border-0 shadow-xs d-flex align-items-center mb-3 p-3" style="background: #ffffff; border: 1px solid #fed7aa !important; border-left: 4px solid #f59e0b !important; border-radius: 10px; box-shadow: 0 2px 10px -2px rgba(245, 158, 11, 0.08) !important;">
             <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0 me-3" style="width: 40px; height: 40px; background: #fff7ed; color: #d97706; border: 1px solid #fde68a; border-radius: 10px;">
@@ -983,7 +1041,46 @@ function get_dda_label_nested($col)
     <?php endif; ?>
 
     <?php if ($hasError): ?>
-        <div style="color: red; padding: 20px; border: 1px solid red;"><?php echo $errorMsg; ?></div>
+        <div class="card border-0 shadow-xs rounded-4 mb-4" style="background: #ffffff; border-left: 5px solid #ef4444 !important; border: 1px solid #fee2e2;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="d-inline-flex align-items-center justify-content-center flex-shrink-0" 
+                         style="width: 48px; height: 48px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 12px;">
+                        <i class="bi bi-exclamation-octagon-fill fs-4"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <?php 
+                        $errList = !empty($api_errors) ? $api_errors : [$errorMsg];
+                        foreach ($errList as $singleErr): 
+                            $parsed = parse_portal_api_error($singleErr, $id_api ?? '');
+                        ?>
+                            <div class="mb-3">
+                                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                    <span class="badge <?= $parsed['badge_class']; ?> border px-2 py-0.5 fw-bold" style="font-size: 11px;">
+                                        <?= htmlspecialchars($parsed['code']); ?>
+                                    </span>
+                                    <h6 class="fw-bold text-dark mb-0" style="font-size: 0.95rem;">
+                                        <?= htmlspecialchars($parsed['title']); ?>
+                                    </h6>
+                                </div>
+                                <p class="text-secondary small mb-2" style="line-height: 1.5;">
+                                    <?= htmlspecialchars($parsed['desc']); ?>
+                                </p>
+                                
+                                <details class="mt-2">
+                                    <summary class="text-muted small fw-semibold cursor-pointer" style="font-size: 0.75rem; user-select: none;">
+                                        <i class="bi bi-code-slash me-1"></i> Detail Respons Teknis API
+                                    </summary>
+                                    <div class="bg-light p-2.5 rounded-3 mt-1.5 border" style="font-family: monospace; font-size: 0.75rem; word-break: break-all; color: #475569;">
+                                        <?= htmlspecialchars($parsed['raw']); ?>
+                                    </div>
+                                </details>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
     <?php else: ?>
         <div id="dda-container-all" style="padding: 20px;">
             <?php foreach ($api_results as $idx_res => $api_result):

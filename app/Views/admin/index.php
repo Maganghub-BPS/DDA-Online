@@ -287,6 +287,15 @@
             border-radius: 6px;
         }
 
+        .sidebar-copyright {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            line-height: 1.35;
+            border-top: 1px dashed #e2e8f0;
+            padding-top: 6px;
+            margin-top: 6px;
+        }
+
         /* ===== MAIN CONTENT AREA (HANYA SECTION INI YANG SCROLLABLE) ===== */
         #content {
             flex: 1 1 0%;
@@ -395,22 +404,28 @@
         /* ===== MAIN CONTENT ===== */
         .main-content {
             flex-grow: 1;
-            padding: 30px;
+            padding: 20px 24px;
             min-width: 0;
             width: 100%;
             max-width: 100%;
             overflow-x: hidden;
-            min-height: calc(100vh - 70px + 60px);
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
         }
 
         .content-body {
             min-width: 0;
             width: 100%;
             max-width: 100%;
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .breadcrumb-container {
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
 
         .breadcrumb-container .page-title {
@@ -437,18 +452,6 @@
             color: var(--primary-color);
         }
 
-        /* ===== FOOTER (HANYA MUNCUL KETIKA SCROLL PALING BAWAH) ===== */
-        .footer {
-            padding: 16px 30px;
-            text-align: center;
-            font-size: 0.8rem;
-            color: #94a3b8;
-            border-top: 1px solid #e2e8f0;
-            background: #ffffff;
-            flex-shrink: 0;
-            display: none;
-        }
-
         /* ===== DESKTOP SIDEBAR COLLAPSE ===== */
         @media (min-width: 769px) {
             #sidebar.active {
@@ -460,6 +463,7 @@
             #sidebar.active .link-text,
             #sidebar.active .menu-label,
             #sidebar.active .sidebar-footer-text,
+            #sidebar.active .sidebar-copyright,
             #sidebar.active .brand-text,
             #sidebar.active .brand-sub {
                 display: none;
@@ -550,9 +554,11 @@
         'l_dda_periksa'  => 'Pemeriksaan Data DDA',
         'l_master_tabel' => 'Master Tabel DDA',
         'l_master_dimensi' => 'Master Dimensi Tabel Dinamis',
-        'l_master_tabel_opd' => 'Master Tabel OPD',
+        'l_master_tabel_opd' => (session()->get('admin_unitkerja') !== 'bps') ? 'Usulan Tabel Baru' : 'Review Tabel Usulan OPD',
         'l_unitkerja'    => 'Manajemen OPD',
+        'f_unitkerja'    => 'Form Master OPD',
         'l_manage_admin' => 'Manajemen Admin',
+        'f_manage_admin' => 'Form Manajemen Admin',
         'l_master_tim'   => 'Master Tim',
         'l_forum'        => 'Forum Diskusi',
         'l_forum_topik'  => 'Forum Topik',
@@ -600,6 +606,13 @@
                         <i class="bi bi-pencil-square"></i>
                         <span class="link-text"><?php echo (current_user_role() === 'walidata_opd') ? 'Lihat Data DDA' : 'Input Data DDA'; ?></span>
                     </a>
+
+                    <?php if (session()->get('admin_unitkerja') !== 'bps'): ?>
+                    <a href="<?php echo base_url(); ?>admin/master_tabel_opd" class="sidebar-link <?php echo (strpos($page, 'master_tabel_opd') !== false || $page === 'f_add_opd') ? 'active' : ''; ?>">
+                        <i class="bi bi-file-earmark-plus"></i>
+                        <span class="link-text">Usulan Tabel Baru</span>
+                    </a>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <?php if (can('forum_diskusi')): ?>
@@ -697,8 +710,13 @@
             </div>
 
             <div class="sidebar-footer">
-                <div class="sidebar-footer-text mb-1">Tahun Data Aktif</div>
-                <span class="badge"><?php echo $tahun ?: date('Y'); ?></span>
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="sidebar-footer-text font-weight-bold">Tahun Data Aktif</span>
+                    <span class="badge"><?php echo $tahun ?: date('Y'); ?></span>
+                </div>
+                <div class="sidebar-copyright">
+                    <span>BPS Provinsi Jawa Tengah — DDA Online</span>
+                </div>
             </div>
         </aside>
 
@@ -784,7 +802,6 @@
                     <?php echo view('admin/' . $page); ?>
                 </div>
             </div>
-
             <!-- Footer -->
             <footer class="footer">
                 <strong>BPS Jateng</strong> &copy; BPS Provinsi Jawa Tengah — AKSARA
@@ -846,29 +863,6 @@
             $('#sidebarCollapse').on('click', function() {
                 $('#sidebar').toggleClass('active');
             });
-
-            // Handler: Footer hanya muncul ketika scroll berada di paling bawah
-            function handleFooterVisibility() {
-                var contentEl = document.getElementById('content');
-                if (!contentEl) return;
-
-                var scrollTop = contentEl.scrollTop;
-                var scrollHeight = contentEl.scrollHeight;
-                var clientHeight = contentEl.clientHeight;
-
-                // Cek apakah user telah melakukan scroll dan berada di dekat dasar (jarak <= 40px)
-                var isAtBottom = (scrollHeight - scrollTop - clientHeight) <= 40 && scrollTop > 20;
-
-                if (isAtBottom) {
-                    $('.footer').stop(true, true).fadeIn(200);
-                } else {
-                    $('.footer').stop(true, true).fadeOut(150);
-                }
-            }
-
-            $('#content').on('scroll', handleFooterVisibility);
-            $(window).on('resize', handleFooterVisibility);
-            handleFooterVisibility();
 
             // Auto-dismiss alerts
             setTimeout(function() {

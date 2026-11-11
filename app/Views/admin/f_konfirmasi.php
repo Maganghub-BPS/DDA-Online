@@ -48,7 +48,7 @@
 
                 <div class="modal-footer border-0 px-0 pb-0 pt-4">
                     <button type="button" class="btn btn-link text-secondary mb-0 fw-bold" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 10px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                    <button type="submit" class="btn btn-primary px-4 py-2 shadow-sm d-flex align-items-center" style="border-radius: 10px; background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border: none;">
                         <i class="bi bi-check2-all me-2"></i> Konfirmasi Valid
                     </button>
                 </div>
@@ -58,7 +58,7 @@
 </div>
 
 <style>
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
     .text-xxs { font-size: 0.7rem !important; }
     .ls-1 { letter-spacing: 0.8px; }
     .bg-gray-100 { background-color: #f8f9fa !important; }

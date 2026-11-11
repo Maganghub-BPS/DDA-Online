@@ -107,19 +107,22 @@ $catatan_val = $indikator->catatan ?? '';
         background-color: #f8fafc !important;
     }
     .row-subtotal td.td-freeze-col {
-        background-color: #f9a066 !important;
-        color: #000000 !important;
+        background-color: #dbeafe !important;
+        color: #1e3a8a !important;
     }
     .row-total td.td-freeze-col {
-        background-color: #fef3c7 !important;
-        color: #92400e !important;
+        background-color: #154679 !important;
+        color: #ffffff !important;
         font-weight: 800 !important;
     }
     .table-matrix tbody tr:hover td.td-freeze-col {
         background-color: #f1f5f9 !important;
     }
     .table-matrix tbody tr.row-subtotal:hover td.td-freeze-col {
-        background-color: #f9a066 !important;
+        background-color: #bfdbfe !important;
+    }
+    .table-matrix tbody tr.row-total:hover td.td-freeze-col {
+        background-color: #154679 !important;
     }
 
     /* Kolom Kedua (Periode Waktu atau Multi-Kolom Baris) */
@@ -136,19 +139,22 @@ $catatan_val = $indikator->catatan ?? '';
         border-right: 2px solid #cbd5e1 !important;
     }
     .row-subtotal td.td-freeze-col-2 {
-        background-color: #f9a066 !important;
-        color: #000000 !important;
+        background-color: #dbeafe !important;
+        color: #1e3a8a !important;
     }
     .row-total td.td-freeze-col-2 {
-        background-color: #fef3c7 !important;
-        color: #92400e !important;
+        background-color: #154679 !important;
+        color: #ffffff !important;
         font-weight: 800 !important;
     }
     .table-matrix tbody tr:hover td.td-freeze-col-2 {
         background-color: #f1f5f9 !important;
     }
     .table-matrix tbody tr.row-subtotal:hover td.td-freeze-col-2 {
-        background-color: #f9a066 !important;
+        background-color: #bfdbfe !important;
+    }
+    .table-matrix tbody tr.row-total:hover td.td-freeze-col-2 {
+        background-color: #154679 !important;
     }
 
     /* Kolom Data Minimal 135px agar Rapi dan Tidak Gepeng */
@@ -204,24 +210,31 @@ $catatan_val = $indikator->catatan ?? '';
         text-align: center !important;
     }
     .row-subtotal td {
-        background-color: #f9a066 !important;
+        background-color: #dbeafe !important;
         font-weight: 700 !important;
-        color: #000000 !important;
+        color: #1e3a8a !important;
         border: 1px solid #ffffff !important;
     }
     .table-matrix tbody tr.row-subtotal:hover td {
-        background-color: #f9a066 !important;
+        background-color: #bfdbfe !important;
     }
     .row-subtotal .cell-numeric-placeholder {
-        color: #000000 !important;
+        color: #1e3a8a !important;
         font-weight: 700 !important;
     }
     .row-total td {
-        background-color: #fffbeb !important;
+        background-color: #154679 !important;
         font-weight: 800 !important;
-        color: #92400e !important;
-        border-top: 2px solid #f59e0b !important;
-        border-bottom: 3px double #d97706 !important;
+        color: #ffffff !important;
+        border-top: 2px solid #113861 !important;
+        border-bottom: 3px double #0c2744 !important;
+    }
+    .table-matrix tbody tr.row-total:hover td {
+        background-color: #154679 !important;
+    }
+    .row-total .cell-numeric-placeholder {
+        color: #ffffff !important;
+        font-weight: 800 !important;
     }
     /* Indentasi Hirarki Baris (Menjorok Bersih Tanpa Strip) */
     .table-matrix tbody td.indent-level-0 {
@@ -301,7 +314,7 @@ $catatan_val = $indikator->catatan ?? '';
         color: #ffffff !important;
     }
 
-    /* ===== SELECT2 CUSTOM OVERRIDES SESUAI TEMA BPS ORANGE ===== */
+    /* ===== SELECT2 CUSTOM OVERRIDES SESUAI TEMA BPS NAVY BLUE ===== */
     .select2-container--bootstrap-5 .select2-selection {
         font-size: 0.85rem !important;
         min-height: 38px !important;
@@ -315,8 +328,8 @@ $catatan_val = $indikator->catatan ?? '';
     }
     .select2-container--bootstrap-5.select2-container--focus .select2-selection,
     .select2-container--bootstrap-5.select2-container--open .select2-selection {
-        border-color: #FF6D1F !important;
-        box-shadow: 0 0 0 0.2rem rgba(255, 109, 31, 0.18) !important;
+        border-color: #154679 !important;
+        box-shadow: 0 0 0 0.2rem rgba(21, 70, 121, 0.18) !important;
     }
     .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
         color: #1e293b !important;
@@ -349,21 +362,21 @@ $catatan_val = $indikator->catatan ?? '';
         border: 1px solid #cbd5e1 !important;
     }
     .select2-search__field:focus {
-        border-color: #FF6D1F !important;
+        border-color: #154679 !important;
         outline: none !important;
-        box-shadow: 0 0 0 0.15rem rgba(255, 109, 31, 0.2) !important;
+        box-shadow: 0 0 0 0.15rem rgba(21, 70, 121, 0.2) !important;
     }
     .select2-results__option {
         padding: 8px 12px !important;
         font-size: 0.83rem !important;
     }
     .select2-container--bootstrap-5 .select2-results__option--highlighted.select2-results__option--selectable {
-        background-color: #FF6D1F !important;
+        background-color: #154679 !important;
         color: #ffffff !important;
     }
     .select2-container--bootstrap-5 .select2-results__option--selected {
-        background-color: #fff4eb !important;
-        color: #c2410c !important;
+        background-color: #f0f7ff !important;
+        color: #154679 !important;
         font-weight: 600 !important;
     }
 
@@ -398,14 +411,14 @@ $catatan_val = $indikator->catatan ?? '';
         transform: translateY(-1px);
     }
     .tingkat-pill-item input[type="checkbox"]:checked + .tingkat-pill-content {
-        border-color: #FF6D1F;
-        background: #FFF5ED;
-        color: #c2410c;
-        box-shadow: 0 2px 8px rgba(255, 109, 31, 0.22);
+        border-color: #154679;
+        background: #f0f7ff;
+        color: #154679;
+        box-shadow: 0 2px 8px rgba(21, 70, 121, 0.22);
     }
     .tingkat-pill-item .icon-checked {
         display: none;
-        color: #FF6D1F;
+        color: #154679;
         font-size: 0.85rem;
     }
     .tingkat-pill-item .icon-unchecked {
@@ -459,12 +472,12 @@ $catatan_val = $indikator->catatan ?? '';
     }
     .btn-segmented.active {
         background: #ffffff !important;
-        color: #FF6D1F !important;
+        color: #154679 !important;
         box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important;
         font-weight: 700 !important;
     }
     .btn-segmented.active i {
-        color: #FF6D1F !important;
+        color: #154679 !important;
     }
     .posisi-segmented-group.disabled {
         opacity: 0.55;
@@ -517,7 +530,7 @@ $catatan_val = $indikator->catatan ?? '';
     }
     .btn-sub-baris.active {
         background: #ffffff;
-        color: #FF6D1F;
+        color: #154679;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
@@ -607,9 +620,9 @@ $catatan_val = $indikator->catatan ?? '';
     .custom-total-dropdown.open .btn-total-toggle,
     .btn-total-toggle:focus {
         background: #ffffff;
-        border-color: #FF6D1F;
-        box-shadow: 0 0 0 3px rgba(255, 109, 31, 0.15);
-        color: #FF6D1F;
+        border-color: #154679;
+        box-shadow: 0 0 0 3px rgba(21, 70, 121, 0.15);
+        color: #154679;
     }
     .toggle-chevron {
         font-size: 0.72rem;
@@ -618,7 +631,7 @@ $catatan_val = $indikator->catatan ?? '';
     }
     .custom-total-dropdown.open .toggle-chevron {
         transform: rotate(180deg);
-        color: #FF6D1F;
+        color: #154679;
     }
     .custom-total-menu {
         position: absolute;
@@ -661,13 +674,13 @@ $catatan_val = $indikator->catatan ?? '';
         color: #0f172a;
     }
     .custom-total-item.active {
-        background: #FFF5ED;
-        color: #FF6D1F;
+        background: #f0f7ff;
+        color: #154679;
         font-weight: 600;
     }
     .custom-total-item .item-check {
         font-size: 0.85rem;
-        color: #FF6D1F;
+        color: #154679;
         display: none;
     }
     .custom-total-item.active .item-check {
@@ -692,19 +705,19 @@ $catatan_val = $indikator->catatan ?? '';
         background: #ffffff !important;
     }
     .total-popover-input:focus {
-        border-color: #FF6D1F !important;
-        box-shadow: 0 0 0 2px rgba(255, 109, 31, 0.15) !important;
+        border-color: #154679 !important;
+        box-shadow: 0 0 0 2px rgba(21, 70, 121, 0.15) !important;
     }
     .btn-total-apply {
-        background: #FF6D1F !important;
-        border-color: #FF6D1F !important;
+        background: #154679 !important;
+        border-color: #154679 !important;
         color: #ffffff !important;
         border-radius: 0 6px 6px 0 !important;
         padding: 4px 10px !important;
         font-size: 0.8rem !important;
     }
     .btn-total-apply:hover {
-        background: #e05d15 !important;
+        background: #0f355c !important;
     }
     #btn_unlock_reset_data:hover {
         background: #fef2f2 !important;
@@ -1100,7 +1113,7 @@ $catatan_val = $indikator->catatan ?? '';
 
                         <?php endif; ?>
 
-                        <button type="submit" class="btn btn-primary btn-sm px-4 py-1-5 fw-bold d-inline-flex align-items-center gap-2 shadow-sm rounded-pill text-xs" style="background: linear-gradient(135deg, #FF6D1F, #ff8c42); border: none; box-shadow: 0 4px 10px rgba(255, 109, 31, 0.3) !important;">
+                        <button type="submit" class="btn btn-primary btn-sm px-4 py-1-5 fw-bold d-inline-flex align-items-center gap-2 shadow-sm rounded-pill text-xs" style="background: linear-gradient(135deg, #154679, #1e5c9e); border: none; box-shadow: 0 4px 10px rgba(21, 70, 121, 0.25) !important;">
                             <i class="bi bi-check2-circle fs-6"></i>
                             <span>Simpan Matriks</span>
                         </button>
@@ -2786,7 +2799,7 @@ $(document).ready(function() {
                     // Baris Induk / Header Level Atas (misal: "Kabupaten", "Kota", "Suhu"): Bentang penuh seluruh kolom tanpa kolom periode
                     const parentColspan = (isMultiBaris ? 3 : 2) + totalLeafCols;
                     tbodyHtml += '<tr class="' + rowClass + '">';
-                    tbodyHtml += '<td colspan="' + parentColspan + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #ff6d1f !important;">';
+                    tbodyHtml += '<td colspan="' + parentColspan + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #154679 !important;">';
                     tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
                     if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
                         tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
@@ -3017,21 +3030,21 @@ $(document).ready(function() {
                     hasRenderedRuntunTotal = true;
                     const pCount = periodeItems.length;
                     periodeItems.forEach(function(p, pIdx) {
-                        tbodyHtml += '<tr class="row-total" style="background-color: #fff5ed;">';
+                        tbodyHtml += '<tr class="row-total">';
                         if (pIdx === 0) {
-                            tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col fw-bold text-dark" style="vertical-align: middle; background-color: #fff5ed; border-right: 1px solid #fed7aa;">';
+                            tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col fw-bold" style="vertical-align: middle; border-right: 1px solid rgba(255,255,255,0.25);">';
                             tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
                             if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
-                                tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
+                                tbodyHtml += ' <span class="fst-italic opacity-75" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
                             }
                             tbodyHtml += '</td>';
                         }
-                        tbodyHtml += '<td class="text-center fw-bold text-dark" style="vertical-align: middle; font-size: 0.82rem; background-color: #ffedd5; border: 1px solid #fed7aa;">';
+                        tbodyHtml += '<td class="text-center fw-bold" style="vertical-align: middle; font-size: 0.82rem; border: 1px solid rgba(255,255,255,0.25);">';
                         tbodyHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
                         tbodyHtml += '</td>';
 
                         for (let i = 0; i < totalLeafCols; i++) {
-                            tbodyHtml += '<td class="cell-numeric-placeholder fw-bold" style=\"background-color: #fff5ed; border: 1px solid #fed7aa; color: #ea580c;\">' + formatSampleCell() + '</td>';
+                            tbodyHtml += '<td class="cell-numeric-placeholder fw-bold" style="border: 1px solid rgba(255,255,255,0.25); color: #ffffff;">' + formatSampleCell() + '</td>';
                         }
                         tbodyHtml += '</tr>';
                     });
@@ -3098,7 +3111,7 @@ $(document).ready(function() {
                     // Baris Induk / Header Level Atas: Bentang penuh seluruh kolom
                     const parentColspan = ((isMultiBaris || isRuntunWaktu) ? 2 : 1) + totalLeafCols;
                     tbodyHtml += '<tr class="' + rowClass + '">';
-                    tbodyHtml += '<td colspan="' + parentColspan + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #ff6d1f !important;">';
+                    tbodyHtml += '<td colspan="' + parentColspan + '" class="td-freeze-col ' + indentClass + textClass + ' px-3 py-2" style="background-color: #f8fafc !important; border-left: 3px solid #154679 !important;">';
                     tbodyHtml += '<span>' + escapeHtml(namaBarisInd) + '</span>';
                     if (isBilingual && namaBarisEn && namaBarisEn.trim().toLowerCase() !== namaBarisInd.trim().toLowerCase()) {
                         tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ ' + escapeHtml(namaBarisEn) + '</span>';
@@ -3174,21 +3187,21 @@ $(document).ready(function() {
             if (isRuntunWaktu && !hasRenderedRuntunTotal && periodeItems.length > 0) {
                 const pCount = periodeItems.length;
                 periodeItems.forEach(function(p, pIdx) {
-                    tbodyHtml += '<tr class="row-total" style="background-color: #fff5ed;">';
+                    tbodyHtml += '<tr class="row-total">';
                     if (pIdx === 0) {
-                        tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col fw-bold text-dark" style="vertical-align: middle; background-color: #fff5ed; border-right: 1px solid #fed7aa;">';
+                        tbodyHtml += '<td rowspan="' + pCount + '" class="td-freeze-col fw-bold" style="vertical-align: middle; border-right: 1px solid rgba(255,255,255,0.25);">';
                         tbodyHtml += '<span>Jumlah</span>';
                         if (isBilingual) {
-                            tbodyHtml += ' <span class="fst-italic text-secondary" style="font-size: 0.82rem; font-weight: normal;">/ Total</span>';
+                            tbodyHtml += ' <span class="fst-italic opacity-75" style="font-size: 0.82rem; font-weight: normal;">/ Total</span>';
                         }
                         tbodyHtml += '</td>';
                     }
-                    tbodyHtml += '<td class="text-center fw-bold text-dark" style="vertical-align: middle; font-size: 0.82rem; background-color: #ffedd5; border: 1px solid #fed7aa;">';
+                    tbodyHtml += '<td class="text-center fw-bold" style="vertical-align: middle; font-size: 0.82rem; border: 1px solid rgba(255,255,255,0.25);">';
                     tbodyHtml += '<span>' + escapeHtml(p.nama_periode_ind) + '</span>';
                     tbodyHtml += '</td>';
 
                     for (let i = 0; i < totalLeafCols; i++) {
-                        tbodyHtml += '<td class="cell-numeric-placeholder fw-bold" style=\"background-color: #fff5ed; border: 1px solid #fed7aa; color: #ea580c;\">' + formatSampleCell() + '</td>';
+                        tbodyHtml += '<td class="cell-numeric-placeholder fw-bold" style="border: 1px solid rgba(255,255,255,0.25); color: #ffffff;">' + formatSampleCell() + '</td>';
                     }
                     tbodyHtml += '</tr>';
                 });

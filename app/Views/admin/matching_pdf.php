@@ -441,7 +441,7 @@
             <i class="bi bi-file-earmark-spreadsheet-fill fs-5"></i>
           </div>
           <div>
-            <h6 class="modal-title fw-bold text-dark mb-0">Penyusunan Rekap Global Excel</h6>
+            <h6 class="modal-title fw-bold text-dark mb-0" id="modalExportRekapTitle">Penyusunan Rekap Global Excel</h6>
             <div class="text-muted" style="font-size: 0.75rem;">Multi-Sheet: 1 Sheet Per Tabel (Khusus Data Selisih)</div>
           </div>
         </div>
@@ -1065,6 +1065,17 @@
 
         applyMatchedFilters();
         updateBatchCounters();
+
+        // Update tombol unduh & cache ketersediaan sesuai konteks tab aktif
+        let dlBtnText = '<i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap Global (.xlsx)';
+        if (src === 'api') {
+            dlBtnText = '<i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap API (.xlsx)';
+        } else if (src === 'dinamis') {
+            dlBtnText = '<i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap Dinamis (.xlsx)';
+        }
+        $('#btnDownloadRekapGlobal').html(dlBtnText);
+        $('#btnDownloadRekapGlobal').attr('href', "<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>&source=" + src);
+        checkRekapAvailability(src);
     }
 
     function applyMatchedFilters() {
@@ -1575,22 +1586,57 @@
         });
     };
 
-    window.syncAllDiffsToDinamis = function() {
+    window.syncAllDiffsToDinamis = function(btnEl) {
         let res = window.lastVerifyResult;
-        if (!res || !res.id_indikator || !res.diffs) return;
+        if (!res || !res.id_indikator) {
+            alert("Data indikator tabel dinamis tidak ditemukan.");
+            return;
+        }
+
+        let allDiffItems = [];
+        if (res.diffs && Array.isArray(res.diffs)) allDiffItems.push(...res.diffs);
+        if (res.pdf_only && Array.isArray(res.pdf_only)) allDiffItems.push(...res.pdf_only);
+
         let cells = [];
-        res.diffs.forEach(d => {
-            if (d.coord) {
-                cells.push({
-                    id_baris_item: d.coord.id_baris_item,
-                    id_karakteristik_item: d.coord.id_karakteristik_item,
-                    id_periode_item: d.coord.id_periode_item,
-                    nilai: d.pdf_val
-                });
+        let missingCoordCount = 0;
+        let seenKeys = new Set();
+
+        allDiffItems.forEach(d => {
+            if (d.coord && d.coord.id_baris_item !== undefined && d.coord.id_karakteristik_item !== undefined) {
+                let cellKey = `${d.coord.id_baris_item}_${d.coord.id_karakteristik_item}_${d.coord.id_periode_item}_${d.coord.tahun_data || ''}`;
+                if (!seenKeys.has(cellKey)) {
+                    seenKeys.add(cellKey);
+                    let valToUse = d.pdf_val;
+                    if (valToUse === undefined && d.values && d.values.length > 0) {
+                        valToUse = d.values[0];
+                    }
+                    cells.push({
+                        id_baris_item: d.coord.id_baris_item,
+                        id_karakteristik_item: d.coord.id_karakteristik_item,
+                        id_periode_item: d.coord.id_periode_item,
+                        tahun_data: d.coord.tahun_data || null,
+                        nilai: valToUse
+                    });
+                }
+            } else {
+                missingCoordCount++;
             }
         });
-        if (cells.length === 0) return;
-        if (!confirm(`Perbarui ${cells.length} sel yang selisih pada Tabel ${window.currentTableNumber} agar sama dengan angka di buku PDF?`)) return;
+
+        if (cells.length === 0) {
+            alert(`Tidak ada sel yang dapat disamakan secara otomatis (${allDiffItems.length} selisih belum memiliki pemetaan sel pada template tabel).`);
+            return;
+        }
+
+        let confirmMsg = `Perbarui ${cells.length} sel yang selisih pada Tabel ${window.currentTableNumber} agar sama dengan angka di buku PDF?`;
+        if (missingCoordCount > 0) {
+            confirmMsg += `\n\n(Catatan: ${missingCoordCount} item lainnya belum memiliki pemetaan sel otomatis dan perlu dicek manual).`;
+        }
+        if (!confirm(confirmMsg)) return;
+
+        let $btn = btnEl ? $(btnEl) : $('.btn-sync-all-diffs');
+        let originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
 
         $.ajax({
             url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
@@ -1602,16 +1648,26 @@
             dataType: "json",
             success: function(syncRes) {
                 if (syncRes && syncRes.status === 'success') {
-                    verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
+                    $btn.html('<i class="bi bi-check-lg me-1"></i> Tersimpan!');
+                    setTimeout(() => {
+                        verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
+                    }, 400);
                 } else {
                     alert("Gagal menyinkronkan selisih: " + (syncRes.message || 'Unknown error'));
+                    $btn.prop('disabled', false).html(originalHtml);
                 }
+            },
+            error: function(xhr, status, error) {
+                let errMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan pada server');
+                alert("Gagal menghubungi server (" + xhr.status + "): " + errMsg);
+                $btn.prop('disabled', false).html(originalHtml);
             }
         });
     };
 
     window.syncSingleDiffCell = function(idIndikator, coord, pdfVal, btnEl) {
         let $btn = $(btnEl);
+        let origHtml = $btn.html();
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
         $.ajax({
             url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
@@ -1622,6 +1678,7 @@
                     id_baris_item: coord.id_baris_item,
                     id_karakteristik_item: coord.id_karakteristik_item,
                     id_periode_item: coord.id_periode_item,
+                    tahun_data: coord.tahun_data || null,
                     nilai: pdfVal
                 }])
             },
@@ -1631,8 +1688,13 @@
                     verify_tabel(window.currentTableNumber, window.currentTolerance || 0);
                 } else {
                     alert("Gagal menyimpan sel: " + (syncRes.message || 'Unknown error'));
-                    $btn.prop('disabled', false).text('Gunakan Angka PDF');
+                    $btn.prop('disabled', false).html(origHtml);
                 }
+            },
+            error: function(xhr, status, error) {
+                let errMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan');
+                alert("Gagal menyimpan sel (" + xhr.status + "): " + errMsg);
+                $btn.prop('disabled', false).html(origHtml);
             }
         });
     };
@@ -1723,9 +1785,10 @@
                     let firstPage = (res.pages && res.pages.length > 0) ? res.pages[0] : 1;
                     let pagesLabel = (res.pages && res.pages.length > 0) ? `Hal. ${res.pages.join(', ')}` : '';
                     let syncAllDiffsBtn = '';
-                    if (res.source_type === 'Tabel Dinamis' && res.id_indikator && res.diffs && res.diffs.some(d => d.coord)) {
+                    let hasAnyCoord = (res.diffs && res.diffs.some(d => d.coord)) || (res.pdf_only && res.pdf_only.some(p => p.coord));
+                    if (res.source_type === 'Tabel Dinamis' && res.id_indikator && hasAnyCoord) {
                         syncAllDiffsBtn = `
-                            <button type="button" onclick="syncAllDiffsToDinamis()" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-2 shadow-xs" title="Perbarui seluruh sel yang selisih di Tabel Dinamis menggunakan angka dari PDF">
+                            <button type="button" onclick="syncAllDiffsToDinamis(this)" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-2 shadow-xs btn-sync-all-diffs" title="Perbarui seluruh sel yang selisih di Tabel Dinamis menggunakan angka dari PDF">
                                 <i class="bi bi-magic me-1"></i> Samakan Semua Selisih ke Tabel Dinamis
                             </button>`;
                     }
@@ -2795,47 +2858,58 @@ ${getPdfSplitPaneHtml(pagesLabel)}
     // ==========================================
     let exportPollTimer = null;
 
-    function checkRekapAvailability() {
+    function checkRekapAvailability(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
         $.ajax({
             url: "<?= base_url('admin/ajax_check_rekap_excel') ?>",
             type: "GET",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function(res) {
                 if (res.is_running) {
-                    openExportModal();
-                    pollExportProgress();
+                    openExportModal(src);
+                    pollExportProgress(src);
                 } else if (res.file_exists) {
                     $('#btnDownloadRekapGlobal').removeClass('btn-outline-success').addClass('btn-success text-white');
                     $('#btnDownloadRekapGlobal').attr('title', `Ukuran: ${res.filesize_kb} KB | Dibuat: ${res.updated_at}`);
+                } else {
+                    $('#btnDownloadRekapGlobal').removeClass('btn-success text-white').addClass('btn-outline-success');
+                    $('#btnDownloadRekapGlobal').attr('title', 'Belum disusun. Klik Buat Ulang untuk menyusun file.');
                 }
             }
         });
     }
 
     function triggerGenerateRekapModal(forceRebuild = false) {
+        let src = window.currentSourceFilter || 'all';
         if (!forceRebuild) {
             $.ajax({
                 url: "<?= base_url('admin/ajax_check_rekap_excel') ?>",
                 type: "GET",
-                data: { ta: activeYear },
+                data: { ta: activeYear, source: src },
                 dataType: "json",
                 success: function(res) {
                     if (res.file_exists && !res.is_running) {
                         window.location.href = res.download_url;
                         return;
                     }
-                    openExportModal();
-                    startExportWorker();
+                    openExportModal(src);
+                    startExportWorker(src);
                 }
             });
             return;
         }
-        openExportModal();
-        startExportWorker();
+        openExportModal(src);
+        startExportWorker(src);
     }
 
-    function openExportModal() {
+    function openExportModal(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
+        let modalTitle = 'Penyusunan Rekap Global Excel (Semua Data)';
+        if (src === 'api') modalTitle = 'Penyusunan Rekap Excel (Sumber: API Satudata)';
+        else if (src === 'dinamis') modalTitle = 'Penyusunan Rekap Excel (Sumber: Tabel Dinamis)';
+        $('#modalExportRekapTitle').text(modalTitle);
+
         $('#exportRunningState').show();
         $('#exportCompletedState').hide();
         $('#exportProgressBar').css('width', '0%');
@@ -2845,15 +2919,16 @@ ${getPdfSplitPaneHtml(pagesLabel)}
         myModal.show();
     }
 
-    function startExportWorker() {
+    function startExportWorker(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
         $.ajax({
             url: "<?= base_url('admin/start_export_rekap') ?>",
             type: "POST",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function(res) {
                 if (res.status === 'success') {
-                    pollExportProgress();
+                    pollExportProgress(src);
                 } else {
                     alert("Gagal memulai export: " + (res.message || 'Error'));
                     let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
@@ -2866,12 +2941,13 @@ ${getPdfSplitPaneHtml(pagesLabel)}
         });
     }
 
-    function pollExportProgress() {
+    function pollExportProgress(customSource = null) {
+        let src = customSource || window.currentSourceFilter || 'all';
         if (exportPollTimer) clearTimeout(exportPollTimer);
         $.ajax({
             url: "<?= base_url('admin/get_export_progress') ?>",
             type: "GET",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function(res) {
                 let pct = res.percent || 0;
@@ -2897,19 +2973,20 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                     return;
                 }
 
-                exportPollTimer = setTimeout(pollExportProgress, 1200);
+                exportPollTimer = setTimeout(function() { pollExportProgress(src); }, 1200);
             },
             error: function() {
-                exportPollTimer = setTimeout(pollExportProgress, 2500);
+                exportPollTimer = setTimeout(function() { pollExportProgress(src); }, 2500);
             }
         });
     }
 
     function cancelExportWorker() {
+        let src = window.currentSourceFilter || 'all';
         $.ajax({
             url: "<?= base_url('admin/stop_export_rekap') ?>",
             type: "POST",
-            data: { ta: activeYear },
+            data: { ta: activeYear, source: src },
             dataType: "json",
             success: function() {
                 if (exportPollTimer) clearTimeout(exportPollTimer);

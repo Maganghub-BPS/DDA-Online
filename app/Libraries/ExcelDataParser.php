@@ -875,6 +875,24 @@ class ExcelDataParser
                     } catch (\Throwable $e) {
                         $formattedVal = '';
                     }
+
+                    // Deteksi cerdas sel berformat waktu bawaan Excel (mis. 05:23:46 yang disimpan sebagai serial waktu float)
+                    if (\PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)) {
+                        try {
+                            $dtObj = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($rawVal);
+                            $timeCandidate = $dtObj->format('H:i:s');
+                            // Jika nilai < 1.0 (waktu murni dalam satu hari) atau formattedVal cocok format waktu
+                            if ((is_numeric($rawVal) && (float)$rawVal < 1.0) || preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', trim($formattedVal))) {
+                                $rawVal = (!empty($formattedVal) && preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', trim($formattedVal)))
+                                    ? trim($formattedVal)
+                                    : $timeCandidate;
+                            }
+                        } catch (\Throwable $e) {
+                            if (!empty($formattedVal) && preg_match('/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', trim($formattedVal))) {
+                                $rawVal = trim($formattedVal);
+                            }
+                        }
+                    }
                 }
 
                 $sanitized = $this->sanitizeValue($rawVal, $expectedDecimals);
@@ -972,6 +990,38 @@ class ExcelDataParser
         // '...' / '…': Data belum/tidak dapat ditampilkan
         if ($str === '...' || $str === '…') {
             return ['nilai' => null, 'simbol' => '...'];
+        }
+
+        // Deteksi Cerdas Format Waktu (HH:mm:ss atau H:mm:ss atau HH:mm) e.g. "05:23:46"
+        if (preg_match('/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?$/', $str, $mTime)) {
+            $hh = str_pad($mTime[1], 2, '0', STR_PAD_LEFT);
+            $mm = $mTime[2];
+            $ss = isset($mTime[3]) ? str_pad($mTime[3], 2, '0', STR_PAD_LEFT) : '00';
+            return [
+                'nilai'  => null,
+                'simbol' => "{$hh}:{$mm}:{$ss}"
+            ];
+        }
+
+        // Deteksi Format Waktu dengan simbol catatan statistik e.g. "05:23:46*" atau "05:23:46e"
+        if (preg_match('/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\s*([\*e])$/i', $str, $mTimeSym)) {
+            $hh = str_pad($mTimeSym[1], 2, '0', STR_PAD_LEFT);
+            $mm = $mTimeSym[2];
+            $ss = isset($mTimeSym[3]) ? str_pad($mTimeSym[3], 2, '0', STR_PAD_LEFT) : '00';
+            $sym = $mTimeSym[4];
+            return [
+                'nilai'  => null,
+                'simbol' => "{$hh}:{$mm}:{$ss}{$sym}"
+            ];
+        }
+
+        // Toleransi format waktu notasi titik khas Indonesia (HH.mm.ss) e.g. "05.23.46" atau "01.09.06"
+        if (preg_match('/^([0-1]?[0-9]|2[0-3])\.([0-5][0-9])\.([0-5][0-9])$/', $str, $mTimeDot)) {
+            $hh = str_pad($mTimeDot[1], 2, '0', STR_PAD_LEFT);
+            return [
+                'nilai'  => null,
+                'simbol' => "{$hh}:{$mTimeDot[2]}:{$mTimeDot[3]}"
+            ];
         }
 
         // Teks dengan angka estimasi e.g. "125e" atau "e125"

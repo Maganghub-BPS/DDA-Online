@@ -411,7 +411,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                 <button type="button" class="btn btn-light px-4 border" style="border-radius: 8px;" data-bs-dismiss="modal">
                     Batal
                 </button>
-                <button type="button" id="btn_confirm_conflict" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(45deg, #FF6D1F, #ff8c42); border: none;">
+                <button type="button" id="btn_confirm_conflict" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center gap-2 fw-semibold" style="border-radius: 8px; background: linear-gradient(135deg, #154679 0%, #1e5c9e 100%); border: none;">
                     <i class="bi bi-check2-circle"></i>
                     <span>Terapkan & Simpan</span>
                 </button>
@@ -473,13 +473,13 @@ if ($mode == "edt" || $mode == "act_edt") {
         transform: translateY(-1px);
     }
     .conflict-card-option.active {
-        border-color: #FF6D1F !important;
-        background: rgba(255, 109, 31, 0.04) !important;
-        box-shadow: 0 3px 10px rgba(255, 109, 31, 0.1) !important;
+        border-color: #154679 !important;
+        background: rgba(21, 70, 121, 0.04) !important;
+        box-shadow: 0 3px 10px rgba(21, 70, 121, 0.12) !important;
     }
     .conflict-card-option .form-check-input:checked {
-        background-color: #FF6D1F;
-        border-color: #FF6D1F;
+        background-color: #154679;
+        border-color: #154679;
     }
     /* Format Option Cards (Tabel Dinamis vs Link) */
     .format-option-card {

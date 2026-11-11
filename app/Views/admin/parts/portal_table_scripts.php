@@ -118,8 +118,13 @@
     }
 
     function formatVal(val, formatType = 'number') {
-        if (val === '-' || val === null || val === undefined) return '-';
-        const num = parseFloat(String(val).replace(',', '.')) || 0;
+        if (val === '-' || val === null || val === undefined || val === '') return '-';
+        const strVal = String(val).trim();
+        // Deteksi Cerdas Sel Waktu (JJ:MM:DD atau HH:mm:ss): kembalikan teks aslinya tanpa manipulasi angka
+        if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(strVal)) {
+            return strVal;
+        }
+        const num = parseFloat(strVal.replace(',', '.')) || 0;
         if (isNaN(num)) return val;
         if (num === 0) return '-'; //(baru) mengubah angka 0 menjadi endash (-)
         switch (formatType) {
@@ -486,8 +491,8 @@
             html += '<tr>';
             if (rIdx === 0) html += `<th rowspan="${maxHeaderRows + 1}" style="border:1px solid rgba(255,255,255,0.25); width:45px; background:#154679; color:#ffffff; text-align:center; vertical-align:middle; font-weight:700;">No.</th>`;
             row.forEach(cell => {
-                const isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || ').trim().toLowerCase();
-                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid rgba(255,255,255,0.25); padding:8px 6px; text-align:center; background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">${cell.label}${isEnDiff ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${cell.label_en}</i>` : '}</th>`;
+                const isEnDiff = cell.label_en && cell.label_en.trim().toLowerCase() !== (cell.label || '').trim().toLowerCase();
+                html += `<th colspan="${cell.colspan}" rowspan="${cell.rowspan}" style="border:1px solid rgba(255,255,255,0.25); padding:8px 6px; text-align:center; background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">${cell.label}${isEnDiff ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${cell.label_en}</i>` : ''}</th>`;
             });
             if (rIdx === 0 && showTotal) html += `<th rowspan="${maxHeaderRows}" style="border:1px solid rgba(255,255,255,0.25); background:#154679; color:#ffffff; vertical-align:middle; font-weight:700;">Jumlah<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">Total</i></th>`;
             html += '</tr>';
@@ -578,8 +583,11 @@
                     rawVal = row[col.key] ?? 0;
                 }
 
-                let num = parseFloat(String(rawVal).replace(',', '.')) || 0;
-                let isNumeric = !isNaN(parseFloat(String(rawVal))) && isFinite(String(rawVal).replace(',', '.'));
+                const strRawVal = String(rawVal).trim();
+                const isTimeVal = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(strRawVal);
+
+                let num = isTimeVal ? 0 : (parseFloat(strRawVal.replace(',', '.')) || 0);
+                let isNumeric = !isTimeVal && !isNaN(parseFloat(strRawVal)) && isFinite(strRawVal.replace(',', '.'));
                 const colLabel = (col.label_id || col.key || '').toLowerCase();
                 const isTotalInLabel = colLabel.includes('jumlah') || colLabel.includes('total');
                 const isTahunCol = (col.key || '').toLowerCase().includes('tahun') || (col.key || '').toLowerCase().includes('year');
@@ -617,21 +625,24 @@
                             displayVal = `<span style="padding-left:${indent}px">${parts[parts.length - 1]}</span>`;
                         }
                     } 
-                    // else displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal; (lama)
                     else { 
-                        let cleanForZero = String(rawVal).replace(/[\.,\s]/g, ''); //(baru) untuk membersihkan tanda titik koma atau spasi pada angka 0
-                        if (cleanForZero === '0' || cleanForZero === '-0') { //(baru) untuk cek angka 0 atau -0
-                            displayVal = '-'; //(baru) untuk mengubah nilai 0 menjadi -
+                        if (isTimeVal) {
+                            displayVal = strRawVal;
                         } else {
-                            displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal; //(baru) jika bukan 0 maka tampilkan nilai aslinya
+                            let cleanForZero = String(rawVal).replace(/[\.,\s]/g, ''); //(baru) untuk membersihkan tanda titik koma atau spasi pada angka 0
+                            if (cleanForZero === '0' || cleanForZero === '-0') { //(baru) untuk cek angka 0 atau -0
+                                displayVal = '-'; //(baru) untuk mengubah nilai 0 menjadi -
+                            } else {
+                                displayVal = isNumeric ? formatVal(num, col.format || 'number') : rawVal; //(baru) jika bukan 0 maka tampilkan nilai aslinya
+                            }
                         }
                     }
                     if (col.hidden) return;
-                // html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #eee; padding:8px; ${col.isRow || c_idx === 0 ? 'font-weight:bold;' : 'text-align:center;'}">${displayVal}</td>`; (lama)
                 let align = 'center'; // (baru) untuk default rata tengah
                 let strVal = String(rawVal).trim(); // (baru) untuk mengubah data asli menjadi teks dan untuk mengubah spasi tersembunyi
                 let isFormattedNum = /^[-0-9.,]+$/.test(strVal) && strVal !== ''; // (baru) untuk melihat angka titik koma
                 if (col.isRow || c_idx === 0) align = 'left'; // (baru) agar kolom pertama rata kiri 
+                else if (isTimeVal) align = 'center'; // (baru) perataan tengah untuk format waktu JJ:MM:DD
                 else if ((isNumeric || isFormattedNum || displayVal === '-') && !isTahunCol) align = 'right'; // (baru) untuk rata kanan bagian kolom angka
 
                 html += `<td ${rsValue > 1 ? `rowspan="${rsValue}"` : ''} style="border:1px solid #e2e8f0; padding:7px 10px; text-align:${align}; color:#1e293b; background:${rowBg}; ${col.isRow || c_idx === 0 ? 'font-weight:600;' : ''}">${displayVal}</td>`;
@@ -649,8 +660,9 @@
                 else {
                     const sum = verticalTotals[col.key];
                     const colLabel = (col.label_id || col.key || '').toLowerCase();
-                    if (!(colLabel.includes('jumlah') || colLabel.includes('total'))) grandTotal += sum;
-                    html += `<td style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${formatVal(sum, col.format || 'number')}</td>`;
+                    if (!(colLabel.includes('jumlah') || colLabel.includes('total')) && sum !== undefined) grandTotal += sum;
+                    const displayTotal = (sum === undefined || sum === null) ? '-' : formatVal(sum, col.format || 'number');
+                    html += `<td style="border:1px solid rgba(255,255,255,0.25); text-align:right; color:#ffffff; font-weight:bold; padding:7px 10px; background:#154679;">${displayTotal}</td>`;
                 }
             });
             if (showTotal) 

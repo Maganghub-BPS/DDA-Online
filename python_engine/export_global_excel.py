@@ -16,7 +16,7 @@ from openpyxl.utils import get_column_letter
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from compare_table import compare_head_to_head
-from export_excel import populate_matrix_sheet, get_instansi_name, FONT_FAMILY, HEADER_GRAY, BORDER_THIN, PDF_COL_HDR, DB_COL_HDR, DIFF_FILL, DIFF_FONT, PDF_ONLY_FILL, PDF_ONLY_FONT, MATCH_FILL, MATCH_FONT
+from export_excel import populate_matrix_sheet, get_instansi_name, get_real_pdf_only, FONT_FAMILY, HEADER_GRAY, BORDER_THIN, PDF_COL_HDR, DB_COL_HDR, DIFF_FILL, DIFF_FONT, PDF_ONLY_FILL, PDF_ONLY_FONT, MATCH_FILL, MATCH_FONT
 
 OPD_BANNER_FILL = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
 OPD_BANNER_FONT = Font(name=FONT_FAMILY, size=11, bold=True, color="0F172A")
@@ -52,7 +52,7 @@ def write_progress(prog_file, is_running=True, completed=0, total=0, cur_table="
         pass
 
 
-def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, state_json_path, output_path, tolerance=0.0, progress_path=None):
+def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, state_json_path, output_path, tolerance=0.0, progress_path=None, source_filter="all"):
     stop_file = (progress_path + ".stop") if progress_path else None
     if stop_file and os.path.exists(stop_file):
         try:
@@ -97,6 +97,13 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     diff_tables = []
     total_match_count = 0
 
+    src_filter = (source_filter or "all").lower().strip()
+    src_subtitle = "SEMUA SUMBER DATA"
+    if src_filter == "api":
+        src_subtitle = "SUMBER: API SATUDATA"
+    elif src_filter == "dinamis":
+        src_subtitle = "SUMBER: TABEL DINAMIS"
+
     for item in all_matched:
         tnum = str(item.get("nomor_tabel", "")).strip()
         st_info = state_data.get(tnum, {})
@@ -108,6 +115,9 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             continue
 
         if st in ("diff", "api_empty"):
+            item_src = str(item.get("source_type") or ("dinamis" if item.get("is_dynamic") else "api")).lower().strip()
+            if src_filter != "all" and item_src != src_filter:
+                continue
             diff_tables.append((item, st_info))
 
     total = len(diff_tables)
@@ -116,11 +126,28 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     wb = openpyxl.Workbook()
     default_sheet = wb.active
 
+    if total == 0:
+        ws_idx = wb.create_sheet(title="📋 Rekap Tabel")
+        ws_idx['A1'] = f"REKAPITULASI TABEL DDA ({src_subtitle})"
+        ws_idx['A1'].font = Font(name=FONT_FAMILY, size=14, bold=True, color="0F172A")
+        ws_idx['A3'] = f"Tidak ditemukan tabel bermasalah untuk kategori {src_subtitle}. Seluruh tabel cocok 100% dengan database!"
+        ws_idx['A3'].font = Font(name=FONT_FAMILY, size=11, bold=True, color="166534")
+        wb.remove(default_sheet)
+        temp_out = output_path + ".tmp.xlsx"
+        wb.save(temp_out)
+        if os.path.exists(output_path):
+            try: os.remove(output_path)
+            except Exception: pass
+        try: os.rename(temp_out, output_path)
+        except Exception: wb.save(output_path)
+        write_progress(progress_path, is_running=False, completed=0, total=0, cur_table="Selesai (Semua data cocok)", status="completed")
+        return output_path
+
     # ----------------------------------------------------
     # SHEET 0: DAFTAR TABEL BERMASALAH (RINGKASAN & LINK)
     # ----------------------------------------------------
     ws_idx = wb.create_sheet(title="📋 Daftar Tabel Bermasalah")
-    ws_idx['A1'] = "DAFTAR TABEL MEMILIKI SELISIH DATA - BUKU DDA"
+    ws_idx['A1'] = f"DAFTAR TABEL MEMILIKI SELISIH DATA - BUKU DDA ({src_subtitle})"
     ws_idx['A1'].font = Font(name=FONT_FAMILY, size=14, bold=True, color="0F172A")
     ws_idx['A2'] = f"Catatan: Ditemukan {len(diff_tables)} tabel bermasalah (ada selisih angka atau data kosong di database). Sebanyak {total_match_count} tabel yang Cocok 100% sengaja dikecualikan agar tim pemeriksa fokus hanya pada data yang perlu diperbaiki."
     ws_idx['A2'].font = Font(name=FONT_FAMILY, size=10, italic=True, color="991B1B")
@@ -205,7 +232,37 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             t_no = str(entry[0].get("nomor_tabel", "")).strip()
             write_progress(progress_path, is_running=True, completed=completed_cnt, total=total, cur_table=f"Tabel {t_no} ({completed_cnt}/{total})", status="running")
 
-    computed_results = [r for r in ordered_results if r is not None]
+    raw_computed = [r for r in ordered_results if r is not None]
+    computed_results = []
+    state_modified = False
+
+    for entry in raw_computed:
+        item, st_info, res = entry
+        tnum = str(item.get("nomor_tabel", "")).strip()
+        if isinstance(res, dict) and res.get("status") == "success":
+            diffs = res.get("diffs", [])
+            matches = res.get("matches", [])
+            real_pdf_only = get_real_pdf_only(res)
+            actual_diff_cnt = len(diffs) + len(real_pdf_only)
+            res["_actual_diff_cnt"] = actual_diff_cnt
+            if actual_diff_cnt == 0 and len(matches) > 0:
+                total_match_count += 1
+                if tnum in state_data:
+                    state_data[tnum]["status"] = "match"
+                    state_data[tnum]["diff_count"] = 0
+                    state_data[tnum]["match_count"] = len(matches)
+                    state_modified = True
+                continue
+        computed_results.append(entry)
+
+    if state_modified and state_json_path:
+        try:
+            with open(state_json_path, "w", encoding="utf-8") as f_st:
+                json.dump(state_data, f_st, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    ws_idx['A2'] = f"Catatan: Ditemukan {len(computed_results)} tabel bermasalah (ada selisih angka atau data kosong di database). Sebanyak {total_match_count} tabel yang Cocok 100% sengaja dikecualikan agar tim pemeriksa fokus hanya pada data yang perlu diperbaiki."
 
     write_progress(progress_path, is_running=True, completed=total, total=total, cur_table="Menulis format Excel...", status="running")
 
@@ -238,9 +295,9 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     # SHEET 1: REKAPITULASI RINGKAS MENURUT PRODUSEN DATA / OPD (EXECUTIVE SUMMARY)
     # -------------------------------------------------------------------------
     ws_opd = wb.create_sheet(title="🏛️ Rekap Menurut OPD-Source", index=0)
-    ws_opd['A1'] = "REKAPITULASI TABEL SELISIH BERDASARKAN PRODUSEN DATA / OPD"
+    ws_opd['A1'] = f"REKAPITULASI TABEL SELISIH BERDASARKAN PRODUSEN DATA / OPD ({src_subtitle})"
     ws_opd['A1'].font = Font(name=FONT_FAMILY, size=14, bold=True, color="0F172A")
-    ws_opd['A2'] = f"Publikasi DDA: Menampilkan daftar seluruh OPD / Instansi sumber data yang memiliki tabel bermasalah (Selisih atau Data Kosong). Total: {len(sorted_instansi_names)} Instansi Sumber Data."
+    ws_opd['A2'] = f"Publikasi DDA: Menampilkan daftar seluruh OPD / Instansi sumber data ({src_subtitle}) yang memiliki tabel bermasalah (Selisih atau Data Kosong). Total: {len(sorted_instansi_names)} Instansi Sumber Data."
     ws_opd['A2'].font = Font(name=FONT_FAMILY, size=10, italic=True, color="475569")
 
     opd_headers = ["No", "Instansi / OPD (Source)", "Jumlah Tabel Bermasalah", "Ada Selisih Nilai", "Data Kosong di DB", "Daftar Nomor Tabel", "Tautan Cepat"]
@@ -383,7 +440,15 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             src_label = "Tabel Dinamis" if src_code == "dinamis" else "API Satu Data"
             pages = ", ".join(str(p) for p in item.get("pages", [])) if item.get("pages") else "-"
             st = st_info.get("status", "diff")
-            diff_cnt = st_info.get("diff_count", 0)
+            if isinstance(res, dict) and "_actual_diff_cnt" in res:
+                diff_cnt = int(res.get("_actual_diff_cnt", 0))
+            elif isinstance(res, dict) and "diffs" in res:
+                diff_cnt = len(res.get("diffs", [])) + len(get_real_pdf_only(res))
+            else:
+                try:
+                    diff_cnt = int(st_info.get("diff_count", 0))
+                except (ValueError, TypeError):
+                    diff_cnt = 0
 
             sheet_title = f"Tabel {clean_no}"[:31]
             if sheet_title in created_sheet_titles:
@@ -501,6 +566,7 @@ if __name__ == "__main__":
     out_p = sys.argv[5]
     tol = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0
     progress_p = sys.argv[7] if len(sys.argv) > 7 else None
+    src_filter = sys.argv[8].lower().strip() if len(sys.argv) > 8 else "all"
 
-    export_global_diffs_to_excel(pdf_p, matched_p, db_p, state_p, out_p, tolerance=tol, progress_path=progress_p)
+    export_global_diffs_to_excel(pdf_p, matched_p, db_p, state_p, out_p, tolerance=tol, progress_path=progress_p, source_filter=src_filter)
     print("Global export complete")

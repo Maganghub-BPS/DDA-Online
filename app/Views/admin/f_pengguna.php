@@ -103,12 +103,12 @@
     .border-radius-md { border-radius: 0.4rem !important; }
     
     .bg-gray-100 { background-color: #f8f9fa !important; }
-    .bg-primary-soft { background-color: rgba(255, 109, 31, 0.08) !important; color: #FF6D1F !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
     .bg-danger-soft { background-color: rgba(234, 6, 6, 0.08) !important; color: #ea0606 !important; }
     .bg-success-soft { background-color: rgba(45, 206, 137, 0.08) !important; color: #2dce89 !important; }
     .bg-info-soft { background-color: rgba(17, 205, 239, 0.08) !important; color: #11cdef !important; }
     
-    .border-primary-soft { border: 1px solid rgba(255, 109, 31, 0.15) !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.15) !important; }
     .border-danger-soft { border: 1px solid rgba(234, 6, 6, 0.15) !important; }
     .border-success-soft { border: 1px solid rgba(45, 206, 137, 0.15) !important; }
     .border-info-soft { border: 1px solid rgba(17, 205, 239, 0.15) !important; }
@@ -116,9 +116,9 @@
     .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }
     .table thead th { border-bottom: 0 !important; font-size: 0.75rem !important; }
     
-    .text-primary-orange { color: #FF6D1F !important; }
-    .bg-primary-orange { background-color: #FF6D1F !important; }
-    .shadow-primary { box-shadow: 0 4px 6px rgba(255, 109, 31, 0.11), 0 1px 3px rgba(255, 109, 31, 0.08) !important; }
+    .text-primary-orange { color: #154679 !important; }
+    .bg-primary-orange { background-color: #154679 !important; }
+    .shadow-primary { box-shadow: 0 4px 6px rgba(21, 70, 121, 0.15), 0 1px 3px rgba(21, 70, 121, 0.1) !important; }
     
     .icon-shape {
         width: 44px;
@@ -133,8 +133,8 @@
         background-color: #fff;
     }
     .input-group-alternative:focus-within {
-        border-color: #FF6D1F !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+        border-color: #154679 !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
     }
     
     .form-control:focus {

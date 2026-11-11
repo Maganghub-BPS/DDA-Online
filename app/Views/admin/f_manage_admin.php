@@ -38,10 +38,10 @@ if ($mode == "edt" || $mode == "act_edt") {
     <div class="row justify-content-center">
         <div class="col-lg-11 col-xl-10">
             <div class="card border-0 shadow-lg border-radius-2xl overflow-hidden">
-                <!-- Premium Header -->
+                <!-- Header -->
                 <div class="card-header bg-white border-0 pt-3 px-4 pb-0">
                     <div class="d-flex align-items-center">
-                        <div class="icon icon-shape bg-primary-orange shadow-primary text-center border-radius-md me-3" style="width: 42px; height: 42px;">
+                        <div class="icon icon-shape text-center border-radius-md me-3 text-white" style="width: 42px; height: 42px; background-color: #154679 !important; box-shadow: 0 4px 12px rgba(21, 70, 121, 0.15);">
                             <i class="bi bi-person-gear text-white fs-4"></i>
                         </div>
                         <div>
@@ -63,7 +63,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                 <div class="mb-2">
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Username Login</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                        <span class="input-group-text bg-white border-0"><i class="bi bi-at text-primary-orange"></i></span>
+                                        <span class="input-group-text bg-white border-0"><i class="bi bi-at" style="color: #154679 !important;"></i></span>
                                         <input type="text" name="username" required value="<?php echo esc($username); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Username unik" tabindex="1" autofocus>
                                     </div>
@@ -74,7 +74,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                         <div class="mb-3">
                                             <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Password</label>
                                             <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                                <span class="input-group-text bg-white border-0"><i class="bi bi-key text-primary-orange"></i></span>
+                                                <span class="input-group-text bg-white border-0"><i class="bi bi-key" style="color: #154679 !important;"></i></span>
                                                 <input type="password" name="password" required value="<?php echo esc($password); ?>"
                                                     class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="••••••••" tabindex="2">
                                             </div>
@@ -84,7 +84,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                         <div class="mb-3">
                                             <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Confirm Password</label>
                                             <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                                <span class="input-group-text bg-white border-0"><i class="bi bi-shield-check text-primary-orange"></i></span>
+                                                <span class="input-group-text bg-white border-0"><i class="bi bi-shield-check" style="color: #154679 !important;"></i></span>
                                                 <input type="password" name="password2" required value="<?php echo esc($password); ?>"
                                                     class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="••••••••" tabindex="3">
                                             </div>
@@ -101,7 +101,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                 <div class="mb-0">
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Email Korespondensi</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                        <span class="input-group-text bg-white border-0"><i class="bi bi-envelope text-primary-orange"></i></span>
+                                        <span class="input-group-text bg-white border-0"><i class="bi bi-envelope" style="color: #154679 !important;"></i></span>
                                         <input type="email" name="email" required value="<?php echo esc($email); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="admin@jatengprov.go.id" tabindex="4">
                                     </div>
@@ -115,7 +115,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                 <div class="mb-3">
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Nama Lengkap</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                        <span class="input-group-text bg-white border-0"><i class="bi bi-person text-primary-orange"></i></span>
+                                        <span class="input-group-text bg-white border-0"><i class="bi bi-person" style="color: #154679 !important;"></i></span>
                                         <input type="text" name="nama" required value="<?php echo esc($nama); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="Nama lengkap beserta gelar" tabindex="5">
                                     </div>
@@ -124,7 +124,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                 <div class="mb-3">
                                     <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">N I P</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
-                                        <span class="input-group-text bg-white border-0"><i class="bi bi-upc text-primary-orange"></i></span>
+                                        <span class="input-group-text bg-white border-0"><i class="bi bi-upc" style="color: #154679 !important;"></i></span>
                                         <input type="text" name="nip" required value="<?php echo esc($nip); ?>"
                                             class="form-control border-0 py-2 ps-1 text-sm bg-white" placeholder="19XXXXXXXXXXXXXX" tabindex="6">
                                     </div>
@@ -162,7 +162,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                                         <div class="mb-3">
                                             <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Level Akses</label>
                                             <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none bg-white">
-                                                <select name="level" class="form-select border-0 py-2 text-sm fw-bold text-primary-orange" required tabindex="7">
+                                                <select name="level" class="form-select border-0 py-2 text-sm fw-bold" style="color: #154679 !important;" required tabindex="7">
                                                     <option value="">- Level -</option>
                                                     <?php
                                                     $l_sifat = array('Super Admin', 'Admin', 'spv', 'lo', 'walidata');
@@ -184,7 +184,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                             <a href="<?php echo base_URL(); ?>index.php/admin/manage_admin" class="btn btn-link text-secondary text-sm mb-0 px-0 shadow-none">
                                 <i class="bi bi-arrow-left me-1"></i> Batalkan
                             </a>
-                            <button type="submit" class="btn bg-primary-orange text-white btn-sm border-radius-lg px-5 mb-0 shadow-primary transition-all hover:scale-105" tabindex="9">
+                            <button type="submit" class="btn text-white btn-sm border-radius-lg px-5 mb-0 transition-all hover:scale-105" style="background-color: #154679; border-color: #154679; box-shadow: 0 4px 12px rgba(21, 70, 121, 0.2);" tabindex="9">
                                 <i class="bi bi-shield-check me-2"></i> <?php echo ($mode == "edt") ? "Simpan Perubahan" : "Daftarkan Pengguna"; ?>
                             </button>
                         </div>
@@ -233,24 +233,24 @@ if ($mode == "edt" || $mode == "act_edt") {
     }
 
     .bg-gray-100 {
-        background-color: #f8f9fa !important;
+        background-color: #f8fafc !important;
     }
 
     .text-primary-orange {
-        color: #FF6D1F !important;
+        color: #154679 !important;
     }
 
     .bg-primary-orange {
-        background-color: #FF6D1F !important;
+        background-color: #154679 !important;
     }
 
     .shadow-primary {
-        box-shadow: 0 4px 6px rgba(255, 109, 31, 0.11), 0 1px 3px rgba(255, 109, 31, 0.08) !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.15) !important;
     }
 
     .icon-shape {
-        width: 46px;
-        height: 46px;
+        width: 44px;
+        height: 44px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -262,8 +262,8 @@ if ($mode == "edt" || $mode == "act_edt") {
     }
 
     .input-group-alternative:focus-within {
-        border-color: #FF6D1F !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        border-color: #154679 !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
     }
 
     .form-control:focus,
