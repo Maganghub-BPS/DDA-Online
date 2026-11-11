@@ -2101,7 +2101,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                 "wilayah": w, "section": clean_reg_sec, "metric": m_name,
                                 "pdf_header": base_m, "src_header": None,
                                 "values": [pv_disp], "note": note, "type": "delete",
-                                "pages": reg_pages_arr
+                                "pages": reg_pages_arr,
+                                "is_pdf_extra": True
                             })
 
             if hist_pdf_years_reg:
@@ -2196,6 +2197,15 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 is_single_metric_col = (len(hdr_row) == 2)
                 is_kota_ctx = False
                 seen_regencies = set()
+                from collections import Counter
+                last_parts = []
+                for c_raw in hdr_row[1:]:
+                    norm_c = re.sub(r'\s+', ' ', str(c_raw or '').replace("||", " - ")).strip().lower()
+                    if " - " in norm_c:
+                        p_list = [p.strip() for p in norm_c.split(" - ") if p.strip()]
+                        if len(p_list) > 1:
+                            last_parts.append(p_list[-1])
+                last_part_counts = Counter(last_parts)
                 for r in tpl_grid[1:]:
                     if not r:
                         continue
@@ -2246,7 +2256,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                                     if " - " in h_low:
                                         parts = [p.strip() for p in h_low.split(" - ") if p.strip()]
                                         if len(parts) > 1:
-                                            h_aliases.add(parts[-1])
+                                            if last_part_counts.get(parts[-1], 0) == 1 and parts[-1] not in ("jumlah", "total"):
+                                                h_aliases.add(parts[-1])
                                             h_aliases.add(" ".join(parts))
                                 if is_single_metric_col:
                                     h_aliases.add("*")
@@ -2286,7 +2297,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                         if " - " in hv_norm:
                             parts = [p.strip() for p in hv_norm.split(" - ") if p.strip()]
                             if len(parts) > 1:
-                                cand_headers.append(parts[-1])
+                                if last_part_counts.get(parts[-1], 0) == 1 and parts[-1] not in ("jumlah", "total"):
+                                    cand_headers.append(parts[-1])
                                 cand_headers.append(" ".join(parts))
                     
                     if is_single_metric_col:
@@ -2334,12 +2346,27 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             d["coord"] = c_found
 
                 if results.get("pdf_only"):
+                    used_coords = set()
+                    for m in results.get("matches", []):
+                        if "coord" in m and m["coord"]:
+                            c = m["coord"]
+                            used_coords.add((c.get("id_baris_item"), c.get("id_karakteristik_item"), c.get("id_periode_item"), c.get("tahun_data")))
+                    for d in results.get("diffs", []):
+                        if "coord" in d and d["coord"]:
+                            c = d["coord"]
+                            used_coords.add((c.get("id_baris_item"), c.get("id_karakteristik_item"), c.get("id_periode_item"), c.get("tahun_data")))
+
                     remaining_pdf_only = []
                     for p_item in results["pdf_only"]:
+                        if p_item.get("is_pdf_extra"):
+                            remaining_pdf_only.append(p_item)
+                            continue
                         c_found = _resolve_coord_for_item(p_item)
+                        coord_key = (c_found.get("id_baris_item"), c_found.get("id_karakteristik_item"), c_found.get("id_periode_item"), c_found.get("tahun_data")) if c_found else None
                         p_vals = p_item.get("values") or []
                         pv_first = p_vals[0] if p_vals else p_item.get("pdf_val")
-                        if c_found and pv_first is not None:
+                        if c_found and pv_first is not None and coord_key not in used_coords:
+                            used_coords.add(coord_key)
                             results["diffs"].append({
                                 "wilayah": p_item.get("wilayah", ""),
                                 "section": p_item.get("section", ""),
