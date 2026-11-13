@@ -614,7 +614,6 @@
         'l_forum_komen'  => 'Forum Komentar',
         'l_oi'           => 'Organization Info',
         'report'         => 'Laporan Rekap',
-        'matching'       => 'Sinkronisasi/Matching',
         'matching_pdf'   => 'Matching PDF (Python)',
         'f_passwod'      => 'Ganti Password',
         'v_portal_tabel' => 'View Portal Tabel',
@@ -671,16 +670,9 @@
                     </a>
                 <?php endif; ?>
 
-                <?php if (can('matching') || can('matching_pdf') || can('report') || can('master_tabel') || can('master_dimensi') || can('master_opd') || can('pengguna') || can('manage_admin') || can('master_tim')): ?>
+                <?php if (can('matching_pdf') || can('report') || can('master_tabel') || can('master_dimensi') || can('master_opd') || can('pengguna') || can('manage_admin') || can('master_tim')): ?>
                     <!-- SYSTEM ADMIN -->
                     <div class="menu-label">System Admin</div>
-
-                    <?php if (can('matching')): ?>
-                        <a href="<?php echo base_url(); ?>admin/matching/" class="sidebar-link <?php echo ($page == 'matching') ? 'active' : ''; ?>">
-                            <i class="bi bi-arrow-left-right"></i>
-                            <span class="link-text">Sinkronisasi/Matching</span>
-                        </a>
-                    <?php endif; ?>
 
                     <!-- [Penambahan Fitur Matching PDF]: Navigasi Menu Sidebar ke modul Matching PDF DDA (Python Engine) -->
                     <?php if (can('matching_pdf')): ?>

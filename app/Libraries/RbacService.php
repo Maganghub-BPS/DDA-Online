@@ -138,14 +138,6 @@ class RbacService
                 'walidata_vertikal' => true,
                 'walidata_opd'      => true,
             ],
-            // 7. Sinkronisasi / Matching Indikator
-            'matching' => [
-                'superadmin'        => true,
-                'admin'             => false,
-                'lo'                => false,
-                'walidata_vertikal' => false,
-                'walidata_opd'      => false,
-            ],
             // 8. Matching PDF
             'matching_pdf' => [
                 'superadmin'        => true,
