@@ -606,22 +606,23 @@ $isConfigured  = ($indikator && $dimCount >= 2);
                 </button>
             <?php endif; ?>
 
-            <!-- Tombol Upload Excel (Super Admin, Admin, LO & Walidata Vertikal) -->
+            <!-- Tombol Upload Excel & Unduh Template (Super Admin, Admin, & Walidata Vertikal; tidak untuk LO & Walidata OPD) -->
             <?php if (can('input_dda_input')): ?>
                 <button type="button" class="btn-rounded-modern upload-btn-modern shadow-success" data-bs-toggle="modal" data-bs-target="#ModalUploadExcelDinamis">
                     <i class="bi bi-cloud-arrow-up-fill"></i> <span class="d-none d-sm-inline">UPLOAD EXCEL</span><span class="d-inline d-sm-none">UPLOAD</span>
                 </button>
+                <?php $thDataOtomatis = (int)$ta - 1; ?>
+                <!-- Tombol Unduh Template Excel Otomatis Sesuai Tahun Publikasi ($ta - 1) -->
+                <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id . '/' . $thDataOtomatis); ?>" class="btn-rounded-modern export-btn-modern shadow-primary" title="Unduh Template Excel Resmi Data Tahun <?= $thDataOtomatis; ?>">
+                    <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">UNDUH TEMPLATE</span><span class="d-inline d-sm-none">UNDUH</span>
+                </a>
             <?php else: ?>
-                <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill align-self-center me-1" title="Data OPD Pemprov Jateng tersinkronisasi otomatis via Satu Data">
-                    <i class="bi bi-lock-fill text-muted me-1"></i> Read-Only (OPD Pemprov)
-                </span>
+                <?php if (!(function_exists('current_user_role') && current_user_role() === 'lo')): ?>
+                    <span class="badge bg-light text-secondary border px-3 py-2 rounded-pill align-self-center me-1" title="Data OPD Pemprov Jateng tersinkronisasi otomatis via Satu Data">
+                        <i class="bi bi-lock-fill text-muted me-1"></i> Read-Only (OPD Pemprov)
+                    </span>
+                <?php endif; ?>
             <?php endif; ?>
-
-            <?php $thDataOtomatis = (int)$ta - 1; ?>
-            <!-- Tombol Unduh Template Excel Otomatis Sesuai Tahun Publikasi ($ta - 1) -->
-            <a href="<?= base_url('admin/download_template_tabel/' . $tabel->id . '/' . $thDataOtomatis); ?>" class="btn-rounded-modern export-btn-modern shadow-primary" title="Unduh Template Excel Resmi Data Tahun <?= $thDataOtomatis; ?>">
-                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">UNDUH TEMPLATE</span><span class="d-inline d-sm-none">UNDUH</span>
-            </a>
         </div>
     </div>
 

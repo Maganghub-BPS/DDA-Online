@@ -102,7 +102,7 @@ class RbacService
             'input_dda_input' => [
                 'superadmin'        => true,
                 'admin'             => true,
-                'lo'                => true,
+                'lo'                => false,
                 'walidata_vertikal' => true,
                 'walidata_opd'      => false,
             ],

@@ -3359,6 +3359,9 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized'])->setStatusCode(401);
 		}
+		if (in_array(\App\Libraries\RbacService::resolveRole(), ['walidata_opd', 'walidata_vertikal'], true)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Walidata tidak berwenang mengubah konfigurasi tabel.'])->setStatusCode(403);
+		}
 
 		if ($this->request->isAJAX()) {
 			$id = (int)$this->request->getPost('id');
@@ -7670,6 +7673,10 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
+		if (!can('input_dda_input')) {
+			$this->session->setFlashdata('k', '<div class="alert alert-danger" id="alert">Akses ditolak! Anda tidak memiliki izin untuk mengunduh template tabel.</div>');
+			return redirect()->back();
+		}
 
 		$id_param = (int)$id_param;
 		if (empty($id_param)) {
@@ -8597,6 +8604,9 @@ class Admin extends BaseController
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Sesi berakhir']);
+		}
+		if (in_array(\App\Libraries\RbacService::resolveRole(), ['walidata_opd', 'walidata_vertikal'], true)) {
+			return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Akses ditolak! Walidata tidak berwenang mengubah konfigurasi tabel.']);
 		}
 
 		$id_indikator = (int)$this->request->getPost('id_indikator');
