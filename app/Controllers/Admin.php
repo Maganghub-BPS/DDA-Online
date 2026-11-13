@@ -1255,33 +1255,64 @@ class Admin extends BaseController
 		$ta = $this->session->get('admin_ta') ?: date('Y');
 		$a['ta'] = $ta;
 
-		$a['list_opd'] = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
-		$a['list_tim'] = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' AND user_wali != '-' ORDER BY user_wali ASC")->getResult();
-		$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_status_tahunan GROUP BY tahun ORDER BY tahun DESC")->getResult();
+		$loadFilterMetadata = function () use (&$a) {
+			$listOpd = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
+			$a['list_opd'] = $listOpd;
 
-		// Total tabel aktif & counter per kategori untuk dropdown filter interaktif
-		$a['total_tabel_aktif'] = (int)($this->db->query("SELECT COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1")->getRow()->cnt ?? 0);
+			$timSeen = [];
+			$listTim = [];
+			foreach ($listOpd as $u) {
+				$wali = trim((string)($u->user_wali ?? ''));
+				if ($wali !== '' && $wali !== '-' && !isset($timSeen[$wali])) {
+					$timSeen[$wali] = true;
+					$listTim[] = (object)['user_wali' => $wali];
+				}
+			}
+			usort($listTim, static function ($x, $y) {
+				return strcmp($x->user_wali, $y->user_wali);
+			});
+			$a['list_tim'] = $listTim;
 
-		$opdCountsRaw = $this->db->query("SELECT id_unitkerja, COUNT(*) as cnt FROM m_list_tabel WHERE is_active = 1 GROUP BY id_unitkerja")->getResult();
-		$opdMap = [];
-		foreach ($opdCountsRaw as $r) {
-			$opdMap[trim((string)$r->id_unitkerja)] = (int)$r->cnt;
-		}
-		$a['count_per_opd'] = $opdMap;
+			$countsRaw = $this->db->query("
+				SELECT
+					ml.id_unitkerja,
+					u.user_wali,
+					u.jenis_instansi,
+					COUNT(ml.id) as cnt
+				FROM m_list_tabel ml
+				LEFT JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja
+				WHERE ml.is_active = 1
+				GROUP BY ml.id_unitkerja, u.user_wali, u.jenis_instansi
+			")->getResult();
 
-		$timCountsRaw = $this->db->query("SELECT u.user_wali, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.user_wali")->getResult();
-		$timMap = [];
-		foreach ($timCountsRaw as $r) {
-			$timMap[strtolower(trim((string)$r->user_wali))] = (int)$r->cnt;
-		}
-		$a['count_per_tim'] = $timMap;
+			$totalAktif = 0;
+			$opdMap     = [];
+			$timMap     = [];
+			$jenisMap   = [];
 
-		$jenisCountsRaw = $this->db->query("SELECT u.jenis_instansi, COUNT(ml.id) as cnt FROM m_list_tabel ml JOIN m_unitkerja u ON ml.id_unitkerja = u.id_unitkerja WHERE ml.is_active = 1 GROUP BY u.jenis_instansi")->getResult();
-		$jenisMap = [];
-		foreach ($jenisCountsRaw as $r) {
-			$jenisMap[strtolower(trim((string)$r->jenis_instansi))] = (int)$r->cnt;
-		}
-		$a['count_per_jenis'] = $jenisMap;
+			foreach ($countsRaw as $r) {
+				$cnt        = (int)$r->cnt;
+				$totalAktif += $cnt;
+
+				$opdKey = trim((string)$r->id_unitkerja);
+				$opdMap[$opdKey] = ($opdMap[$opdKey] ?? 0) + $cnt;
+
+				if ($r->user_wali !== null) {
+					$timKey = strtolower(trim((string)$r->user_wali));
+					$timMap[$timKey] = ($timMap[$timKey] ?? 0) + $cnt;
+				}
+
+				if ($r->jenis_instansi !== null) {
+					$jenisKey = strtolower(trim((string)$r->jenis_instansi));
+					$jenisMap[$jenisKey] = ($jenisMap[$jenisKey] ?? 0) + $cnt;
+				}
+			}
+
+			$a['total_tabel_aktif'] = $totalAktif;
+			$a['count_per_opd']     = $opdMap;
+			$a['count_per_tim']     = $timMap;
+			$a['count_per_jenis']   = $jenisMap;
+		};
 
 		$mTabelDinamis = new \App\Models\M_tabeldinamis();
 
@@ -1435,16 +1466,13 @@ class Admin extends BaseController
 				return view('admin/l_master_tabel_partial', $a);
 			}
 
+			$loadFilterMetadata();
 			$a['selected_jenis']  = $filter_jenis;
 			$a['selected_opd']    = $filter_opd;
 			$a['selected_bidang'] = $filter_bidang;
-
-			$a['list_tim']     = $this->db->query("SELECT DISTINCT user_wali FROM m_unitkerja WHERE user_wali != '' ORDER BY user_wali ASC")->getResult();
-			$a['list_opd']     = $this->db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind ASC")->getResult();
-			$a['opd']          = $a['list_opd'];
-			$a['tahun_counts'] = $this->db->query("SELECT tahun, COUNT(*) as cnt FROM t_status_tahunan GROUP BY tahun ORDER BY tahun DESC")->getResult();
-			$a['awal']         = 0;
-			$a['cari']         = $cari;
+			$a['opd']             = $a['list_opd'];
+			$a['awal']            = 0;
+			$a['cari']            = $cari;
 
 			$a['pagi'] = "";
 			$a['page'] = "l_master_tabel";
@@ -1871,6 +1899,7 @@ class Admin extends BaseController
 				         ml.judul_ind ASC
 			", $params_count)->getResult();
 
+			$loadFilterMetadata();
 			$a['awal'] = 0;
 			$a['cari'] = '';
 			$a['page'] = "l_master_tabel";

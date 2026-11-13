@@ -604,8 +604,8 @@
         'l_master_tabel' => 'Master Tabel DDA',
         'l_master_dimensi' => 'Master Dimensi Tabel Dinamis',
         'l_master_tabel_opd' => (session()->get('admin_unitkerja') !== 'bps') ? 'Usulan Tabel Baru' : 'Review Tabel Usulan OPD',
-        'l_unitkerja'    => 'Manajemen OPD',
-        'f_unitkerja'    => 'Form Master OPD',
+        'l_unitkerja'    => 'Manajemen Instansi',
+        'f_unitkerja'    => 'Form Master Instansi',
         'l_manage_admin' => 'Manajemen Admin',
         'f_manage_admin' => 'Form Manajemen Admin',
         'l_master_tim'   => 'Master Tim',
@@ -714,7 +714,7 @@
                     <?php if (can('master_opd')): ?>
                         <a href="<?php echo base_url(); ?>admin/master_opd/" class="sidebar-link <?php echo ($page == 'l_unitkerja') ? 'active' : ''; ?>">
                             <i class="bi bi-building"></i>
-                            <span class="link-text">Master OPD</span>
+                            <span class="link-text">Master Instansi</span>
                         </a>
                     <?php endif; ?>
 

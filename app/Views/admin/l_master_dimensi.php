@@ -661,7 +661,6 @@
                                 <div class="dimensi-card-title text-dark">
                                     Karakteristik Kolom
                                 </div>
-                                <div class="text-secondary" style="font-size: 0.8rem;">Kolom & Sub-kolom Asimetris</div>
                             </div>
                             <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" 
                                  style="background: #eef4fb; color: #154679; width: 42px; height: 42px;">
@@ -698,7 +697,6 @@
                                 <div class="dimensi-card-title text-dark">
                                     Judul Baris Bertingkat
                                 </div>
-                                <div class="text-secondary" style="font-size: 0.8rem;">Hierarki & Klasifikasi Baris</div>
                             </div>
                             <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" 
                                  style="background: #eef4fb; color: #154679; width: 42px; height: 42px;">
@@ -735,7 +733,6 @@
                                 <div class="dimensi-card-title text-dark">
                                     Periode Waktu
                                 </div>
-                                <div class="text-secondary" style="font-size: 0.8rem;">Tahun, Triwulan, & Seri Waktu</div>
                             </div>
                             <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" 
                                  style="background: #eef4fb; color: #154679; width: 42px; height: 42px;">
@@ -743,7 +740,7 @@
                             </div>
                         </div>
                         <div class="my-2">
-                            <span class="dimensi-card-num text-dark"><?= count($list_periode); ?></span> 
+                            <span class="dimensi-card-num text-dark"><?= count($list_periode) + 2; ?></span> 
                             <span class="dimensi-card-unit">kelompok</span>
                         </div>
                     </div>
@@ -1001,14 +998,6 @@
                     </div>
                 </div>
 
-                <!-- Info Banner Dimensi Waktu Multi-Tahun -->
-                <div class="alert alert-info border-0 rounded-3 shadow-xs d-flex align-items-center gap-3 py-2 px-3 mb-3 flex-shrink-0" style="background-color: #E8F4FD; color: #0C5460;">
-                    <i class="bi bi-info-circle-fill fs-4 text-info"></i>
-                    <div class="small">
-                        <strong>Informasi Dimensi Waktu:</strong> Periode <strong>Tahunan (2020..2026+)</strong> dan <strong>Tahun Ajaran (YYYY/YYYY+1)</strong> dikelola otomatis oleh sistem secara multi-tahun. Tab ini khusus untuk melihat <strong>Periode Standar BPS</strong> (Bulanan, Triwulanan, Semesteran, dll.) serta mengelola <strong>Periode Kustom Sub-Tahunan</strong>.
-                    </div>
-                </div>
-
                 <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
                     <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_periode">
                         <thead>
@@ -1020,15 +1009,65 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($list_periode)): ?>
-                                <tr class="empty-state-row">
-                                    <td colspan="4" class="text-center py-5 text-muted">
-                                        <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                                        Belum ada kelompok periode. Klik tombol <strong>Tambah Kelompok Periode</strong> di atas untuk membuat.
+                            <?php
+                                $systemPeriodes = [
+                                    (object)[
+                                        'nama_ind'  => 'Tahunan',
+                                        'nama_en'   => 'Annual',
+                                        'judul_ind' => 'Tahun',
+                                        'judul_en'  => 'Year',
+                                        'jumlah'    => 'Multi-Tahun',
+                                        'search'    => 'tahunan annual tahun year multi-tahun',
+                                    ],
+                                    (object)[
+                                        'nama_ind'  => 'Tahun Ajaran',
+                                        'nama_en'   => 'Academic Year',
+                                        'judul_ind' => 'Tahun Ajaran',
+                                        'judul_en'  => 'Academic Year',
+                                        'jumlah'    => 'Multi-Tahun',
+                                        'search'    => 'tahun ajaran academic year pendidikan multi-tahun',
+                                    ],
+                                ];
+                                $no = 1;
+                                foreach ($systemPeriodes as $sp):
+                            ?>
+                                <tr class="dimensi-item-row" data-search="<?= esc($sp->search); ?>">
+                                    <td class="text-center fw-semibold text-muted row-number"><?= $no++; ?></td>
+                                    <td>
+                                        <div class="item-title"><?= esc($sp->nama_ind); ?></div>
+                                        <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
+                                            <span class="badge bg-light text-dark border small px-2 py-0" style="font-size: 0.75rem;" title="Judul Header jika periode dijadikan baris pada tabel">
+                                                <i class="bi bi-table me-1 text-success"></i>Header: <strong><?= esc($sp->judul_ind); ?></strong>
+                                                <span class="text-muted fst-italic">/ <?= esc($sp->judul_en); ?></span>
+                                            </span>
+                                        </div>
+                                        <div class="text-success item-sub mt-1"><i class="bi bi-translate me-1"></i><?= esc($sp->nama_en); ?></div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge rounded-pill item-badge bg-success-soft text-success border border-success">
+                                            <i class="bi bi-clock-history me-1"></i> <?= esc($sp->jumlah); ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex gap-1 justify-content-center">
+                                            <button type="button" class="btn btn-sm btn-outline-primary rounded-3 btn-action-dimensi opacity-50"
+                                                    disabled title="Item periode tahunan dikelola otomatis oleh sistem">
+                                                <i class="bi bi-gear-fill me-1"></i> Kelola Item
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-light border rounded-3 btn-action-dimensi text-muted opacity-50"
+                                                    disabled title="Periode Standar BPS tidak dapat diubah">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-light border rounded-3 btn-action-dimensi text-muted opacity-50"
+                                                    disabled title="Periode Standar BPS tidak dapat dihapus">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            <?php else: ?>
-                                <?php $no = 1; foreach ($list_periode as $p): ?>
+                            <?php endforeach; ?>
+                            <?php if (!empty($list_periode)): ?>
+                                <?php foreach ($list_periode as $p): ?>
                                     <tr class="dimensi-item-row" data-search="<?= esc(strtolower($p->nama_kelompok_ind . ' ' . ($p->nama_kelompok_en ?? '') . ' ' . ($p->judul_periode_ind ?? '') . ' ' . ($p->judul_periode_en ?? '') . ' ' . $p->total_items . ' periode')); ?>">
                                         <td class="text-center fw-semibold text-muted row-number"><?= $no++; ?></td>
                                         <td>

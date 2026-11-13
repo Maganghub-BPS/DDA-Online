@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1350" height="1220" viewBox="0 0 1350 1220" font-family="Segoe UI, Inter, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#475569"/>
+    </marker>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1350" height="1220" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <text x="50" y="42" font-size="22" font-weight="700" fill="#0f172a">ERD &amp; Alur Relasi Tabel — Sistem DDA Online</text>
+  <text x="50" y="64" font-size="13" fill="#64748b">Alur: m_unitkerja → m_list_tabel → (dinamis: m_indikator_tabel → Dimensi → Item → t_nilai_dinamis | api_kominfo: m_konfigurasi_api) → t_status_tahunan</text>
+
+  <!-- ================= ARROWS ================= -->
+  <g fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)">
+    <!-- UK -> LT -->
+    <path d="M 460 160 L 578 160"/>
+    <!-- LT -> IND -->
+    <path d="M 670 240 L 670 272 L 425 272 L 425 303"/>
+    <!-- LT -> API -->
+    <path d="M 840 240 L 840 272 L 1115 272 L 1115 303"/>
+    <!-- IND -> KK, BK, PKL -->
+    <path d="M 310 480 L 310 510 L 175 510 L 175 538"/>
+    <path d="M 460 480 L 460 538"/>
+    <path d="M 560 480 L 560 510 L 745 510 L 745 538"/>
+    <!-- KK -> KI, BK -> BI, PKL -> PI -->
+    <path d="M 175 635 L 175 683"/>
+    <path d="M 460 635 L 460 683"/>
+    <path d="M 745 635 L 745 683"/>
+    <!-- KI, BI, PI -> VAL -->
+    <path d="M 175 805 L 175 832 L 310 832 L 310 853"/>
+    <path d="M 460 805 L 460 853"/>
+    <path d="M 745 785 L 745 832 L 610 832 L 610 853"/>
+    <!-- VAL -> ST & API -> ST -->
+    <path d="M 460 990 L 460 1020 L 650 1020 L 650 1048"/>
+    <path d="M 1115 480 L 1115 1020 L 840 1020 L 840 1048"/>
+  </g>
+
+  <!-- Arrow Labels -->
+  <g font-size="11.5" font-weight="600" text-anchor="middle">
+    <rect x="478" y="138" width="84" height="18" rx="4" fill="#f8fafc"/>
+    <text x="520" y="151" fill="#334155">1 : N (unitkerja)</text>
+
+    <rect x="490" y="262" width="110" height="18" rx="4" fill="#f8fafc"/>
+    <text x="545" y="275" fill="#154679">dinamis (1 : 1)</text>
+
+    <rect x="920" y="262" width="130" height="18" rx="4" fill="#f8fafc"/>
+    <text x="985" y="275" fill="#0f766e">api_kominfo (1 : 1)</text>
+
+    <rect x="510" y="1008" width="90" height="18" rx="4" fill="#f8fafc"/>
+    <text x="555" y="1021" fill="#334155">jalur dinamis</text>
+
+    <rect x="935" y="1008" width="76" height="18" rx="4" fill="#f8fafc"/>
+    <text x="973" y="1021" fill="#0f766e">jalur API</text>
+  </g>
+
+  <!-- ================= ROW 1: m_unitkerja & m_list_tabel ================= -->
+  <!-- m_unitkerja -->
+  <g filter="url(#shadow)">
+    <rect x="140" y="88" width="320" height="142" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 140 96 a 8 8 0 0 1 8 -8 h 304 a 8 8 0 0 1 8 8 v 26 h -320 z" fill="#154679"/>
+    <text x="154" y="114" font-size="13.5" font-weight="700" fill="#ffffff">m_unitkerja</text>
+    <text x="154" y="142" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id_unitkerja (varchar)</text>
+    <text x="154" y="162" font-size="12" fill="#334155">unitkerja_ind, unitkerja_en</text>
+    <text x="154" y="182" font-size="12" fill="#334155">user_wali (Tim Pengampu)</text>
+    <text x="154" y="202" font-size="12" fill="#334155">jenis_instansi (opd / vertikal)</text>
+  </g>
+
+  <!-- m_list_tabel -->
+  <g filter="url(#shadow)">
+    <rect x="580" y="88" width="350" height="152" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 580 96 a 8 8 0 0 1 8 -8 h 334 a 8 8 0 0 1 8 8 v 26 h -350 z" fill="#154679"/>
+    <text x="594" y="114" font-size="13.5" font-weight="700" fill="#ffffff">m_list_tabel</text>
+    <text x="594" y="142" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="594" y="162" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_unitkerja → m_unitkerja</text>
+    <text x="594" y="182" font-size="12" fill="#334155">no_tabel, judul_ind, judul_en</text>
+    <text x="594" y="202" font-size="12" fill="#334155">jenis_sumber (dinamis / api_kominfo)</text>
+    <text x="594" y="222" font-size="12" fill="#334155">kondef, is_active</text>
+  </g>
+
+  <!-- ================= ROW 2: m_indikator_tabel & m_konfigurasi_api ================= -->
+  <!-- m_indikator_tabel -->
+  <g filter="url(#shadow)">
+    <rect x="230" y="305" width="390" height="175" rx="8" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+    <path d="M 230 313 a 8 8 0 0 1 8 -8 h 374 a 8 8 0 0 1 8 8 v 26 h -390 z" fill="#1d4ed8"/>
+    <text x="244" y="331" font-size="13.5" font-weight="700" fill="#ffffff">m_indikator_tabel (Tabel Dinamis)</text>
+    <text x="244" y="359" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)   |   <tspan font-weight="700" fill="#0369a1">FK UK</tspan> id_tabel → m_list_tabel</text>
+    <text x="244" y="379" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_karakteristik_kelompok, id_sub_karakteristik_kelompok</text>
+    <text x="244" y="399" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_baris_kelompok</text>
+    <text x="244" y="419" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_periode_kelompok</text>
+    <text x="244" y="439" font-size="12" fill="#334155">satuan, desimal, grafik_default, catatan</text>
+    <text x="244" y="459" font-size="12" fill="#334155">judul_ind, judul_en, id_unitkerja</text>
+  </g>
+
+  <!-- m_konfigurasi_api -->
+  <g filter="url(#shadow)">
+    <rect x="940" y="305" width="350" height="175" rx="8" fill="#ffffff" stroke="#5eead4" stroke-width="1.5"/>
+    <path d="M 940 313 a 8 8 0 0 1 8 -8 h 334 a 8 8 0 0 1 8 8 v 26 h -350 z" fill="#0f766e"/>
+    <text x="954" y="331" font-size="13.5" font-weight="700" fill="#ffffff">m_konfigurasi_api (Sumber API)</text>
+    <text x="954" y="359" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="954" y="379" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK UK</tspan>  id_tabel → m_list_tabel</text>
+    <text x="954" y="399" font-size="12" fill="#334155">id_api, link_api</text>
+    <text x="954" y="419" font-size="12" fill="#334155">config_tabel (JSON mapping)</text>
+    <text x="954" y="439" font-size="12" fill="#334155">cached_json, tahun_tersedia</text>
+    <text x="954" y="459" font-size="12" fill="#334155">last_sync_at</text>
+  </g>
+
+  <!-- ================= ROW 3: 3 KELOMPOK DIMENSI ================= -->
+  <!-- m_karakteristik_kelompok -->
+  <g filter="url(#shadow)">
+    <rect x="50" y="540" width="250" height="95" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 50 548 a 8 8 0 0 1 8 -8 h 234 a 8 8 0 0 1 8 8 v 24 h -250 z" fill="#334155"/>
+    <text x="62" y="564" font-size="12.5" font-weight="700" fill="#ffffff">m_karakteristik_kelompok</text>
+    <text x="62" y="590" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="62" y="608" font-size="11.5" fill="#334155">nama_kelompok_ind / _en</text>
+    <text x="62" y="624" font-size="11" fill="#64748b">Dimensi Judul Kolom</text>
+  </g>
+
+  <!-- m_baris_kelompok -->
+  <g filter="url(#shadow)">
+    <rect x="335" y="540" width="250" height="95" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 335 548 a 8 8 0 0 1 8 -8 h 234 a 8 8 0 0 1 8 8 v 24 h -250 z" fill="#334155"/>
+    <text x="347" y="564" font-size="12.5" font-weight="700" fill="#ffffff">m_baris_kelompok</text>
+    <text x="347" y="590" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="347" y="608" font-size="11.5" fill="#334155">nama_kelompok_ind / _en</text>
+    <text x="347" y="624" font-size="11" fill="#64748b">Dimensi Judul Baris</text>
+  </g>
+
+  <!-- m_periode_kelompok -->
+  <g filter="url(#shadow)">
+    <rect x="620" y="540" width="250" height="95" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 620 548 a 8 8 0 0 1 8 -8 h 234 a 8 8 0 0 1 8 8 v 24 h -250 z" fill="#334155"/>
+    <text x="632" y="564" font-size="12.5" font-weight="700" fill="#ffffff">m_periode_kelompok</text>
+    <text x="632" y="590" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="632" y="608" font-size="11.5" fill="#334155">nama_kelompok_ind / _en</text>
+    <text x="632" y="624" font-size="11" fill="#64748b">kategori_periode (standar/kustom)</text>
+  </g>
+
+  <!-- ================= ROW 4: 3 ITEM DIMENSI ================= -->
+  <!-- m_karakteristik_item -->
+  <g filter="url(#shadow)">
+    <rect x="50" y="685" width="250" height="120" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 50 693 a 8 8 0 0 1 8 -8 h 234 a 8 8 0 0 1 8 8 v 24 h -250 z" fill="#475569"/>
+    <text x="62" y="709" font-size="12.5" font-weight="700" fill="#ffffff">m_karakteristik_item</text>
+    <text x="62" y="735" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="62" y="753" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_kelompok, parent_id</text>
+    <text x="62" y="771" font-size="11.5" fill="#334155">grup_induk_ind, item_ind</text>
+    <text x="62" y="789" font-size="11.5" fill="#334155">no_urut, is_standalone</text>
+  </g>
+
+  <!-- m_baris_item -->
+  <g filter="url(#shadow)">
+    <rect x="335" y="685" width="250" height="120" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 335 693 a 8 8 0 0 1 8 -8 h 234 a 8 8 0 0 1 8 8 v 24 h -250 z" fill="#475569"/>
+    <text x="347" y="709" font-size="12.5" font-weight="700" fill="#ffffff">m_baris_item</text>
+    <text x="347" y="735" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="347" y="753" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_kelompok, parent_id</text>
+    <text x="347" y="771" font-size="11.5" fill="#334155">nama_baris_ind, tipe_baris</text>
+    <text x="347" y="789" font-size="11.5" fill="#334155">level_indentasi, no_urut</text>
+  </g>
+
+  <!-- m_periode_item -->
+  <g filter="url(#shadow)">
+    <rect x="620" y="685" width="250" height="100" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <path d="M 620 693 a 8 8 0 0 1 8 -8 h 234 a 8 8 0 0 1 8 8 v 24 h -250 z" fill="#475569"/>
+    <text x="632" y="709" font-size="12.5" font-weight="700" fill="#ffffff">m_periode_item</text>
+    <text x="632" y="735" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)</text>
+    <text x="632" y="753" font-size="11.5" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_kelompok</text>
+    <text x="632" y="771" font-size="11.5" fill="#334155">nama_periode_ind, no_urut</text>
+  </g>
+
+  <!-- ================= ROW 5: t_nilai_dinamis ================= -->
+  <g filter="url(#shadow)">
+    <rect x="220" y="855" width="480" height="135" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="1.5"/>
+    <path d="M 220 863 a 8 8 0 0 1 8 -8 h 464 a 8 8 0 0 1 8 8 v 26 h -480 z" fill="#4338ca"/>
+    <text x="234" y="881" font-size="13.5" font-weight="700" fill="#ffffff">t_nilai_dinamis (Nilai Sel Multi-Tahun)</text>
+    <text x="234" y="909" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (bigint)   |   <tspan font-weight="700" fill="#0369a1">FK</tspan>  id_indikator → m_indikator_tabel</text>
+    <text x="234" y="929" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#0369a1">FK</tspan>  id_baris_item, id_karakteristik_item, id_periode_item</text>
+    <text x="234" y="949" font-size="12" fill="#334155">tahun_data (smallint), id_sub_karakteristik_item</text>
+    <text x="234" y="969" font-size="12" fill="#334155">nilai (decimal 20,4), simbol (- / NA / e), jumlah_desimal</text>
+  </g>
+
+  <!-- ================= ROW 6: t_status_tahunan ================= -->
+  <g filter="url(#shadow)">
+    <rect x="530" y="1050" width="430" height="135" rx="8" fill="#ffffff" stroke="#fcd34d" stroke-width="1.5"/>
+    <path d="M 530 1058 a 8 8 0 0 1 8 -8 h 414 a 8 8 0 0 1 8 8 v 26 h -430 z" fill="#b45309"/>
+    <text x="544" y="1076" font-size="13.5" font-weight="700" fill="#ffffff">t_status_tahunan (Status Publikasi per Tahun)</text>
+    <text x="544" y="1104" font-size="12" fill="#0f172a"><tspan font-weight="700" fill="#b45309">PK</tspan>  id (int)   |   <tspan font-weight="700" fill="#0369a1">FK</tspan>  id_tabel → m_list_tabel</text>
+    <text x="544" y="1124" font-size="12" fill="#334155"><tspan font-weight="700" fill="#7c2d12">UK</tspan>  (id_tabel, tahun)</text>
+    <text x="544" y="1144" font-size="12" fill="#334155">is_periksa, catatan_periksa, is_confirm, catatan</text>
+    <text x="544" y="1164" font-size="12" fill="#334155">is_publish, published_at, updated_at</text>
+  </g>
+</svg>

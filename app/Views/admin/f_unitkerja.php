@@ -37,7 +37,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                         </div>
                         <div>
                             <h5 class="mb-0 font-weight-bolder text-dark"><?php echo ($mode == "edt") ? 'Edit Organisasi' : 'Tambah Organisasi Baru'; ?></h5>
-                            <p class="text-xs text-secondary mb-0">Manajemen data Unit Kerja / OPD</p>
+                            <p class="text-xs text-secondary mb-0">Manajemen data Unit Kerja / Instansi</p>
                         </div>
                     </div>
                 </div>
@@ -51,9 +51,9 @@ if ($mode == "edt" || $mode == "act_edt") {
                             <div class="col-md-6 border-end border-light pe-lg-4">
                                 <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-2 ls-1">Identitas & Klasifikasi</label>
 
-                                <!-- Kode OPD -->
+                                <!-- Kode Instansi -->
                                 <div class="mb-3">
-                                    <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Kode OPD / Unit Kerja</label>
+                                    <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Kode Instansi / Unit Kerja</label>
                                     <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none">
                                         <span class="input-group-text bg-white border-0"><i class="bi bi-hash" style="color: #154679 !important;"></i></span>
                                         <input type="text" name="id_unitkerja" required value="<?php echo esc($id_unitkerja); ?>" 
