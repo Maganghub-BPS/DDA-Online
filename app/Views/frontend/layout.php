@@ -125,8 +125,8 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
             text-decoration: none;
         }
         .navbar-brand-logo-img {
-            width: 54px;
-            height: 54px;
+            width: 64px;
+            height: 64px;
             object-fit: contain;
             flex-shrink: 0;
             transition: transform 0.2s ease;
@@ -310,8 +310,8 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 padding: 12px 0 !important;
             }
             .navbar-brand-logo-img {
-                width: 44px !important;
-                height: 44px !important;
+                width: 52px !important;
+                height: 52px !important;
             }
             .navbar-brand .brand-title {
                 font-size: 1.3rem !important;
@@ -738,7 +738,7 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 <!-- Kolom 1: Profil / Brand -->
                 <div class="col-12 col-lg-5 pe-lg-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <img src="<?= base_url('aset/images/logo-aksara-white.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" width="54" height="54" class="footer-logo-img">
+                        <img src="<?= base_url('aset/images/logo-aksara.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" width="64" height="64" class="footer-logo-img">
                         <div>
                             <div class="footer-brand-title">
                                 AKSARA
