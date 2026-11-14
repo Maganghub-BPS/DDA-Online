@@ -439,8 +439,173 @@
         .user-info .user-name {
             font-weight: 600;
             color: #1e293b;
+            font-size: 0.86rem;
+            line-height: 1.25;
+        }
+
+        .user-info .user-role {
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            color: #64748b;
+            line-height: 1.1;
+        }
+
+        .btn-year-switcher {
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #1e293b;
+            font-size: 0.86rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: all 0.15s ease;
+        }
+
+        .btn-year-switcher:hover,
+        .btn-year-switcher[aria-expanded="true"] {
+            background: #eef4fb;
+            border-color: #cbd5e1;
+            color: var(--primary-color);
+        }
+
+        .btn-year-switcher::after,
+        .user-trigger::after {
+            display: none !important;
+        }
+
+        .year-dropdown-menu {
+            min-width: 170px;
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12) !important;
+            margin-top: 8px !important;
+        }
+
+        .year-dropdown-menu .dropdown-header {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            padding: 6px 10px;
+        }
+
+        .year-dropdown-menu .dropdown-item {
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar-divider {
+            width: 1px;
+            height: 24px;
+            background: #e2e8f0;
+            margin: 0 10px;
+        }
+
+        .user-trigger {
+            padding: 4px 10px 4px 12px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+        }
+
+        .user-trigger:hover,
+        .user-trigger[aria-expanded="true"] {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+
+        .user-dropdown-menu {
+            min-width: 240px;
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12) !important;
+            margin-top: 10px !important;
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+
+        .user-dropdown-header .user-avatar-sm {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: var(--primary-color);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .user-dropdown-menu .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: #334155;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .user-dropdown-menu .dropdown-item:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .user-dropdown-menu .dropdown-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: #eef4fb;
+            color: var(--primary-color);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             font-size: 0.88rem;
-            line-height: 1.2;
+            flex-shrink: 0;
+        }
+
+        .user-dropdown-menu .dropdown-item.logout-item {
+            color: #dc3545;
+        }
+
+        .user-dropdown-menu .dropdown-item.logout-item:hover {
+            background-color: rgba(220, 53, 69, 0.08);
+            color: #b02a37;
+        }
+
+        .user-dropdown-menu .dropdown-item.logout-item .dropdown-icon {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+        }
+
+        .user-dropdown-menu .dropdown-divider {
+            margin: 6px 4px;
+            border-color: #f1f5f9;
         }
 
         .user-info .user-role {
@@ -775,13 +940,15 @@
 
                 <div class="d-flex align-items-center">
                     <!-- Year Switcher -->
-                    <div class="dropdown me-2">
-                        <button class="btn btn-sm btn-white border dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-calendar-event me-1"></i> <?= $tahun ?: date('Y') ?>
+                    <div class="dropdown">
+                        <button class="btn-year-switcher dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ganti Tahun Data Aktif">
+                            <i class="bi bi-calendar-event text-primary"></i>
+                            <span><?= $tahun ?: date('Y') ?></span>
+                            <i class="bi bi-chevron-down text-muted" style="font-size: 0.72rem;"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                        <ul class="dropdown-menu dropdown-menu-end year-dropdown-menu">
                             <li>
-                                <h6 class="dropdown-header">Pilih Tahun Data</h6>
+                                <h6 class="dropdown-header">Tahun Data</h6>
                             </li>
                             <?php 
                             $currentUri = uri_string();
@@ -791,32 +958,57 @@
                             <?php for ($i = 2020; $i <= (date('Y') + 1); $i++): ?>
                                 <li>
                                     <a class="dropdown-item <?= ($tahun == $i) ? 'active' : '' ?>" href="<?php echo base_url(); ?>admin/set_tahun/<?= $i ?>/?redirect_to=<?= urlencode($returnTarget); ?>">
-                                        <i class="bi bi-calendar3 me-2"></i><?= $i ?>
+                                        <i class="bi bi-calendar3"></i>
+                                        <span><?= $i ?></span>
                                     </a>
                                 </li>
                             <?php endfor; ?>
                         </ul>
                     </div>
 
+                    <div class="navbar-divider d-none d-sm-block"></div>
+
                     <!-- User Dropdown -->
                     <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle user-trigger" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="user-info d-none d-md-block">
                                 <div class="user-name"><?php echo esc($nama); ?></div>
                                 <div class="user-role"><?php echo esc(function_exists('current_user_role_label') ? current_user_role_label() : $level); ?></div>
                             </div>
                             <div class="user-avatar"><?php echo esc($initial); ?></div>
+                            <i class="bi bi-chevron-down text-muted ms-2" style="font-size: 0.72rem;"></i>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                        <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu">
                             <li>
-                                <h6 class="dropdown-header"><?php echo esc($nama); ?></h6>
+                                <div class="user-dropdown-header">
+                                    <div class="user-avatar-sm"><?php echo esc($initial); ?></div>
+                                    <div class="overflow-hidden">
+                                        <div class="fw-semibold text-dark text-truncate" style="font-size: 0.86rem; line-height: 1.25;"><?php echo esc($nama); ?></div>
+                                        <div class="text-muted text-truncate" style="font-size: 0.72rem; letter-spacing: 0.3px;"><?php echo esc(function_exists('current_user_role_label') ? current_user_role_label() : $level); ?></div>
+                                    </div>
+                                </div>
                             </li>
-                            <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/profil"><i class="bi bi-person-circle me-2"></i>Profil Saya</a></li>
-                            <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/password"><i class="bi bi-key me-2"></i>Ganti Password</a></li>
+                            <li>
+                                <a class="dropdown-item" href="<?php echo base_url(); ?>admin/profil">
+                                    <span class="dropdown-icon"><i class="bi bi-person-circle"></i></span>
+                                    <span>Profil Saya</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="<?php echo base_url(); ?>admin/password">
+                                    <span class="dropdown-icon"><i class="bi bi-key"></i></span>
+                                    <span>Ganti Password</span>
+                                </a>
+                            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item text-danger" href="<?php echo base_url(); ?>admin/logout"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                            <li>
+                                <a class="dropdown-item logout-item" href="<?php echo base_url(); ?>admin/logout">
+                                    <span class="dropdown-icon"><i class="bi bi-box-arrow-right"></i></span>
+                                    <span>Logout</span>
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>

@@ -327,16 +327,17 @@
     flex: 1 0 auto !important;
 }
 #mainMasterDimensiCard {
-    height: calc(100vh - 82px) !important;
-    min-height: 580px !important;
+    height: auto !important;
+    min-height: 0 !important;
     flex-shrink: 0 !important;
 }
 
 /* Kontainer scroll internal Master Dimensi */
 .table-scroll-container {
-    height: 100%;
+    height: auto;
+    max-height: calc(100vh - 200px);
     min-height: 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     overflow-y: auto;
     overflow-x: auto;
 }
@@ -761,7 +762,7 @@
     </div>
 
     <!-- Main Content Card -->
-    <div class="card border-0 shadow-sm mb-0" id="mainMasterDimensiCard" style="border-radius: 12px; border: 1px solid #e2e8f0 !important; height: calc(100vh - 82px); min-height: 580px; display: flex; flex-direction: column; overflow: visible; flex-shrink: 0;">
+    <div class="card border-0 shadow-sm mb-0" id="mainMasterDimensiCard" style="border-radius: 12px; border: 1px solid #e2e8f0 !important; height: auto; min-height: 0; display: flex; flex-direction: column; overflow: visible; flex-shrink: 0;">
         <div class="card-body p-3 p-md-4 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: visible;">
             <!-- TAB 1: KARAKTERISTIK (KOLOM & SUB-KOLOM ASIMETRIS) -->
             <?php if ($active_tab === 'karakteristik'): ?>
@@ -789,7 +790,7 @@
                     </div>
                 </div>
 
-                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                <div class="table-responsive table-scroll-container rounded-3 border border-light" style="height: auto; max-height: calc(100vh - 200px); min-height: 0; overflow-y: auto; overflow-x: auto;">
                     <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_karakteristik">
                         <thead>
                             <tr>
@@ -877,7 +878,7 @@
                     </div>
                 </div>
 
-                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                <div class="table-responsive table-scroll-container rounded-3 border border-light" style="height: auto; max-height: calc(100vh - 200px); min-height: 0; overflow-y: auto; overflow-x: auto;">
                     <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_baris">
                         <thead>
                             <tr>
@@ -998,7 +999,7 @@
                     </div>
                 </div>
 
-                <div class="table-responsive table-scroll-container flex-grow-1 rounded-3 border border-light" style="height: 100%; min-height: 0; overflow-y: auto; overflow-x: auto;">
+                <div class="table-responsive table-scroll-container rounded-3 border border-light" style="height: auto; max-height: calc(100vh - 200px); min-height: 0; overflow-y: auto; overflow-x: auto;">
                     <table class="table table-hover align-middle mb-0 table-dimensi table-sticky-header" id="table_dimensi_periode">
                         <thead>
                             <tr>
