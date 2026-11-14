@@ -341,6 +341,11 @@ class Admin extends BaseController
 
 	public function passwod()
 	{
+		return $this->password();
+	}
+
+	public function password()
+	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return redirect()->to("admin/login");
 		}
@@ -360,14 +365,14 @@ class Admin extends BaseController
 
 			if ($cek_password_lama->password != $p1) {
 				$this->session->setFlashdata('k_passwod', '<div id="alert" class="alert alert-error">Password Lama tidak sama</div>');
-				return redirect()->to('admin/passwod');
+				return redirect()->to('admin/password');
 			} else if ($p2 != $p3) {
 				$this->session->setFlashdata('k_passwod', '<div id="alert" class="alert alert-error">Password Baru 1 dan 2 tidak cocok</div>');
-				return redirect()->to('admin/passwod');
+				return redirect()->to('admin/password');
 			} else {
 				$this->db->query("UPDATE t_admin SET password = ? WHERE id = ?", [$p3, $id_user]);
 				$this->session->setFlashdata('k_passwod', '<div id="alert" class="alert alert-success">Password berhasil diperbaharui</div>');
-				return redirect()->to('admin/passwod');
+				return redirect()->to('admin/password');
 			}
 		} else {
 			$a['page']	= "f_passwod";
@@ -1362,7 +1367,7 @@ class Admin extends BaseController
 			return view('admin/f_del_master', $a);
 		} else if ($mau_ke == "act_del") {
 			$id_oi = (int)$this->input->post('id');
-			$scope = $this->input->post('scope') ?? 'current';
+			$scope = $this->input->post('scope') ?: 'all';
 
 			$ctx = $mTabelDinamis->resolveTableContext($id_oi, $ta, true);
 			$id_master = $ctx['id_tabel'];

@@ -18,7 +18,7 @@
                 <div class="card-body p-4 pt-3">
                     <?php echo session()->getFlashdata("k_passwod"); ?>
 
-                    <form action="<?php echo base_URL()?>index.php/admin/passwod/simpan" method="post" accept-charset="utf-8">	
+                    <form action="<?php echo base_url('admin/password/simpan'); ?>" method="post" accept-charset="utf-8">	
                         <div class="row g-3">
                             <div class="col-12">
                                 <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary mb-1 ls-1 ps-1">Identitas Log-in</label>

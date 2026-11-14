@@ -66,42 +66,23 @@ $judul_en   = $datpil->judul_en ?? '';
                     </div>
                 </div>
 
-                <?php if (!empty($all_years) && count($all_years) > 1): ?>
-                    <?php
-                    $curYear = $datpil->tahun ?? '';
-                    $otherYearsArr = [];
-                    foreach ($all_years as $y) {
-                        if ((string)$y->tahun !== (string)$curYear) {
-                            $otherYearsArr[] = $y->tahun;
-                        }
-                    }
-                    ?>
-                    <div class="mb-3 mt-3">
-                        <label class="form-label text-uppercase text-xxs font-weight-bolder text-secondary ls-1 mb-2">Pilih Lingkup Penghapusan:</label>
-                        <div class="card p-3 border border-1 rounded-3 bg-light shadow-none">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" name="scope" id="scope_current" value="current" checked>
-                                <label class="form-check-label text-dark text-sm fw-semibold" for="scope_current">
-                                    Hanya Hapus untuk Tahun <?= htmlspecialchars($curYear); ?>
-                                    <span class="d-block text-xs text-muted fw-normal mt-1">
-                                        Data pada tahun lain (<?= htmlspecialchars(implode(', ', $otherYearsArr)); ?>) tetap dipertahankan.
-                                    </span>
-                                </label>
-                            </div>
-                            <hr class="my-2 border-secondary border-opacity-10">
-                            <div class="form-check mt-1">
-                                <input class="form-check-input" type="radio" name="scope" id="scope_all" value="all">
-                                <label class="form-check-label text-danger text-sm fw-semibold" for="scope_all">
-                                    Hapus Seluruhnya (Global)
-                                    <span class="d-block text-xs text-muted fw-normal mt-1">
-                                        Menghapus tabel ini dari <strong>seluruh tahun (<?= count($all_years); ?> tahun)</strong> beserta master kamus tabel.
-                                    </span>
-                                </label>
+                <input type="hidden" name="scope" value="all" />
+
+                <?php if (!empty($all_years)): ?>
+                    <div class="alert bg-danger-soft border border-danger border-opacity-25 rounded-3 mt-3 mb-0 p-3">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-exclamation-triangle-fill text-danger mt-1"></i>
+                            <div class="text-xs text-dark">
+                                <div class="fw-bold mb-1">
+                                    Tahun terdampak:
+                                    <?php foreach ($all_years as $y): ?>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 ms-1"><?= htmlspecialchars((string)$y->tahun); ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                                <div class="text-muted">Semua data &amp; konfigurasi pada tahun tersebut ikut terhapus permanen.</div>
                             </div>
                         </div>
                     </div>
-                <?php else: ?>
-                    <input type="hidden" name="scope" value="current" />
                 <?php endif; ?>
 
                 <div class="modal-footer border-0 px-0 pb-0 pt-4">

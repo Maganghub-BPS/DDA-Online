@@ -36,3 +36,4 @@ flowchart TD
 
 > [!NOTE]
 > Secara skema fisik database, `t_status_tahunan` berelasi ke `m_list_tabel` melalui `id_tabel` dengan kunci unik `(id_tabel, tahun)`. Panah dari `t_nilai_dinamis` dan `m_konfigurasi_api` ke `t_status_tahunan` menunjukkan alur proses bahwa kedua jalur sumber data tersebut bermuara pada status periksa, konfirmasi, dan publikasi tahunan.
+

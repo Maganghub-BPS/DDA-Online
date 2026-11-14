@@ -609,6 +609,7 @@
         'l_manage_admin' => 'Manajemen Admin',
         'f_manage_admin' => 'Form Manajemen Admin',
         'l_master_tim'   => 'Master Tim',
+        'f_pengguna'     => 'Instansi Pengguna',
         'l_forum'        => 'Forum Diskusi',
         'l_forum_topik'  => 'Forum Topik',
         'l_forum_komen'  => 'Forum Komentar',
@@ -736,7 +737,7 @@
                 <div class="menu-label">Account Settings</div>
 
                 <?php if (can('ganti_password')): ?>
-                    <a href="<?php echo base_url(); ?>admin/passwod" class="sidebar-link <?php echo ($page == 'f_passwod') ? 'active' : ''; ?>">
+                    <a href="<?php echo base_url(); ?>admin/password" class="sidebar-link <?php echo ($page == 'f_passwod') ? 'active' : ''; ?>">
                         <i class="bi bi-key"></i>
                         <span class="link-text">Ganti Password</span>
                     </a>
@@ -811,7 +812,7 @@
                                 <h6 class="dropdown-header"><?php echo esc($nama); ?></h6>
                             </li>
                             <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/profil"><i class="bi bi-person-circle me-2"></i>Profil Saya</a></li>
-                            <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/passwod"><i class="bi bi-key me-2"></i>Ganti Password</a></li>
+                            <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/password"><i class="bi bi-key me-2"></i>Ganti Password</a></li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
