@@ -1035,7 +1035,7 @@ class M_tabeldinamis extends Model
 
         $res = $this->syncBarisItems($id_kelompok, $items);
 
-        // Jika memiliki sub-baris (hierarki level > 0), pastikan judul_sub_baris_ind terisi dan tabel terkonfigurasi 2_kolom
+        // Jika memiliki sub-baris (hierarki level > 0), pastikan judul_sub_baris_ind terisi
         if ($res && $hasSub) {
             $kelompok = $this->db->table('m_baris_kelompok')->where('id', $id_kelompok)->get()->getRow();
             if ($kelompok && empty(trim((string)$kelompok->judul_sub_baris_ind))) {
@@ -1045,12 +1045,6 @@ class M_tabeldinamis extends Model
                     'updated_at'          => date('Y-m-d H:i:s')
                 ]);
             }
-
-            // Pastikan tabel-tabel dinamis yang memakai kelompok ini menampilkan mode 2_kolom
-            $this->db->table('m_indikator_tabel')
-                ->where('id_baris_kelompok', $id_kelompok)
-                ->where('tampilan_baris !=', '2_kolom')
-                ->update(['tampilan_baris' => '2_kolom']);
         }
 
         return $res;
