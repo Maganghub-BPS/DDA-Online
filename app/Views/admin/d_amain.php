@@ -193,7 +193,7 @@
                     <div class="d-flex gap-2">
                         <?php if (isset($user_role_scope) && $user_role_scope === 'walidata'): ?>
                             <a href="<?= base_url('admin/dda'); ?>" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-table me-1"></i>Input Data DDA
+                                <i class="bi bi-table me-1"></i><?= (function_exists('current_user_role') && current_user_role() === 'walidata_opd') ? 'Lihat Data DDA' : 'Input Data DDA'; ?>
                             </a>
                         <?php else: ?>
                             <div class="input-group input-group-sm" style="width: 220px;">

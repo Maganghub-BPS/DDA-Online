@@ -767,6 +767,7 @@
         'l_dda_new'      => 'Input Data DDA Baru',
         'l_dda_periksa'  => 'Pemeriksaan Data DDA',
         'l_master_tabel' => 'Master Tabel DDA',
+        'f_master_tabel' => 'Form Master Tabel',
         'l_master_dimensi' => 'Master Dimensi Tabel Dinamis',
         'l_master_tabel_opd' => (session()->get('admin_unitkerja') !== 'bps') ? 'Usulan Tabel Baru' : 'Review Tabel Usulan OPD',
         'l_unitkerja'    => 'Manajemen Instansi',
@@ -782,6 +783,7 @@
         'report'         => 'Laporan Rekap',
         'matching_pdf'   => 'Matching PDF (Python)',
         'f_passwod'      => 'Ganti Password',
+        'f_profil'       => 'Profil Saya',
         'v_portal_tabel' => 'View Portal Tabel',
         'v_preview_bulk' => 'Preview Bulk Update',
         'f_generator_tabel' => 'Generator Indikator Tabel & Matriks Dinamis',
@@ -1045,14 +1047,6 @@
         if ('scrollRestoration' in history) {
             history.scrollRestoration = 'manual';
         }
-
-        window.addEventListener('beforeunload', function() {
-            var content = document.getElementById('content');
-            if (content) content.scrollTop = 0;
-            document.querySelectorAll('.table-scroll-container').forEach(function(el) {
-                el.scrollTop = 0;
-            });
-        });
 
         $(document).ready(function() {
             var content = document.getElementById('content');
