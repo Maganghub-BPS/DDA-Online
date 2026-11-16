@@ -177,6 +177,18 @@
         } else {
             if (colKeys.length === 0 || valKeys.length === 0) return data;
         }
+        const order = config.pivot.mapping_order || [];
+        const findOrderIndex = (...candidates) => {
+            for (const cand of candidates) {
+                if (cand === undefined || cand === null || cand === '') continue;
+                let idx = order.indexOf(cand);
+                if (idx !== -1) return idx;
+                const trimmed = String(cand).trim();
+                idx = order.findIndex(o => String(o).trim() === trimmed);
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        };
         const normalizedData = data.map(item => {
             const newItem = { ...item };
             const bakuName = getNormalizedRegencyName(newItem);
@@ -184,6 +196,7 @@
                 const possibleNameKeys = Object.keys(newItem).filter(k => k.toLowerCase().includes('wilayah') || k.toLowerCase().includes('kab') || k.toLowerCase().includes('kot'));
                 possibleNameKeys.forEach(nk => newItem[nk] = bakuName);
             }
+            newItem.__origRowKey = rowKeys.length > 0 ? String(newItem[rowKeys[0]] || '').trim() : '';
             
             // --- NEW: Aggressive Mapping for Merging ---
             rowKeys.forEach(rk => {
@@ -208,6 +221,19 @@
             // Jika ada rowKeys, kita kelompokkan metrik di bawah setiap grup tersebut
             if (rowKeys.length > 0) {
                 const groups = [...new Set(normalizedData.map(item => generateKey(item, rowKeys)))];
+                groups.sort((gA, gB) => {
+                    const itemA = normalizedData.find(it => generateKey(it, rowKeys) === gA) || {};
+                    const itemB = normalizedData.find(it => generateKey(it, rowKeys) === gB) || {};
+                    const codeA = getBpsCode(itemA);
+                    const codeB = getBpsCode(itemB);
+                    if (codeA !== codeB && codeA !== '9999' && codeB !== '9999') return codeA.localeCompare(codeB);
+                    const idxA = findOrderIndex(itemA.__origRowKey, itemA[rowKeys[0]], gA);
+                    const idxB = findOrderIndex(itemB.__origRowKey, itemB[rowKeys[0]], gB);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return gA.localeCompare(gB);
+                });
                 groups.forEach(groupKey => {
                     valKeys.forEach(vk => {
                         const metricLabel = config.pivot.mappings?.[vk]?.label_id || vk;
@@ -262,7 +288,7 @@
         normalizedData.forEach(item => {
             const groupKey = generateKey(item, rowKeys);
             if (!grouped[groupKey]) {
-                grouped[groupKey] = {};
+                grouped[groupKey] = { __origRowKey: item.__origRowKey || '' };
                 rowKeys.forEach(rk => grouped[groupKey][rk] = item[rk]);
                 const keywords = ['kode', 'bps', 'kod_wil', 'kd_wil', 'kodwil', 'id_wilayah', 'daerah', 'kab_kot'];
                 const kodeKey = Object.keys(item).find(k => keywords.some(key => k.toLowerCase().includes(key)));
@@ -279,7 +305,6 @@
             });
         });
         const finalArray = Object.values(grouped);
-        const order = config.pivot.mapping_order || [];
         finalArray.sort((a, b) => {
             const codeA = getBpsCode(a);
             const codeB = getBpsCode(b);
@@ -290,8 +315,8 @@
             // Prioritas 2: Urutan Kustom (Drag & Drop)
             const nameA = String(a[rowKeys[0]] || '');
             const nameB = String(b[rowKeys[0]] || '');
-            let idxA = order.indexOf(nameA);
-            let idxB = order.indexOf(nameB);
+            const idxA = findOrderIndex(a.__origRowKey, nameA);
+            const idxB = findOrderIndex(b.__origRowKey, nameB);
             if (idxA !== -1 && idxB !== -1) return idxA - idxB;
             if (idxA !== -1) return -1;
             if (idxB !== -1) return 1;
