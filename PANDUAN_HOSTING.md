@@ -18,7 +18,7 @@ Sebelum mengunggah kode, pastikan server/hosting memenuhi syarat berikut:
    - `php-xml` & `php-zip`
 3. **Khusus Proyek DDA-Online (Fitur Matching PDF & Export Excel)**:
    - Fungsi PHP `shell_exec`, `exec`, dan `popen` **tidak boleh masuk daftar `disable_functions`** di `php.ini`.
-   - Terinstal **Python 3.10+** beserta `pip` dan package: `pymupdf` (`fitz`), `openpyxl`, `requests`.
+   - Terinstal **Python 3.10+** beserta `pip` dan package sesuai `requirements.txt`: `pymupdf`, `pdfplumber`, `rapidfuzz`, `openpyxl`, `numpy`, `scipy`, `requests`.
 
 > **Catatan Penting:**
 > Jika Anda hanya ingin menayangkan **Halaman Publik / Tabel Dinamis & API** tanpa menjalankan *Matching PDF* di server produksi (misalnya proses matching dilakukan di lokal lalu file JSON/Excel di-upload ke server), maka **Shared Hosting / cPanel biasa sudah cukup**. Namun jika fitur *Verifikasi PDF & Rekap Excel* ingin dijalankan langsung di server, gunakan **VPS (Ubuntu/Debian) atau Cloud Hosting dengan akses Terminal/SSH**.
@@ -52,7 +52,9 @@ Instal Python 3 dan library yang dibutuhkan oleh `python_engine/`:
 sudo apt update && sudo apt install -y python3 python3-pip python3-venv
 
 # Install library Python yang dibutuhkan engine DDA-Online
-pip3 install pymupdf openpyxl requests --break-system-packages
+pip3 install pymupdf pdfplumber rapidfuzz openpyxl numpy scipy requests --break-system-packages
+# Atau langsung dari file requirements.txt:
+# pip3 install -r requirements.txt --break-system-packages
 ```
 
 ### Langkah 4: Konfigurasi File `.env`

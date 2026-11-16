@@ -7,6 +7,107 @@
 <!--    dengan hierarki multi-level dan drag-drop custom ordering.              -->
 <!-- 3. Agregasi Data  : Toggle hitung total per kelompok & grand total Jawa Tengah.-->
 <!-- ========================================================================= -->
+<style>
+    /* Preview Cepat Tabel API - Selaras Minimalis & Elegan dengan Preview Tabel Dinamis */
+    #preview-container {
+        background: #ffffff !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 8px !important;
+    }
+
+    #preview-container table,
+    #preview-container .main-table,
+    #preview-container .table {
+        font-size: 11px !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+        background: #ffffff !important;
+        margin-bottom: 0 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+
+    #preview-container th,
+    #preview-container td {
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+        border: 1px solid #dee2e6 !important;
+        vertical-align: middle !important;
+    }
+
+    #preview-container thead {
+        background: #ffffff !important;
+    }
+
+    #preview-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 15;
+        background: #ffffff !important;
+        color: #212529 !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+
+    #preview-container thead th div {
+        color: #212529 !important;
+        font-weight: 700 !important;
+    }
+
+    #preview-container thead th i,
+    #preview-container thead th small,
+    #preview-container thead th .header-subtitle {
+        color: #6c757d !important;
+        font-size: 9.5px !important;
+        font-weight: normal !important;
+        font-style: italic !important;
+    }
+
+    #preview-container thead tr.num-row th {
+        background: #ffffff !important;
+        color: #6c757d !important;
+        font-weight: normal !important;
+        border: 1px solid #dee2e6 !important;
+        font-size: 9.5px !important;
+        padding: 3px 6px !important;
+    }
+
+    #preview-container tbody tr {
+        background: #ffffff !important;
+    }
+
+    #preview-container tbody td {
+        background: #ffffff !important;
+        color: #212529 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+
+    #preview-container .category-row td,
+    #preview-container tr.row-category td {
+        background: #f8fafc !important;
+        color: #334155 !important;
+        font-weight: bold !important;
+        border: 1px solid #dee2e6 !important;
+        padding: 6px 10px !important;
+    }
+
+    #preview-container .total-row td,
+    #preview-container .grand-total-row td,
+    #preview-container tr.row-total td {
+        background: #f8fafc !important;
+        color: #212529 !important;
+        font-weight: bold !important;
+        border: 1px solid #dee2e6 !important;
+    }
+
+    #preview-container .table-responsive-dda {
+        border: none !important;
+        border-radius: 0 !important;
+        margin-bottom: 0 !important;
+        background: #ffffff !important;
+    }
+</style>
 <!-- Modal Konfigurasi Tabel Dinamis -->
 <div class="modal fade" id="configModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -165,7 +266,7 @@
                 <!-- PREVIEW AREA (Outside Tabs for visibility) -->
                 <div id="preview-area" class="mt-4 border-top pt-3" style="display:none">
                     <h6 class="fw-bold small text-muted mb-2 ps-1"><i class="bi bi-eye me-1"></i> Preview Cepat (5 Baris)</h6>
-                    <div id="preview-container" class="bg-white border rounded-4 overflow-auto" style="max-height: 200px; font-size: 10px;"></div>
+                    <div id="preview-container" class="bg-white overflow-auto" style="max-height: 320px; font-size: 11px;"></div>
                     <div class="text-center mt-2">
                         <button type="button" onclick="document.getElementById('preview-area').style.display='none'" class="btn btn-sm btn-link text-muted text-decoration-none">Sembunyikan Preview</button>
                     </div>
@@ -667,12 +768,13 @@
         const container = document.getElementById('preview-container');
         
         area.style.display = 'block';
-        container.innerHTML = '<div class="text-center p-3">Menyiapkan...</div>';
+        container.innerHTML = '<div class="text-center p-3 text-muted" style="font-size:11px;"><span class="spinner-border spinner-border-sm me-1"></span> Menyiapkan preview...</div>';
         
         setTimeout(() => {
             const tempDiv = document.createElement('div');
             renderCustomTable(0, config, tempDiv, 5); // Hanya 5 baris
             container.innerHTML = tempDiv.innerHTML;
-        }, 300);
+            area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 200);
     }
 </script>

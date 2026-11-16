@@ -828,13 +828,18 @@ function get_dda_label_nested($col)
                 </div>
             <?php endif; ?>
 
-            <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm" title="Buka Pengaturan Konfigurasi Tabel">
-                <i class="bi bi-sliders text-primary"></i> KONFIGURASI
-            </button>
+            <?php $curRolePortal = function_exists('current_user_role') ? current_user_role() : ''; ?>
+            <?php if (!in_array($curRolePortal, ['walidata_opd', 'walidata_vertikal'], true)): ?>
+                <button onclick="openConfigModal()" class="btn-rounded-modern btn-back-modern shadow-sm" title="Buka Pengaturan Konfigurasi Tabel">
+                    <i class="bi bi-sliders text-primary"></i> KONFIGURASI
+                </button>
+            <?php endif; ?>
 
-            <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
-                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">EXPORT EXCEL</span><span class="d-inline d-sm-none">EXPORT</span>
-            </button>
+            <?php if ($curRolePortal !== 'lo'): ?>
+                <button onclick="exportTableToExcel('dda-container-all', 'portal-data-export')" class="btn-rounded-modern export-btn-modern shadow-primary">
+                    <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">EXPORT EXCEL</span><span class="d-inline d-sm-none">EXPORT</span>
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 

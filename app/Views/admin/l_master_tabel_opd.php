@@ -8,6 +8,110 @@
 $is_bps = isset($is_bps) ? (bool)$is_bps : (session()->get('admin_unitkerja') === 'bps');
 ?>
 
+<style>
+    /* Pastikan flexbox container luar tidak mengompres kartu Master Tabel OPD */
+    .main-content {
+        min-height: auto !important;
+        padding-bottom: 12px !important;
+    }
+    .content-body {
+        min-height: auto !important;
+        flex: 1 0 auto !important;
+    }
+    #mainMasterTabelOpdCard {
+        height: auto !important;
+        max-height: calc(100vh - 82px) !important;
+        min-height: 0 !important;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0 !important;
+        overflow: hidden;
+    }
+
+    /* Kontainer scroll internal adaptif */
+    .table-scroll-container {
+        height: auto !important;
+        max-height: calc(100vh - 82px - 130px) !important;
+        min-height: 0 !important;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: auto;
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+    /* Custom Slim Scrollbar */
+    .table-scroll-container::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Sticky Table Header */
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8fafc !important;
+        box-shadow: inset 0 -2px 0 #e2e8f0;
+        vertical-align: middle !important;
+    }
+
+    .ls-1 { letter-spacing: 0.8px; }
+    .text-xxs { font-size: 0.75rem !important; }
+    .text-xs { font-size: 0.82rem !important; }
+    .text-sm { font-size: 0.92rem !important; }
+    .font-weight-bolder { font-weight: 800 !important; }
+    
+    .border-radius-2xl { border-radius: 1.25rem !important; }
+    .border-radius-lg { border-radius: 0.6rem !important; }
+    .border-radius-md { border-radius: 0.4rem !important; }
+    
+    .bg-gray-100 { background-color: #f8f9fa !important; }
+    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
+    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.2) !important; }
+    .bg-success-soft { background-color: rgba(25, 135, 84, 0.1) !important; color: #198754 !important; }
+    .border-success-soft { border: 1px solid rgba(25, 135, 84, 0.25) !important; }
+    .bg-warning-soft { background-color: rgba(245, 158, 11, 0.12) !important; color: #b45309 !important; }
+    .border-warning-soft { border: 1px solid rgba(245, 158, 11, 0.28) !important; }
+    .text-primary-orange { color: #154679 !important; }
+
+    .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }
+    .table thead th { border-bottom: 0 !important; font-size: 0.75rem !important; }
+    
+    .input-group-alternative {
+        transition: all 0.2s ease;
+    }
+    .input-group-alternative:focus-within {
+        background-color: #fff !important;
+        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
+        border-color: #154679 !important;
+    }
+    
+    .btn-icon-only {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .divide-y > * + * { border-top-width: 1px; }
+    .divide-gray-100 > * + * { border-color: #f1f1f1; }
+</style>
+
 <div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainMasterTabelOpdCard" style="height: auto; max-height: calc(100vh - 82px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
     <div class="card-header pb-3 pt-3 px-4 bg-white border-0 flex-shrink-0">
         <div class="row align-items-center g-3">
@@ -159,110 +263,6 @@ $is_bps = isset($is_bps) ? (bool)$is_bps : (session()->get('admin_unitkerja') ==
 
 <!-- Modal Delete (BS5) -->
 <div id="ModalDelete" class="modal fade" tabindex="-1" aria-hidden="true"></div>
-
-<style>
-    /* Pastikan flexbox container luar tidak mengompres kartu Master Tabel OPD */
-    .main-content {
-        min-height: auto !important;
-        padding-bottom: 12px !important;
-    }
-    .content-body {
-        min-height: auto !important;
-        flex: 1 0 auto !important;
-    }
-    #mainMasterTabelOpdCard {
-        height: auto !important;
-        max-height: calc(100vh - 82px) !important;
-        min-height: 0 !important;
-        display: flex;
-        flex-direction: column;
-        flex-shrink: 0 !important;
-        overflow: hidden;
-    }
-
-    /* Kontainer scroll internal adaptif */
-    .table-scroll-container {
-        height: auto !important;
-        max-height: calc(100vh - 82px - 130px) !important;
-        min-height: 0 !important;
-        flex: 1 1 auto;
-        overflow-y: auto;
-        overflow-x: auto;
-        position: relative;
-        scrollbar-width: thin;
-        scrollbar-color: #cbd5e1 #f1f5f9;
-    }
-
-    /* Custom Slim Scrollbar */
-    .table-scroll-container::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-    .table-scroll-container::-webkit-scrollbar-track {
-        background: #f1f5f9;
-        border-radius: 4px;
-    }
-    .table-scroll-container::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-    }
-    .table-scroll-container::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
-
-    /* Sticky Table Header */
-    .table-scroll-container thead th {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background-color: #f8fafc !important;
-        box-shadow: inset 0 -2px 0 #e2e8f0;
-        vertical-align: middle !important;
-    }
-
-    .ls-1 { letter-spacing: 0.8px; }
-    .text-xxs { font-size: 0.75rem !important; }
-    .text-xs { font-size: 0.82rem !important; }
-    .text-sm { font-size: 0.92rem !important; }
-    .font-weight-bolder { font-weight: 800 !important; }
-    
-    .border-radius-2xl { border-radius: 1.25rem !important; }
-    .border-radius-lg { border-radius: 0.6rem !important; }
-    .border-radius-md { border-radius: 0.4rem !important; }
-    
-    .bg-gray-100 { background-color: #f8f9fa !important; }
-    .bg-primary-soft { background-color: rgba(21, 70, 121, 0.08) !important; color: #154679 !important; }
-    .border-primary-soft { border: 1px solid rgba(21, 70, 121, 0.2) !important; }
-    .bg-success-soft { background-color: rgba(25, 135, 84, 0.1) !important; color: #198754 !important; }
-    .border-success-soft { border: 1px solid rgba(25, 135, 84, 0.25) !important; }
-    .bg-warning-soft { background-color: rgba(245, 158, 11, 0.12) !important; color: #b45309 !important; }
-    .border-warning-soft { border: 1px solid rgba(245, 158, 11, 0.28) !important; }
-    .text-primary-orange { color: #154679 !important; }
-
-    .table td, .table th { border-color: #f1f1f1 !important; vertical-align: middle !important; font-size: 0.92rem !important; }
-    .table thead th { border-bottom: 0 !important; font-size: 0.75rem !important; }
-    
-    .input-group-alternative {
-        transition: all 0.2s ease;
-    }
-    .input-group-alternative:focus-within {
-        background-color: #fff !important;
-        box-shadow: 0 4px 12px rgba(21, 70, 121, 0.08) !important;
-        border-color: #154679 !important;
-    }
-    
-    .btn-icon-only {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .divide-y > * + * { border-top-width: 1px; }
-    .divide-gray-100 > * + * { border-color: #f1f1f1; }
-</style>
 
 <script type="text/javascript">
 $(document).ready(function () {

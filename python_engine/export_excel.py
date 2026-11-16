@@ -91,10 +91,14 @@ def get_real_pdf_only(res):
     return out
 
 
-def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi=""):
+def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi="", include_pdf_only=False):
     diffs = res.get("diffs", [])
     matches = res.get("matches", [])
-    real_pdf_only = get_real_pdf_only(res)
+    # Sesuai arahan Bos Anas: Data yang hanya ada di PDF tidak ditampilkan di rekapan jika tabel memiliki data pembanding
+    if include_pdf_only or (not diffs and not matches):
+        real_pdf_only = get_real_pdf_only(res)
+    else:
+        real_pdf_only = []
     total_diffs = len(diffs) + len(real_pdf_only)
     total_all = len(diffs) + len(matches) + len(real_pdf_only)
 
@@ -358,7 +362,8 @@ def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tol
 
     # Sheet 2 (Opsional jika ada selisih): Rincian Selisih
     diffs = res.get("diffs", [])
-    pdf_only = res.get("pdf_only", [])
+    matches = res.get("matches", [])
+    pdf_only = res.get("pdf_only", []) if (not diffs and not matches) else []
     if diffs or pdf_only:
         ws2 = wb.create_sheet(title="⚠️ Rincian Selisih")
         ws2.cell(1, 1, f"DAFTAR SELISIH DATA - TABEL {clean_target}").font = Font(name=FONT_FAMILY, size=13, bold=True)

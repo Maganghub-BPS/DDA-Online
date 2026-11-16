@@ -4,49 +4,6 @@ if (empty($ta)) $ta = date('Y');
 $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0';
 ?>
 
-<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainReportCard" style="height: calc(100vh - 82px); min-height: 580px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
-    <div class="card-header pb-2 pt-3 px-4 bg-white border-0 flex-shrink-0">
-        <div class="row align-items-center g-3">
-            <div class="col-lg-4">
-                <h4 class="mb-1 font-weight-bolder text-dark">Laporan Rekap</h4>
-                <p class="text-sm text-secondary mb-0">
-                    <i class="bi bi-calendar-event me-1 opacity-7"></i> DDA Tahun <?php echo $ta; ?>
-                </p>
-            </div>
-
-            <div class="col-lg-8">
-                <form id="formRekap" method="post" action="<?php echo site_url('admin/report'); ?>">
-                    <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-3">
-                        <!-- Jenis Rekap Dropdown -->
-                        <div class="input-group input-group-sm input-group-alternative border-radius-lg overflow-hidden shadow-none border" style="max-width: 320px; border-color: #e9ecef !important;">
-                            <span class="input-group-text bg-white border-0"><i class="bi bi-filter text-primary-orange"></i></span>
-                            <select name="jenis_rekap" onchange="this.form.submit()" class="form-select bg-white border-0 text-dark font-weight-bold" style="cursor: pointer; font-size: 0.9rem; padding: 0.5rem 1rem;">
-                                <?php
-                                $l_jenis_rekap = array('Berdasarkan Instansi', 'Berdasarkan Tim', 'Progress Portal');
-                                foreach ($l_jenis_rekap as $i => $label) {
-                                    $selected = ($jenis_rekap == $i) ? 'selected' : '';
-                                    echo "<option value='$i' $selected>$label</option>";
-                                }
-                                ?>
-                            </select>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <hr class="horizontal dark my-0 flex-shrink-0">
-
-    <div class="card-body px-3 px-md-4 pt-3 pb-3 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: visible;">
-        <?php echo session()->getFlashdata("k"); ?>
-
-        <div class="report-container flex-grow-1 d-flex flex-column" style="min-height: 0;">
-            <?php require "view_report.php"; ?>
-        </div>
-    </div>
-</div>
-
 <style>
     /* Pastikan flexbox container luar tidak mengompres kartu Laporan Rekap */
     .main-content {
@@ -171,23 +128,10 @@ $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0'
         flex: 1 1 auto;
         display: flex;
         flex-direction: column;
-        animation: fadeIn 0.4s ease-out;
     }
 
     .horizontal.dark {
         background-image: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
     }
 
     @media (max-width: 991.98px) {
@@ -196,3 +140,46 @@ $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0'
         }
     }
 </style>
+
+<div class="card border-0 shadow-sm border-radius-2xl mb-0" id="mainReportCard" style="height: calc(100vh - 82px); min-height: 580px; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+    <div class="card-header pb-2 pt-3 px-4 bg-white border-0 flex-shrink-0">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-4">
+                <h4 class="mb-1 font-weight-bolder text-dark">Laporan Rekap</h4>
+                <p class="text-sm text-secondary mb-0">
+                    <i class="bi bi-calendar-event me-1 opacity-7"></i> DDA Tahun <?php echo $ta; ?>
+                </p>
+            </div>
+
+            <div class="col-lg-8">
+                <form id="formRekap" method="post" action="<?php echo site_url('admin/report'); ?>">
+                    <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-3">
+                        <!-- Jenis Rekap Dropdown -->
+                        <div class="input-group input-group-sm input-group-alternative border-radius-lg overflow-hidden shadow-none border" style="max-width: 320px; border-color: #e9ecef !important;">
+                            <span class="input-group-text bg-white border-0"><i class="bi bi-filter text-primary-orange"></i></span>
+                            <select name="jenis_rekap" onchange="this.form.submit()" class="form-select bg-white border-0 text-dark font-weight-bold" style="cursor: pointer; font-size: 0.9rem; padding: 0.5rem 1rem;">
+                                <?php
+                                $l_jenis_rekap = array('Berdasarkan Instansi', 'Berdasarkan Tim', 'Progress Portal');
+                                foreach ($l_jenis_rekap as $i => $label) {
+                                    $selected = ($jenis_rekap == $i) ? 'selected' : '';
+                                    echo "<option value='$i' $selected>$label</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <hr class="horizontal dark my-0 flex-shrink-0">
+
+    <div class="card-body px-3 px-md-4 pt-3 pb-3 flex-grow-1 d-flex flex-column" style="min-height: 0; overflow: visible;">
+        <?php echo session()->getFlashdata("k"); ?>
+
+        <div class="report-container flex-grow-1 d-flex flex-column" style="min-height: 0;">
+            <?php require "view_report.php"; ?>
+        </div>
+    </div>
+</div>

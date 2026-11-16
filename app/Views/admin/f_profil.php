@@ -72,7 +72,7 @@
                                         <p class="text-xs text-secondary mb-0">Tingkat Akses: <span class="badge bg-primary-soft text-primary border border-primary-soft py-1 px-2"><?php echo esc(strtoupper((string)($datpil->level ?? ''))); ?></span></p>
                                     </div>
                                     <div class="ms-auto">
-                                        <a href="<?php echo base_url(); ?>admin/passwod" class="btn btn-outline-primary btn-xs mb-0 border-radius-md px-3">
+                                        <a href="<?php echo base_url(); ?>admin/password" class="btn btn-outline-primary btn-xs mb-0 border-radius-md px-3">
                                             <i class="bi bi-key me-1"></i> Ganti Password
                                         </a>
                                     </div>

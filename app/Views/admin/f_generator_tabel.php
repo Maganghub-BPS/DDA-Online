@@ -111,9 +111,9 @@ $catatan_val = $indikator->catatan ?? '';
         color: #1e3a8a !important;
     }
     .row-total td.td-freeze-col {
-        background-color: #154679 !important;
-        color: #ffffff !important;
-        font-weight: 800 !important;
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
     }
     .table-matrix tbody tr:hover td.td-freeze-col {
         background-color: #f1f5f9 !important;
@@ -122,7 +122,7 @@ $catatan_val = $indikator->catatan ?? '';
         background-color: #bfdbfe !important;
     }
     .table-matrix tbody tr.row-total:hover td.td-freeze-col {
-        background-color: #154679 !important;
+        background-color: #f1f5f9 !important;
     }
 
     /* Kolom Kedua (Periode Waktu atau Multi-Kolom Baris) */
@@ -143,9 +143,9 @@ $catatan_val = $indikator->catatan ?? '';
         color: #1e3a8a !important;
     }
     .row-total td.td-freeze-col-2 {
-        background-color: #154679 !important;
-        color: #ffffff !important;
-        font-weight: 800 !important;
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
     }
     .table-matrix tbody tr:hover td.td-freeze-col-2 {
         background-color: #f1f5f9 !important;
@@ -154,7 +154,7 @@ $catatan_val = $indikator->catatan ?? '';
         background-color: #bfdbfe !important;
     }
     .table-matrix tbody tr.row-total:hover td.td-freeze-col-2 {
-        background-color: #154679 !important;
+        background-color: #f1f5f9 !important;
     }
 
     /* Kolom Data Minimal 135px agar Rapi dan Tidak Gepeng */
@@ -223,18 +223,18 @@ $catatan_val = $indikator->catatan ?? '';
         font-weight: 700 !important;
     }
     .row-total td {
-        background-color: #154679 !important;
-        font-weight: 800 !important;
-        color: #ffffff !important;
-        border-top: 2px solid #113861 !important;
-        border-bottom: 3px double #0c2744 !important;
+        background-color: #f8fafc !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        border-top: 2px solid #cbd5e1 !important;
+        border-bottom: 2px solid #cbd5e1 !important;
     }
     .table-matrix tbody tr.row-total:hover td {
-        background-color: #154679 !important;
+        background-color: #f1f5f9 !important;
     }
     .row-total .cell-numeric-placeholder {
-        color: #ffffff !important;
-        font-weight: 800 !important;
+        color: #0f172a !important;
+        font-weight: 700 !important;
     }
     /* Indentasi Hirarki Baris (Menjorok Bersih Tanpa Strip) */
     .table-matrix tbody td.indent-level-0 {
@@ -760,31 +760,41 @@ $catatan_val = $indikator->catatan ?? '';
     </div>
 
     <!-- ===== FORMULIR KONFIGURASI DIMENSI (CARD MODERN & ELEGAN DENGAN SEARCHABLE SELECT2) ===== -->
-    <div class="card border-0 shadow-sm generator-card mb-3" style="border: 1px solid #e2e8f0 !important; background: #ffffff;">
-        <div class="card-body p-3 p-md-4">
+    <div class="card border-0 shadow-sm generator-card mb-2" style="border: 1px solid #e2e8f0 !important; background: #ffffff;">
+        <div class="card-body p-2 p-md-3">
 
             <?php if ($is_locked): ?>
-                <!-- SLIM SAFETY LOCK BAR DENGAN DAFTAR TAHUN & HAPUS PER TAHUN -->
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 mb-3 rounded-2" 
+                <!-- SLIM SAFETY LOCK BAR (BEST PRACTICE: STATUS KIRI, AKSI HAPUS DROPDOWN KANAN) -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 mb-3 rounded-3" 
                      style="background: #fffbeb; border: 1px solid #fde68a;">
                     <div class="d-flex align-items-center gap-2 flex-wrap text-xs">
-                        <i class="bi bi-lock-fill text-warning fs-6"></i>
-                        <span class="fw-bold text-dark">Dimensi Master Terkunci</span>
-                        <span class="badge bg-white text-secondary border px-2 py-0.5 rounded-pill fw-normal text-xxs">
-                            <?= number_format($total_nilai, 0, ',', '.'); ?> nilai terisi
+                        <i class="bi bi-lock-fill text-warning"></i>
+                        <span class="text-dark">
+                            <strong>Struktur baris &amp; kolom terkunci</strong> — sudah ada <strong><?= number_format($total_nilai, 0, ',', '.'); ?> data</strong> tersimpan
+                            <?php if (!empty($available_years)): ?>
+                                <span class="text-muted">(<?= esc(implode(', ', $available_years)); ?>)</span>
+                            <?php endif; ?>
                         </span>
-                        <?php if (!empty($available_years)): ?>
-                            <div class="d-inline-flex align-items-center gap-1 ms-1 flex-wrap">
-                                <span class="text-muted text-xxs fw-semibold">Tahun Terisi:</span>
-                                <?php foreach ($available_years as $yr): ?>
-                                    <span class="badge bg-white text-dark border d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill text-xxs shadow-xs">
-                                        <i class="bi bi-calendar-check text-primary"></i> <?= $yr; ?>
-                                        <button type="button" class="btn btn-link p-0 text-danger btn-hapus-tahun text-xxs ms-1" data-tahun="<?= $yr; ?>" data-indikator="<?= $id_indikator_existing; ?>" title="Hapus seluruh data tahun <?= $yr; ?>"><i class="bi bi-x-circle-fill"></i></button>
-                                    </span>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
                     </div>
+                    <?php if (!empty($available_years)): ?>
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-sm bg-white text-danger border border-danger border-opacity-25 rounded-3 px-2-5 py-1 text-xs fw-semibold dropdown-toggle d-inline-flex align-items-center gap-1 shadow-xs" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-trash3"></i>
+                                <span>Hapus Data Tahun</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 p-1" style="min-width: 190px;">
+                                <li><h6 class="dropdown-header text-xxs text-muted py-1 px-2">Pilih tahun untuk dihapus:</h6></li>
+                                <?php foreach ($available_years as $yr): ?>
+                                    <li>
+                                        <button type="button" class="dropdown-item rounded-2 text-danger d-flex align-items-center justify-content-between text-xs py-1-5 px-2 btn-hapus-tahun" data-tahun="<?= $yr; ?>" data-indikator="<?= $id_indikator_existing; ?>" title="Hapus seluruh data tahun <?= $yr; ?>">
+                                            <span>Hapus data <strong><?= $yr; ?></strong></span>
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
@@ -800,82 +810,72 @@ $catatan_val = $indikator->catatan ?? '';
                     <input type="hidden" name="id_karakteristik_kelompok" value="<?= $sel_karakteristik; ?>">
                 <?php endif; ?>
 
-                <!-- BARIS 1: 3 DIMENSI UTAMA DENGAN SEARCH SELECT2 -->
-                <div class="row g-3">
-                    <!-- 1. Judul Baris -->
-                    <div class="col-lg-4 col-md-12">
-                        <label class="form-label text-xs fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
-                            <span>
-                                <i class="bi bi-list-nested text-primary me-1"></i> Judul Baris
-                                <?php if ($is_locked): ?>
-                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Dimensi terkunci"></i>
-                                <?php endif; ?>
-                            </span>
-                            <span class="badge bg-light text-secondary border text-xxs fw-normal"><?= count($list_baris); ?> Master</span>
-                        </label>
-                        <select name="id_baris_kelompok" id="select_baris" class="form-select form-select-sm" <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Judul Baris...">
-                            <option value=""></option>
-                            <option value="0" <?= (($sel_baris === '0') || (!empty($sel_karakteristik) && empty($sel_baris))) ? 'selected' : ''; ?>>-- Tidak Ada Baris --</option>
-                            <?php foreach ($list_baris as $b): ?>
-                                <option value="<?= $b->id; ?>" <?= ($sel_baris == $b->id) ? 'selected' : ''; ?>
-                                    data-judul-ind="<?= esc($b->judul_baris_ind ?? $b->nama_kelompok_ind); ?>"
-                                    data-judul-en="<?= esc($b->judul_baris_en ?? $b->nama_kelompok_en ?? ''); ?>"
-                                    data-judul-sub-ind="<?= esc($b->judul_sub_baris_ind ?? ''); ?>"
-                                    data-judul-sub-en="<?= esc($b->judul_sub_baris_en ?? ''); ?>">
-                                    <?= esc($b->nama_kelompok_ind); ?> (<?= (int)$b->total_items; ?> baris)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                <!-- 1. STRUKTUR TABEL (3 DIMENSI UTAMA) -->
+                <div class="mb-2">
+                    <div class="text-uppercase fw-bold text-secondary mb-1" style="font-size: 0.68rem; letter-spacing: 0.6px;">
+                        1. Struktur Tabel
                     </div>
-
-                    <!-- 2. Karakteristik Kolom -->
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label text-xs fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
-                            <span>
-                                <i class="bi bi-layout-three-columns text-primary me-1"></i> Karakteristik Kolom
+                    <div class="row g-2 align-items-end">
+                        <!-- Baris -->
+                        <div class="col-lg-4 col-md-12">
+                            <label class="form-label text-xs fw-semibold text-dark mb-1">
+                                <i class="bi bi-list-nested text-primary me-1"></i>Baris
                                 <?php if ($is_locked): ?>
-                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Dimensi terkunci"></i>
+                                    <i class="bi bi-lock-fill text-warning ms-1 text-xxs" title="Dimensi terkunci"></i>
                                 <?php endif; ?>
-                            </span>
-                            <span class="badge bg-light text-secondary border text-xxs fw-normal"><?= count($list_karakteristik); ?> Master</span>
-                        </label>
-                        <select name="id_karakteristik_kelompok" id="select_karakteristik" class="form-select form-select-sm" <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Karakteristik Kolom...">
-                            <option value=""></option>
-                            <option value="0" <?= (($sel_karakteristik === '0') || (!empty($sel_baris) && empty($sel_karakteristik))) ? 'selected' : ''; ?>>-- Tidak Ada Karakteristik --</option>
-                            <?php foreach ($list_karakteristik as $k): ?>
-                                <option value="<?= $k->id; ?>" <?= ($sel_karakteristik == $k->id) ? 'selected' : ''; ?>>
-                                    <?= esc($k->nama_kelompok_ind); ?> (<?= (int)$k->total_items; ?> item)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                            </label>
+                            <select name="id_baris_kelompok" id="select_baris" class="form-select form-select-sm" <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Judul Baris...">
+                                <option value=""></option>
+                                <option value="0" <?= (($sel_baris === '0') || (!empty($sel_karakteristik) && empty($sel_baris))) ? 'selected' : ''; ?>>-- Tidak Ada Baris --</option>
+                                <?php foreach ($list_baris as $b): ?>
+                                    <option value="<?= $b->id; ?>" <?= ($sel_baris == $b->id) ? 'selected' : ''; ?>
+                                        data-judul-ind="<?= esc($b->judul_baris_ind ?? $b->nama_kelompok_ind); ?>"
+                                        data-judul-en="<?= esc($b->judul_baris_en ?? $b->nama_kelompok_en ?? ''); ?>"
+                                        data-judul-sub-ind="<?= esc($b->judul_sub_baris_ind ?? ''); ?>"
+                                        data-judul-sub-en="<?= esc($b->judul_sub_baris_en ?? ''); ?>">
+                                        <?= esc($b->nama_kelompok_ind); ?> (<?= (int)$b->total_items; ?> baris)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
 
-                    <!-- 3. Periode Waktu -->
-                    <div class="col-lg-4 col-md-12">
-                        <label class="form-label text-xs fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
-                            <span>
-                                <i class="bi bi-calendar3 text-primary me-1"></i> Jenis Periode Waktu
-                            </span>
-                            <span class="badge bg-light text-secondary border text-xxs fw-normal">Lintas Tahun / Sub-Tahunan</span>
-                        </label>
-                        <select name="tipe_periode" id="selectPeriodeType" class="form-select form-select-sm" data-placeholder="Pilih Jenis Periode...">
-                            <optgroup label="Periode Tahunan (Otomatis Lintas Tahun)">
-                                <option value="tahunan" <?= ($sel_tipe_periode === 'tahunan') ? 'selected' : ''; ?>>Tahunan (Multi-Tahun Otomatis)</option>
-                                <option value="tahun_ajaran" <?= ($sel_tipe_periode === 'tahun_ajaran') ? 'selected' : ''; ?>>Tahun Ajaran Pendidikan (YYYY/YYYY+1)</option>
-                            </optgroup>
-                            <optgroup label="Periode Sub-Tahunan Standar BPS">
+                        <!-- Kolom -->
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label text-xs fw-semibold text-dark mb-1">
+                                <i class="bi bi-layout-three-columns text-primary me-1"></i>Kolom
+                                <?php if ($is_locked): ?>
+                                    <i class="bi bi-lock-fill text-warning ms-1 text-xxs" title="Dimensi terkunci"></i>
+                                <?php endif; ?>
+                            </label>
+                            <select name="id_karakteristik_kelompok" id="select_karakteristik" class="form-select form-select-sm" <?= $is_locked ? 'disabled' : ''; ?> data-placeholder="Cari atau pilih Karakteristik Kolom...">
+                                <option value=""></option>
+                                <option value="0" <?= (($sel_karakteristik === '0') || (!empty($sel_baris) && empty($sel_karakteristik))) ? 'selected' : ''; ?>>-- Tidak Ada Karakteristik --</option>
+                                <?php foreach ($list_karakteristik as $k): ?>
+                                    <option value="<?= $k->id; ?>" <?= ($sel_karakteristik == $k->id) ? 'selected' : ''; ?>>
+                                        <?= esc($k->nama_kelompok_ind); ?> (<?= (int)$k->total_items; ?> item)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Periode -->
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label text-xs fw-semibold text-dark mb-1">
+                                <i class="bi bi-calendar3 text-primary me-1"></i>Periode
+                            </label>
+                            <select name="tipe_periode" id="selectPeriodeType" class="form-select form-select-sm" data-placeholder="Pilih Jenis Periode...">
+                                <option value="tahunan" <?= ($sel_tipe_periode === 'tahunan') ? 'selected' : ''; ?>>Tahunan</option>
+                                <option value="tahun_ajaran" <?= ($sel_tipe_periode === 'tahun_ajaran') ? 'selected' : ''; ?>>Tahun Ajaran</option>
                                 <option value="bulanan" <?= ($sel_tipe_periode === 'bulanan') ? 'selected' : ''; ?>>Bulanan (Januari - Desember)</option>
                                 <option value="triwulanan" <?= ($sel_tipe_periode === 'triwulanan') ? 'selected' : ''; ?>>Triwulanan (Triwulan I - IV)</option>
                                 <option value="semesteran" <?= ($sel_tipe_periode === 'semesteran') ? 'selected' : ''; ?>>Semesteran (Semester I - II)</option>
-                            </optgroup>
-                            <?php 
-                                $customPeriods = array_filter($list_periode, function($p) {
-                                    $kode = strtolower($p->kode_standar ?? '');
-                                    return !in_array($kode, ['bulanan', 'triwulanan', 'semesteran'], true);
-                                });
-                            ?>
-                            <?php if (!empty($customPeriods)): ?>
-                                <optgroup label="Periode Kustom">
+                                <?php 
+                                    $customPeriods = array_filter($list_periode, function($p) {
+                                        $kode = strtolower($p->kode_standar ?? '');
+                                        return !in_array($kode, ['bulanan', 'triwulanan', 'semesteran'], true);
+                                    });
+                                ?>
+                                <?php if (!empty($customPeriods)): ?>
                                     <?php foreach ($customPeriods as $cp): ?>
                                         <?php 
                                             $valOpt = 'custom:' . $cp->id; 
@@ -885,25 +885,30 @@ $catatan_val = $indikator->catatan ?? '';
                                             <?= esc($cp->nama_kelompok_ind); ?> (<?= (int)$cp->total_items; ?> item)
                                         </option>
                                     <?php endforeach; ?>
-                                </optgroup>
-                            <?php endif; ?>
-                        </select>
-                        <input type="hidden" name="id_periode_kelompok" id="input_id_periode_kelompok" value="<?= esc($sel_periode); ?>">
+                                <?php endif; ?>
+                            </select>
+                            <input type="hidden" name="id_periode_kelompok" id="input_id_periode_kelompok" value="<?= esc($sel_periode); ?>">
+                        </div>
                     </div>
                 </div>
 
-                <!-- BARIS 2: PENGATURAN MATRIKS (TINGKAT KOLOM, BARIS TOTAL, TAMPILAN, SATUAN & DESIMAL) -->
-                <div class="matrix-settings-ribbon mt-3">
-                    <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3">
-                        <!-- 1. Tingkat Kolom (Opsi 2 Adaptif Pill Chips) -->
-                        <div id="box_tingkat_kolom" class="toolbar-setting-item" title="Pilih tingkat kolom yang ingin ditampilkan pada tabel">
-                            <span class="toolbar-setting-label">
-                                <i class="bi bi-layers text-primary me-1"></i> Tingkat:
+                <hr class="border-secondary border-opacity-10 my-2">
+
+                <!-- 2. FORMAT & TAMPILAN (GRID SEJAJAR RAPI) -->
+                <div>
+                    <div class="text-uppercase fw-bold text-secondary mb-1" style="font-size: 0.68rem; letter-spacing: 0.6px;">
+                        2. Format &amp; Tampilan
+                    </div>
+                    <div class="row g-2 align-items-end">
+                        <!-- Tingkat Kolom -->
+                        <div class="col-12 col-lg-3" id="box_tingkat_kolom" title="Pilih tingkat kolom yang ingin ditampilkan pada tabel">
+                            <label class="form-label text-xs text-muted fw-semibold mb-1 d-block">
+                                Tingkat Kolom
                                 <?php if ($is_locked): ?>
-                                    <i class="bi bi-lock-fill text-secondary ms-1 text-xxs" title="Pengaturan matriks terkunci"></i>
+                                    <i class="bi bi-lock-fill text-warning ms-1 text-xxs" title="Pengaturan matriks terkunci"></i>
                                 <?php endif; ?>
-                            </span>
-                            <div id="container_tingkat_kolom" class="d-flex align-items-center gap-1 flex-wrap">
+                            </label>
+                            <div id="container_tingkat_kolom" class="d-flex align-items-center gap-1 flex-wrap" style="min-height: 31px;">
                                 <?php 
                                     $curDepth = $init_max_depth ?? 1;
                                     $actL = [];
@@ -952,9 +957,6 @@ $catatan_val = $indikator->catatan ?? '';
                                 <?php endif; ?>
                             </div>
                         </div>
-
-                        <!-- Divider halus vertikal -->
-                        <div class="toolbar-divider d-none d-md-block"></div>
 
                         <!-- 3. Penyajian Baris Total dikelola terpusat di Modal Konfigurasi Tabel Dinamis -->
                         <div id="box_konfigurasi_total" class="toolbar-setting-item d-none" style="display: none !important;">
@@ -1019,105 +1021,60 @@ $catatan_val = $indikator->catatan ?? '';
                             </div>
                         </div>
 
-                        <!-- Divider halus vertikal -->
-                        <div class="toolbar-divider d-none d-md-block"></div>
-
-                        <!-- 4. Tampilan Baris & Kolom Nomor dikelola terpusat di Modal Konfigurasi Tabel Dinamis -->
-                        <div id="box_tampilan_baris" class="toolbar-setting-item">
-                            <span class="toolbar-setting-label">
-                                <i class="bi bi-layout-split text-primary me-1"></i> Tampilan Baris:
-                            </span>
-                            <div class="posisi-segmented-group" id="group_tampilan_baris">
-                                <button type="button" class="btn-segmented <?= ($sel_tampilan_baris === '2_kolom') ? '' : 'active'; ?>" data-val="1_kolom" id="btn_baris_1kolom" title="1 Kolom vertikal standar">
-                                    <i class="bi bi-view-stacked me-1"></i> 1 Kolom
+                        <!-- 4. Tampilan Baris -->
+                        <div class="col-6 col-lg-2" id="box_tampilan_baris">
+                            <label class="form-label text-xs text-muted fw-semibold mb-1 d-block">Tampilan Baris</label>
+                            <div class="posisi-segmented-group w-100 d-grid" style="grid-template-columns: 1fr 1fr;" id="group_tampilan_baris">
+                                <button type="button" class="btn-segmented text-center <?= ($sel_tampilan_baris === '2_kolom') ? '' : 'active'; ?>" data-val="1_kolom" id="btn_baris_1kolom" title="1 Kolom vertikal standar">
+                                    1 Kolom
                                 </button>
-        
-                                <button type="button" class="btn-segmented <?= ($sel_tampilan_baris === '2_kolom') ? 'active' : ''; ?>" data-val="2_kolom" id="btn_baris_2kolom" title="2 Kolom: Kolom 1 (Kelompok Induk) & Kolom 2 (Rincian)">
-                                    <i class="bi bi-layout-split me-1"></i> 2 Kolom Rincian
+                                <button type="button" class="btn-segmented text-center <?= ($sel_tampilan_baris === '2_kolom') ? 'active' : ''; ?>" data-val="2_kolom" id="btn_baris_2kolom" title="2 Kolom: Kolom 1 (Kelompok Induk) & Kolom 2 (Rincian)">
+                                    2 Kolom
                                 </button>
-        
                             </div>
                             <input type="hidden" name="tampilan_baris" id="input_tampilan_baris" value="<?= esc($sel_tampilan_baris ?? '1_kolom'); ?>">
                         </div>
 
-                        <!-- Divider halus vertikal -->
-                        <div class="toolbar-divider d-none d-md-block"></div>
-
-                        <!-- 5. Kolom Nomor (Segmented Toggle: Tampilkan vs Tanpa No) - Bebas diubah kapan saja -->
+                        <!-- 5. Kolom Nomor (tersembunyi) -->
                         <div id="box_kolom_nomor" class="toolbar-setting-item d-none" style="display: none !important;">
-                            <span class="toolbar-setting-label">
-                                <i class="bi bi-hash text-primary me-1"></i> Kolom No:
-                            </span>
                             <div class="posisi-segmented-group" id="group_kolom_nomor">
-                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? 'active' : ''; ?>" data-val="tampilkan" id="btn_nomor_tampilkan" title="Tampilkan kolom nomor urut terpisah (1, 2, 3...)">
-                                    <i class="bi bi-list-ol me-1"></i> Tampilkan
-                                </button>
-        
-                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? '' : 'active'; ?>" data-val="sembunyikan" id="btn_nomor_sembunyikan" title="Tanpa kolom nomor terpisah, nomor kode menyatu di teks">
-                                    <i class="bi bi-card-text me-1"></i> Tanpa No
-                                </button>
-        
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? 'active' : ''; ?>" data-val="tampilkan" id="btn_nomor_tampilkan">Tampilkan</button>
+                                <button type="button" class="btn-segmented <?= ($sel_kolom_nomor === 'tampilkan') ? '' : 'active'; ?>" data-val="sembunyikan" id="btn_nomor_sembunyikan">Tanpa No</button>
                             </div>
                             <input type="hidden" name="kolom_nomor" id="input_kolom_nomor" value="<?= esc($sel_kolom_nomor ?? 'sembunyikan'); ?>">
                         </div>
 
                         <!-- 6. Input Satuan -->
-                        <div id="box_satuan" class="toolbar-setting-item" title="Satuan ukuran data (misal: Jiwa, Ton, %, Rupiah)">
-                            <span class="toolbar-setting-label">
-                                <i class="bi bi-rulers text-primary me-1"></i> Satuan:
-                            </span>
-                            <div style="min-width: 140px; max-width: 180px;">
-                                <input type="text" name="satuan" id="inputSatuan" class="form-control form-control-sm text-xs py-1 px-2" value="<?= esc($sel_satuan); ?>">
-                            </div>
+                        <div class="col-6 col-lg-2" id="box_satuan" title="Satuan ukuran data (misal: Jiwa, Ton, %, Rupiah)">
+                            <label class="form-label text-xs text-muted fw-semibold mb-1 d-block">Satuan</label>
+                            <input type="text" name="satuan" id="inputSatuan" class="form-control form-control-sm text-xs" placeholder="cth: km, %" value="<?= esc($sel_satuan); ?>">
                         </div>
-
-                        <!-- Divider halus vertikal -->
-                        <div class="toolbar-divider d-none d-md-block"></div>
 
                         <!-- 7. Select Desimal -->
-                        <div id="box_desimal" class="toolbar-setting-item" title="Presisi angka desimal tabel">
-                            <span class="toolbar-setting-label">
-                                <i class="bi bi-123 text-primary me-1"></i> Desimal:
-                            </span>
-                            <div style="min-width: 125px;">
-                                <select name="desimal" id="selectDesimal" class="form-select form-select-sm text-xs py-1">
-                                    <option value="-1" <?= ($sel_desimal === -1) ? 'selected' : ''; ?>>Otomatis</option>
-                                    <option value="0" <?= ($sel_desimal === 0) ? 'selected' : ''; ?>>0 Desimal</option>
-                                    <option value="1" <?= ($sel_desimal === 1) ? 'selected' : ''; ?>>1 Desimal</option>
-                                    <option value="2" <?= ($sel_desimal === 2) ? 'selected' : ''; ?>>2 Desimal</option>
-                                    <option value="3" <?= ($sel_desimal === 3) ? 'selected' : ''; ?>>3 Desimal</option>
-
-
-                                </select>
-                            </div>
+                        <div class="col-6 col-lg-2" id="box_desimal" title="Presisi angka desimal tabel">
+                            <label class="form-label text-xs text-muted fw-semibold mb-1 d-block">Desimal</label>
+                            <select name="desimal" id="selectDesimal" class="form-select form-select-sm text-xs">
+                                <option value="-1" <?= ($sel_desimal === -1) ? 'selected' : ''; ?>>Otomatis</option>
+                                <option value="0" <?= ($sel_desimal === 0) ? 'selected' : ''; ?>>0 Desimal</option>
+                                <option value="1" <?= ($sel_desimal === 1) ? 'selected' : ''; ?>>1 Desimal</option>
+                                <option value="2" <?= ($sel_desimal === 2) ? 'selected' : ''; ?>>2 Desimal</option>
+                                <option value="3" <?= ($sel_desimal === 3) ? 'selected' : ''; ?>>3 Desimal</option>
+                            </select>
                         </div>
-                    </div>
-                </div>
 
-                <!-- BARIS 3: FOOTER AKSI & STATUS (TOMBOL FIX DI KANAN) -->
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 mt-3 border-top">
-                    <div class="d-flex align-items-center gap-2 text-muted text-xs">
-                        <i class="bi bi-info-circle text-primary"></i>
-                        <span>Pratinjau matriks di bawah otomatis menyesuaikan konfigurasi yang dipilih.</span>
-                    </div>
+                        <!-- Kanan: Tombol Aksi (Lepas, Simpan Matriks) -->
+                        <div class="col-12 col-lg-3 d-flex align-items-center justify-content-lg-end gap-2">
+                            <?php if ($is_dynamic): ?>
+                                <a href="<?= base_url('admin/unlink_generator_tabel/' . $tabel->id); ?>" class="btn btn-outline-danger btn-sm px-3 rounded-3 btn-unlink-dinamis text-xs fw-semibold d-inline-flex align-items-center gap-1" title="Lepas Status Dinamis">
+                                    <i class="bi bi-link-45deg"></i> Lepas
+                                </a>
+                            <?php endif; ?>
 
-                    <!-- Kanan: Tombol Aksi (Unduh Template, Lepas, Simpan Matriks) -->
-                    <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
-                        <?php if ($is_dynamic): ?>
-
-
-
-                            <a href="<?= base_url('admin/unlink_generator_tabel/' . $tabel->id); ?>" class="btn btn-outline-danger btn-sm px-2-5 py-1-5 rounded-pill btn-unlink-dinamis text-xs fw-semibold shadow-xs d-inline-flex align-items-center gap-1" title="Lepas Status Dinamis">
-                                <i class="bi bi-link-45deg"></i> Lepas
-                            </a>
-
-                        <?php endif; ?>
-
-                        <button type="submit" class="btn btn-primary btn-sm px-4 py-1-5 fw-bold d-inline-flex align-items-center gap-2 shadow-sm rounded-pill text-xs" style="background: linear-gradient(135deg, #154679, #1e5c9e); border: none; box-shadow: 0 4px 10px rgba(21, 70, 121, 0.25) !important;">
-                            <i class="bi bi-check2-circle fs-6"></i>
-                            <span>Simpan Matriks</span>
-                        </button>
-
+                            <button type="submit" class="btn btn-primary btn-sm px-3 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm rounded-3 text-xs" style="background: linear-gradient(135deg, #154679, #1e5c9e); border: none;">
+                                <i class="bi bi-check2-circle"></i>
+                                <span>Simpan Matriks</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -1162,9 +1119,9 @@ $catatan_val = $indikator->catatan ?? '';
             </div>
         </div>
 
-        <div class="card-body p-4">
+        <div class="card-body p-3">
             <!-- Kontainer Preview Tabel Lebar Penuh -->
-            <div id="preview_matrix_container" class="preview-table-container p-3 p-md-4">
+            <div id="preview_matrix_container" class="preview-table-container p-2 p-md-3">
                 
                 <!-- Loading State -->
                 <div id="preview_loading" class="text-center py-5 d-none">
@@ -3045,7 +3002,7 @@ $(document).ready(function() {
                         tbodyHtml += '</td>';
 
                         for (let i = 0; i < totalLeafCols; i++) {
-                            tbodyHtml += '<td class="cell-numeric-placeholder fw-bold" style="border: 1px solid rgba(255,255,255,0.25); color: #ffffff;">' + formatSampleCell() + '</td>';
+                            tbodyHtml += '<td class="cell-numeric-placeholder fw-bold">' + formatSampleCell() + '</td>';
                         }
                         tbodyHtml += '</tr>';
                     });
@@ -3214,7 +3171,7 @@ $(document).ready(function() {
                     tbodyHtml += '</td>';
 
                     for (let i = 0; i < totalLeafCols; i++) {
-                        tbodyHtml += '<td class="cell-numeric-placeholder fw-bold" style="border: 1px solid rgba(255,255,255,0.25); color: #ffffff;">' + formatSampleCell() + '</td>';
+                        tbodyHtml += '<td class="cell-numeric-placeholder fw-bold">' + formatSampleCell() + '</td>';
                     }
                     tbodyHtml += '</tr>';
                 });

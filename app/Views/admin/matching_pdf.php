@@ -1595,7 +1595,13 @@
 
         let allDiffItems = [];
         if (res.diffs && Array.isArray(res.diffs)) allDiffItems.push(...res.diffs);
-        if (res.pdf_only && Array.isArray(res.pdf_only)) allDiffItems.push(...res.pdf_only);
+        if (res.pdf_only && Array.isArray(res.pdf_only)) {
+            res.pdf_only.forEach(p => {
+                if (p.coord && p.coord.id_baris_item !== undefined && p.coord.id_karakteristik_item !== undefined) {
+                    allDiffItems.push(p);
+                }
+            });
+        }
 
         let cells = [];
         let missingCoordCount = 0;
