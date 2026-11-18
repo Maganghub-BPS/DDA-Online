@@ -697,7 +697,9 @@
             html += '</tr>';
         });
         if (config.pivot.total_col) {
-            const jtMapping = config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: 'Central Java' };
+            const jtMapping = (config.pivot.total_col_label && config.pivot.total_col_label.label_id)
+                ? config.pivot.total_col_label
+                : (config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: 'Central Java' });
             const totBg = isPreview ? '#f8fafc' : '#154679';
             const totColor = isPreview ? '#212529' : '#ffffff';
             const totBorder = isPreview ? '1px solid #dee2e6' : '1px solid rgba(255,255,255,0.25)';

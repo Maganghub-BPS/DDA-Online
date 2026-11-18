@@ -242,8 +242,23 @@
                                 <label class="form-check-label small text-muted" for="pivot-only-total">Sembunyikan Rincian (Hanya Tampilkan Total)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="pivot-total-col" checked>
-                                <label class="form-check-label small fw-bold" for="pivot-total-col">Hitung Total Vertikal (Kolom - Jawa Tengah)</label>
+                                <input class="form-check-input" type="checkbox" id="pivot-total-col" onchange="toggleTotalColWrapper()" checked>
+                                <label class="form-check-label small fw-bold" for="pivot-total-col">Hitung Total Vertikal (Baris Total Bawah)</label>
+                            </div>
+                            <div class="mb-2 ms-4" id="pivot-total-col-wrapper">
+                                <select class="form-select form-select-sm mb-2" id="pivot-total-col-mode" onchange="onTotalColModeChange()" style="max-width: 280px;">
+                                    <option value="jateng">Jawa Tengah (Jawa Tengah / Central Java)</option>
+                                    <option value="jumlah">Jumlah (Jumlah / Total)</option>
+                                    <option value="custom">Kustom (Isi Label Sendiri)</option>
+                                </select>
+                                <div class="row g-2" id="pivot-total-col-custom" style="display:none; max-width: 420px;">
+                                    <div class="col-6">
+                                        <input type="text" class="form-control form-control-sm" id="pivot-total-col-id" placeholder="Label ID (mis: Jumlah)">
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="text" class="form-control form-control-sm" id="pivot-total-col-en" placeholder="Label EN (mis: Total)">
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" id="pivot-metric-first">
@@ -285,6 +300,65 @@
 </div>
 
 <script>
+    function toggleTotalColWrapper() {
+        const checked = document.getElementById('pivot-total-col')?.checked;
+        const wrapper = document.getElementById('pivot-total-col-wrapper');
+        if (wrapper) wrapper.style.display = checked ? 'block' : 'none';
+    }
+
+    function onTotalColModeChange() {
+        const mode = document.getElementById('pivot-total-col-mode')?.value || 'jateng';
+        const customBox = document.getElementById('pivot-total-col-custom');
+        if (customBox) customBox.style.display = (mode === 'custom') ? 'flex' : 'none';
+    }
+
+    function getTotalColLabelConfig() {
+        const mode = document.getElementById('pivot-total-col-mode')?.value || 'jateng';
+        if (mode === 'jumlah') {
+            return { mode: 'jumlah', label_id: 'Jumlah', label_en: 'Total' };
+        }
+        if (mode === 'custom') {
+            return {
+                mode: 'custom',
+                label_id: (document.getElementById('pivot-total-col-id')?.value || '').trim() || 'Jumlah',
+                label_en: (document.getElementById('pivot-total-col-en')?.value || '').trim()
+            };
+        }
+        return { mode: 'jateng', label_id: 'Jawa Tengah', label_en: 'Central Java' };
+    }
+
+    function applyTotalColConfigToUI(pivotCfg) {
+        const saved = pivotCfg?.total_col_label;
+        const legacyJt = pivotCfg?.mappings?.['Jawa Tengah'];
+        let mode = 'jateng';
+        let labelId = 'Jawa Tengah';
+        let labelEn = 'Central Java';
+
+        if (saved && saved.mode) {
+            mode = saved.mode;
+            labelId = saved.label_id || labelId;
+            labelEn = saved.label_en ?? '';
+        } else if (legacyJt && (legacyJt.label_id !== 'Jawa Tengah' || (legacyJt.label_en && legacyJt.label_en !== 'Central Java'))) {
+            if (legacyJt.label_id === 'Jumlah' && (legacyJt.label_en || 'Total') === 'Total') {
+                mode = 'jumlah';
+            } else {
+                mode = 'custom';
+            }
+            labelId = legacyJt.label_id || 'Jawa Tengah';
+            labelEn = legacyJt.label_en ?? '';
+        }
+
+        const modeEl = document.getElementById('pivot-total-col-mode');
+        const idEl = document.getElementById('pivot-total-col-id');
+        const enEl = document.getElementById('pivot-total-col-en');
+        if (modeEl) modeEl.value = mode;
+        if (idEl) idEl.value = labelId;
+        if (enEl) enEl.value = labelEn;
+
+        toggleTotalColWrapper();
+        onTotalColModeChange();
+    }
+
     function getConfigFromModal() {
         const colItems = document.querySelectorAll('.col-item');
         const config = {
@@ -297,6 +371,7 @@
                 total_row: document.getElementById('pivot-total-row').checked,
                 only_total: document.getElementById('pivot-only-total').checked,
                 total_col: document.getElementById('pivot-total-col').checked,
+                total_col_label: getTotalColLabelConfig(),
                 metric_first: document.getElementById('pivot-metric-first').checked,
                 metrics_as_row: document.getElementById('pivot-metrics-as-row').checked,
                 prefix: document.getElementById('pivot-prefix').value,
@@ -474,6 +549,7 @@
         document.getElementById('pivot-only-total').checked = currentTableConfig.pivot.only_total || false;
         document.getElementById('pivot-only-total-wrapper').style.display = document.getElementById('pivot-total-row').checked ? 'block' : 'none';
         document.getElementById('pivot-total-col').checked = currentTableConfig.pivot.total_col !== false;
+        applyTotalColConfigToUI(currentTableConfig.pivot);
         document.getElementById('pivot-metric-first').checked = currentTableConfig.pivot.metric_first || false;
         document.getElementById('pivot-metrics-as-row').checked = currentTableConfig.pivot.metrics_as_row || false;
         document.getElementById('merge-datasets').checked = currentTableConfig.merge_datasets;
@@ -661,9 +737,8 @@
         // 3. Kolom Nilai (Metrics)
         pivotVal.forEach(vk => addKey(vk, 'Metric / Nilai'));
 
-        // 4. Totals
+        // 4. Total Horizontal
         if (hasTotalRow) addKey('Jumlah', 'Total Horizontal');
-        if (hasTotalCol) addKey('Jawa Tengah', 'Total Vertikal');
 
         // Apply saved order if exists
         if (currentTableConfig?.pivot?.mapping_order) {
