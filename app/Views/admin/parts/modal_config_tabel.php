@@ -247,7 +247,7 @@
                             </div>
                             <div class="mb-2 ms-4" id="pivot-total-col-wrapper">
                                 <select class="form-select form-select-sm mb-2" id="pivot-total-col-mode" onchange="onTotalColModeChange()" style="max-width: 280px;">
-                                    <option value="jateng">Jawa Tengah (Jawa Tengah / Central Java)</option>
+                                    <option value="jateng">Jawa Tengah</option>
                                     <option value="jumlah">Jumlah (Jumlah / Total)</option>
                                     <option value="custom">Kustom (Isi Label Sendiri)</option>
                                 </select>
@@ -324,7 +324,7 @@
                 label_en: (document.getElementById('pivot-total-col-en')?.value || '').trim()
             };
         }
-        return { mode: 'jateng', label_id: 'Jawa Tengah', label_en: 'Central Java' };
+        return { mode: 'jateng', label_id: 'Jawa Tengah', label_en: '' };
     }
 
     function applyTotalColConfigToUI(pivotCfg) {
@@ -332,7 +332,7 @@
         const legacyJt = pivotCfg?.mappings?.['Jawa Tengah'];
         let mode = 'jateng';
         let labelId = 'Jawa Tengah';
-        let labelEn = 'Central Java';
+        let labelEn = '';
 
         if (saved && saved.mode) {
             mode = saved.mode;

@@ -1275,13 +1275,10 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     // Resolusi label baris
                     $displayBarisLabel = $formatRowLabel($namaBaris, $rowNo, $isTotalRow);
                     if ($isTotalRow) {
-                        if ($jenisTotalVertikal === 'grand_total') {
-                            $displayBarisLabel = 'Grand Total';
-                            $namaBarisEn       = 'Grand Total';
-                        } elseif ($jenisTotalVertikal === 'jawa_tengah') {
+                        if ($jenisTotalVertikal === 'jawa_tengah') {
                             $displayBarisLabel = 'Jawa Tengah';
-                            $namaBarisEn       = 'Jawa Tengah';
-                        } elseif ($jenisTotalVertikal === 'jumlah') {
+                            $namaBarisEn       = '';
+                        } elseif ($jenisTotalVertikal === 'jumlah' || $jenisTotalVertikal === 'grand_total') {
                             $displayBarisLabel = 'Jumlah';
                             $namaBarisEn       = 'Total';
                         } elseif ($jenisTotalVertikal === 'kustom' && !empty($labelTotalKustom)) {
@@ -1289,6 +1286,8 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                             $namaBarisEn       = '';
                         } elseif (strtolower(trim($namaBaris)) === 'jumlah' && (empty($namaBarisEn) || strcasecmp(trim($namaBarisEn), 'jawa tengah') === 0)) {
                             $namaBarisEn       = 'Total';
+                        } elseif (strcasecmp(trim($displayBarisLabel), 'jawa tengah') === 0) {
+                            $namaBarisEn       = '';
                         }
                     }
 
@@ -1564,13 +1563,10 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                 $rCount = count($runtunYears);
                 $totalLabelInd = 'Jumlah';
                 $totalLabelEn  = 'Total';
-                if ($jenisTotalVertikal === 'grand_total') {
-                    $totalLabelInd = 'Grand Total';
-                    $totalLabelEn  = 'Grand Total';
-                } elseif ($jenisTotalVertikal === 'jawa_tengah') {
+                if ($jenisTotalVertikal === 'jawa_tengah') {
                     $totalLabelInd = 'Jawa Tengah';
-                    $totalLabelEn  = 'Jawa Tengah';
-                } elseif ($jenisTotalVertikal === 'jumlah') {
+                    $totalLabelEn  = '';
+                } elseif ($jenisTotalVertikal === 'jumlah' || $jenisTotalVertikal === 'grand_total') {
                     $totalLabelInd = 'Jumlah';
                     $totalLabelEn  = 'Total';
                 } elseif (!empty($labelTotalKustom)) {
@@ -1636,13 +1632,10 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
             // GRAND TOTAL VERTIKAL OTOMATIS: JIKA DIAKTIFKAN DAN BELUM ADA ROW TOTAL DB
             // =========================================================================
             if ($totalVertikal && !$hasDbTotalRow && !$isMacroTimeSeries):
-                if ($jenisTotalVertikal === 'grand_total') {
-                    $grandLabel   = 'Grand Total';
-                    $grandLabelEn = 'Grand Total';
-                } elseif ($jenisTotalVertikal === 'jawa_tengah') {
+                if ($jenisTotalVertikal === 'jawa_tengah') {
                     $grandLabel   = 'Jawa Tengah';
-                    $grandLabelEn = 'Jawa Tengah';
-                } elseif ($jenisTotalVertikal === 'jumlah') {
+                    $grandLabelEn = '';
+                } elseif ($jenisTotalVertikal === 'jumlah' || $jenisTotalVertikal === 'grand_total') {
                     $grandLabel   = 'Jumlah';
                     $grandLabelEn = 'Total';
                 } elseif ($jenisTotalVertikal === 'kustom' && !empty($labelTotalKustom)) {
@@ -1650,10 +1643,10 @@ $kHeaderRowsPerPeriod = $hasRealKolom ? $buildKarakteristikHeaderRows($flatKolom
                     $grandLabelEn = '';
                 } elseif ($dbTotalRowObj && !empty($dbTotalRowObj->nama_baris_ind)) {
                     $grandLabel   = $dbTotalRowObj->nama_baris_ind;
-                    $grandLabelEn = $dbTotalRowObj->nama_baris_en ?? '';
+                    $grandLabelEn = (strcasecmp(trim($grandLabel), 'jawa tengah') === 0) ? '' : ($dbTotalRowObj->nama_baris_en ?? '');
                 } else {
-                    $grandLabel   = 'Grand Total';
-                    $grandLabelEn = 'Grand Total';
+                    $grandLabel   = 'Jumlah';
+                    $grandLabelEn = 'Total';
                 }
             ?>
                 <tr class="grand-total-row row-total" style="background: #154679; color: #ffffff; font-weight: bold; border-top: 2px solid rgba(255,255,255,0.25);">

@@ -699,14 +699,15 @@
         if (config.pivot.total_col) {
             const jtMapping = (config.pivot.total_col_label && config.pivot.total_col_label.label_id)
                 ? config.pivot.total_col_label
-                : (config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: 'Central Java' });
+                : (config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: '' });
+            const jtLabelEn = (jtMapping.label_id === 'Jawa Tengah' && (jtMapping.label_en === 'Central Java' || jtMapping.label_en === 'Jawa Tengah')) ? '' : (jtMapping.label_en || '');
             const totBg = isPreview ? '#f8fafc' : '#154679';
             const totColor = isPreview ? '#212529' : '#ffffff';
             const totBorder = isPreview ? '1px solid #dee2e6' : '1px solid rgba(255,255,255,0.25)';
             const totPad = isPreview ? '6px 10px' : '10px 12px';
             const totValPad = isPreview ? '5px 8px' : '7px 10px';
             const totEnStyle = isPreview ? 'color:#6c757d; font-weight:normal; font-size:9.5px; font-style:italic;' : 'color:#e0edfd; font-weight:normal; font-size:0.85em;';
-            html += `<tr class="row-total total-row" style="background: ${totBg}; color: ${totColor}; font-weight: bold;"><td colspan="2" style="padding:${totPad}; border:${totBorder}; color:${totColor}; vertical-align:middle; background:${totBg};">${jtMapping.label_id}${jtMapping.label_en ? `<br><i style="${totEnStyle}">${jtMapping.label_en}</i>` : ''}</td>`;
+            html += `<tr class="row-total total-row" style="background: ${totBg}; color: ${totColor}; font-weight: bold;"><td colspan="2" style="padding:${totPad}; border:${totBorder}; color:${totColor}; vertical-align:middle; background:${totBg};">${jtMapping.label_id}${jtLabelEn ? `<br><i style="${totEnStyle}">${jtLabelEn}</i>` : ''}</td>`;
             let grandTotal = 0;
             finalCols.forEach((col, c_idx) => {
                 if (c_idx === 0 || col.hidden) return;

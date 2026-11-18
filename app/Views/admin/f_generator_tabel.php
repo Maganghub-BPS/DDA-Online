@@ -2742,7 +2742,7 @@ $(document).ready(function() {
                 if (tipe === 'total') {
                     if (konfigurasiTotal === 'jawa_tengah') {
                         namaBarisInd = 'Jawa Tengah';
-                        namaBarisEn = 'Central Java';
+                        namaBarisEn = '';
                     } else if (konfigurasiTotal === 'jumlah') {
                         namaBarisInd = 'Jumlah';
                         namaBarisEn = 'Total';
@@ -2970,7 +2970,7 @@ $(document).ready(function() {
                 if (tipe === 'total') {
                     if (konfigurasiTotal === 'jawa_tengah') {
                         namaBarisInd = 'Jawa Tengah';
-                        namaBarisEn = 'Central Java';
+                        namaBarisEn = '';
                     } else if (konfigurasiTotal === 'jumlah') {
                         namaBarisInd = 'Jumlah';
                         namaBarisEn = 'Total';

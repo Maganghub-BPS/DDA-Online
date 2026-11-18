@@ -2626,8 +2626,9 @@ if ($primary_result):
         if (config.pivot.total_col) {
             const jtMapping = (config.pivot.total_col_label && config.pivot.total_col_label.label_id)
                 ? config.pivot.total_col_label
-                : (config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: 'Central Java' });
-            html += `<tr class="row-total" style="background: #154679; color: #ffffff; font-weight: bold;"><td colspan="2" style="padding:10px 12px; border:1px solid rgba(255,255,255,0.25); color:#ffffff; vertical-align:middle; background:#154679;">${jtMapping.label_id}${jtMapping.label_en ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${jtMapping.label_en}</i>` : ''}</td>`;
+                : (config.pivot.mappings?.['Jawa Tengah'] || { label_id: 'Jawa Tengah', label_en: '' });
+            const jtLabelEn = (jtMapping.label_id === 'Jawa Tengah' && (jtMapping.label_en === 'Central Java' || jtMapping.label_en === 'Jawa Tengah')) ? '' : (jtMapping.label_en || '');
+            html += `<tr class="row-total" style="background: #154679; color: #ffffff; font-weight: bold;"><td colspan="2" style="padding:10px 12px; border:1px solid rgba(255,255,255,0.25); color:#ffffff; vertical-align:middle; background:#154679;">${jtMapping.label_id}${jtLabelEn ? `<br><i style="color:#e0edfd; font-weight:normal; font-size:0.85em;">${jtLabelEn}</i>` : ''}</td>`;
             let grandTotal = 0;
             finalCols.forEach((col, c_idx) => {
                 if (c_idx === 0 || col.hidden) return;

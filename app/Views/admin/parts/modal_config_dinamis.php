@@ -238,7 +238,6 @@
                                         document.getElementById('wrapper_runtun_waktu_tahun').style.display = (this.value === 'runtun_waktu') ? 'block' : 'none';
                                     ">
                                         <option value="default" <?= (($config_tampilan['jenis_total_vertikal'] ?? 'default') === 'default' ? 'selected' : ''); ?>>Sesuai Master Baris / Otomatis</option>
-                                        <option value="grand_total" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'grand_total' ? 'selected' : ''); ?>>Grand Total</option>
                                         <option value="jawa_tengah" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'jawa_tengah' ? 'selected' : ''); ?>>Jawa Tengah</option>
                                         <option value="jumlah" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'jumlah' ? 'selected' : ''); ?>>Jumlah</option>
                                         <option value="runtun_waktu" <?= (($config_tampilan['jenis_total_vertikal'] ?? '') === 'runtun_waktu' ? 'selected' : ''); ?>>Runtun Waktu Multi-Tahun</option>
@@ -292,6 +291,16 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <hr class="my-3 opacity-25">
+
+                            <div class="d-flex align-items-center gap-3">
+                                <label class="form-label fw-bold small text-dark mb-0" style="font-size: 11.5px;">Kolom Nomor Urut:</label>
+                                <select name="kolom_nomor" class="form-select form-select-sm border-0 bg-light rounded-3 py-1" style="width: auto; font-size: 11.5px;">
+                                    <option value="sembunyikan" <?= (($indikator->kolom_nomor ?? 'sembunyikan') === 'sembunyikan' ? 'selected' : ''); ?>>Sembunyikan Nomor</option>
+                                    <option value="tampilkan" <?= (($indikator->kolom_nomor ?? 'sembunyikan') === 'tampilkan' ? 'selected' : ''); ?>>Tampilkan Nomor Urut (1, 2, 3..)</option>
+                                </select>
+                            </div>
                         </div>
 
                         <!-- TAB 2: PIVOT MODE -->
@@ -324,16 +333,6 @@
                                         <label class="form-check-label small" for="cfg_split_true" style="font-size: 11.5px;">Pisah 2 Kolom (Kolom A: Wilayah, Kolom B: Tahun)</label>
                                     </div>
                                 </div>
-                            </div>
-
-                            <hr class="my-3 opacity-25">
-
-                            <div class="d-flex align-items-center gap-3">
-                                <label class="form-label fw-bold small text-dark mb-0" style="font-size: 11.5px;">Kolom Nomor Urut:</label>
-                                <select name="kolom_nomor" class="form-select form-select-sm border-0 bg-light rounded-3 py-1" style="width: auto; font-size: 11.5px;">
-                                    <option value="sembunyikan" <?= (($indikator->kolom_nomor ?? 'sembunyikan') === 'sembunyikan' ? 'selected' : ''); ?>>Sembunyikan Nomor</option>
-                                    <option value="tampilkan" <?= (($indikator->kolom_nomor ?? 'sembunyikan') === 'tampilkan' ? 'selected' : ''); ?>>Tampilkan Nomor Urut (1, 2, 3..)</option>
-                                </select>
                             </div>
                         </div>
                     </div>
