@@ -707,22 +707,76 @@
             const totPad = isPreview ? '6px 10px' : '10px 12px';
             const totValPad = isPreview ? '5px 8px' : '7px 10px';
             const totEnStyle = isPreview ? 'color:#6c757d; font-weight:normal; font-size:9.5px; font-style:italic;' : 'color:#e0edfd; font-weight:normal; font-size:0.85em;';
-            html += `<tr class="row-total total-row" style="background: ${totBg}; color: ${totColor}; font-weight: bold;"><td colspan="2" style="padding:${totPad}; border:${totBorder}; color:${totColor}; vertical-align:middle; background:${totBg};">${jtMapping.label_id}${jtLabelEn ? `<br><i style="${totEnStyle}">${jtLabelEn}</i>` : ''}</td>`;
-            let grandTotal = 0;
-            finalCols.forEach((col, c_idx) => {
-                if (c_idx === 0 || col.hidden) return;
-                if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:${totBorder}; background:${totBg};"></td>`;
-                else {
-                    const sum = verticalTotals[col.key];
-                    const colLabel = (col.label_id || col.key || '').toLowerCase();
-                    if (!(colLabel.includes('jumlah') || colLabel.includes('total')) && sum !== undefined) grandTotal += sum;
-                    const displayTotal = (sum === undefined || sum === null) ? '-' : formatVal(sum, col.format || 'number');
-                    html += `<td style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${displayTotal}</td>`;
-                }
-            });
-            if (showTotal) 
-                html += `<th style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${formatVal(grandTotal, 'number')}</th>`;
-            html += '</tr>';
+
+            const allApiYears = [...new Set(rawDataFull.map(item => String(item.tahun || item.tahun_data || item.year || '').trim()).filter(y => /^\d{4}$/.test(y)))];
+            const configuredYears = Array.isArray(config.pivot.total_col_label?.years) && config.pivot.total_col_label.years.length > 0
+                ? config.pivot.total_col_label.years.map(String).filter(y => allApiYears.includes(y))
+                : allApiYears;
+            const runtunYears = configuredYears.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+
+            if (config.pivot.total_col_label?.mode === 'runtun_waktu' && runtunYears.length > 0) {
+                const labelHtml = `${jtMapping.label_id}${jtLabelEn ? `<br><i style="${totEnStyle}">${jtLabelEn}</i>` : ''}`;
+                runtunYears.forEach((yr, yIdx) => {
+                    const yrRawRows = rawDataFull.filter(item => String(item.tahun || item.tahun_data || item.year || '').trim() === yr);
+                    const yrRows = isPivotReady ? pivotData(yrRawRows, config) : yrRawRows;
+                    const yrTotals = {};
+                    finalCols.forEach(col => { yrTotals[col.key] = 0; });
+                    yrRows.forEach(yrRow => {
+                        finalCols.forEach(col => {
+                            if (col.isRow || col.hidden) return;
+                            const cKeyLow = (col.key || '').toLowerCase();
+                            if (cKeyLow.includes('tahun') || cKeyLow.includes('year')) return;
+                            let rVal = col.isGroupTotal
+                                ? col.sourceKeys.reduce((acc, k) => acc + (parseFloat(String(yrRow[k] || 0).replace(',', '.')) || 0), 0)
+                                : (yrRow[col.key] ?? 0);
+                            const strVal = String(rVal).trim();
+                            if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(strVal) && !isNaN(parseFloat(strVal)) && isFinite(strVal.replace(',', '.'))) {
+                                yrTotals[col.key] = (yrTotals[col.key] || 0) + (parseFloat(strVal.replace(',', '.')) || 0);
+                            }
+                        });
+                    });
+
+                    html += `<tr class="row-total total-row" style="background: ${totBg}; color: ${totColor}; font-weight: bold;">`;
+                    if (yIdx === 0) {
+                        html += `<td rowspan="${runtunYears.length}" style="padding:${totPad}; border:${totBorder}; color:${totColor}; vertical-align:middle; text-align:center; background:${totBg};">${labelHtml}</td>`;
+                    }
+                    html += `<td style="padding:${totValPad}; border:${totBorder}; color:${totColor}; text-align:right; font-weight:bold; background:${totBg};">${yr}</td>`;
+                    let yrGrandTotal = 0;
+                    finalCols.forEach((col, c_idx) => {
+                        if (c_idx === 0 || col.hidden) return;
+                        if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) {
+                            html += `<td style="border:${totBorder}; background:${totBg};"></td>`;
+                        } else {
+                            const sum = yrTotals[col.key];
+                            const colLabel = (col.label_id || col.key || '').toLowerCase();
+                            if (!(colLabel.includes('jumlah') || colLabel.includes('total')) && sum !== undefined) yrGrandTotal += sum;
+                            const displayTotal = (sum === undefined || sum === null) ? '-' : formatVal(sum, col.format || 'number');
+                            html += `<td style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${displayTotal}</td>`;
+                        }
+                    });
+                    if (showTotal) {
+                        html += `<th style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${formatVal(yrGrandTotal, 'number')}</th>`;
+                    }
+                    html += '</tr>';
+                });
+            } else {
+                html += `<tr class="row-total total-row" style="background: ${totBg}; color: ${totColor}; font-weight: bold;"><td colspan="2" style="padding:${totPad}; border:${totBorder}; color:${totColor}; vertical-align:middle; background:${totBg};">${jtMapping.label_id}${jtLabelEn ? `<br><i style="${totEnStyle}">${jtLabelEn}</i>` : ''}</td>`;
+                let grandTotal = 0;
+                finalCols.forEach((col, c_idx) => {
+                    if (c_idx === 0 || col.hidden) return;
+                    if (col.isRow || col.key.toLowerCase().includes('tahun') || col.key.toLowerCase().includes('year')) html += `<td style="border:${totBorder}; background:${totBg};"></td>`;
+                    else {
+                        const sum = verticalTotals[col.key];
+                        const colLabel = (col.label_id || col.key || '').toLowerCase();
+                        if (!(colLabel.includes('jumlah') || colLabel.includes('total')) && sum !== undefined) grandTotal += sum;
+                        const displayTotal = (sum === undefined || sum === null) ? '-' : formatVal(sum, col.format || 'number');
+                        html += `<td style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${displayTotal}</td>`;
+                    }
+                });
+                if (showTotal) 
+                    html += `<th style="border:${totBorder}; text-align:right; color:${totColor}; font-weight:bold; padding:${totValPad}; background:${totBg};">${formatVal(grandTotal, 'number')}</th>`;
+                html += '</tr>';
+            }
         }
         html += '</tbody></table>';
         tableEl.innerHTML = html;

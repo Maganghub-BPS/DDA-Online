@@ -249,8 +249,23 @@
                                 <select class="form-select form-select-sm mb-2" id="pivot-total-col-mode" onchange="onTotalColModeChange()" style="max-width: 280px;">
                                     <option value="jateng">Jawa Tengah</option>
                                     <option value="jumlah">Jumlah (Jumlah / Total)</option>
+                                    <option value="runtun_waktu">Runtun Waktu (Multi-Tahun)</option>
                                     <option value="custom">Kustom (Isi Label Sendiri)</option>
                                 </select>
+                                <div class="mb-2 p-2 bg-light rounded-3 border" id="pivot-total-col-runtun" style="display:none; max-width: 420px;">
+                                    <div class="mb-2">
+                                        <label class="form-label text-muted mb-1" style="font-size: 11px;">Label Baris Total Kiri:</label>
+                                        <select class="form-select form-select-sm" id="pivot-total-col-runtun-label" onchange="onTotalColModeChange()" style="max-width: 240px;">
+                                            <option value="jumlah">Jumlah / Total</option>
+                                            <option value="jateng">Jawa Tengah</option>
+                                            <option value="custom">Kustom...</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label text-muted mb-1 d-block" style="font-size: 11px;">Tahun Ditampilkan di Bawah:</label>
+                                        <div class="d-flex flex-wrap gap-2" id="pivot-total-col-years-list"></div>
+                                    </div>
+                                </div>
                                 <div class="row g-2" id="pivot-total-col-custom" style="display:none; max-width: 420px;">
                                     <div class="col-6">
                                         <input type="text" class="form-control form-control-sm" id="pivot-total-col-id" placeholder="Label ID (mis: Jumlah)">
@@ -308,14 +323,68 @@
 
     function onTotalColModeChange() {
         const mode = document.getElementById('pivot-total-col-mode')?.value || 'jateng';
+        const runtunBox = document.getElementById('pivot-total-col-runtun');
         const customBox = document.getElementById('pivot-total-col-custom');
-        if (customBox) customBox.style.display = (mode === 'custom') ? 'flex' : 'none';
+        const runtunLabelMode = document.getElementById('pivot-total-col-runtun-label')?.value || 'jumlah';
+        if (runtunBox) runtunBox.style.display = (mode === 'runtun_waktu') ? 'block' : 'none';
+        if (customBox) {
+            const showCustom = (mode === 'custom') || (mode === 'runtun_waktu' && runtunLabelMode === 'custom');
+            customBox.style.display = showCustom ? 'flex' : 'none';
+        }
+    }
+
+    function getAvailableApiYears() {
+        const allRows = (typeof rawApiResults !== 'undefined' && Array.isArray(rawApiResults))
+            ? rawApiResults.flatMap(r => (typeof getRowsFromApiResult === 'function' ? getRowsFromApiResult(r) : []))
+            : [];
+        const years = [...new Set(allRows.map(item => String(item.tahun || item.tahun_data || item.year || '').trim()).filter(y => /^\d{4}$/.test(y)))];
+        years.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+        return years;
+    }
+
+    function renderTotalColYearsList(selectedYears = null) {
+        const container = document.getElementById('pivot-total-col-years-list');
+        if (!container) return;
+        const years = getAvailableApiYears();
+        if (years.length === 0) {
+            container.innerHTML = '<span class="text-muted fst-italic" style="font-size: 11px;">Data API tidak memiliki kolom tahun multi-tahun.</span>';
+            return;
+        }
+        const activeSet = Array.isArray(selectedYears) && selectedYears.length > 0
+            ? new Set(selectedYears.map(String))
+            : new Set(years);
+        container.innerHTML = years.map(y => `
+            <div class="form-check form-check-inline mb-0">
+                <input class="form-check-input pivot-runtun-year-check" type="checkbox" id="runtun_yr_${y}" value="${y}" ${activeSet.has(y) ? 'checked' : ''}>
+                <label class="form-check-label small" for="runtun_yr_${y}" style="font-size: 11.5px;">${y}</label>
+            </div>
+        `).join('');
     }
 
     function getTotalColLabelConfig() {
         const mode = document.getElementById('pivot-total-col-mode')?.value || 'jateng';
         if (mode === 'jumlah') {
             return { mode: 'jumlah', label_id: 'Jumlah', label_en: 'Total' };
+        }
+        if (mode === 'runtun_waktu') {
+            const labelMode = document.getElementById('pivot-total-col-runtun-label')?.value || 'jumlah';
+            const checkedYears = Array.from(document.querySelectorAll('.pivot-runtun-year-check:checked')).map(cb => cb.value);
+            let labelId = 'Jumlah';
+            let labelEn = 'Total';
+            if (labelMode === 'jateng') {
+                labelId = 'Jawa Tengah';
+                labelEn = '';
+            } else if (labelMode === 'custom') {
+                labelId = (document.getElementById('pivot-total-col-id')?.value || '').trim() || 'Jumlah';
+                labelEn = (document.getElementById('pivot-total-col-en')?.value || '').trim();
+            }
+            return {
+                mode: 'runtun_waktu',
+                label_mode: labelMode,
+                label_id: labelId,
+                label_en: labelEn,
+                years: checkedYears
+            };
         }
         if (mode === 'custom') {
             return {
@@ -331,13 +400,17 @@
         const saved = pivotCfg?.total_col_label;
         const legacyJt = pivotCfg?.mappings?.['Jawa Tengah'];
         let mode = 'jateng';
+        let labelMode = 'jumlah';
         let labelId = 'Jawa Tengah';
         let labelEn = '';
+        let savedYears = null;
 
         if (saved && saved.mode) {
             mode = saved.mode;
+            labelMode = saved.label_mode || 'jumlah';
             labelId = saved.label_id || labelId;
             labelEn = saved.label_en ?? '';
+            savedYears = Array.isArray(saved.years) ? saved.years : null;
         } else if (legacyJt && (legacyJt.label_id !== 'Jawa Tengah' || (legacyJt.label_en && legacyJt.label_en !== 'Central Java'))) {
             if (legacyJt.label_id === 'Jumlah' && (legacyJt.label_en || 'Total') === 'Total') {
                 mode = 'jumlah';
@@ -349,12 +422,15 @@
         }
 
         const modeEl = document.getElementById('pivot-total-col-mode');
+        const runtunLabelEl = document.getElementById('pivot-total-col-runtun-label');
         const idEl = document.getElementById('pivot-total-col-id');
         const enEl = document.getElementById('pivot-total-col-en');
         if (modeEl) modeEl.value = mode;
+        if (runtunLabelEl) runtunLabelEl.value = labelMode;
         if (idEl) idEl.value = labelId;
         if (enEl) enEl.value = labelEn;
 
+        renderTotalColYearsList(savedYears);
         toggleTotalColWrapper();
         onTotalColModeChange();
     }
