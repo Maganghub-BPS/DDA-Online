@@ -15,9 +15,10 @@
     <!-- Google Fonts Preconnect & Stylesheet -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=optional" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="<?php echo base_url(); ?>aset/favicon.png">
+    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
+    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
 
     <!-- jQuery & jQuery UI (tetap dipertahankan untuk AJAX & plugin) -->
     <link rel="stylesheet" href="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.css" />
@@ -229,39 +230,35 @@
         }
 
         .sidebar-header {
-            padding: 20px 20px 16px;
-            border-bottom: 1px solid #f1f5f9;
+            height: 70px;
+            padding: 0 20px;
+            border-bottom: 1px solid #e2e8f0;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
+            flex-shrink: 0;
         }
 
         .sidebar-header img {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
+            height: 42px;
+            width: auto;
+            object-fit: contain;
+            flex-shrink: 0;
         }
 
         .sidebar-header .brand-text {
-            font-family: 'Outfit', sans-serif;
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: #1e293b;
-            line-height: 1.2;
-        }
-
-        .sidebar-header .brand-sub {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            font-weight: 400;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 1.55rem;
+            color: #154679;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
         }
 
         .sidebar-menu {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 12px 0;
+            padding: 8px 0;
         }
 
         .sidebar-menu::-webkit-scrollbar {
@@ -274,12 +271,16 @@
         }
 
         .menu-label {
-            padding: 16px 20px 8px;
+            padding: 12px 20px 6px;
             font-size: 0.68rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1.2px;
             color: #94a3b8;
+        }
+
+        .menu-label:first-child {
+            padding-top: 4px;
         }
 
         .sidebar-link {
@@ -318,7 +319,7 @@
         }
 
         .sidebar-footer {
-            padding: 16px 20px;
+            padding: 10px 20px;
             border-top: 1px solid #f1f5f9;
         }
 
@@ -341,8 +342,8 @@
             color: #94a3b8;
             line-height: 1.35;
             border-top: 1px dashed #e2e8f0;
-            padding-top: 6px;
-            margin-top: 6px;
+            padding-top: 5px;
+            margin-top: 5px;
         }
 
         /* ===== MAIN CONTENT AREA (HANYA SECTION INI YANG SCROLLABLE) ===== */
@@ -678,14 +679,13 @@
             #sidebar.active .menu-label,
             #sidebar.active .sidebar-footer-text,
             #sidebar.active .sidebar-copyright,
-            #sidebar.active .brand-text,
-            #sidebar.active .brand-sub {
+            #sidebar.active .brand-text {
                 display: none;
             }
 
             #sidebar.active .sidebar-header {
                 justify-content: center;
-                padding: 20px 10px 16px;
+                padding: 0 10px;
             }
 
             #sidebar.active .sidebar-link {
@@ -799,11 +799,8 @@
         <!-- ===== SIDEBAR ===== -->
         <aside id="sidebar">
             <div class="sidebar-header">
-                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png?v=<?= time() ?>" alt="Logo AKSARA" style="width: 48px; height: 48px; object-fit: contain;">
-                <div>
-                    <div class="brand-text">AKSARA</div>
-                    <div class="brand-sub" title="Akses Data Provinsi Jawa Tengah Dalam Angka">Jateng Dalam Angka</div>
-                </div>
+                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png?v=<?= time() ?>" alt="Logo AKSARA">
+                <div class="brand-text" title="Akses Data Provinsi Jawa Tengah Dalam Angka">AKSARA</div>
             </div>
 
             <div class="sidebar-menu">
