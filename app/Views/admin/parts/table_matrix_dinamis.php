@@ -536,8 +536,8 @@ if ($portraitMode) {
             'is_hidden'        => $onlyTotalHorizontal,
         ];
     }
-} elseif ($prioritasKarakteristik) {
-    // Mode Karakteristik Â» Tahun
+} elseif ($isTahunan && $prioritasKarakteristik) {
+    // Mode Karakteristik Â» Tahun (hanya berlaku untuk tabel tahunan agar sinkron dengan thead)
     foreach ($flatKolom as $kCol) {
         $kId  = (int)$kCol->id;
         $kInd = $kCol->item_ind ?? '';
