@@ -125,8 +125,8 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
             text-decoration: none;
         }
         .navbar-brand-logo-img {
-            width: 54px;
-            height: 54px;
+            width: 64px;
+            height: 64px;
             object-fit: contain;
             flex-shrink: 0;
             transition: transform 0.2s ease;
@@ -302,16 +302,20 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
             }
         }
 
+        body.has-fixed-navbar {
+            padding-top: 108px;
+        }
+
         @media (max-width: 576px) {
-            body[style*="padding-top"] {
-                padding-top: 76px !important;
+            body.has-fixed-navbar {
+                padding-top: 95px;
             }
             .navbar-custom {
                 padding: 12px 0 !important;
             }
             .navbar-brand-logo-img {
-                width: 44px !important;
-                height: 44px !important;
+                width: 52px !important;
+                height: 52px !important;
             }
             .navbar-brand .brand-title {
                 font-size: 1.3rem !important;
@@ -686,7 +690,7 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
 
     </style>
 </head>
-<body <?= !$isHome ? 'style="padding-top: 85px;"' : '' ?>>
+<body <?= !$isHome ? 'class="has-fixed-navbar"' : '' ?>>
 
     <nav class="navbar navbar-expand-lg navbar-custom <?= !$isHome ? 'scrolled' : '' ?>" id="mainNavbar">
         <div class="container">
@@ -738,7 +742,7 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 <!-- Kolom 1: Profil / Brand -->
                 <div class="col-12 col-lg-5 pe-lg-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <img src="<?= base_url('aset/images/logo-aksara-white.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" width="54" height="54" class="footer-logo-img">
+                        <img src="<?= base_url('aset/images/logo-aksara.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" width="64" height="64" class="footer-logo-img">
                         <div>
                             <div class="footer-brand-title">
                                 AKSARA
@@ -863,6 +867,18 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
         window.addEventListener('scroll', handleNavbarScroll, { passive: true });
         window.addEventListener('DOMContentLoaded', handleNavbarScroll);
         handleNavbarScroll();
+        <?php else: ?>
+        function syncFixedNavbarOffset() {
+            const navbar = document.getElementById('mainNavbar');
+            const navCollapse = document.getElementById('navbarNav');
+            if (!navbar) return;
+            if (navCollapse && navCollapse.classList.contains('show')) return;
+            document.body.style.paddingTop = (navbar.offsetHeight + 8) + 'px';
+        }
+        window.addEventListener('DOMContentLoaded', syncFixedNavbarOffset);
+        window.addEventListener('load', syncFixedNavbarOffset);
+        window.addEventListener('resize', syncFixedNavbarOffset);
+        syncFixedNavbarOffset();
         <?php endif; ?>
 
         // Navigasi Cerdas & ScrollSpy untuk Beranda dan Instansi

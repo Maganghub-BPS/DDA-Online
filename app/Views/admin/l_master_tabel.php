@@ -532,6 +532,7 @@ if ($isBidangAll || count($selBidangArr) === 0) {
             <!-- Sisi Kanan: Kotak Pencarian Realtime -->
             <div class="ms-auto" style="min-width: 200px; max-width: 280px; flex-shrink: 0;">
                 <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/cari" class="mb-0">
+                    <?php echo csrf_field(); ?>
                     <div class="input-group input-group-sm input-group-alternative border shadow-none px-2 py-0" style="background: #f8f9fa; height: 35px; border-radius: 8px; border-color: #cbd5e1 !important; align-items: center;">
                         <span class="input-group-text bg-transparent border-0 py-0 ps-0 pe-2"><i class="bi bi-search text-muted" style="font-size: 13px;"></i></span>
                         <input type="text" id="inputSearchTabel" class="form-control bg-transparent border-0 ps-0 text-xs py-1" name="q" placeholder="Ketik untuk mencari tabel..." style="box-shadow: none;" value="<?php echo esc($cari ?? ''); ?>">
@@ -739,9 +740,27 @@ if ($isBidangAll || count($selBidangArr) === 0) {
         //    (melalui master_tabel/cari) setelah jeda ketik 450ms (debounce) agar tidak membebani server.
         // =====================================================================
         var searchTimer;
+        var initialTableHtml = $("#tableMasterBody").html();
+        var hasServerCari = <?php echo !empty($cari) ? 'true' : 'false'; ?>;
+        var searchXhr = null;
+
         $("#inputSearchTabel").on("keyup", function() {
             var value = $(this).val();
             clearTimeout(searchTimer);
+
+            if (value.length === 0) {
+                if (searchXhr && searchXhr.readyState !== 4) {
+                    searchXhr.abort();
+                }
+                if (hasServerCari) {
+                    window.location.href = "<?php echo base_url('index.php/admin/master_tabel'); ?>";
+                    return;
+                }
+                $("#tableMasterBody").html(initialTableHtml);
+                $("#tableMasterBody tr").show();
+                $(".pagination-container").show();
+                return;
+            }
             
             // Filter Lokal (instant feedback pada halaman yang sedang dibuka)
             var lowerValue = value.toLowerCase();
@@ -751,19 +770,18 @@ if ($isBidangAll || count($selBidangArr) === 0) {
 
             // AJAX Global Search ke database jika kata kunci >= 2 karakter
             searchTimer = setTimeout(function() {
-                if (value.length >= 2 || value.length == 0) {
-                    $.ajax({
+                if (value.length >= 2) {
+                    if (searchXhr && searchXhr.readyState !== 4) {
+                        searchXhr.abort();
+                    }
+                    searchXhr = $.ajax({
                         url: "<?php echo base_URL(); ?>index.php/admin/master_tabel/cari",
                         type: "POST",
                         data: { q: value },
                         success: function(response) {
                             $("#tableMasterBody").html(response);
                             // Sembunyikan pagination saat dalam mode pencarian aktif
-                            if (value.length > 0) {
-                                $(".pagination-container").hide();
-                            } else {
-                                window.location.href = "<?php echo base_url('index.php/admin/master_tabel'); ?>";
-                            }
+                            $(".pagination-container").hide();
                         }
                     });
                 }

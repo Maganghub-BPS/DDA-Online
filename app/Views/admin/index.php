@@ -15,9 +15,10 @@
     <!-- Google Fonts Preconnect & Stylesheet -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=optional" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="<?php echo base_url(); ?>aset/favicon.png">
+    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
+    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
 
     <!-- jQuery & jQuery UI (tetap dipertahankan untuk AJAX & plugin) -->
     <link rel="stylesheet" href="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.css" />
@@ -250,39 +251,35 @@
         }
 
         .sidebar-header {
-            padding: 20px 20px 16px;
-            border-bottom: 1px solid #f1f5f9;
+            height: 70px;
+            padding: 0 20px;
+            border-bottom: 1px solid #e2e8f0;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
+            flex-shrink: 0;
         }
 
         .sidebar-header img {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
+            height: 42px;
+            width: auto;
+            object-fit: contain;
+            flex-shrink: 0;
         }
 
         .sidebar-header .brand-text {
-            font-family: 'Outfit', sans-serif;
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: #1e293b;
-            line-height: 1.2;
-        }
-
-        .sidebar-header .brand-sub {
-            font-size: 0.7rem;
-            color: #94a3b8;
-            font-weight: 400;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 1.55rem;
+            color: #154679;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
         }
 
         .sidebar-menu {
             flex-grow: 1;
             overflow-y: auto;
-            padding: 12px 0;
+            padding: 8px 0;
         }
 
         .sidebar-menu::-webkit-scrollbar {
@@ -295,12 +292,16 @@
         }
 
         .menu-label {
-            padding: 16px 20px 8px;
+            padding: 12px 20px 6px;
             font-size: 0.68rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1.2px;
             color: #94a3b8;
+        }
+
+        .menu-label:first-child {
+            padding-top: 4px;
         }
 
         .sidebar-link {
@@ -339,7 +340,7 @@
         }
 
         .sidebar-footer {
-            padding: 16px 20px;
+            padding: 10px 20px;
             border-top: 1px solid #f1f5f9;
         }
 
@@ -362,8 +363,8 @@
             color: #94a3b8;
             line-height: 1.35;
             border-top: 1px dashed #e2e8f0;
-            padding-top: 6px;
-            margin-top: 6px;
+            padding-top: 5px;
+            margin-top: 5px;
         }
 
         /* ===== MAIN CONTENT AREA (HANYA SECTION INI YANG SCROLLABLE) ===== */
@@ -460,8 +461,173 @@
         .user-info .user-name {
             font-weight: 600;
             color: #1e293b;
+            font-size: 0.86rem;
+            line-height: 1.25;
+        }
+
+        .user-info .user-role {
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            color: #64748b;
+            line-height: 1.1;
+        }
+
+        .btn-year-switcher {
+            height: 38px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #1e293b;
+            font-size: 0.86rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: all 0.15s ease;
+        }
+
+        .btn-year-switcher:hover,
+        .btn-year-switcher[aria-expanded="true"] {
+            background: #eef4fb;
+            border-color: #cbd5e1;
+            color: var(--primary-color);
+        }
+
+        .btn-year-switcher::after,
+        .user-trigger::after {
+            display: none !important;
+        }
+
+        .year-dropdown-menu {
+            min-width: 170px;
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12) !important;
+            margin-top: 8px !important;
+        }
+
+        .year-dropdown-menu .dropdown-header {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            padding: 6px 10px;
+        }
+
+        .year-dropdown-menu .dropdown-item {
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar-divider {
+            width: 1px;
+            height: 24px;
+            background: #e2e8f0;
+            margin: 0 10px;
+        }
+
+        .user-trigger {
+            padding: 4px 10px 4px 12px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+        }
+
+        .user-trigger:hover,
+        .user-trigger[aria-expanded="true"] {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+
+        .user-dropdown-menu {
+            min-width: 240px;
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12) !important;
+            margin-top: 10px !important;
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+
+        .user-dropdown-header .user-avatar-sm {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: var(--primary-color);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .user-dropdown-menu .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            font-weight: 500;
+            color: #334155;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .user-dropdown-menu .dropdown-item:hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .user-dropdown-menu .dropdown-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: #eef4fb;
+            color: var(--primary-color);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             font-size: 0.88rem;
-            line-height: 1.2;
+            flex-shrink: 0;
+        }
+
+        .user-dropdown-menu .dropdown-item.logout-item {
+            color: #dc3545;
+        }
+
+        .user-dropdown-menu .dropdown-item.logout-item:hover {
+            background-color: rgba(220, 53, 69, 0.08);
+            color: #b02a37;
+        }
+
+        .user-dropdown-menu .dropdown-item.logout-item .dropdown-icon {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
+        }
+
+        .user-dropdown-menu .dropdown-divider {
+            margin: 6px 4px;
+            border-color: #f1f5f9;
         }
 
         .user-info .user-role {
@@ -534,14 +700,13 @@
             #sidebar.active .menu-label,
             #sidebar.active .sidebar-footer-text,
             #sidebar.active .sidebar-copyright,
-            #sidebar.active .brand-text,
-            #sidebar.active .brand-sub {
+            #sidebar.active .brand-text {
                 display: none;
             }
 
             #sidebar.active .sidebar-header {
                 justify-content: center;
-                padding: 20px 10px 16px;
+                padding: 0 10px;
             }
 
             #sidebar.active .sidebar-link {
@@ -623,21 +788,23 @@
         'l_dda_new'      => 'Input Data DDA Baru',
         'l_dda_periksa'  => 'Pemeriksaan Data DDA',
         'l_master_tabel' => 'Master Tabel DDA',
+        'f_master_tabel' => 'Form Master Tabel',
         'l_master_dimensi' => 'Master Dimensi Tabel Dinamis',
         'l_master_tabel_opd' => (session()->get('admin_unitkerja') !== 'bps') ? 'Usulan Tabel Baru' : 'Review Tabel Usulan OPD',
-        'l_unitkerja'    => 'Manajemen OPD',
-        'f_unitkerja'    => 'Form Master OPD',
+        'l_unitkerja'    => 'Manajemen Instansi',
+        'f_unitkerja'    => 'Form Master Instansi',
         'l_manage_admin' => 'Manajemen Admin',
         'f_manage_admin' => 'Form Manajemen Admin',
         'l_master_tim'   => 'Master Tim',
+        'f_pengguna'     => 'Instansi Pengguna',
         'l_forum'        => 'Forum Diskusi',
         'l_forum_topik'  => 'Forum Topik',
         'l_forum_komen'  => 'Forum Komentar',
         'l_oi'           => 'Organization Info',
         'report'         => 'Laporan Rekap',
-        'matching'       => 'Sinkronisasi/Matching',
         'matching_pdf'   => 'Matching PDF (Python)',
         'f_passwod'      => 'Ganti Password',
+        'f_profil'       => 'Profil Saya',
         'v_portal_tabel' => 'View Portal Tabel',
         'v_preview_bulk' => 'Preview Bulk Update',
         'f_generator_tabel' => 'Generator Indikator Tabel & Matriks Dinamis',
@@ -653,11 +820,8 @@
         <!-- ===== SIDEBAR ===== -->
         <aside id="sidebar">
             <div class="sidebar-header">
-                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png?v=<?= time() ?>" alt="Logo AKSARA" style="width: 48px; height: 48px; object-fit: contain;">
-                <div>
-                    <div class="brand-text">AKSARA</div>
-                    <div class="brand-sub" title="Akses Data Provinsi Jawa Tengah Dalam Angka">Jateng Dalam Angka</div>
-                </div>
+                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png?v=<?= time() ?>" alt="Logo AKSARA">
+                <div class="brand-text" title="Akses Data Provinsi Jawa Tengah Dalam Angka">AKSARA</div>
             </div>
 
             <div class="sidebar-menu">
@@ -692,16 +856,9 @@
                     </a>
                 <?php endif; ?>
 
-                <?php if (can('matching') || can('matching_pdf') || can('report') || can('master_tabel') || can('master_dimensi') || can('master_opd') || can('pengguna') || can('manage_admin') || can('master_tim')): ?>
+                <?php if (can('matching_pdf') || can('report') || can('master_tabel') || can('master_dimensi') || can('master_opd') || can('pengguna') || can('manage_admin') || can('master_tim')): ?>
                     <!-- SYSTEM ADMIN -->
                     <div class="menu-label">System Admin</div>
-
-                    <?php if (can('matching')): ?>
-                        <a href="<?php echo base_url(); ?>admin/matching/" class="sidebar-link <?php echo ($page == 'matching') ? 'active' : ''; ?>">
-                            <i class="bi bi-arrow-left-right"></i>
-                            <span class="link-text">Sinkronisasi/Matching</span>
-                        </a>
-                    <?php endif; ?>
 
                     <!-- [Penambahan Fitur Matching PDF]: Navigasi Menu Sidebar ke modul Matching PDF DDA (Python Engine) -->
                     <?php if (can('matching_pdf')): ?>
@@ -735,7 +892,7 @@
                     <?php if (can('master_opd')): ?>
                         <a href="<?php echo base_url(); ?>admin/master_opd/" class="sidebar-link <?php echo ($page == 'l_unitkerja') ? 'active' : ''; ?>">
                             <i class="bi bi-building"></i>
-                            <span class="link-text">Master OPD</span>
+                            <span class="link-text">Master Instansi</span>
                         </a>
                     <?php endif; ?>
 
@@ -765,7 +922,7 @@
                 <div class="menu-label">Account Settings</div>
 
                 <?php if (can('ganti_password')): ?>
-                    <a href="<?php echo base_url(); ?>admin/passwod" class="sidebar-link <?php echo ($page == 'f_passwod') ? 'active' : ''; ?>">
+                    <a href="<?php echo base_url(); ?>admin/password" class="sidebar-link <?php echo ($page == 'f_passwod') ? 'active' : ''; ?>">
                         <i class="bi bi-key"></i>
                         <span class="link-text">Ganti Password</span>
                     </a>
@@ -803,13 +960,15 @@
 
                 <div class="d-flex align-items-center">
                     <!-- Year Switcher -->
-                    <div class="dropdown me-2">
-                        <button class="btn btn-sm btn-white border dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-calendar-event me-1"></i> <?= $tahun ?: date('Y') ?>
+                    <div class="dropdown">
+                        <button class="btn-year-switcher dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ganti Tahun Data Aktif">
+                            <i class="bi bi-calendar-event text-primary"></i>
+                            <span><?= $tahun ?: date('Y') ?></span>
+                            <i class="bi bi-chevron-down text-muted" style="font-size: 0.72rem;"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                        <ul class="dropdown-menu dropdown-menu-end year-dropdown-menu">
                             <li>
-                                <h6 class="dropdown-header">Pilih Tahun Data</h6>
+                                <h6 class="dropdown-header">Tahun Data</h6>
                             </li>
                             <?php 
                             $currentUri = uri_string();
@@ -819,32 +978,57 @@
                             <?php for ($i = 2020; $i <= (date('Y') + 1); $i++): ?>
                                 <li>
                                     <a class="dropdown-item <?= ($tahun == $i) ? 'active' : '' ?>" href="<?php echo base_url(); ?>admin/set_tahun/<?= $i ?>/?redirect_to=<?= urlencode($returnTarget); ?>">
-                                        <i class="bi bi-calendar3 me-2"></i><?= $i ?>
+                                        <i class="bi bi-calendar3"></i>
+                                        <span><?= $i ?></span>
                                     </a>
                                 </li>
                             <?php endfor; ?>
                         </ul>
                     </div>
 
+                    <div class="navbar-divider d-none d-sm-block"></div>
+
                     <!-- User Dropdown -->
                     <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle user-trigger" data-bs-toggle="dropdown" aria-expanded="false">
                             <div class="user-info d-none d-md-block">
                                 <div class="user-name"><?php echo esc($nama); ?></div>
                                 <div class="user-role"><?php echo esc(function_exists('current_user_role_label') ? current_user_role_label() : $level); ?></div>
                             </div>
                             <div class="user-avatar"><?php echo esc($initial); ?></div>
+                            <i class="bi bi-chevron-down text-muted ms-2" style="font-size: 0.72rem;"></i>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                        <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu">
                             <li>
-                                <h6 class="dropdown-header"><?php echo esc($nama); ?></h6>
+                                <div class="user-dropdown-header">
+                                    <div class="user-avatar-sm"><?php echo esc($initial); ?></div>
+                                    <div class="overflow-hidden">
+                                        <div class="fw-semibold text-dark text-truncate" style="font-size: 0.86rem; line-height: 1.25;"><?php echo esc($nama); ?></div>
+                                        <div class="text-muted text-truncate" style="font-size: 0.72rem; letter-spacing: 0.3px;"><?php echo esc(function_exists('current_user_role_label') ? current_user_role_label() : $level); ?></div>
+                                    </div>
+                                </div>
                             </li>
-                            <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/profil"><i class="bi bi-person-circle me-2"></i>Profil Saya</a></li>
-                            <li><a class="dropdown-item" href="<?php echo base_url(); ?>admin/passwod"><i class="bi bi-key me-2"></i>Ganti Password</a></li>
+                            <li>
+                                <a class="dropdown-item" href="<?php echo base_url(); ?>admin/profil">
+                                    <span class="dropdown-icon"><i class="bi bi-person-circle"></i></span>
+                                    <span>Profil Saya</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="<?php echo base_url(); ?>admin/password">
+                                    <span class="dropdown-icon"><i class="bi bi-key"></i></span>
+                                    <span>Ganti Password</span>
+                                </a>
+                            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item text-danger" href="<?php echo base_url(); ?>admin/logout"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                            <li>
+                                <a class="dropdown-item logout-item" href="<?php echo base_url(); ?>admin/logout">
+                                    <span class="dropdown-icon"><i class="bi bi-box-arrow-right"></i></span>
+                                    <span>Logout</span>
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -881,14 +1065,6 @@
         if ('scrollRestoration' in history) {
             history.scrollRestoration = 'manual';
         }
-
-        window.addEventListener('beforeunload', function() {
-            var content = document.getElementById('content');
-            if (content) content.scrollTop = 0;
-            document.querySelectorAll('.table-scroll-container').forEach(function(el) {
-                el.scrollTop = 0;
-            });
-        });
 
         $(document).ready(function() {
             var content = document.getElementById('content');

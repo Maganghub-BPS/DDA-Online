@@ -134,7 +134,7 @@
         <div class="row align-items-center g-3">
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-3">
-                    <h4 class="mb-0 font-weight-bolder text-dark">Master OPD</h4>
+                    <h4 class="mb-0 font-weight-bolder text-dark">Master Instansi</h4>
                 </div>
             </div>
             <div class="col-lg-6">
@@ -142,11 +142,11 @@
                     <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" class="flex-grow-1" onsubmit="return false;">
                         <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                             <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
-                            <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari OPD..." style="box-shadow: none;" autocomplete="off">
+                            <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari instansi..." style="box-shadow: none;" autocomplete="off">
                         </div>
                     </form>
                     <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/add" class="btn btn-primary btn-sm px-4 border-radius-lg mb-0 shadow-none d-flex align-items-center" style="height: 40px; white-space: nowrap; background-color: #154679; border-color: #154679;">
-                        <i class="bi bi-plus-circle me-1"></i> Tambah OPD
+                        <i class="bi bi-plus-circle me-1"></i> Tambah Instansi
                     </a>
                 </div>
             </div>
@@ -158,7 +158,7 @@
             <table class="table table-hover align-middle mb-0 table-sticky-header">
                 <thead class="bg-gray-100">
                     <tr>
-                        <th width="120" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Kode OPD</th>
+                        <th width="120" class="text-center py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Kode Instansi</th>
                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Nama Organisasi (ID)</th>
                         <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Organization Name (EN)</th>
                         <th width="140" class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ls-1">Klasifikasi (RBAC)</th>
@@ -202,10 +202,10 @@
                         </td>
                         <td class="text-center">
                             <div class="d-flex gap-1 justify-content-center">
-                                <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/edt/<?php echo esc($b->id_unitkerja, 'url'); ?>" class="btn btn-icon-only btn-outline-primary btn-sm border-radius-lg shadow-none" title="Edit OPD">
+                                <a href="<?php echo base_URL(); ?>index.php/admin/master_opd/edt/<?php echo esc($b->id_unitkerja, 'url'); ?>" class="btn btn-icon-only btn-outline-primary btn-sm border-radius-lg shadow-none" title="Edit Instansi">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="<?php echo base_URL()?>index.php/admin/master_opd/del/<?php echo esc($b->id_unitkerja, 'url');?>" class="btn btn-icon-only btn-outline-danger btn-sm border-radius-lg shadow-none" title="Hapus OPD" onclick="return confirm('Anda Yakin Akan Menghapus OPD <?php echo esc($b->unitkerja_ind, 'js');?> (<?php echo esc($b->id_unitkerja, 'js');?>) ?')">
+                                <a href="<?php echo base_URL()?>index.php/admin/master_opd/del/<?php echo esc($b->id_unitkerja, 'url');?>" class="btn btn-icon-only btn-outline-danger btn-sm border-radius-lg shadow-none" title="Hapus Instansi" onclick="return confirm('Anda Yakin Akan Menghapus Instansi <?php echo esc($b->unitkerja_ind, 'js');?> (<?php echo esc($b->id_unitkerja, 'js');?>) ?')">
                                     <i class="bi bi-trash"></i>
                                 </a>
                             </div>                  
@@ -241,7 +241,7 @@ $(document).ready(function () {
 
         if (visibleCount === 0 && value.length > 0) {
             if ($("#noDataRow").length === 0) {
-                $("#tableOPDBody").append('<tr id="noDataRow"><td colspan="6" class="text-center py-5 text-secondary font-weight-bold opacity-7"><i class="bi bi-search fs-2 d-block mb-2 text-muted"></i>Tidak ada OPD yang sesuai dengan kata kunci</td></tr>');
+                $("#tableOPDBody").append('<tr id="noDataRow"><td colspan="6" class="text-center py-5 text-secondary font-weight-bold opacity-7"><i class="bi bi-search fs-2 d-block mb-2 text-muted"></i>Tidak ada instansi yang sesuai dengan kata kunci</td></tr>');
             } else {
                 $("#noDataRow").show();
             }

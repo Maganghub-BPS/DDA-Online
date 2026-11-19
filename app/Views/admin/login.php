@@ -11,13 +11,13 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <!-- Google Fonts: Plus Jakarta Sans -->
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>">
-    <link rel="alternate icon" type="image/png" href="<?php echo base_url('aset/favicon.png'); ?>">
+    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
+    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
 
     <style>
         :root {
@@ -103,8 +103,8 @@
         }
 
         .brand-logo-icon {
-            width: 54px;
-            height: 54px;
+            width: 64px;
+            height: 64px;
             object-fit: contain;
             flex-shrink: 0;
             transition: transform 0.2s ease;
@@ -116,11 +116,12 @@
         }
 
         .brand-logo-title {
-            font-size: 1.45rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.55rem;
             font-weight: 800;
-            color: var(--brand-navy);
-            letter-spacing: -0.4px;
-            line-height: 1.15;
+            color: #154679;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
         }
 
         .brand-logo-sub {
@@ -156,6 +157,7 @@
         }
 
         .headline-text {
+            font-family: 'Inter', sans-serif;
             font-size: clamp(2.1rem, 3.4vw, 2.75rem);
             font-weight: 800;
             line-height: 1.22;
@@ -174,6 +176,7 @@
         }
 
         .headline-description {
+            font-family: 'Inter', sans-serif;
             font-size: 1.05rem;
             color: var(--text-slate);
             line-height: 1.7;
@@ -470,12 +473,12 @@
         <section class="hero-left-section">
             <!-- Judul Utama -->
             <h1 class="headline-text">
-                Satu Data, <span class="text-orange">Daerah Dalam Angka.</span>
+                Satu Data <span class="text-orange">Daerah Dalam Angka</span>
             </h1>
 
             <!-- Subjudul Deskripsi -->
             <p class="headline-description">
-                Pusat Pengelolaan Daerah Dalam Angka. Susun, verifikasi, dan publikasikan tabel statistik dari satu tempat
+                Sistem pengelolaan Daerah Dalam Angka. Susun, verifikasi, dan publikasikan tabel statistik dalam satu tempat.
             </p>
         </section>
 

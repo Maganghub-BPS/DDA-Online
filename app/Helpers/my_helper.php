@@ -242,34 +242,28 @@ function formatDynamicCellValue($nilai, $simbol = null, int $settingDesimal = -1
             return number_format($num, 0, ',', '.');
         }
         // Jika nilai memiliki pecahan desimal asli (misal 106.88), jangan pangkas paksa ke 0 desimal
-        if ($cellDesimal !== null && $cellDesimal > 0) {
+        if ($cellDesimal !== null && $cellDesimal > 0 && $cellDesimal <= 4) {
             return number_format($num, $cellDesimal, ',', '.');
         }
-        $valStr = (string)$nilai;
-        if (strpos($valStr, '.') !== false) {
-            $parts = explode('.', $valStr);
-            $decimals = strlen(rtrim($parts[1], '0'));
-            if ($decimals > 0) {
-                return number_format($num, min(4, $decimals), ',', '.');
-            }
+        $cleanStr = number_format(round($num, 4), 4, '.', '');
+        $decPart  = explode('.', $cleanStr)[1] ?? '';
+        $decimals = strlen(rtrim($decPart, '0'));
+        if ($decimals > 0) {
+            return number_format($num, $decimals, ',', '.');
         }
         return number_format($num, 0, ',', '.');
     }
 
-    // Otomatis: gunakan desimal dari file Excel jika tersedia
-    if ($cellDesimal !== null && $cellDesimal >= 0) {
+    // Otomatis: gunakan desimal dari file Excel jika valid (maks 4 sesuai DECIMAL(20,4))
+    if ($cellDesimal !== null && $cellDesimal >= 0 && $cellDesimal <= 4) {
         return number_format($num, $cellDesimal, ',', '.');
     }
 
-    // Deteksi desimal signifikan dari nilai numerik
-    $valStr = (string)$nilai;
-    if (strpos($valStr, '.') !== false) {
-        $parts = explode('.', $valStr);
-        $decimals = strlen(rtrim($parts[1], '0'));
-        return number_format($num, $decimals, ',', '.');
-    }
-
-    return number_format($num, 0, ',', '.');
+    // Deteksi desimal signifikan dari nilai numerik (bebas artefak IEEE 754 float)
+    $cleanStr = number_format(round($num, 4), 4, '.', '');
+    $decPart  = explode('.', $cleanStr)[1] ?? '';
+    $decimals = strlen(rtrim($decPart, '0'));
+    return number_format($num, $decimals, ',', '.');
 }
 
 if (!function_exists('formatInstansiName')) {

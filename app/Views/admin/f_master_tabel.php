@@ -59,14 +59,25 @@ if ($mode == "edt" || $mode == "act_edt") {
 
 <div class="row justify-content-center">
     <div class="col-lg-10">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom py-3">
-                <h5 class="fw-bold mb-0 text-primary">
-                    <i class="bi bi-file-earmark-plus me-2"></i><?php echo ($mode == "edt") ? "Edit Master Tabel" : "Tambah Master Tabel"; ?>
-                </h5>
+        <div class="card border-0 shadow-sm mb-3 rounded-4 overflow-hidden">
+            <div class="card-header bg-white border-bottom py-2 px-4 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-3" style="width: 32px; height: 32px; background: #eef4fb; color: #154679;">
+                        <i class="bi bi-<?= ($mode == "edt") ? "pencil-square" : "file-earmark-plus"; ?>"></i>
+                    </div>
+                    <h5 class="fw-bold mb-0 text-dark" style="font-size: 1rem;">
+                        <?php echo ($mode == "edt") ? "Edit Master Tabel" : "Tambah Master Tabel"; ?>
+                    </h5>
+                    <?php if ($mode == "edt" && !empty($no_tabel)): ?>
+                        <span class="badge fw-semibold" style="font-size: 0.72rem; background: #eef4fb; color: #154679; border: 1px solid #cbd5e1;">No. <?= esc($no_tabel); ?></span>
+                    <?php endif; ?>
+                </div>
+                <a href="<?php echo base_url('admin/master_tabel'); ?>" class="btn btn-sm btn-light border text-secondary fw-semibold px-3 rounded-3">
+                    <i class="bi bi-arrow-left me-1"></i> Kembali
+                </a>
             </div>
             
-            <div class="card-body p-4">
+            <div class="card-body p-3 px-4">
                 <!-- Form Utama Master Tabel -->
                 <form id="form-master-tabel" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/<?php echo $act; ?>" method="post" accept-charset="utf-8">
                     <!-- Hidden field penanganan bentrok nomor: 'shift', 'collab', atau 'none' -->
@@ -75,229 +86,229 @@ if ($mode == "edt" || $mode == "act_edt") {
                     <input type="hidden" name="idp" value="<?php echo $idp; ?>">
                     <!-- Hidden field ID master rujukan (jika menautkan ke tabel kamus master eksisting agar tidak duplikat) -->
                     <input type="hidden" name="master_id" id="selected_master_id" value="">
-                    
-                    <div class="row g-4 mb-4">
-                        <!-- SISI KIRI: BAHASA INDONESIA -->
-                        <div class="col-md-6">
-                            <div class="mb-3 position-relative">
-                                <label class="form-label fw-bold text-dark d-flex justify-content-between align-items-center">
-                                    <span><i class="bi bi-translate me-1 text-primary"></i> Judul Dasar (Bahasa Indonesia)</span>
-                                    <?php if ($act == "act_add"): ?>
-                                    <span class="badge bg-light text-muted border fw-normal" style="font-size: 10px;">
-                                        <i class="bi bi-lightning-charge text-warning"></i> Cek Master Otomatis
-                                    </span>
-                                    <?php endif; ?>
-                                </label>
-                                <div class="position-relative">
-                                    <textarea name="judul_ind" id="judul_ind" tabindex="1" required class="form-control" rows="3" autocomplete="off"><?php echo esc($judul_ind); ?></textarea>
-                                    <small class="text-muted" style="font-size: 11px;">
-                                        <i class="bi bi-info-circle me-1 text-primary"></i>Tulis judul dasar tabel tanpa angka tahun di ujungnya. Tahun akan dirakit otomatis oleh sistem sesuai tahun data yang ditampilkan.
-                                    </small>
-                                    <!-- Indikator loading saat AJAX mencari master tabel serupa -->
-                                    <div id="judul_spinner" class="position-absolute end-0 top-0 mt-2 me-2 d-none">
-                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                    </div>
-                                    <!-- Dropdown Live Suggestion Master ID -->
-                                    <div id="master_suggestions_box" class="dropdown-menu shadow-lg w-100 p-2 border-0 mt-1" style="display:none; position:absolute; z-index:1050; max-height:360px; overflow-y:auto; border-radius: 0.75rem; border: 1px solid #cbd5e1; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;">
-                                        <div class="px-2 py-1 text-muted small fw-bold text-uppercase border-bottom mb-1 d-flex justify-content-between align-items-center" style="font-size: 11px;">
-                                            <span><i class="bi bi-search me-1 text-primary"></i> Master Tabel Serupa di Database:</span>
-                                            <span class="text-secondary" style="font-size: 10px;">Klik untuk menautkan</span>
-                                        </div>
-                                        <div id="master_suggestions_list"></div>
-                                    </div>
-                                </div>
 
-                                <!-- Alert Saat Master Ditautkan -->
-                                <div id="linked_master_badge" class="alert alert-info border-0 rounded-3 p-3 mt-2 d-none shadow-sm" style="background: #eef7ff; border-left: 4px solid #0284c7 !important;">
-                                    <div class="d-flex align-items-start justify-content-between">
-                                        <div class="d-flex align-items-start">
-                                            <i class="bi bi-link-45deg fs-4 text-primary me-2 mt-n1"></i>
-                                            <div>
-                                                <div class="fw-bold text-dark" style="font-size: 0.85rem;">
-                                                    Menautkan ke Master ID: <span class="badge bg-primary text-white" id="linked_master_id_text">#</span>
-                                                </div>
-                                                <div class="text-muted small mt-1" style="font-size: 11px;">
-                                                    Master tabel ini berlaku untuk seluruh edisi tahun buku tanpa duplikasi kamus master.
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <button type="button" id="btn_cancel_link_master" class="btn btn-sm btn-outline-secondary ms-2 text-nowrap" style="font-size: 11px;">
-                                            <i class="bi bi-x-circle me-1"></i> Batal Tautkan
-                                        </button>
-                                    </div>
-                                </div>
+                    <!-- BAGIAN 1: IDENTITAS TABEL -->
+                    <div class="mb-3">
+                        <div class="text-uppercase fw-bold text-secondary mb-2" style="font-size: 0.7rem; letter-spacing: 0.6px;">
+                            1. Identitas Tabel
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold text-dark small mb-1"><i class="bi bi-hash me-1 text-primary"></i>No. Tabel</label>
+                                <input type="text" name="no_tabel" id="no_tabel" class="form-control form-control-sm py-2" placeholder="cth: 1.1.1" value="<?php echo esc($no_tabel); ?>">
+                                <div id="no_tabel_suggestion" class="mt-1" style="display: none;"></div>
                             </div>
-                        </div>
-
-                        <!-- SISI KANAN: BAHASA INGGRIS -->
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold text-dark"><i class="bi bi-translate me-1 text-primary"></i> Base Title (English)</label>
-                                <textarea name="judul_en" tabindex="2" required class="form-control" rows="3"><?php echo esc($judul_en); ?></textarea>
-                                <small class="text-muted" style="font-size: 11px;">
-                                    <i class="bi bi-info-circle me-1 text-primary"></i>Write base title without static year at the end. The year suffix will be automatically assembled.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold text-dark"><i class="bi bi-hash me-1 text-primary"></i> No Tabel</label>
-                            <input type="text" name="no_tabel" id="no_tabel" class="form-control" value="<?php echo esc($no_tabel); ?>">
-                            <div id="no_tabel_suggestion" class="mt-1" style="display: none;"></div>
-                        </div>
-                        <div class="col-md-8">
-                            <label class="form-label fw-bold text-dark d-block"><i class="bi bi-building me-1 text-primary"></i> Penanggung Jawab (Instansi)</label>
-                            <select name="id_unitkerja" id="id_unitkerja" class="form-select" tabindex="5" required>
-                                <?php
-                                $db = \Config\Database::connect();
-                                $unitkerja = $db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind")->getResultArray();
-                                
-                                if ($mode == "edt" || $mode == "act_edt") {
-                                    echo "<option selected value='" . esc($idunitkerja_terpilih, 'attr') . "'>" . esc($unitkerja_terpilih) . "</option>";
-                                    foreach($unitkerja as $p){
-                                        if ($p['id_unitkerja'] != $idunitkerja_terpilih) {
+                            <div class="col-md-9">
+                                <label class="form-label fw-semibold text-dark small mb-1"><i class="bi bi-building me-1 text-primary"></i>Instansi Penanggung Jawab</label>
+                                <select name="id_unitkerja" id="id_unitkerja" class="form-select form-select-sm py-2" tabindex="5" required>
+                                    <?php
+                                    $db = \Config\Database::connect();
+                                    $unitkerja = $db->query("SELECT * FROM m_unitkerja ORDER BY unitkerja_ind")->getResultArray();
+                                    
+                                    if ($mode == "edt" || $mode == "act_edt") {
+                                        echo "<option selected value='" . esc($idunitkerja_terpilih, 'attr') . "'>" . esc($unitkerja_terpilih) . "</option>";
+                                        foreach($unitkerja as $p){
+                                            if ($p['id_unitkerja'] != $idunitkerja_terpilih) {
+                                                echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
+                                            }
+                                        }
+                                    } else {
+                                        echo "<option selected value=''>- Pilih Instansi Penanggung Jawab -</option>";
+                                        foreach($unitkerja as $p){
                                             echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
                                         }
                                     }
-                                } else {
-                                    echo "<option selected value=''>- Pilih Instansi Penanggung Jawab -</option>";
-                                    foreach($unitkerja as $p){
-                                        echo "<option value='" . esc($p['id_unitkerja'], 'attr') . "'>" . esc($p['unitkerja_ind']) . "</option>";
-                                    }
-                                }
-                                ?>
-                            </select>  
+                                    ?>
+                                </select>  
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- PILIHAN FORMAT SUMBER DATA TABEL (PILIHAN 1) -->
-                    <div class="mb-4">
-                        <label class="form-label fw-bold text-dark mb-2 d-flex align-items-center gap-2">
-                            <i class="bi bi-hdd-network text-primary"></i> Sumber Data Tabel
-                        </label>
-                        <div class="row g-3">
-                            <!-- Kartu 1: API Satu Data Kominfo -->
+                        <div class="row g-2">
+                            <!-- SISI KIRI: BAHASA INDONESIA -->
                             <div class="col-md-6">
-                                <div class="card p-3 rounded-3 format-option-card <?= ($jenis_sumber === 'api_kominfo') ? 'active' : ''; ?>" id="card_format_api">
-                                    <div class="form-check d-flex align-items-center gap-2 mb-0">
-                                        <input class="form-check-input" type="radio" name="jenis_sumber" id="sumber_api" value="api_kominfo" <?= ($jenis_sumber === 'api_kominfo') ? 'checked' : ''; ?>>
-                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="sumber_api" style="cursor: pointer;">
+                                <div class="position-relative">
+                                    <label class="form-label fw-semibold text-dark small mb-1 d-flex justify-content-between align-items-center">
+                                        <span><i class="bi bi-translate me-1 text-primary"></i>Judul Dasar (Indonesia)</span>
+                                        <?php if ($act == "act_add"): ?>
+                                        <span class="badge bg-light text-muted border fw-normal" style="font-size: 10px;">
+                                            <i class="bi bi-lightning-charge text-warning"></i> Cek Master Otomatis
+                                        </span>
+                                        <?php endif; ?>
+                                    </label>
+                                    <div class="position-relative">
+                                        <textarea name="judul_ind" id="judul_ind" tabindex="1" required class="form-control form-control-sm" rows="2" autocomplete="off"><?php echo esc($judul_ind); ?></textarea>
+                                        <!-- Indikator loading saat AJAX mencari master tabel serupa -->
+                                        <div id="judul_spinner" class="position-absolute end-0 top-0 mt-2 me-2 d-none">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                        <!-- Dropdown Live Suggestion Master ID -->
+                                        <div id="master_suggestions_box" class="dropdown-menu shadow-lg w-100 p-2 border-0 mt-1" style="display:none; position:absolute; z-index:1050; max-height:360px; overflow-y:auto; border-radius: 0.75rem; border: 1px solid #cbd5e1; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;">
+                                            <div class="px-2 py-1 text-muted small fw-bold text-uppercase border-bottom mb-1 d-flex justify-content-between align-items-center" style="font-size: 11px;">
+                                                <span><i class="bi bi-search me-1 text-primary"></i> Master Tabel Serupa di Database:</span>
+                                                <span class="text-secondary" style="font-size: 10px;">Klik untuk menautkan</span>
+                                            </div>
+                                            <div id="master_suggestions_list"></div>
+                                        </div>
+                                    </div>
 
-                                            <i class="bi bi-link-45deg text-success fs-5"></i> API Satu Data Kominfo
-
-
-                                        </label>
+                                    <!-- Alert Saat Master Ditautkan -->
+                                    <div id="linked_master_badge" class="alert alert-info border-0 rounded-3 p-2 mt-2 d-none shadow-sm" style="background: #eef7ff; border-left: 4px solid #0284c7 !important;">
+                                        <div class="d-flex align-items-start justify-content-between">
+                                            <div class="d-flex align-items-start">
+                                                <i class="bi bi-link-45deg fs-5 text-primary me-2"></i>
+                                                <div>
+                                                    <div class="fw-bold text-dark" style="font-size: 0.82rem;">
+                                                        Menautkan ke Master ID: <span class="badge bg-primary text-white" id="linked_master_id_text">#</span>
+                                                    </div>
+                                                    <div class="text-muted small" style="font-size: 11px;">
+                                                        Berlaku untuk seluruh edisi tahun buku tanpa duplikasi kamus master.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button type="button" id="btn_cancel_link_master" class="btn btn-sm btn-outline-secondary ms-2 text-nowrap" style="font-size: 11px;">
+                                                <i class="bi bi-x-circle me-1"></i> Batal
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Kartu 2: Tabel Dinamis -->
+                            <!-- SISI KANAN: BAHASA INGGRIS -->
                             <div class="col-md-6">
-                                <div class="card p-3 rounded-3 format-option-card <?= ($jenis_sumber === 'dinamis') ? 'active' : ''; ?>" id="card_format_dynamic">
-                                    <div class="form-check d-flex align-items-center gap-2 mb-0">
-                                        <input class="form-check-input" type="radio" name="jenis_sumber" id="sumber_dinamis" value="dinamis" <?= ($jenis_sumber === 'dinamis') ? 'checked' : ''; ?>>
-                                        <label class="form-check-label w-100 fw-bold text-dark text-sm d-flex align-items-center gap-2" for="sumber_dinamis" style="cursor: pointer;">
+                                <label class="form-label fw-semibold text-dark small mb-1"><i class="bi bi-translate me-1 text-primary"></i>Base Title (English)</label>
+                                <textarea name="judul_en" tabindex="2" required class="form-control form-control-sm" rows="2"><?php echo esc($judul_en); ?></textarea>
+                            </div>
+                        </div>
 
-                                            <i class="bi bi-boxes text-primary fs-5"></i> Tabel Dinamis
+                        <div class="text-muted mt-1" style="font-size: 0.74rem;">
+                            <i class="bi bi-info-circle me-1 text-primary"></i>Tulis judul tanpa angka tahun di ujungnya — sistem otomatis menambahkan tahun sesuai tahun data aktif.
+                        </div>
+                    </div>
 
+                    <hr class="border-secondary border-opacity-10 my-3">
 
-                                        </label>
-                                    </div>
+                    <!-- BAGIAN 2: SUMBER & STRUKTUR DATA -->
+                    <div class="mb-2">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                            <span class="text-uppercase fw-bold text-secondary" style="font-size: 0.7rem; letter-spacing: 0.6px;">
+                                2. Sumber Data
+                            </span>
+
+                            <!-- Compact Segmented Toggle (tetap kompatibel dengan JS radio & #card_format_*) -->
+                            <div class="format-segmented-group d-inline-flex p-1 rounded-3 border bg-light gap-1">
+                                <div class="format-option-card px-3 py-1 rounded-2 d-flex align-items-center gap-1 <?= ($jenis_sumber === 'dinamis') ? 'active' : ''; ?>" id="card_format_dynamic">
+                                    <input class="form-check-input d-none" type="radio" name="jenis_sumber" id="sumber_dinamis" value="dinamis" <?= ($jenis_sumber === 'dinamis') ? 'checked' : ''; ?>>
+                                    <label class="mb-0 fw-semibold small d-flex align-items-center gap-1" for="sumber_dinamis" style="cursor: pointer;">
+                                        <i class="bi bi-boxes"></i> Tabel Dinamis
+                                    </label>
+                                </div>
+                                <div class="format-option-card px-3 py-1 rounded-2 d-flex align-items-center gap-1 <?= ($jenis_sumber === 'api_kominfo') ? 'active' : ''; ?>" id="card_format_api">
+                                    <input class="form-check-input d-none" type="radio" name="jenis_sumber" id="sumber_api" value="api_kominfo" <?= ($jenis_sumber === 'api_kominfo') ? 'checked' : ''; ?>>
+                                    <label class="mb-0 fw-semibold small d-flex align-items-center gap-1" for="sumber_api" style="cursor: pointer;">
+                                        <i class="bi bi-link-45deg"></i> API Satu Data
+                                    </label>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- KONTEN A: FORMAT API SATU DATA KOMINFO (MUNCUL JIKA API KOMINFO DIPILIH) -->
-                    <div id="section_format_api" class="<?= ($jenis_sumber !== 'api_kominfo') ? 'd-none' : ''; ?>">
-                        <div class="card border rounded-3 mb-4 p-3 shadow-xs bg-light">
-                            <label class="form-label fw-bold text-dark d-flex align-items-center justify-content-between">
-                                <span><i class="bi bi-link-45deg me-1 text-primary"></i> ID / Link API Portal Satu Data Jateng</span>
-                                <span id="badge_detected_uuid" class="badge bg-primary-subtle text-primary border border-primary-subtle <?= empty($id_api) ? 'd-none' : ''; ?>" style="font-size: 11px;">
-                                    UUID: <span id="text_detected_uuid"><?= esc($id_api); ?></span>
-                                </span>
-                            </label>
-                            <textarea name="link_api" id="input_link_api" tabindex="3" class="form-control" rows="2"><?= esc($link_api); ?></textarea>
-                            <small class="text-muted mt-1" style="font-size: 11px;">
-                                <i class="bi bi-lightbulb text-warning me-1"></i>Sistem otomatis mengekstrak UUID tabel jika Anda menempelkan URL lengkap dari browser.
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- KONTEN B: FORMAT TABEL DINAMIS (STATUS DIMENSI & TOMBOL GENERATOR) -->
-                    <div id="section_format_dynamic" class="<?= ($jenis_sumber !== 'dinamis') ? 'd-none' : ''; ?>">
-                        <div class="card border rounded-3 mb-4 shadow-xs" style="background: #ffffff; border-color: #cbd5e1 !important;">
-                            <div class="card-header bg-light border-bottom py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                <span class="fw-bold text-dark small">
-                                    <i class="bi bi-sliders text-primary me-1"></i> Konfigurasi Dimensi Matriks Dinamis (Lintas Tahun)
-                                </span>
-                                <?php if (!empty($idp)): ?>
-                                <a href="<?= base_url('admin/generator_tabel/' . $idp); ?>" class="btn btn-sm btn-primary px-3 py-1.5 rounded-pill fw-semibold text-xs shadow-xs d-inline-flex align-items-center gap-1">
-                                    <i class="bi bi-tools"></i> Kelola Dimensi di Generator Tabel
-                                </a>
-                                <?php endif; ?>
+                        <!-- KONTEN A: FORMAT API SATU DATA KOMINFO -->
+                        <div id="section_format_api" class="<?= ($jenis_sumber !== 'api_kominfo') ? 'd-none' : ''; ?>">
+                            <div class="rounded-3 border p-3 bg-light">
+                                <label class="form-label fw-semibold text-dark small d-flex align-items-center justify-content-between mb-1">
+                                    <span><i class="bi bi-link-45deg me-1 text-primary"></i>ID / Link API Portal Satu Data Jateng</span>
+                                    <span id="badge_detected_uuid" class="badge bg-white text-primary border <?= empty($id_api) ? 'd-none' : ''; ?>" style="font-size: 11px;">
+                                        UUID: <span id="text_detected_uuid"><?= esc($id_api); ?></span>
+                                    </span>
+                                </label>
+                                <textarea name="link_api" id="input_link_api" tabindex="3" class="form-control form-control-sm bg-white" rows="2" placeholder="Tempel UUID atau URL lengkap dataset Portal Satu Data..."><?= esc($link_api); ?></textarea>
+                                <div class="text-muted mt-1" style="font-size: 0.74rem;">
+                                    <i class="bi bi-lightbulb text-warning me-1"></i>UUID tabel diekstrak otomatis saat Anda menempelkan URL lengkap dari browser.
+                                </div>
                             </div>
-                            <div class="card-body p-3">
+                        </div>
+
+                        <!-- KONTEN B: FORMAT TABEL DINAMIS -->
+                        <div id="section_format_dynamic" class="<?= ($jenis_sumber !== 'dinamis') ? 'd-none' : ''; ?>">
+                            <div class="rounded-3 border bg-light p-3">
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                    <span class="fw-semibold text-dark small">
+                                        <i class="bi bi-sliders text-primary me-1"></i>Struktur Dimensi Matriks
+                                    </span>
+                                    <?php if (!empty($idp)): ?>
+                                    <a href="<?= base_url('admin/generator_tabel/' . $idp); ?>" class="text-decoration-none fw-semibold small d-inline-flex align-items-center gap-1" style="color: #154679;">
+                                        Buka Generator <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                    <?php endif; ?>
+                                </div>
+
                                 <?php if (!empty($idp)): ?>
                                     <div class="row g-2">
+                                        <?php
+                                        $hasKolom = !empty($datpil->nama_karakteristik_ind);
+                                        $hasBaris = !empty($datpil->nama_baris_ind);
+                                        $hasPeriode = !empty($datpil->nama_periode_ind);
+                                        ?>
                                         <div class="col-md-4">
-                                            <div class="p-3 rounded-3 border bg-light h-100">
-                                                <div class="text-muted text-xxs fw-bold text-uppercase d-flex align-items-center gap-1">
-                                                    <i class="bi bi-layout-three-columns text-warning"></i> Kolom : Karakteristik
+                                            <div class="p-2 px-3 rounded-3 border bg-white h-100">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <span class="text-muted text-xxs fw-bold text-uppercase">Kolom</span>
+                                                    <i class="bi <?= $hasKolom ? 'bi-check-circle-fill text-success' : 'bi-exclamation-circle text-warning'; ?>" style="font-size: 0.78rem;"></i>
                                                 </div>
-                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_karakteristik_ind) ? esc($datpil->nama_karakteristik_ind) : 'Belum ditentukan'; ?>">
-                                                    <?= !empty($datpil->nama_karakteristik_ind) ? esc($datpil->nama_karakteristik_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
+                                                <div class="fw-semibold text-dark text-xs text-truncate mt-1" title="<?= $hasKolom ? esc($datpil->nama_karakteristik_ind) : 'Belum ditentukan'; ?>">
+                                                    <?= $hasKolom ? esc($datpil->nama_karakteristik_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="p-3 rounded-3 border bg-light h-100">
-                                                <div class="text-muted text-xxs fw-bold text-uppercase d-flex align-items-center gap-1">
-                                                    <i class="bi bi-list-nested text-info"></i> Baris : Rincian / Wilayah
+                                            <div class="p-2 px-3 rounded-3 border bg-white h-100">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <span class="text-muted text-xxs fw-bold text-uppercase">Baris</span>
+                                                    <i class="bi <?= $hasBaris ? 'bi-check-circle-fill text-success' : 'bi-exclamation-circle text-warning'; ?>" style="font-size: 0.78rem;"></i>
                                                 </div>
-                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_baris_ind) ? esc($datpil->nama_baris_ind) : 'Belum ditentukan'; ?>">
-                                                    <?= !empty($datpil->nama_baris_ind) ? esc($datpil->nama_baris_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
+                                                <div class="fw-semibold text-dark text-xs text-truncate mt-1" title="<?= $hasBaris ? esc($datpil->nama_baris_ind) : 'Belum ditentukan'; ?>">
+                                                    <?= $hasBaris ? esc($datpil->nama_baris_ind) : '<span class="text-muted fst-italic fw-normal">Belum ditentukan</span>'; ?>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="p-3 rounded-3 border bg-light h-100">
-                                                <div class="text-muted text-xxs fw-bold text-uppercase d-flex align-items-center gap-1">
-                                                    <i class="bi bi-calendar3 text-success"></i> Periode : Waktu
+                                            <div class="p-2 px-3 rounded-3 border bg-white h-100">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <span class="text-muted text-xxs fw-bold text-uppercase">Periode</span>
+                                                    <i class="bi bi-check-circle-fill text-success" style="font-size: 0.78rem;"></i>
                                                 </div>
-                                                <div class="fw-bold text-dark text-xs mt-1 text-truncate" title="<?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : 'Tahunan (Multi-Tahun)'; ?>">
-                                                    <?= !empty($datpil->nama_periode_ind) ? esc($datpil->nama_periode_ind) : '<span class="text-success fw-semibold">Tahunan (Multi-Tahun)</span>'; ?>
+                                                <div class="fw-semibold text-dark text-xs text-truncate mt-1" title="<?= $hasPeriode ? esc($datpil->nama_periode_ind) : 'Tahunan (Multi-Tahun)'; ?>">
+                                                    <?= $hasPeriode ? esc($datpil->nama_periode_ind) : '<span class="text-success">Tahunan (Multi-Tahun)</span>'; ?>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 <?php else: ?>
-                                    <div class="text-center py-3 text-muted">
-                                        <i class="bi bi-boxes fs-3 text-primary d-block mb-1"></i>
-                                        <div class="small fw-semibold text-dark">Tabel Baru: Siap Dirakit Menjadi Tabel Dinamis</div>
-                                        <div class="text-xxs text-muted mt-1">Setelah menyimpan tabel ini, Anda dapat langsung mengelola dimensi Baris, Kolom Karakteristik, Satuan, dan Desimal di Generator Tabel.</div>
+                                    <div class="text-center py-2 bg-white rounded-3 border text-muted">
+                                        <div class="small fw-semibold text-dark">Siap Dirakit Menjadi Tabel Dinamis</div>
+                                        <div class="text-xxs text-muted">Simpan tabel terlebih dahulu untuk mengatur dimensi di Generator Tabel.</div>
                                     </div>
                                 <?php endif; ?>
                             </div>
                         </div>
                     </div>
                     
-                    <hr class="text-secondary opacity-25 mt-4 mb-3">
+                    <hr class="border-secondary border-opacity-10 my-3">
                     
-                    <div class="d-flex justify-content-end align-items-center gap-2">
-                        <a href="<?php echo base_URL(); ?>index.php/admin/master_tabel" class="btn btn-light border" tabindex="7">
-                            <i class="bi bi-arrow-left me-1"></i> Kembali
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <a href="<?php echo base_url('admin/master_tabel'); ?>" class="btn btn-sm btn-light border px-3 py-2" tabindex="7">
+                            Batal
                         </a>
-                        <button type="submit" name="simpan_lanjut_generator" value="1" id="btn_simpan_generator" class="btn btn-success px-4 <?= ($jenis_sumber !== 'dinamis') ? 'd-none' : ''; ?>">
-                            <i class="bi bi-tools me-1"></i> Simpan & Lanjut ke Generator Tabel
-                        </button>
-                        <button type="submit" class="btn btn-primary px-4" tabindex="6">
-                            <i class="bi bi-check2-circle me-1"></i> Simpan Data Tabel
-                        </button>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <button type="submit" name="simpan_lanjut_generator" value="1" id="btn_simpan_generator" class="btn btn-sm btn-outline-success px-3 py-2 <?= ($jenis_sumber !== 'dinamis') ? 'd-none' : ''; ?>">
+                                <i class="bi bi-tools me-1"></i> Simpan &amp; Buka Generator
+                            </button>
+                            <button type="submit" class="btn btn-sm btn-primary px-4 py-2 fw-semibold" tabindex="6">
+                                <i class="bi bi-check2-circle me-1"></i> Simpan Perubahan
+                            </button>
+                        </div>
                     </div>
                     
                 </form>
@@ -481,26 +492,21 @@ if ($mode == "edt" || $mode == "act_edt") {
         background-color: #154679;
         border-color: #154679;
     }
-    /* Format Option Cards (Tabel Dinamis vs Link) */
+    /* Segmented Toggle Sumber Data (Tabel Dinamis vs API Satu Data) */
     .format-option-card {
-        border: 1.5px solid #e2e8f0;
-        background: #f8fafc;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #64748b;
         cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.15s ease;
     }
     .format-option-card:hover {
-        border-color: #cbd5e1;
-        background: #ffffff;
-        transform: translateY(-1px);
+        color: #1e293b;
     }
     .format-option-card.active {
-        border-color: #2563eb !important;
-        background: #ffffff !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08) !important;
-    }
-    .format-option-card .form-check-input:checked {
-        background-color: #2563eb;
-        border-color: #2563eb;
+        background: #154679 !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 6px rgba(21, 70, 121, 0.25) !important;
     }
 </style>
 

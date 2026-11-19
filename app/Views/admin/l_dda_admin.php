@@ -28,7 +28,7 @@ $unitkerjalogin = session()->get('admin_unitkerja');
     min-height: 0 !important;
     flex: 1 1 auto;
     overflow-y: auto;
-    overflow-x: auto !important;
+    overflow-x: hidden !important;
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 #f1f5f9;
@@ -67,7 +67,7 @@ $unitkerjalogin = session()->get('admin_unitkerja');
     <div class="card-header pb-2 pt-3 px-4 bg-white border-0 flex-shrink-0">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <h5 class="fw-bold mb-0 text-primary">
-                <i class="bi bi-building me-2"></i>Daftar Organisasi Daerah
+                <i class="bi bi-building me-2"></i>Daftar Instansi
             </h5>
             <div class="d-flex align-items-center gap-2 flex-wrap flex-md-nowrap">
                 <div class="input-group input-group-sm" style="width: 220px;">

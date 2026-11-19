@@ -898,18 +898,17 @@ class ExcelDataParser
                 $sanitized = $this->sanitizeValue($rawVal, $expectedDecimals);
                 $totalCells++;
 
-                // Ekstraksi jumlah desimal asli sel Excel jika bernilai numerik
+                // Ekstraksi jumlah desimal asli sel Excel (selaras DECIMAL(20,4), bebas artefak float General)
                 $numDecimals = null;
                 if ($sanitized['nilai'] !== null) {
-                    if (preg_match('/[.,](\d+)/', $formattedVal, $mDec)) {
-                        $numDecimals = strlen($mDec[1]);
+                    $formatCode = trim((string)$cell->getStyle()->getNumberFormat()->getFormatCode());
+                    $posFormat  = explode(';', $formatCode)[0] ?? '';
+                    if ($posFormat !== '' && strcasecmp($posFormat, 'General') !== 0 && preg_match('/\.(0+)/', $posFormat, $mFmt)) {
+                        $numDecimals = min(4, strlen($mFmt[1]));
                     } else {
-                        $valStr = (string)$rawVal;
-                        if (preg_match('/[.,](\d+)/', $valStr, $mDec)) {
-                            $numDecimals = strlen(rtrim($mDec[1], '0'));
-                        } else {
-                            $numDecimals = 0;
-                        }
+                        $cleanValStr = number_format(round((float)$sanitized['nilai'], 4), 4, '.', '');
+                        $decPart     = explode('.', $cleanValStr)[1] ?? '';
+                        $numDecimals = strlen(rtrim($decPart, '0'));
                     }
                 }
 
