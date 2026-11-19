@@ -302,9 +302,13 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
             }
         }
 
+        body.has-fixed-navbar {
+            padding-top: 108px;
+        }
+
         @media (max-width: 576px) {
-            body[style*="padding-top"] {
-                padding-top: 76px !important;
+            body.has-fixed-navbar {
+                padding-top: 95px;
             }
             .navbar-custom {
                 padding: 12px 0 !important;
@@ -686,7 +690,7 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
 
     </style>
 </head>
-<body <?= !$isHome ? 'style="padding-top: 85px;"' : '' ?>>
+<body <?= !$isHome ? 'class="has-fixed-navbar"' : '' ?>>
 
     <nav class="navbar navbar-expand-lg navbar-custom <?= !$isHome ? 'scrolled' : '' ?>" id="mainNavbar">
         <div class="container">
@@ -863,6 +867,18 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
         window.addEventListener('scroll', handleNavbarScroll, { passive: true });
         window.addEventListener('DOMContentLoaded', handleNavbarScroll);
         handleNavbarScroll();
+        <?php else: ?>
+        function syncFixedNavbarOffset() {
+            const navbar = document.getElementById('mainNavbar');
+            const navCollapse = document.getElementById('navbarNav');
+            if (!navbar) return;
+            if (navCollapse && navCollapse.classList.contains('show')) return;
+            document.body.style.paddingTop = (navbar.offsetHeight + 8) + 'px';
+        }
+        window.addEventListener('DOMContentLoaded', syncFixedNavbarOffset);
+        window.addEventListener('load', syncFixedNavbarOffset);
+        window.addEventListener('resize', syncFixedNavbarOffset);
+        syncFixedNavbarOffset();
         <?php endif; ?>
 
         // Navigasi Cerdas & ScrollSpy untuk Beranda dan Instansi
