@@ -21,6 +21,64 @@ def is_valid_table_char(obj):
     return True
 
 
+_FUSED_FOOTER_RE = re.compile(
+    r'^(?:sumber|source|catatan|note|keterangan)\s*(?:/\s*(?:source|sumber|notes?|catatan))?\s*:',
+    re.IGNORECASE,
+)
+
+
+def strip_fused_footer_lines(table):
+    """Bersihkan baris teks catatan kaki (mis. 'Sumber/Source: ...') yang bertabrakan satu band-Y dengan baris data PDFPlumber."""
+    if not table or not isinstance(table, list):
+        return table
+    cleaned = []
+    for row in table:
+        if not isinstance(row, list):
+            cleaned.append(row)
+            continue
+        if not any(isinstance(c, str) and '\n' in c for c in row):
+            cleaned.append(row)
+            continue
+
+        split_cells = [str(c).split('\n') if c is not None else None for c in row]
+        max_lines = max((len(lines) for lines in split_cells if lines is not None), default=1)
+        cut_idx = None
+        for k in range(1, max_lines):
+            joined_k = ''.join(lines[k] for lines in split_cells if lines is not None and k < len(lines)).strip()
+            if joined_k and _FUSED_FOOTER_RE.match(joined_k):
+                cut_idx = k
+                break
+
+        if cut_idx is not None:
+            new_row = []
+            for lines in split_cells:
+                if lines is None:
+                    new_row.append(None)
+                else:
+                    kept = [ln for ln in lines[:cut_idx] if ln.strip() != '']
+                    new_row.append('\n'.join(kept) if kept else '')
+            cleaned.append(new_row)
+            continue
+
+        # Cek juga baris terakhir jika tinggi wrap per kolom tidak seragam
+        joined_last = ''.join(lines[-1] for lines in split_cells if lines is not None and len(lines) >= 2).strip()
+        if joined_last and _FUSED_FOOTER_RE.match(joined_last):
+            new_row = []
+            for lines in split_cells:
+                if lines is None:
+                    new_row.append(None)
+                elif len(lines) >= 2:
+                    kept = [ln for ln in lines[:-1] if ln.strip() != '']
+                    new_row.append('\n'.join(kept) if kept else '')
+                else:
+                    new_row.append(lines[0])
+            cleaned.append(new_row)
+            continue
+
+        cleaned.append(row)
+    return cleaned
+
+
 def strip_empty_table_columns(table):
     """Menghapus kolom artefak kosong hasil ekstraksi PDFPlumber agar indeks kolom konsisten."""
     if not table or not isinstance(table, list):
@@ -95,7 +153,7 @@ def get_cached_page_tables(pdf_path, page_num):
             page_tables = extract_page_tables_robust(clean_page)
             res = []
             for t in page_tables:
-                res.extend(strip_empty_table_columns(t))
+                res.extend(strip_empty_table_columns(strip_fused_footer_lines(t)))
             with _PDF_PAGE_CACHE_LOCK:
                 _PDF_PAGE_CACHE[cache_key] = res
             return res
@@ -103,13 +161,20 @@ def get_cached_page_tables(pdf_path, page_num):
 
 
 def extract_tables_from_pdf(pdf_path, target_tables):
+    import glob
     up_dir = os.path.dirname(os.path.abspath(pdf_path))
-    m_year = re.search(r'(\d{4})', pdf_path)
-    ta = m_year.group(1) if m_year else "2026"
-    candidates = [
-        os.path.join(up_dir, f"dda_matched_{ta}.json"),
-        os.path.join(up_dir, "dda_matched_2026.json"),
-    ]
+    m_year = re.search(r'(\d{4})', os.path.basename(pdf_path))
+    candidates = []
+    if m_year:
+        candidates.append(os.path.join(up_dir, f"dda_matched_{m_year.group(1)}.json"))
+    matched_glob = sorted(
+        glob.glob(os.path.join(up_dir, "dda_matched_*.json")),
+        key=lambda p: os.path.getmtime(p),
+        reverse=True,
+    )
+    for p in matched_glob:
+        if p not in candidates:
+            candidates.append(p)
     data = {}
     for cand in candidates:
         if os.path.exists(cand):
@@ -154,6 +219,9 @@ def stitch_table_pages(pdf_path, pages):
             c_str = str(c).strip() if c is not None else ''
             if not c_str or c_str.lower() == 'none':
                 continue
+            if re.match(r'^(?:19|20)\d{2}\*?$', c_str):
+                parts.append(c_str.rstrip('*'))
+                continue
             if re.match(r'^\d+\.?$', c_str):
                 continue
             if parse_num(c_str, is_pdf=True) is not None:
@@ -167,17 +235,70 @@ def stitch_table_pages(pdf_path, pages):
 
     page_col_info = [_get_bps_cols(p_rows) for p_rows in all_pages_data]
 
-    # Check whether table has horizontal continuation
+    def _norm_data_col_headers(p_rows, bps_idx, cols):
+        if bps_idx <= 0 or not cols:
+            return tuple()
+        sigs = []
+        for c_idx, bps_num in cols:
+            if bps_num <= 1:
+                continue
+            parts = []
+            for r in p_rows[:bps_idx]:
+                if isinstance(r, list) and c_idx < len(r) and r[c_idx] is not None:
+                    # Normalisasi '/' dan spasi agar variasi 'Laki-Laki/Male' vs 'Laki-Laki Male' identik
+                    s = re.sub(r'[/\s]+', ' ', str(r[c_idx])).strip().lower()
+                    if s and s != 'none':
+                        parts.append(s)
+            sigs.append(' '.join(parts))
+        return tuple(sigs)
+
+    def _page_row_labels(p_rows, bps_idx):
+        if not p_rows:
+            return set()
+        start = (bps_idx + 1) if bps_idx >= 0 else 0
+        labels = set()
+        for r in p_rows[start:]:
+            if not isinstance(r, list) or not r or is_header_or_metadata_row(r):
+                continue
+            k = _norm_label(r)
+            if k and k not in ('jumlahtotal', 'jumlah', 'total'):
+                labels.add(k)
+        return labels
+
+    # Check whether table has genuine horizontal continuation:
+    # either incrementing BPS column numbers with distinct headers, OR reset BPS column numbers with distinct headers AND overlapping row entities (e.g. 9.1.12 / 9.1.13).
     has_horiz = False
+    first_hdr = _norm_data_col_headers(all_pages_data[0], page_col_info[0][0], page_col_info[0][1]) if page_col_info else tuple()
+    first_labels = _page_row_labels(all_pages_data[0], page_col_info[0][0]) if page_col_info else set()
+    page_is_horiz_start = [False] * len(page_col_info)
     for i in range(1, len(page_col_info)):
         prev_idx, prev_cols = page_col_info[i - 1]
         curr_idx, curr_cols = page_col_info[i]
         if prev_cols and curr_cols:
             max_prev = max(c[1] for c in prev_cols)
             curr_data_nums = [c[1] for c in curr_cols if c[1] > 1]
-            if curr_data_nums and any(n > max_prev and n > max((c[1] for c in page_col_info[0][1]), default=0) for n in curr_data_nums):
+            prev_hdr = _norm_data_col_headers(all_pages_data[i - 1], prev_idx, prev_cols)
+            curr_hdr = _norm_data_col_headers(all_pages_data[i], curr_idx, curr_cols)
+            is_repeated_same_hdr = bool(
+                curr_hdr and any(curr_hdr) and (
+                    (prev_hdr and len(prev_hdr) == len(curr_hdr) and prev_hdr == curr_hdr) or
+                    (first_hdr and len(first_hdr) == len(curr_hdr) and first_hdr == curr_hdr)
+                )
+            )
+            bps_incremented = bool(curr_data_nums and any(n > max_prev and n > max((c[1] for c in page_col_info[0][1]), default=0) for n in curr_data_nums))
+            row_overlap_horiz = False
+            if not is_repeated_same_hdr and prev_hdr != curr_hdr and curr_hdr and any(curr_hdr):
+                curr_labels = _page_row_labels(all_pages_data[i], curr_idx)
+                prev_labels = _page_row_labels(all_pages_data[i - 1], prev_idx)
+                ref_labels = prev_labels or first_labels
+                if curr_labels and ref_labels:
+                    shared = len(curr_labels & ref_labels)
+                    denom = min(len(curr_labels), len(ref_labels))
+                    if shared >= 2 and denom > 0 and (shared / denom) >= 0.4:
+                        row_overlap_horiz = True
+            if (bps_incremented and not is_repeated_same_hdr) or row_overlap_horiz:
                 has_horiz = True
-                break
+                page_is_horiz_start[i] = True
 
     if not has_horiz:
         res = []
@@ -198,7 +319,7 @@ def stitch_table_pages(pdf_path, pages):
         else:
             prev_num, prev_data, prev_b_idx, prev_b_cols = current_block[-1]
             prev_col_nums = [c[1] for c in prev_b_cols]
-            if any(n > max(prev_col_nums) and n > max((c[1] for c in page_col_info[0][1]), default=0) for n in col_numbers if n > 1):
+            if page_is_horiz_start[p_idx] or any(n > max(prev_col_nums) and n > max((c[1] for c in page_col_info[0][1]), default=0) for n in col_numbers if n > 1):
                 blocks.append(current_block)
                 current_block = [(p_num, all_pages_data[p_idx], bps_idx, bps_cols)]
             else:
@@ -326,7 +447,7 @@ def extract_table_content(pdf_path, target_pdf_info):
                     tables = extract_page_tables_robust(clean_page)
                     p_rows = []
                     for t in tables:
-                        p_rows.extend(strip_empty_table_columns(t))
+                        p_rows.extend(strip_empty_table_columns(strip_fused_footer_lines(t)))
                     with _PDF_PAGE_CACHE_LOCK:
                         _PDF_PAGE_CACHE[cache_key] = p_rows
 

@@ -12,9 +12,10 @@ from compare_table import compare_head_to_head
 
 FONT_FAMILY = "Times New Roman"
 
-HEADER_GRAY = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-PDF_COL_HDR = PatternFill(start_color="E0F2FE", end_color="E0F2FE", fill_type="solid") # Sky 100
-DB_COL_HDR = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")  # Slate 100
+HEADER_TOP = PatternFill(start_color="CBD5E1", end_color="CBD5E1", fill_type="solid")   # Slate 300 (Grup Tingkat Atas)
+HEADER_GRAY = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")  # Slate 200 (Sub-header / Daun)
+PDF_COL_HDR = PatternFill(start_color="E0F2FE", end_color="E0F2FE", fill_type="solid")  # Sky 100
+DB_COL_HDR = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")   # Slate 100
 
 DIFF_FILL = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")    # Soft Red
 DIFF_FONT = Font(name=FONT_FAMILY, size=11, bold=True, color="991B1B")
@@ -91,6 +92,56 @@ def get_real_pdf_only(res):
     return out
 
 
+def _collect_result_years(res):
+    """Kumpulkan seluruh tahun data unik dari hasil komparasi (terurut rapi)."""
+    yrs = []
+    seen = set()
+    for bucket in ("matches", "diffs", "pdf_only"):
+        for it in (res.get(bucket) or []):
+            if not isinstance(it, dict):
+                continue
+            y = str(it.get("tahun") or "").strip()
+            if not y:
+                m_y = re.search(
+                    r'\b((?:19|20)\d{2}(?:/(?:19|20)\d{2})?)\b',
+                    f"{it.get('metric', '')} {it.get('src_header', '')} {it.get('pdf_header', '')}"
+                )
+                y = m_y.group(1) if m_y else ""
+            if y and y not in seen:
+                seen.add(y)
+                yrs.append(y)
+    if not yrs and res.get("target_year"):
+        yrs.append(str(res.get("target_year")).strip())
+    return sorted(yrs)
+
+
+def _extract_col_levels(item, include_year_level=False, year_as_outer=True):
+    """Bangun tuple hierarki kolom unik (anti-timpa & siap di-merge multi-baris di Excel)."""
+    raw_hier = item.get("kolom_hierarki")
+    if isinstance(raw_hier, list) and any(str(x).strip() for x in raw_hier):
+        levels = [str(x).strip() for x in raw_hier if str(x).strip()]
+    else:
+        sec = (item.get("section") or "").strip()
+        m = (item.get("metric") or "").strip()
+        if sec and sec not in ("-", "None") and not sec.lower().startswith("halaman") and sec.lower() not in m.lower():
+            combined = f"{sec} - {m}" if m else sec
+        else:
+            combined = m or "Data"
+        levels = [p.strip() for p in re.split(r'\s*(?:>|›|\|\||\s[-–—]\s)\s*', combined) if p.strip()]
+        if not levels:
+            levels = ["Data"]
+
+    yr = str(item.get("tahun") or "").strip()
+    if include_year_level and yr:
+        if not any(yr in lv for lv in levels):
+            levels = ([yr] + levels) if year_as_outer else (levels + [yr])
+
+    # Batasi kedalaman wajar (1..5 tingkat)
+    if len(levels) > 5:
+        levels = levels[:4] + [" - ".join(levels[4:])]
+    return tuple(levels)
+
+
 def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi="", include_pdf_only=False):
     diffs = res.get("diffs", [])
     matches = res.get("matches", [])
@@ -105,15 +156,40 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi="", include_p
     if not instansi or instansi == "-":
         instansi = get_instansi_name(tnum, res.get("id_db"))
 
+    result_years = _collect_result_years(res)
+    years_display = ", ".join(result_years) if result_years else "-"
+    multi_year_cols = len(result_years) >= 2
+
+    # Deteksi otomatis apakah tahun berada di tingkat luar (Tahun » Metrik, mis. 4.1.3)
+    # atau tingkat dalam (Metrik » Tahun, mis. 9.1.2 Mobil Penumpang: 2023 | 2024 | 2025)
+    year_as_outer = True
+    if multi_year_cols:
+        sample_seq = []
+        seen_seq = set()
+        for it in (matches + diffs):
+            w_s = (it.get("wilayah") or "-").strip()
+            if is_artifact_row(w_s):
+                continue
+            y_s = str(it.get("tahun") or "").strip()
+            h_s = tuple(it.get("kolom_hierarki") or [it.get("metric") or ""])
+            sig = (y_s, h_s)
+            if sig not in seen_seq:
+                seen_seq.add(sig)
+                sample_seq.append(sig)
+        same_yr_adj = sum(1 for i in range(len(sample_seq) - 1) if sample_seq[i][0] and sample_seq[i][0] == sample_seq[i + 1][0])
+        same_h_adj = sum(1 for i in range(len(sample_seq) - 1) if sample_seq[i][1] and sample_seq[i][1] == sample_seq[i + 1][1])
+        if same_h_adj > same_yr_adj:
+            year_as_outer = False
+
     # 1. Row 1: Nomor & Judul Tabel Lengkap (Lega & Tidak Terpotong)
     ws.row_dimensions[1].height = 26
     c_title = ws.cell(1, 1, f"Tabel {tnum} : {title}")
     c_title.font = Font(name=FONT_FAMILY, size=12, bold=True, color="0F172A")
     c_title.alignment = Alignment(horizontal="left", vertical="center")
     
-    # 2. Row 2: Sumber Data
+    # 2. Row 2: Sumber Data & Tahun Data
     ws.row_dimensions[2].height = 20
-    c_src = ws.cell(2, 1, f"Sumber Data: {src_type}")
+    c_src = ws.cell(2, 1, f"Sumber Data: {src_type}   |   Tahun Data: {years_display}")
     c_src.font = Font(name=FONT_FAMILY, size=10, bold=False, color="475569")
     c_src.alignment = Alignment(horizontal="left", vertical="center")
 
@@ -147,75 +223,93 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi="", include_p
     # 6. Row 6: Spasi Pemisah Visual
     ws.row_dimensions[6].height = 10
 
-    # is_artifact_row already defined at top of function
-
-    def get_col_label(item):
-        sec = (item.get("section") or "").strip()
-        m = (item.get("metric") or "").strip()
-        if sec and sec not in ("-", "None") and not sec.lower().startswith("halaman") and sec.lower() not in m.lower():
-            return f"{sec} - {m}"
-        return m or "Data"
-
+    # Kumpulkan urutan kolom asli (TANPA memindahkan subtotal tengah tabel ke paling kanan)
+    # serta gunakan tuple hierarki unik + anti-timpa untuk pasangan (wilayah, col_key).
     cols_order = []
-    # Kumpulkan kolom dari matches & diffs terlebih dahulu
+    cols_seen = set()
+    cell_map = {}  # (wilayah, col_key) -> dict
+    item_col_key_cache = {}  # id(item) -> resolved col_key
+
+    def _register_cell(item, w, base_key, payload):
+        # Jika (w, base_key) sudah terisi dengan item berbeda (kasus 2 kolom berbeda namun berlabel identik),
+        # pecah ke slot disambiguasi unik agar TIDAK pernah saling menimpa!
+        resolved_key = base_key
+        if (w, resolved_key) in cell_map:
+            existing = cell_map[(w, resolved_key)]
+            # Timpa hanya jika diff menimpa match dengan coord identik; selain itu buat slot kolom terpisah
+            same_coord = (
+                item.get("coord") and existing.get("_coord")
+                and item.get("coord") == existing.get("_coord")
+            )
+            if not (payload.get("is_diff") and not existing.get("is_diff") and same_coord):
+                suffix_idx = 2
+                while True:
+                    cand_key = base_key[:-1] + (f"{base_key[-1]} ({suffix_idx})",)
+                    if (w, cand_key) not in cell_map:
+                        resolved_key = cand_key
+                        break
+                    suffix_idx += 1
+        if resolved_key not in cols_seen:
+            cols_seen.add(resolved_key)
+            cols_order.append(resolved_key)
+        payload["_coord"] = item.get("coord")
+        cell_map[(w, resolved_key)] = payload
+        item_col_key_cache[id(item)] = resolved_key
+
+    # Pre-scan urutan kolom asli dari matches + diffs secara kronologis
     for item in (matches + diffs):
-        c = get_col_label(item)
-        if c not in cols_order:
-            cols_order.append(c)
-
-    # Susun urutan kolom: Non-total di kiri, Total/Jumlah di paling kanan
-    non_tot_cols = [c for c in cols_order if not any(k in c.lower() for k in ("jumlah", "total"))]
-    tot_cols = [c for c in cols_order if any(k in c.lower() for k in ("jumlah", "total"))]
-    cols_order = non_tot_cols + tot_cols
-
-    cell_map = {} # (wilayah, col_label) -> dict
+        w_chk = (item.get("wilayah") or "-").strip()
+        if is_artifact_row(w_chk):
+            continue
+        ck = _extract_col_levels(item, include_year_level=multi_year_cols, year_as_outer=year_as_outer)
+        if ck not in cols_seen:
+            cols_seen.add(ck)
+            cols_order.append(ck)
 
     # 1. Masukkan data matches
     for m in matches:
         w = (m.get("wilayah") or "-").strip()
-        if is_artifact_row(w): continue
-        c = get_col_label(m)
-        cell_map[(w, c)] = {
+        if is_artifact_row(w):
+            continue
+        ck = _extract_col_levels(m, include_year_level=multi_year_cols, year_as_outer=year_as_outer)
+        _register_cell(m, w, ck, {
             "pdf_val": m.get("pdf_val", m.get("val", "")),
             "db_val": m.get("src_val", m.get("val", "")),
             "is_diff": False,
-            "is_pdf_only": False
-        }
+            "is_pdf_only": False,
+        })
 
-    # 2. Masukkan data diffs (menimpa match jika ada)
+    # 2. Masukkan data diffs
     for d in diffs:
         w = (d.get("wilayah") or "-").strip()
-        if is_artifact_row(w): continue
-        c = get_col_label(d)
-        cell_map[(w, c)] = {
+        if is_artifact_row(w):
+            continue
+        ck = _extract_col_levels(d, include_year_level=multi_year_cols, year_as_outer=year_as_outer)
+        _register_cell(d, w, ck, {
             "pdf_val": d.get("pdf_val", ""),
             "db_val": d.get("src_val", ""),
             "is_diff": True,
-            "is_pdf_only": False
-        }
+            "is_pdf_only": False,
+        })
 
-    # 3. Masukkan data pdf_only (abaikan baris artefak header & data historis)
+    # 3. Masukkan data pdf_only (hanya jika tabel tidak punya pembanding atau diminta eksplisit)
     for p in real_pdf_only:
         w = (p.get("wilayah") or "-").strip()
-        if is_artifact_row(w): continue
-        c = get_col_label(p)
-        # Cari apakah kolom ini sebenarnya bagian dari kolom yang sudah ada
-        matched_c = next((col for col in cols_order if col.lower() in c.lower() or c.lower().endswith(col.lower())), None)
-        target_c = matched_c if matched_c else c
-        if target_c not in cols_order:
-            cols_order.append(target_c)
+        if is_artifact_row(w):
+            continue
+        ck = _extract_col_levels(p, include_year_level=multi_year_cols, year_as_outer=year_as_outer)
         vals = p.get("values", [])
-        pdf_v = vals[0] if vals else ""
-        cell_map[(w, target_c)] = {
+        pdf_v = vals[0] if vals else p.get("pdf_val", "")
+        _register_cell(p, w, ck, {
             "pdf_val": pdf_v,
             "db_val": "-",
             "is_diff": True,
-            "is_pdf_only": True
-        }
+            "is_pdf_only": True,
+        })
 
     # Kumpulkan seluruh baris kandidat
     all_candidate_rows = []
-    for (w, c) in cell_map.keys():
+    for (w, _c) in cell_map.keys():
         if w not in all_candidate_rows:
             all_candidate_rows.append(w)
 
@@ -229,46 +323,93 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi="", include_p
     tot_rows = [w for w in diff_rows if any(k in str(w).lower() for k in ("jumlah", "total"))]
     rows_order = non_tot_rows + tot_rows
 
-    # 7. Row 7-8: Matrix Headers
-    ws.merge_cells("A7:A8")
-    cA7 = ws.cell(7, 1, "Baris (Wilayah / Kategori)")
+    # 7. Matrix Headers Bertingkat (Multi-Row Merged sesuai hierarki kolom asli)
+    hdr_start_row = 7
+    header_depth = max((len(ck) for ck in cols_order), default=1)
+    pdf_db_row = hdr_start_row + header_depth
+
+    # Kolom A: merge vertikal dari hdr_start_row s.d. pdf_db_row
+    ws.merge_cells(start_row=hdr_start_row, start_column=1, end_row=pdf_db_row, end_column=1)
+    cA7 = ws.cell(hdr_start_row, 1, "Baris (Wilayah / Kategori)")
     cA7.font = Font(name=FONT_FAMILY, size=11, bold=True)
-    cA7.fill = HEADER_GRAY
-    cA7.alignment = Alignment(horizontal="center", vertical="center")
-    cA7.border = BORDER_THIN
-    ws.cell(8, 1).border = BORDER_THIN
+    cA7.fill = HEADER_TOP if header_depth >= 2 else HEADER_GRAY
+    cA7.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for r_b in range(hdr_start_row, pdf_db_row + 1):
+        ws.cell(r_b, 1).border = BORDER_THIN
+        ws.cell(r_b, 1).fill = HEADER_TOP if header_depth >= 2 else HEADER_GRAY
 
+    # Pad setiap col_key ke panjang header_depth (nilai None menandakan vertical merge dari level terakhir)
+    padded_cols = [list(ck) + [None] * (header_depth - len(ck)) for ck in cols_order]
+    n_data_cols = len(cols_order)
+
+    # Render baris header tingkat 0 .. header_depth-1 dengan horizontal & vertical merge yang presisi
+    merged_tracker = set()
+    for lvl in range(header_depth):
+        r_excel = hdr_start_row + lvl
+        ws.row_dimensions[r_excel].height = 24 if lvl < header_depth - 1 else 26
+        c_idx = 0
+        while c_idx < n_data_cols:
+            lbl = padded_cols[c_idx][lvl]
+            if lbl is None:
+                c_idx += 1
+                continue
+
+            # Hitung span horizontal: kolom bersebelahan dengan prefix ancestor [:lvl+1] identik
+            span_end = c_idx
+            is_leaf_here = (lvl == header_depth - 1) or (padded_cols[c_idx][lvl + 1] is None)
+            if not is_leaf_here:
+                prefix = padded_cols[c_idx][:lvl + 1]
+                while span_end + 1 < n_data_cols and padded_cols[span_end + 1][:lvl + 1] == prefix:
+                    # Jangan gabungkan dua daun berbeda pada level daun
+                    next_is_leaf = (lvl == header_depth - 1) or (padded_cols[span_end + 1][lvl + 1] is None)
+                    if next_is_leaf:
+                        break
+                    span_end += 1
+
+            # Hitung span vertikal bila kolom ini lebih dangkal dari header_depth
+            v_end_lvl = lvl
+            if span_end == c_idx:
+                while v_end_lvl + 1 < header_depth and padded_cols[c_idx][v_end_lvl + 1] is None:
+                    v_end_lvl += 1
+
+            excel_c_start = 2 + (c_idx * 2)
+            excel_c_end = 2 + (span_end * 2) + 1
+            excel_r_end = hdr_start_row + v_end_lvl
+
+            if (r_excel, excel_c_start) not in merged_tracker:
+                if excel_r_end > r_excel or excel_c_end > excel_c_start:
+                    ws.merge_cells(start_row=r_excel, start_column=excel_c_start, end_row=excel_r_end, end_column=excel_c_end)
+                fill_use = HEADER_TOP if (header_depth >= 2 and lvl == 0 and not is_leaf_here) else HEADER_GRAY
+                cell_h = ws.cell(r_excel, excel_c_start, lbl)
+                cell_h.font = Font(name=FONT_FAMILY, size=10.5, bold=True, color="0F172A")
+                cell_h.fill = fill_use
+                cell_h.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                for rr in range(r_excel, excel_r_end + 1):
+                    for cc in range(excel_c_start, excel_c_end + 1):
+                        ws.cell(rr, cc).border = BORDER_THIN
+                        ws.cell(rr, cc).fill = fill_use
+                        merged_tracker.add((rr, cc))
+
+            c_idx = span_end + 1
+
+    # Baris paling bawah header: PDF | Database untuk tiap kolom daun
+    ws.row_dimensions[pdf_db_row].height = 20
     curr_col = 2
-    for col_label in cols_order:
-        start_c = curr_col
-        end_c = curr_col + 1
-        ws.merge_cells(start_row=7, start_column=start_c, end_row=7, end_column=end_c)
-        
-        cHdr = ws.cell(7, start_c, col_label)
-        cHdr.font = Font(name=FONT_FAMILY, size=11, bold=True)
-        cHdr.fill = HEADER_GRAY
-        cHdr.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        cHdr.border = BORDER_THIN
-        ws.cell(7, end_c).border = BORDER_THIN
-
-        c_pdf = ws.cell(8, start_c, "PDF")
+    for _ in cols_order:
+        c_pdf = ws.cell(pdf_db_row, curr_col, "PDF")
         c_pdf.font = Font(name=FONT_FAMILY, size=10, bold=True, color="0369A1")
         c_pdf.fill = PDF_COL_HDR
         c_pdf.alignment = Alignment(horizontal="center", vertical="center")
         c_pdf.border = BORDER_THIN
 
-        c_db = ws.cell(8, end_c, "Database")
+        c_db = ws.cell(pdf_db_row, curr_col + 1, "Database")
         c_db.font = Font(name=FONT_FAMILY, size=10, bold=True, color="166534")
         c_db.fill = DB_COL_HDR
         c_db.alignment = Alignment(horizontal="center", vertical="center")
         c_db.border = BORDER_THIN
-
         curr_col += 2
 
-    ws.row_dimensions[7].height = 28
-    ws.row_dimensions[8].height = 20
-
-    # 6. Row 7+: Data Rows
+    # 8. Data Rows
     def format_and_align_cell(cell, val):
         cell.value = val
         cell.border = BORDER_THIN
@@ -288,7 +429,7 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi="", include_p
             except (ValueError, TypeError):
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    r_start = 9
+    r_start = pdf_db_row + 1
     for r_idx, w in enumerate(rows_order, r_start):
         ws.row_dimensions[r_idx].height = 22
         c_lbl = ws.cell(r_idx, 1, w)
@@ -338,7 +479,7 @@ def populate_matrix_sheet(ws, tnum, title, src_type, res, instansi="", include_p
         let = get_column_letter(col_i)
         ws.column_dimensions[let].width = 14
 
-    ws.freeze_panes = "B9"
+    ws.freeze_panes = f"B{r_start}"
 
 
 def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tolerance=0.0, id_db=None):
@@ -355,10 +496,36 @@ def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tol
         wb.save(output_path)
         return output_path
 
-    judul = res.get("judul_tabel") or res.get("judul_db") or res.get("judul_pdf") or f"Tabel {clean_target}"
-    src_type = res.get("source_type") or "Tabel Dinamis"
+    preloaded_db = None
+    db_meta = {}
+    if db_json_path and os.path.exists(db_json_path):
+        try:
+            with open(db_json_path, "r", encoding="utf-8") as f_db:
+                preloaded_db = json.load(f_db)
+            for row in (preloaded_db or []):
+                if not isinstance(row, dict):
+                    continue
+                r_id = str(row.get("id_db") or "").strip()
+                r_no = re.sub(r'^(?:tabel|table)\s*', '', str(row.get("nomor_tabel") or ""), flags=re.I).strip().rstrip('.')
+                if (id_db and r_id == str(id_db).strip()) or (r_no and r_no == clean_target):
+                    db_meta = row
+                    break
+        except Exception:
+            preloaded_db = None
 
-    populate_matrix_sheet(ws, clean_target, judul, src_type, res)
+    judul = (
+        res.get("judul_tabel")
+        or res.get("judul_db")
+        or res.get("judul_pdf")
+        or db_meta.get("judul_tabel")
+        or db_meta.get("judul_ind")
+        or f"Tabel {clean_target}"
+    )
+    judul = re.sub(r'\s+', ' ', str(judul)).strip()
+    src_type = res.get("source_type") or ("Tabel Dinamis" if db_meta.get("is_dynamic") else "API Satu Data")
+    instansi = get_instansi_name(clean_target, id_db or res.get("id_db") or db_meta.get("id_db"), preloaded_db=preloaded_db)
+
+    populate_matrix_sheet(ws, clean_target, judul, src_type, res, instansi=instansi)
 
     # Sheet 2 (Opsional jika ada selisih): Rincian Selisih
     diffs = res.get("diffs", [])
@@ -369,7 +536,7 @@ def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tol
         ws2.cell(1, 1, f"DAFTAR SELISIH DATA - TABEL {clean_target}").font = Font(name=FONT_FAMILY, size=13, bold=True)
         ws2.cell(2, 1, judul).font = Font(name=FONT_FAMILY, size=10, italic=True)
 
-        headers2 = ["No", "Baris (Wilayah / Kategori)", "Kolom (Metrik Data)", "Nilai di Buku PDF", "Nilai di Database", "Selisih", "Status", "Catatan"]
+        headers2 = ["No", "Baris (Wilayah / Kategori)", "Kolom (Hierarki)", "Tahun", "Nilai di Buku PDF", "Nilai di Database", "Selisih", "Status", "Catatan"]
         ws2.row_dimensions[4].height = 26
         for ci, h in enumerate(headers2, 1):
             c = ws2.cell(4, ci, h)
@@ -384,19 +551,20 @@ def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tol
             ws2.row_dimensions[r_ptr].height = 22
             ws2.cell(r_ptr, 1, counter).alignment = Alignment(horizontal="center", vertical="center")
             ws2.cell(r_ptr, 2, d.get("wilayah", "")).alignment = Alignment(vertical="center", indent=1)
-            ws2.cell(r_ptr, 3, d.get("metric", "")).alignment = Alignment(vertical="center", indent=1)
-            ws2.cell(r_ptr, 4, d.get("pdf_val", "")).alignment = Alignment(horizontal="center", vertical="center")
-            ws2.cell(r_ptr, 5, d.get("src_val", "")).alignment = Alignment(horizontal="center", vertical="center")
-            ws2.cell(r_ptr, 6, d.get("diff", "")).alignment = Alignment(horizontal="center", vertical="center")
-            ws2.cell(r_ptr, 6).font = DIFF_FONT
+            ws2.cell(r_ptr, 3, d.get("kolom_path") or d.get("metric", "")).alignment = Alignment(vertical="center", indent=1)
+            ws2.cell(r_ptr, 4, d.get("tahun") or res.get("target_year") or "-").alignment = Alignment(horizontal="center", vertical="center")
+            ws2.cell(r_ptr, 5, d.get("pdf_val", "")).alignment = Alignment(horizontal="center", vertical="center")
+            ws2.cell(r_ptr, 6, d.get("src_val", "")).alignment = Alignment(horizontal="center", vertical="center")
+            ws2.cell(r_ptr, 7, d.get("diff", "")).alignment = Alignment(horizontal="center", vertical="center")
+            ws2.cell(r_ptr, 7).font = DIFF_FONT
             
-            c_st = ws2.cell(r_ptr, 7, "BEDA NILAI")
+            c_st = ws2.cell(r_ptr, 8, "BEDA NILAI")
             c_st.font = DIFF_FONT
             c_st.alignment = Alignment(horizontal="center", vertical="center")
 
-            ws2.cell(r_ptr, 8, d.get("note", "")).alignment = Alignment(vertical="center", indent=1)
+            ws2.cell(r_ptr, 9, d.get("note", "")).alignment = Alignment(vertical="center", indent=1)
 
-            for col_i in range(1, 9):
+            for col_i in range(1, 10):
                 ws2.cell(r_ptr, col_i).fill = DIFF_FILL
                 ws2.cell(r_ptr, col_i).border = BORDER_THIN
 
@@ -407,20 +575,21 @@ def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tol
             ws2.row_dimensions[r_ptr].height = 22
             ws2.cell(r_ptr, 1, counter).alignment = Alignment(horizontal="center", vertical="center")
             ws2.cell(r_ptr, 2, p.get("wilayah", "")).alignment = Alignment(vertical="center", indent=1)
-            ws2.cell(r_ptr, 3, p.get("metric", "")).alignment = Alignment(vertical="center", indent=1)
+            ws2.cell(r_ptr, 3, p.get("kolom_path") or p.get("metric", "")).alignment = Alignment(vertical="center", indent=1)
+            ws2.cell(r_ptr, 4, p.get("tahun") or res.get("target_year") or "-").alignment = Alignment(horizontal="center", vertical="center")
             vals = p.get("values", [])
-            ws2.cell(r_ptr, 4, vals[0] if vals else "").alignment = Alignment(horizontal="center", vertical="center")
-            ws2.cell(r_ptr, 5, "-").alignment = Alignment(horizontal="center", vertical="center")
-            ws2.cell(r_ptr, 6, "Data Baru").alignment = Alignment(horizontal="center", vertical="center")
-            ws2.cell(r_ptr, 6).font = PDF_ONLY_FONT
+            ws2.cell(r_ptr, 5, vals[0] if vals else "").alignment = Alignment(horizontal="center", vertical="center")
+            ws2.cell(r_ptr, 6, "-").alignment = Alignment(horizontal="center", vertical="center")
+            ws2.cell(r_ptr, 7, "Data Baru").alignment = Alignment(horizontal="center", vertical="center")
+            ws2.cell(r_ptr, 7).font = PDF_ONLY_FONT
             
-            c_st = ws2.cell(r_ptr, 7, "HANYA DI PDF")
+            c_st = ws2.cell(r_ptr, 8, "HANYA DI PDF")
             c_st.font = PDF_ONLY_FONT
             c_st.alignment = Alignment(horizontal="center", vertical="center")
 
-            ws2.cell(r_ptr, 8, p.get("note", "")).alignment = Alignment(vertical="center", indent=1)
+            ws2.cell(r_ptr, 9, p.get("note", "")).alignment = Alignment(vertical="center", indent=1)
 
-            for col_i in range(1, 9):
+            for col_i in range(1, 10):
                 ws2.cell(r_ptr, col_i).fill = PDF_ONLY_FILL
                 ws2.cell(r_ptr, col_i).border = BORDER_THIN
 
@@ -429,12 +598,13 @@ def export_table_to_excel(pdf_path, db_json_path, target_table, output_path, tol
 
         ws2.column_dimensions['A'].width = 6
         ws2.column_dimensions['B'].width = 24
-        ws2.column_dimensions['C'].width = 30
-        ws2.column_dimensions['D'].width = 16
+        ws2.column_dimensions['C'].width = 34
+        ws2.column_dimensions['D'].width = 14
         ws2.column_dimensions['E'].width = 16
-        ws2.column_dimensions['F'].width = 14
-        ws2.column_dimensions['G'].width = 16
-        ws2.column_dimensions['H'].width = 34
+        ws2.column_dimensions['F'].width = 16
+        ws2.column_dimensions['G'].width = 14
+        ws2.column_dimensions['H'].width = 16
+        ws2.column_dimensions['I'].width = 36
 
     wb.save(output_path)
     return output_path

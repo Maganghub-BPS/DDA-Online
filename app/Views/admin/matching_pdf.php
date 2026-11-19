@@ -52,7 +52,9 @@
     .is-split-active .diff-split-layout { display: block !important; }
 
     /* Opsi 2 Matrix Coordinates Styling (Approved by Bos Anas) */
-    .diff-card {
+    .diff-card,
+    .match-card,
+    .pdfonly-card {
         border-radius: 14px !important;
         overflow: hidden;
         transition: all 0.2s ease;
@@ -60,6 +62,14 @@
     .diff-card:hover {
         box-shadow: 0 6px 20px rgba(239, 68, 68, 0.08) !important;
         border-color: #fca5a5 !important;
+    }
+    .match-card:hover {
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.08) !important;
+        border-color: #6ee7b7 !important;
+    }
+    .pdfonly-card:hover {
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.09) !important;
+        border-color: #fcd34d !important;
     }
     .split-matrix-left {
         background: #f8fafc;
@@ -101,7 +111,7 @@
                 <i class="bi bi-file-earmark-pdf-fill" style="font-size: 1.5rem;"></i>
             </div>
             <div>
-                <h4 class="fw-bold text-dark mb-0" style="letter-spacing: -0.02em;">Data Verifier AI</h4>
+                <h4 class="fw-bold text-dark mb-0" style="letter-spacing: -0.02em;">Sistem Verifikasi Data DDA</h4>
                 <p class="text-muted" style="font-size: 0.85rem; margin-top: 0; margin-bottom: 0;">Sistem Deteksi Anomali & Sinkronisasi PDF vs Sumber Data (Tabel Dinamis & API Satu Data)</p>
             </div>
         </div>
@@ -114,6 +124,30 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm sync-card bg-white h-100">
             <div class="card-body p-4">
+                <?php $curTaInt = (int)($ta ?? date('Y')); $targetDataYr = $curTaInt - 1; ?>
+                <?php if (!empty($available_master_years)): ?>
+                <div class="mb-3 p-2 rounded-3 bg-light border">
+                    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-1">
+                        <span class="small fw-bold text-secondary" style="font-size: 0.75rem;"><i class="bi bi-calendar3 me-1 text-primary"></i> Slot Tahun Buku PDF:</span>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <?php foreach ($available_master_years as $yrOpt): ?>
+                                <a href="<?= base_url('admin/matching_pdf?ta=' . urlencode((string)$yrOpt)) ?>"
+                                   class="btn <?= ((string)$yrOpt === (string)($ta ?? '')) ? 'btn-primary fw-bold' : 'btn-outline-secondary' ?>"
+                                   style="font-size: 0.74rem;"
+                                   title="Buka slot komparasi Buku DDA <?= esc($yrOpt) ?> (Data Target N-1: <?= (int)$yrOpt - 1 ?>)">
+                                    <?= esc($yrOpt) ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <div class="small text-muted border-top pt-1 mt-1 d-flex align-items-center justify-content-between" style="font-size: 0.72rem;">
+                        <span><i class="bi bi-book me-1 text-primary"></i>Buku PDF: <strong class="text-dark">DDA <?= esc($curTaInt) ?></strong></span>
+                        <span><i class="bi bi-arrow-left-right mx-1"></i></span>
+                        <span><i class="bi bi-database me-1 text-success"></i>Data DB (N-1): <strong class="text-success"><?= esc($targetDataYr) ?></strong></span>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <?php if (!empty($has_master)): ?>
                 <!-- Master PDF Active Card -->
                 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -213,7 +247,7 @@
                     <span class="small fw-bold text-secondary"><i class="bi bi-speedometer2 me-1 text-primary"></i>Ringkasan Audit (Klik kartu untuk memfilter):</span>
 
                     <div class="d-flex align-items-center gap-1">
-                        <a href="<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>" id="btnDownloadRekapGlobal" target="_blank" class="btn btn-xs btn-success text-white fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Unduh langsung Rekap Excel Multi-Sheet">
+                        <a href="<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>" id="btnDownloadRekapGlobal" onclick="event.preventDefault(); triggerGenerateRekapModal(false);" class="btn btn-xs btn-success text-white fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Unduh langsung Rekap Excel Multi-Sheet">
                             <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Unduh Rekap Global (.xlsx)
                         </a>
                         <button type="button" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" onclick="triggerGenerateRekapModal(true)" title="Generate Ulang Rekap Excel di Background">
@@ -311,25 +345,16 @@
                                         <button type="button" id="btnFilterEmpty" class="btn btn-xs btn-outline-warning fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('api_empty', this)">
                                             <i class="bi bi-database-slash me-1"></i>Data Kosong (<span id="cntEmpty">0</span>)
                                         </button>
+                                        <button type="button" id="btnFilterYearMismatch" class="btn btn-xs btn-outline-info fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('api_year_mismatch', this)" title="Data ada di API, namun tahun target cetak PDF belum tersedia di API">
+                                            <i class="bi bi-calendar-x me-1"></i>Beda Tahun (<span id="cntYearMismatch">0</span>)
+                                        </button>
                                         <button type="button" id="btnFilterPdfOnly" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('pdf_only', this)">
                                             <i class="bi bi-journal-bookmark me-1"></i>Hanya di PDF (<span id="cntPdfOnly">0</span>)
-                                        </button>
-                                        <button type="button" id="btnFilterUnverified" class="btn btn-xs btn-outline-secondary fw-bold px-2 py-1 rounded-pill" style="font-size:0.75rem;" onclick="filterMatchedStatus('unverified', this)">
-                                            <i class="bi bi-clock me-1"></i>Belum Cek (<span id="cntUnverified">0</span>)
-                                        </button>
-                                        <button type="button" id="btnFilterUnconfigured" class="btn btn-xs btn-outline-warning fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" onclick="filterMatchedStatus('unconfigured', this)" title="Tampilkan hanya tabel API Satudata yang belum dikonfigurasi">
-                                            <i class="bi bi-magic me-1"></i>Belum Konfigurasi (<span id="cntUnconfigured">0</span>)
                                         </button>
                                     </div>
 
                                     <!-- Action & Search -->
                                     <div class="d-flex align-items-center gap-1 flex-wrap">
-                                        <button id="btnSyncCloud" onclick="syncCloudData()" class="btn btn-sm btn-outline-primary fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Tarik data terbaru dari Database Cloud Aiven tanpa perlu reload halaman">
-                                            <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sync Cloud
-                                        </button>
-                                        <button id="btnBatchVerifyUnverified" onclick="startBatchValidation('unverified')" class="btn btn-sm btn-outline-warning fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Cepat: Hanya memvalidasi tabel yang belum diperiksa / baru diisi nilainya di Cloud DB">
-                                            <i class="bi bi-clock-history me-1"></i> Cek Belum Diperiksa
-                                        </button>
                                         <button id="btnBatchVerifyDinamis" onclick="startBatchValidation('dinamis')" class="btn btn-sm btn-outline-success fw-bold px-2 py-1 rounded-pill shadow-xs" style="font-size:0.73rem;" title="Scan Cepat: Memvalidasi semua Tabel Dinamis">
                                             <i class="bi bi-grid-3x3-gap-fill me-1"></i> Scan Dinamis
                                         </button>
@@ -528,13 +553,14 @@
   </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     let currentPdfPath = <?= json_encode($master_data['pdf_path'] ?? '') ?>;
     let currentDbJsonPath = <?= json_encode($master_data['db_json_path'] ?? '') ?>;
     let activeYear = '<?= esc($ta ?? date('Y')) ?>';
+    let masterPdfVersion = <?= json_encode($master_data['pdf_mtime'] ?? time()) ?>;
     let hasMasterInitial = <?= !empty($has_master) ? 'true' : 'false' ?>;
     let isBatchRunningInitial = <?= !empty($is_batch_running) ? 'true' : 'false' ?>;
+    const ALLOW_PDF_SYNC_TO_DB = <?= !isset($allow_pdf_sync_to_db) || !empty($allow_pdf_sync_to_db) ? 'true' : 'false' ?>;
     window.currentMatchedTables = <?= json_encode($master_data['matched_in_pdf'] ?? $master_data['matched_tables'] ?? []) ?>;
     window.batchStatusMap = <?= json_encode($batch_status ?? []) ?>;
 
@@ -583,34 +609,45 @@
                 $('#loaderArea').hide();
                 $('#resultArea').fadeIn();
 
+                let prevActiveYear = activeYear;
+                if (res.active_year) {
+                    activeYear = String(res.active_year);
+                }
+                if (res.pdf_mtime) {
+                    masterPdfVersion = res.pdf_mtime;
+                } else {
+                    masterPdfVersion = Date.now();
+                }
+
                 if (res.pdf_path && res.db_json_path) {
                     currentPdfPath = res.pdf_path;
                     currentDbJsonPath = res.db_json_path;
                 }
 
-                // Update master card info
+                // Jika sistem mendeteksi tahun buku PDF berbeda dari sesi sebelumnya (Opsi A),
+                // atau ini upload pertama kali, reload halaman agar sidebar, dropdown tahun, & tombol download sinkron 100% ke slot baru.
+                if (!hasMasterInitial || (prevActiveYear && activeYear !== prevActiveYear)) {
+                    window.location.href = "<?= base_url('admin/matching_pdf') ?>?ta=" + encodeURIComponent(activeYear);
+                    return;
+                }
+
+                // Update master card info & link download sesuai tahun aktif
                 $('#masterTitle').text('DDA Jawa Tengah ' + activeYear);
                 $('#masterUploadTime').text(res.upload_time || 'Baru Saja');
                 $('#masterFileSize').text((res.file_size_mb || '12.4') + ' MB');
+                $('#btnDownloadRekapGlobal').attr('href', "<?= base_url('admin/export_rekap_matching') ?>?ta=" + encodeURIComponent(activeYear))
+                    .removeClass('btn-success text-white').addClass('btn-outline-success');
                 $('#formUploadContainer').slideUp(200);
 
-                // Populate Matched
+                // Populate Matched (upload baru selalu reset status validasi ke kondisi bersih)
                 let matchedList = res.matched_in_pdf || res.matched_tables || [];
                 $('#countMatched').text(matchedList.length);
                 window.currentMatchedTables = matchedList;
                 window.batchStatusMap = {};
 
-                // Cek apakah sudah ada cache hasil validasi batch sebelumnya
-                $.getJSON("<?= base_url('admin/get_batch_status') ?>", { ta: activeYear }, function(cacheRes) {
-                    if (cacheRes && cacheRes.status === 'success' && cacheRes.data) {
-                        window.batchStatusMap = cacheRes.data;
-                    }
-                    renderAllMatchedRows();
-                    updateBatchCounters();
-                }).fail(function() {
-                    renderAllMatchedRows();
-                    updateBatchCounters();
-                });
+                renderAllMatchedRows();
+                updateBatchCounters();
+                checkRekapAvailability();
 
                 // Populate Missing
                 $('#countMissing').text(res.missing_in_pdf.length);
@@ -764,6 +801,15 @@
                 <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-danger fw-bold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Klik untuk scan ulang & periksa selisih tabel ini saja">
                     <i class="bi bi-search me-1"></i> Cek Beda
                 </button>`;
+        } else if (status === 'api_year_mismatch') {
+            let ymTitle = (info && info.message) ? String(info.message).replace(/"/g, '&quot;') : 'Data ada di API, namun tahun target cetakan PDF belum tersedia di API';
+            badgeHtml = `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;" title="${ymTitle}"><i class="bi bi-calendar-x me-1"></i>Beda Tahun API</span>`;
+            btnHtml = `
+                ${dynLinkBtn}
+                ${apiBtns}
+                <button onclick="verify_tabel('${item.nomor_tabel}')" class="btn btn-sm btn-outline-info fw-semibold px-3 py-1 rounded-pill shadow-xs" style="font-size:0.75rem;" title="Lihat rincian perbedaan tahun antara PDF dan API">
+                    <i class="bi bi-search me-1"></i> Detail
+                </button>`;
         } else if (status === 'api_empty') {
             badgeHtml = `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill fw-bold shadow-xs" style="font-size:0.75rem;"><i class="bi bi-database-slash me-1"></i>Data Kosong</span>`;
             btnHtml = `
@@ -815,9 +861,9 @@
         let srcFilter = window.currentSourceFilter || 'all';
 
         let stats = {
-            all: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0, unconfigured: 0 },
-            dinamis: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0, unconfigured: 0 },
-            api: { all: 0, diff: 0, match: 0, api_empty: 0, pdf_only: 0, unverified: 0, unconfigured: 0 }
+            all: { all: 0, diff: 0, match: 0, api_empty: 0, api_year_mismatch: 0, pdf_only: 0, unverified: 0, unconfigured: 0 },
+            dinamis: { all: 0, diff: 0, match: 0, api_empty: 0, api_year_mismatch: 0, pdf_only: 0, unverified: 0, unconfigured: 0 },
+            api: { all: 0, diff: 0, match: 0, api_empty: 0, api_year_mismatch: 0, pdf_only: 0, unverified: 0, unconfigured: 0 }
         };
 
         window.currentMatchedTables.forEach(item => {
@@ -834,7 +880,7 @@
                 }
             }
             let status = info ? info.status : 'unverified';
-            if (status !== 'diff' && status !== 'match' && status !== 'api_empty' && status !== 'pdf_only') {
+            if (status !== 'diff' && status !== 'match' && status !== 'api_empty' && status !== 'api_year_mismatch' && status !== 'pdf_only') {
                 status = 'unverified';
             }
 
@@ -865,13 +911,14 @@
         $('#cntDiff').text(activeStats.diff);
         $('#cntMatch').text(activeStats.match);
         $('#cntEmpty').text(activeStats.api_empty);
+        $('#cntYearMismatch').text(activeStats.api_year_mismatch || 0);
         $('#cntPdfOnly').text(activeStats.pdf_only || 0);
         $('#cntUnverified').text(activeStats.unverified);
         $('#cntUnconfigured').text(activeStats.unconfigured || 0);
         if (srcFilter === 'dinamis') {
-            $('#btnFilterUnconfigured').addClass('d-none');
+            $('#btnFilterUnconfigured, #btnFilterYearMismatch').addClass('d-none');
         } else {
-            $('#btnFilterUnconfigured').removeClass('d-none');
+            $('#btnFilterUnconfigured, #btnFilterYearMismatch').removeClass('d-none');
         }
 
         // 3. Update Top Interactive KPI Cards
@@ -891,6 +938,7 @@
             'match': '#btnFilterMatch',
             'diff': '#btnFilterDiff',
             'api_empty': '#btnFilterEmpty',
+            'api_year_mismatch': '#btnFilterYearMismatch',
             'pdf_only': '#btnFilterPdfOnly',
             'unverified': '#btnFilterUnverified'
         };
@@ -1036,11 +1084,12 @@
 
     function filterMatchedStatus(type, btn) {
         window.currentBatchFilter = type;
-        $('#batchFilters button').removeClass('active btn-secondary btn-danger btn-success btn-warning btn-dark text-white text-dark').addClass('btn-outline-secondary');
+        $('#batchFilters button').removeClass('active btn-secondary btn-danger btn-success btn-warning btn-info btn-dark text-white text-dark').addClass('btn-outline-secondary');
         if (type === 'all') $(btn).removeClass('btn-outline-secondary').addClass('active btn-secondary text-white');
         else if (type === 'diff') $(btn).removeClass('btn-outline-secondary').addClass('active btn-danger text-white');
         else if (type === 'match') $(btn).removeClass('btn-outline-secondary').addClass('active btn-success text-white');
         else if (type === 'api_empty') $(btn).removeClass('btn-outline-secondary').addClass('active btn-warning text-dark');
+        else if (type === 'api_year_mismatch') $(btn).removeClass('btn-outline-secondary').addClass('active btn-info text-dark');
         else if (type === 'unconfigured') $(btn).removeClass('btn-outline-secondary').addClass('active btn-warning text-dark');
         else if (type === 'pdf_only') $(btn).removeClass('btn-outline-secondary').addClass('active btn-dark text-white');
         else if (type === 'unverified') $(btn).removeClass('btn-outline-secondary').addClass('active btn-secondary text-white');
@@ -1093,7 +1142,7 @@
             let matchesStatus = (statusFilter === 'all');
             if (!matchesStatus) {
                 if (statusFilter === 'unverified') {
-                    matchesStatus = (rowStatus !== 'match' && rowStatus !== 'diff' && rowStatus !== 'api_empty' && rowStatus !== 'pdf_only');
+                    matchesStatus = (rowStatus !== 'match' && rowStatus !== 'diff' && rowStatus !== 'api_empty' && rowStatus !== 'api_year_mismatch' && rowStatus !== 'pdf_only');
                 } else if (statusFilter === 'unconfigured') {
                     let isUnconfData = parseInt($(this).attr('data-unconf-data') || 0);
                     let rowSrc = $(this).attr('data-source') || '';
@@ -1185,6 +1234,11 @@
 
         window.isBatchRunning = true;
         consecutiveStopCount = 0;
+        if (sourceFilter === 'all') {
+            window.batchStatusMap = {};
+            renderAllMatchedRows();
+            updateBatchCounters();
+        }
         $('#btnBatchVerify, #btnBatchVerifyDinamis, #btnBatchVerifyApi, #btnBatchVerifyUnverified').prop('disabled', true).addClass('opacity-50');
         $('#btnStopBatch').removeClass('d-none');
         $('#batchProgressBox').removeClass('d-none');
@@ -1249,7 +1303,7 @@
                         for (let t_num in res.batch_status) {
                             let old = window.batchStatusMap[t_num];
                             let curr = res.batch_status[t_num];
-                            if (!old || old.status !== curr.status || old.diff_count !== curr.diff_count) {
+                            if (!old || old.status !== curr.status || old.diff_count !== curr.diff_count || old.match_count !== curr.match_count || (old.message || '') !== (curr.message || '')) {
                                 window.batchStatusMap[t_num] = curr;
                                 hasChanges = true;
                                 let foundItem = window.currentMatchedTables ? window.currentMatchedTables.find(t => t.nomor_tabel === t_num) : null;
@@ -1336,11 +1390,13 @@
 
     window.setDiffType = function(type, btn) {
         window.currentDiffFilter = type;
-        $('.btn-filter-type').removeClass('active btn-danger btn-success btn-warning btn-dark text-white').addClass('btn-outline-secondary');
-        if (type === 'diff') $(btn).removeClass('btn-outline-secondary').addClass('btn-danger active text-white');
-        else if (type === 'match') $(btn).removeClass('btn-outline-secondary').addClass('btn-success active text-white');
-        else if (type === 'pdf_only') $(btn).removeClass('btn-outline-secondary').addClass('btn-warning active text-dark');
-        else $(btn).removeClass('btn-outline-secondary').addClass('btn-dark active text-white');
+        $('.btn-filter-type')
+            .removeClass('active btn-danger btn-success btn-warning btn-dark text-white text-dark shadow-xs')
+            .addClass('btn-outline-secondary');
+        if (type === 'diff') $(btn).removeClass('btn-outline-secondary').addClass('btn-danger active text-white shadow-xs');
+        else if (type === 'match') $(btn).removeClass('btn-outline-secondary').addClass('btn-success active text-white shadow-xs');
+        else if (type === 'pdf_only') $(btn).removeClass('btn-outline-secondary').addClass('btn-warning active text-dark shadow-xs');
+        else $(btn).removeClass('btn-outline-secondary').addClass('btn-dark active text-white shadow-xs');
         applyDiffFilters();
     };
 
@@ -1353,15 +1409,15 @@
 
     window.applyDiffFilters = function() {
         let activeType = window.currentDiffFilter || 'diff';
-        let kw = ($('#diffSearchInput').val() || '').trim().toLowerCase();
-        let sec = ($('#diffSectionSelect').val() || 'all').toLowerCase();
+        let kw = String($('#diffSearchInput').val() || '').trim().toLowerCase();
+        let sec = String($('#diffSectionSelect').val() || 'all').toLowerCase();
 
         let visibleCount = 0;
         $('.item-row').each(function() {
-            let rowType = $(this).data('type');
-            let rowWilayah = ($(this).data('wilayah') || '').toLowerCase();
-            let rowMetric = ($(this).data('metric') || '').toLowerCase();
-            let rowSec = ($(this).data('section') || '').toLowerCase();
+            let rowType = String($(this).attr('data-type') || '');
+            let rowWilayah = String($(this).attr('data-wilayah') ?? '').toLowerCase();
+            let rowMetric = String($(this).attr('data-metric') ?? '').toLowerCase();
+            let rowSec = String($(this).attr('data-section') ?? '').toLowerCase();
 
             let matchType = (activeType === 'all') || (rowType === activeType);
             let matchKw = !kw || rowWilayah.includes(kw) || rowMetric.includes(kw) || rowSec.includes(kw);
@@ -1388,7 +1444,7 @@
 
     function getPdfSplitPaneHtml(pagesLabel) {
         return `
-            <div class="col-lg-6 d-none" id="pdfSplitPane" style="position: sticky; top: 0; align-self: flex-start; z-index: 1050; height: calc(100vh - 230px); min-height: 480px; max-height: calc(100vh - 230px);">
+            <div class="col-lg-6 d-none" id="pdfSplitPane" style="position: sticky; top: 0; align-self: flex-start; z-index: 1050; height: clamp(320px, calc(100vh - 230px), 780px); min-height: 0; max-height: calc(100vh - 200px);">
                 <div class="card border shadow-sm h-100 d-flex flex-column overflow-hidden">
                     <div class="card-header bg-dark text-white py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2 flex-shrink-0" style="border-bottom: 2px solid #334155;">
                         <div class="d-flex align-items-center gap-2">
@@ -1469,7 +1525,7 @@
         }
 
         let firstPage = pages[0] || 1;
-        let newTabUrl = `<?= base_url('admin/serve_master_pdf') ?>?ta=${encodeURIComponent(activeYear)}#page=${firstPage}`;
+        let newTabUrl = `<?= base_url('admin/serve_master_pdf') ?>?ta=${encodeURIComponent(activeYear)}&v=${encodeURIComponent(masterPdfVersion)}#page=${firstPage}`;
         $('#btnPdfOpenNewTab').attr('href', newTabUrl);
 
         switchPdfViewerPage(firstPage);
@@ -1494,7 +1550,7 @@
             if (pagesToRender.length > 1) {
                 container.append(`<div class="badge bg-dark bg-opacity-75 text-white border border-secondary mb-2 px-3 py-1 shadow-xs"><i class="bi bi-book me-1"></i> Halaman ${p}</div>`);
             }
-            let imgUrl = `<?= base_url('admin/serve_pdf_page') ?>?ta=${encodeURIComponent(activeYear)}&page=${p}&dpi=150`;
+            let imgUrl = `<?= base_url('admin/serve_pdf_page') ?>?ta=${encodeURIComponent(activeYear)}&page=${p}&dpi=150&v=${encodeURIComponent(masterPdfVersion)}`;
             let $img = $('<img>')
                 .addClass('pdf-page-img img-fluid rounded shadow bg-white d-none')
                 .css({
@@ -1563,13 +1619,20 @@
         let $btn = $('#btnAutofillFromPdf');
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan ke Tabel Dinamis...');
 
+        let postPayload = {
+            id_indikator: res.id_indikator,
+            ta: activeYear,
+            pdf_path: currentPdfPath,
+            cells: JSON.stringify(res.autofill_cells)
+        };
+        if (typeof window.getLatestCsrfHash === 'function') {
+            postPayload['<?= csrf_token() ?>'] = window.getLatestCsrfHash();
+        }
+
         $.ajax({
             url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
             type: "POST",
-            data: {
-                id_indikator: res.id_indikator,
-                cells: JSON.stringify(res.autofill_cells)
-            },
+            data: postPayload,
             dataType: "json",
             success: function(syncRes) {
                 if (syncRes && syncRes.status === 'success') {
@@ -1579,8 +1642,11 @@
                     $btn.prop('disabled', false).html('<i class="bi bi-cloud-download-fill me-1"></i> Isi Otomatis ke Tabel Dinamis');
                 }
             },
-            error: function() {
-                alert("Gagal menghubungi server saat menyimpan nilai Tabel Dinamis.");
+            error: function(xhr) {
+                let msg = (xhr && xhr.status === 403)
+                    ? "Sesi keamanan (CSRF) kadaluwarsa. Silakan refresh halaman lalu coba lagi."
+                    : "Gagal menghubungi server saat menyimpan nilai Tabel Dinamis.";
+                alert(msg);
                 $btn.prop('disabled', false).html('<i class="bi bi-cloud-download-fill me-1"></i> Isi Otomatis ke Tabel Dinamis');
             }
         });
@@ -1590,6 +1656,10 @@
         let res = window.lastVerifyResult;
         if (!res || !res.id_indikator) {
             alert("Data indikator tabel dinamis tidak ditemukan.");
+            return;
+        }
+        if (res.source_type && res.source_type !== 'Tabel Dinamis') {
+            alert("Fitur samakan selisih hanya tersedia untuk Tabel Dinamis, bukan tabel API Satu Data.");
             return;
         }
 
@@ -1605,17 +1675,23 @@
 
         let cells = [];
         let missingCoordCount = 0;
+        let skippedEmptyPdfCount = 0;
         let seenKeys = new Set();
 
         allDiffItems.forEach(d => {
             if (d.coord && d.coord.id_baris_item !== undefined && d.coord.id_karakteristik_item !== undefined) {
                 let cellKey = `${d.coord.id_baris_item}_${d.coord.id_karakteristik_item}_${d.coord.id_periode_item}_${d.coord.tahun_data || ''}`;
                 if (!seenKeys.has(cellKey)) {
-                    seenKeys.add(cellKey);
                     let valToUse = d.pdf_val;
                     if (valToUse === undefined && d.values && d.values.length > 0) {
                         valToUse = d.values[0];
                     }
+                    // Guard anti-hapus: jangan kirim sel PDF yang gagal terbaca (null/kosong) agar tidak menimpa data DB!
+                    if (valToUse === null || valToUse === undefined || String(valToUse).trim() === '') {
+                        skippedEmptyPdfCount++;
+                        return;
+                    }
+                    seenKeys.add(cellKey);
                     cells.push({
                         id_baris_item: d.coord.id_baris_item,
                         id_karakteristik_item: d.coord.id_karakteristik_item,
@@ -1630,13 +1706,16 @@
         });
 
         if (cells.length === 0) {
-            alert(`Tidak ada sel yang dapat disamakan secara otomatis (${allDiffItems.length} selisih belum memiliki pemetaan sel pada template tabel).`);
+            alert(`Tidak ada sel valid yang dapat disamakan otomatis (${missingCoordCount} belum terpetakan, ${skippedEmptyPdfCount} sel PDF kosong/gagal terbaca dilewati demi keamanan data DB).`);
             return;
         }
 
         let confirmMsg = `Perbarui ${cells.length} sel yang selisih pada Tabel ${window.currentTableNumber} agar sama dengan angka di buku PDF?`;
-        if (missingCoordCount > 0) {
-            confirmMsg += `\n\n(Catatan: ${missingCoordCount} item lainnya belum memiliki pemetaan sel otomatis dan perlu dicek manual).`;
+        if (missingCoordCount > 0 || skippedEmptyPdfCount > 0) {
+            let notes = [];
+            if (missingCoordCount > 0) notes.push(`${missingCoordCount} item belum memiliki pemetaan sel`);
+            if (skippedEmptyPdfCount > 0) notes.push(`${skippedEmptyPdfCount} sel PDF kosong dilewati agar tidak menghapus data DB`);
+            confirmMsg += `\n\n(Catatan: ${notes.join('; ')}).`;
         }
         if (!confirm(confirmMsg)) return;
 
@@ -1644,13 +1723,20 @@
         let originalHtml = $btn.html();
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
 
+        let postPayload = {
+            id_indikator: res.id_indikator,
+            ta: activeYear,
+            pdf_path: currentPdfPath,
+            cells: JSON.stringify(cells)
+        };
+        if (typeof window.getLatestCsrfHash === 'function') {
+            postPayload['<?= csrf_token() ?>'] = window.getLatestCsrfHash();
+        }
+
         $.ajax({
             url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
             type: "POST",
-            data: {
-                id_indikator: res.id_indikator,
-                cells: JSON.stringify(cells)
-            },
+            data: postPayload,
             dataType: "json",
             success: function(syncRes) {
                 if (syncRes && syncRes.status === 'success') {
@@ -1664,7 +1750,9 @@
                 }
             },
             error: function(xhr, status, error) {
-                let errMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan pada server');
+                let errMsg = (xhr && xhr.status === 403)
+                    ? "Sesi keamanan (CSRF) kadaluwarsa. Silakan refresh halaman lalu coba lagi."
+                    : ((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan pada server'));
                 alert("Gagal menghubungi server (" + xhr.status + "): " + errMsg);
                 $btn.prop('disabled', false).html(originalHtml);
             }
@@ -1672,22 +1760,34 @@
     };
 
     window.syncSingleDiffCell = function(idIndikator, coord, pdfVal, btnEl) {
+        if (pdfVal === null || pdfVal === undefined || String(pdfVal).trim() === '') {
+            alert("Nilai PDF pada sel ini kosong/gagal terbaca, dilewati agar tidak menimpa data database.");
+            return;
+        }
         let $btn = $(btnEl);
         let origHtml = $btn.html();
         $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Menyimpan...');
+
+        let postPayload = {
+            id_indikator: idIndikator,
+            ta: activeYear,
+            pdf_path: currentPdfPath,
+            cells: JSON.stringify([{
+                id_baris_item: coord.id_baris_item,
+                id_karakteristik_item: coord.id_karakteristik_item,
+                id_periode_item: coord.id_periode_item,
+                tahun_data: coord.tahun_data || null,
+                nilai: pdfVal
+            }])
+        };
+        if (typeof window.getLatestCsrfHash === 'function') {
+            postPayload['<?= csrf_token() ?>'] = window.getLatestCsrfHash();
+        }
+
         $.ajax({
             url: "<?= base_url('admin/sync_pdf_to_dinamis') ?>",
             type: "POST",
-            data: {
-                id_indikator: idIndikator,
-                cells: JSON.stringify([{
-                    id_baris_item: coord.id_baris_item,
-                    id_karakteristik_item: coord.id_karakteristik_item,
-                    id_periode_item: coord.id_periode_item,
-                    tahun_data: coord.tahun_data || null,
-                    nilai: pdfVal
-                }])
-            },
+            data: postPayload,
             dataType: "json",
             success: function(syncRes) {
                 if (syncRes && syncRes.status === 'success') {
@@ -1698,7 +1798,9 @@
                 }
             },
             error: function(xhr, status, error) {
-                let errMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan');
+                let errMsg = (xhr && xhr.status === 403)
+                    ? "Sesi keamanan (CSRF) kadaluwarsa. Silakan refresh halaman lalu coba lagi."
+                    : ((xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (error || 'Terjadi kesalahan'));
                 alert("Gagal menyimpan sel (" + xhr.status + "): " + errMsg);
                 $btn.prop('disabled', false).html(origHtml);
             }
@@ -1739,13 +1841,15 @@
             </div>
         `);
 
-        let exportUrl = `<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(nomor_tabel)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=${tolerance}`;
+        let foundIdDb = foundItemInitial ? (foundItemInitial.id_db || '') : '';
+        let exportUrl = `<?= base_url('admin/export_tabel_excel') ?>?nomor_tabel=${encodeURIComponent(nomor_tabel)}&id_db=${encodeURIComponent(foundIdDb)}&pdf_path=${encodeURIComponent(currentPdfPath)}&db_json_path=${encodeURIComponent(currentDbJsonPath)}&tolerance=${tolerance}`;
 
         $.ajax({
             url: "<?= base_url('admin/verify_tabel_pdf') ?>",
             type: "POST",
             data: { 
                 nomor_tabel: nomor_tabel,
+                id_db: foundItemInitial ? (foundItemInitial.id_db || '') : '',
                 pdf_path: currentPdfPath,
                 db_json_path: currentDbJsonPath,
                 tolerance: tolerance
@@ -1761,12 +1865,13 @@
                     window.currentDiffFilter = totalDiffs > 0 ? 'diff' : (totalMatches > 0 ? 'match' : (totalPdfOnly > 0 ? 'pdf_only' : 'all'));
 
                     // Update main list badge & counters
-                    let status = (totalDiffs > 0) ? 'diff' : (totalMatches > 0 ? 'match' : (res.is_api_empty ? 'api_empty' : (totalPdfOnly > 0 ? 'pdf_only' : 'match')));
+                    let status = (totalDiffs > 0) ? 'diff' : (totalMatches > 0 ? 'match' : (res.is_year_unavailable ? 'api_year_mismatch' : (res.is_api_empty ? 'api_empty' : (totalPdfOnly > 0 ? 'pdf_only' : 'match'))));
                     let diffCount = totalDiffs > 0 ? totalDiffs : (totalPdfOnly > 0 ? totalPdfOnly : 0);
                     window.batchStatusMap[nomor_tabel] = {
                         status: status,
                         diff_count: diffCount,
-                        match_count: totalMatches
+                        match_count: totalMatches,
+                        message: res.message || ''
                     };
                     let foundItem = window.currentMatchedTables ? window.currentMatchedTables.find(t => t.nomor_tabel === nomor_tabel) : null;
                     if (foundItem) {
@@ -1792,7 +1897,7 @@
                     let pagesLabel = (res.pages && res.pages.length > 0) ? `Hal. ${res.pages.join(', ')}` : '';
                     let syncAllDiffsBtn = '';
                     let hasAnyCoord = (res.diffs && res.diffs.some(d => d.coord)) || (res.pdf_only && res.pdf_only.some(p => p.coord));
-                    if (res.source_type === 'Tabel Dinamis' && res.id_indikator && hasAnyCoord) {
+                    if (ALLOW_PDF_SYNC_TO_DB && res.source_type === 'Tabel Dinamis' && res.id_indikator && hasAnyCoord) {
                         syncAllDiffsBtn = `
                             <button type="button" onclick="syncAllDiffsToDinamis(this)" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-2 shadow-xs btn-sync-all-diffs" title="Perbarui seluruh sel yang selisih di Tabel Dinamis menggunakan angka dari PDF">
                                 <i class="bi bi-magic me-1"></i> Samakan Semua Selisih ke Tabel Dinamis
@@ -1937,8 +2042,10 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         let extraColNames = Array.from(new Set((res.pdf_only || []).map(p => p.pdf_header || p.metric))).filter(Boolean).slice(0, 3).join(', ');
 
                         let alertTitle = hasYearInPdfOnly ? 'Penyelarasan Multi-Tahun' : 'Pemisahan Karakteristik Ekstra PDF';
+                        let fallbackTargetYear = (activeYear && /^\d{4}$/.test(String(activeYear))) ? String(parseInt(activeYear, 10) - 1) : '<?= (int)($ta ?? date('Y')) - 1 ?>';
+                        let displayTargetYear = res.target_year || fallbackTargetYear;
                         let alertDesc = hasYearInPdfOnly
-                            ? `Sumber data (${res.source_type}) memuat data tahun terbaru (<strong>${res.target_year || '2025'}</strong>). Kolom tahun-tahun sebelumnya yang tercetak di buku PDF dipisahkan ke tab <em>'Cuma di PDF'</em> agar perbandingan tetap presisi dan tidak dianggap selisih data.`
+                            ? `Sumber data (${res.source_type}) memuat data tahun aktif (<strong>${displayTargetYear}</strong>). Kolom tahun-tahun lainnya yang tercetak di buku PDF dipisahkan ke tab <em>'Cuma di PDF'</em> agar perbandingan tetap presisi dan tidak dianggap selisih data.`
                             : `Cetakan buku PDF memuat kolom rincian tambahan ${extraColNames ? `(<strong>${extraColNames}</strong>)` : ''} yang tidak tersedia di endpoint database sumber (${res.source_type}). Kolom-kolom ini dipisahkan ke tab <em>'Cuma di PDF'</em> agar perbandingan kolom utama tetap presisi.`;
 
                         html += `
@@ -1994,70 +2101,85 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         // 3. Card Comparison Container
                         html += `<div id="comparisonList" class="mb-3">`;
 
+                        // Helper Ekstraksi Tahun Presisi (mendukung field eksplisit item.tahun & tahun ajaran 2024/2025)
+                        function resolveItemYear(item, targetYear) {
+                            if (item && item.tahun && String(item.tahun).trim() !== '') {
+                                return String(item.tahun).trim();
+                            }
+                            let yrRe = /\b((?:19|20)\d{2}(?:\/(?:19|20)\d{2})?)\b/;
+                            let m = (item.metric || '').match(yrRe)
+                                || (item.src_header || '').match(yrRe)
+                                || (item.pdf_header || '').match(yrRe)
+                                || (item.wilayah || '').match(yrRe);
+                            if (m) return m[1];
+                            if (item && item.coord && item.coord.tahun_data) {
+                                return String(item.coord.tahun_data);
+                            }
+                            return targetYear || '-';
+                        }
+
                         // Helper Pembuat Jalur Kolom & Kolom Tingkat (Hierarki Bersih & Rapi)
                         function buildColHierarchyHtml(item, targetYear) {
-                            let rawSec = (item.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').replace(/^(?:Tahun\s+)?(?:19|20)\d{2}(?:\s*[-–—]\s*(?:19|20)\d{2})?$/i, '').trim();
-                            let rawMetric = item.metric || '';
-                            let rawPdf = item.pdf_header || '';
-                            let rawSrc = item.src_header || '';
-
-                            // Deteksi tahun dari kolom / metrik
-                            let yearMatch = (rawMetric + ' ' + rawSrc + ' ' + rawPdf).match(/\b(19\d{2}|20\d{2})\b/);
-                            let year = yearMatch ? yearMatch[1] : (targetYear || '');
-
-                            // Bersihkan tahun dari nama kolom agar tidak dobel dengan baris TAHUN
-                            let stripYear = str => {
-                                if (!str) return '';
-                                let s = str.replace(/\s*\(\s*(?:19\d{2}|20\d{2})\s*\)\s*/g, ' ');
-                                s = s.replace(/^(?:19\d{2}|20\d{2})\s*[-–—:]*\s*/g, ' ');
-                                s = s.replace(/\s*[-–—:]*\s*(?:19\d{2}|20\d{2})$/g, ' ');
-                                return s.replace(/\s+/g, ' ').trim();
-                            };
-
-                            let cleanMetric = stripYear(rawMetric);
-                            let cleanPdf = stripYear(rawPdf);
-                            let cleanSrc = stripYear(rawSrc);
-
-                            // Filter kebocoran baris angka pada tabel multi-kolom
-                            let isRowDataLeak = str => (str && (str.match(/\d+[\.,]\d+/g) || []).length >= 2);
-                            if (isRowDataLeak(cleanPdf)) cleanPdf = '';
-                            if (isRowDataLeak(cleanMetric)) cleanMetric = '';
-
+                            let year = resolveItemYear(item, targetYear);
                             let segments = [];
-                            if (rawSec) {
-                                let secParts = rawSec.split(/\s*(?:>|\/|\s[-–—]\s)\s*/).filter(Boolean);
-                                segments.push(...secParts);
-                            }
 
-                            // Pilih teks yang memuat struktur tingkat terbaik (misal 'Jenis Kelamin - Laki-Laki')
-                            let colText = '';
-                            if (cleanSrc && (cleanSrc.includes(' - ') || cleanSrc.includes(' > ') || cleanSrc.includes(' / '))) {
-                                colText = cleanSrc;
-                            } else if (cleanPdf && (cleanPdf.includes(' - ') || cleanPdf.includes(' > ') || cleanPdf.includes(' / '))) {
-                                colText = cleanPdf;
-                            } else if (cleanMetric && (cleanMetric.includes(' - ') || cleanMetric.includes(' > ') || cleanMetric.includes(' / '))) {
-                                colText = cleanMetric;
+                            // Prioritaskan field kanonik kolom_hierarki dari Python engine (menjaga istilah '/' seperti 'Bahan Baku/Bakar')
+                            if (Array.isArray(item.kolom_hierarki) && item.kolom_hierarki.length > 0) {
+                                segments = item.kolom_hierarki.map(s => String(s || '').trim()).filter(Boolean);
                             } else {
-                                colText = cleanPdf || cleanMetric || cleanSrc || '-';
-                            }
+                                let rawSec = (item.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').replace(/^(?:Tahun\s+)?(?:19|20)\d{2}(?:[\/\-–—](?:19|20)\d{2})?$/i, '').trim();
+                                let rawMetric = item.metric || '';
+                                let rawPdf = item.pdf_header || '';
+                                let rawSrc = item.src_header || '';
 
-                            // Pecah hierarki tingkat berdasarkan separator resmi (' - ', ' > ', ' / ')
-                            // Catatan: '\s[-–—]\s' menjaga kata ulang seperti 'Laki-Laki' tetap utuh
-                            let colParts = colText.split(/\s*(?:>|\/|\s[-–—]\s)\s*/).map(p => p.trim()).filter(Boolean);
-                            if (colParts.length > 0) {
-                                if (segments.length > 0 && segments[segments.length - 1].toLowerCase() === colParts[0].toLowerCase()) {
-                                    colParts.shift();
+                                let stripYear = str => {
+                                    if (!str) return '';
+                                    let s = str.replace(/\s*\(\s*(?:19|20)\d{2}(?:\/(?:19|20)\d{2})?\s*\)\s*/g, ' ');
+                                    s = s.replace(/^(?:tahun\s+)?(?:19|20)\d{2}(?:\/(?:19|20)\d{2})?\s*[-–—:]*\s*/i, ' ');
+                                    s = s.replace(/\s*[-–—:]*\s*(?:19|20)\d{2}(?:\/(?:19|20)\d{2})?$/g, ' ');
+                                    return s.replace(/\s+/g, ' ').trim();
+                                };
+
+                                let cleanMetric = stripYear(rawMetric);
+                                let cleanPdf = stripYear(rawPdf);
+                                let cleanSrc = stripYear(rawSrc);
+
+                                let isRowDataLeak = str => (str && (str.match(/\d+[\.,]\d+/g) || []).length >= 2);
+                                if (isRowDataLeak(cleanPdf)) cleanPdf = '';
+                                if (isRowDataLeak(cleanMetric)) cleanMetric = '';
+
+                                if (rawSec) {
+                                    let secParts = rawSec.split(/\s*(?:>|›|\|\||\s[-–—]\s)\s*/).filter(Boolean);
+                                    segments.push(...secParts);
                                 }
-                                segments.push(...colParts);
-                            }
 
-                            if (segments.length === 0) {
-                                segments = [stripYear(rawSrc) || rawSrc || 'Metrik'];
+                                let colText = '';
+                                if (cleanSrc && (cleanSrc.includes(' - ') || cleanSrc.includes(' > ') || cleanSrc.includes(' › '))) {
+                                    colText = cleanSrc;
+                                } else if (cleanPdf && (cleanPdf.includes(' - ') || cleanPdf.includes(' > ') || cleanPdf.includes(' › '))) {
+                                    colText = cleanPdf;
+                                } else if (cleanMetric && (cleanMetric.includes(' - ') || cleanMetric.includes(' > ') || cleanMetric.includes(' › '))) {
+                                    colText = cleanMetric;
+                                } else {
+                                    colText = cleanPdf || cleanMetric || cleanSrc || '-';
+                                }
+
+                                let colParts = colText.split(/\s*(?:>|›|\|\||\s[-–—]\s)\s*/).map(p => p.trim()).filter(Boolean);
+                                if (colParts.length > 0) {
+                                    if (segments.length > 0 && segments[segments.length - 1].toLowerCase() === colParts[0].toLowerCase()) {
+                                        colParts.shift();
+                                    }
+                                    segments.push(...colParts);
+                                }
+
+                                if (segments.length === 0) {
+                                    segments = [stripYear(rawSrc) || rawSrc || 'Metrik'];
+                                }
                             }
 
                             let leaf = segments.pop() || '';
                             if (!leaf || leaf.toLowerCase() === 'tahun') {
-                                leaf = year ? year : (cleanMetric || rawSrc || 'Data');
+                                leaf = (year && year !== '-') ? year : (item.metric || item.src_header || 'Data');
                             }
 
                             let parentLevels = segments;
@@ -2068,16 +2190,20 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                             }
                         }
 
+                        function escAttrLower(val) {
+                            return String(val ?? '').toLowerCase().replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                        }
+
                         // Render Diffs (Default Active)
                         if (res.diffs && res.diffs.length > 0) {
                             res.diffs.forEach(d => {
-                                let absDiff = formatAngkaDisplay(Math.abs((d.pdf_val || 0) - (d.src_val || 0)));
+                                let rawNumDiff = (typeof d.pdf_val === 'number' && typeof d.src_val === 'number')
+                                    ? Math.abs(d.pdf_val - d.src_val)
+                                    : (typeof d.diff === 'number' && !isNaN(d.diff) && d.pdf_val !== '...' && d.src_val !== '...' ? Math.abs(d.diff) : null);
+                                let absDiff = (rawNumDiff !== null && !isNaN(rawNumDiff)) ? formatAngkaDisplay(rawNumDiff) : 'Simbol Berbeda';
 
-                                // 1. Ekstraksi Tahun
-                                let yearMatch = (d.metric || '').match(/\b(19\d{2}|20\d{2})\b/) ||
-                                                (d.src_header || '').match(/\b(19\d{2}|20\d{2})\b/) ||
-                                                (d.pdf_header || '').match(/\b(19\d{2}|20\d{2})\b/);
-                                let yearText = yearMatch ? yearMatch[1] : (res.target_year || '-');
+                                // 1. Ekstraksi Tahun Presisi
+                                let yearText = resolveItemYear(d, res.target_year);
 
                                 // 2. Bangun Kolom & Kolom Tingkat Bersih
                                 let colHierarchyHtml = buildColHierarchyHtml(d, res.target_year);
@@ -2088,7 +2214,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                                 let pageBadge = pageInfo ? `<span class="text-muted small" style="font-size:0.75rem;"><i class="bi bi-book me-1"></i>Hal. ${pageInfo}</span>` : '';
 
                                 html += `
-                                    <div class="card mb-3 border border-danger-subtle shadow-xs item-row diff-card" data-type="diff" style="border-left: 4px solid #ef4444 !important;" data-wilayah="${d.wilayah.toLowerCase()}" data-metric="${(d.metric + ' ' + (d.src_header || '') + ' ' + (d.pdf_header || '') + ' ' + yearText).toLowerCase()}" data-section="${cleanSection.toLowerCase()}">
+                                    <div class="card mb-3 border border-danger-subtle shadow-xs item-row diff-card" data-type="diff" style="border-left: 4px solid #ef4444 !important;" data-wilayah="${escAttrLower(d.wilayah)}" data-metric="${escAttrLower((d.metric || '') + ' ' + (d.src_header || '') + ' ' + (d.pdf_header || '') + ' ' + (d.kolom_path || '') + ' ' + yearText)}" data-section="${escAttrLower(cleanSection)}">
                                         <div class="card-body p-0">
                                             <!-- 1. FULL WIDTH MODE (Opsi 2: Matrix Coordinates - Lega, Elegan & On-Point) -->
                                             <div class="diff-full-layout">
@@ -2166,7 +2292,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                                                         </div>
 
                                                         <div class="pt-3 mt-3 border-top border-light-subtle">
-                                                            ${(res.id_indikator && d.coord) ? `
+                                                            ${(ALLOW_PDF_SYNC_TO_DB && res.source_type === 'Tabel Dinamis' && res.id_indikator && d.coord) ? `
                                                                 <button type="button" onclick='syncSingleDiffCell(${res.id_indikator}, ${JSON.stringify(d.coord)}, ${JSON.stringify(d.pdf_val)}, this)' class="btn btn-danger w-100 py-2 fw-bold shadow-xs d-flex align-items-center justify-content-center gap-2 rounded-3">
                                                                     <i class="bi bi-magic"></i>
                                                                     <span>Gunakan Angka PDF (${formatAngkaDisplay(d.pdf_val)}) ke Database</span>
@@ -2230,7 +2356,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                                                         <i class="bi bi-info-circle-fill me-1"></i>
                                                         Di cetakan PDF tertulis <strong class="font-monospace">${formatAngkaDisplay(d.pdf_val)}</strong>, tetapi di database tertulis <strong class="font-monospace">${formatAngkaDisplay(d.src_val)}</strong>.
                                                     </div>
-                                                    ${(res.id_indikator && d.coord) ? `
+                                                    ${(ALLOW_PDF_SYNC_TO_DB && res.source_type === 'Tabel Dinamis' && res.id_indikator && d.coord) ? `
                                                         <button type="button" onclick='syncSingleDiffCell(${res.id_indikator}, ${JSON.stringify(d.coord)}, ${JSON.stringify(d.pdf_val)}, this)' class="btn btn-sm btn-danger text-white fw-bold rounded-pill px-3 py-1 shadow-xs flex-shrink-0">
                                                             <i class="bi bi-magic me-1"></i> Gunakan Angka PDF (${formatAngkaDisplay(d.pdf_val)})
                                                         </button>
@@ -2243,41 +2369,158 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                             });
                         }
 
-                        // Render Matches (Hidden by default if diffs > 0)
+                        // Render Matches (Hidden by default if diffs > 0) - Seragam Matrix Coordinates
                         if (res.matches && res.matches.length > 0) {
                             let defaultDisplay = totalDiffs > 0 ? 'display: none;' : '';
                             res.matches.forEach(m => {
                                 let colHierarchyHtml = buildColHierarchyHtml(m, res.target_year);
-                                let yearMatch = (m.metric || '').match(/\b(19\d{2}|20\d{2})\b/) ||
-                                                (m.pdf_header || '').match(/\b(19\d{2}|20\d{2})\b/) ||
-                                                (m.src_header || '').match(/\b(19\d{2}|20\d{2})\b/);
-                                let yearText = yearMatch ? yearMatch[1] : (res.target_year || '-');
+                                let yearText = resolveItemYear(m, res.target_year);
                                 let cleanSection = (m.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').trim();
+                                let isTol = Boolean(m.is_tolerance_match);
+                                let isApiSym = Boolean(m.is_api_symbol_equiv);
+                                let matchBadgeLabel = isTol
+                                    ? 'Cocok (Toleransi ' + (m.tolerance_diff > 0 ? '+' : '') + m.tolerance_diff + ')'
+                                    : (isApiSym ? 'Cocok (Simbol API ... ≡ 0)' : 'Sama Persis (Cocok)');
+                                let matchShortBadge = isTol ? 'Toleransi' : (isApiSym ? 'Simbol API' : 'Cocok');
+                                let accentHex = isTol ? '#0ea5e9' : '#10b981';
+                                let borderSubtle = isTol ? 'border-info-subtle' : 'border-success-subtle';
+                                let pillCls = isTol ? 'bg-info-subtle text-info-emphasis border-info-subtle' : 'bg-success-subtle text-success border-success-subtle';
+                                let splitBadgeCls = isTol ? 'bg-info text-white' : 'bg-success text-white';
+                                let boxBorderCls = isTol ? 'border-info' : 'border-success';
+                                let valTextCls = isTol ? 'text-info-emphasis' : 'text-success';
+                                let opSym = (isTol || isApiSym) ? '≈' : '=';
+                                let pdfValDisp = formatAngkaDisplay(m.pdf_val !== undefined ? m.pdf_val : m.val);
+                                let srcValDisp = formatAngkaDisplay(m.src_val !== undefined ? m.src_val : m.val);
+                                let pageInfo = m.pages ? (Array.isArray(m.pages) ? m.pages.join(', ') : m.pages) : (m.page || (res.target_pages ? (Array.isArray(res.target_pages) ? res.target_pages.join(', ') : res.target_pages) : ''));
+                                let pageBadge = pageInfo ? `<span class="text-muted small" style="font-size:0.75rem;"><i class="bi bi-book me-1"></i>Hal. ${pageInfo}</span>` : '';
 
                                 html += `
-                                    <div class="card mb-2 border border-success-subtle shadow-xs item-row" data-type="match" style="${defaultDisplay} border-left: 4px solid #10b981 !important;" data-wilayah="${m.wilayah.toLowerCase()}" data-metric="${(m.metric + ' ' + (m.src_header || '') + ' ' + (m.pdf_header || '') + ' ' + yearText).toLowerCase()}" data-section="${cleanSection.toLowerCase()}">
-                                        <div class="card-body p-2-5 px-3">
-                                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                                                <div class="d-flex align-items-center flex-wrap gap-1">
-                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold">
-                                                        <i class="bi bi-geo-alt me-1"></i>${m.wilayah}
-                                                    </span>
-                                                    <span class="text-secondary small fw-medium ms-1">${colHierarchyHtml}</span>
-                                                    ${yearText !== '-' && !colHierarchyHtml.includes(yearText) ? `<span class="badge bg-light text-secondary border small">${yearText}</span>` : ''}
+                                    <div class="card mb-3 border ${borderSubtle} shadow-xs item-row match-card" data-type="match" style="${defaultDisplay} border-left: 4px solid ${accentHex} !important;" data-wilayah="${escAttrLower(m.wilayah)}" data-metric="${escAttrLower((m.metric || '') + ' ' + (m.src_header || '') + ' ' + (m.pdf_header || '') + ' ' + (m.kolom_path || '') + ' ' + yearText)}" data-section="${escAttrLower(cleanSection)}">
+                                        <div class="card-body p-0">
+                                            <!-- 1. FULL WIDTH MODE (Matrix Coordinates - Seragam dengan Beda Nilai) -->
+                                            <div class="diff-full-layout">
+                                                <div class="row g-0 align-items-stretch">
+                                                    <!-- Panel Kiri: Matrix Coordinates -->
+                                                    <div class="col-md-5 split-matrix-left d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                                                                <span class="fw-bold text-dark small"><i class="bi bi-grid-3x3 me-1 text-primary"></i>Koordinat Sel Tabel:</span>
+                                                                ${pageBadge}
+                                                            </div>
+
+                                                            <div class="s2-grid">
+                                                                <div class="s2-label">Baris:</div>
+                                                                <div class="s2-val">
+                                                                    <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-primary me-1" style="font-size:0.9rem;"></i>${m.wilayah}</span>
+                                                                </div>
+
+                                                                <div class="s2-label">Kolom:</div>
+                                                                <div class="s2-val">
+                                                                    ${colHierarchyHtml}
+                                                                </div>
+
+                                                                <div class="s2-label">Tahun:</div>
+                                                                <div class="s2-val">
+                                                                    ${yearText !== '-' ? `<span class="fw-bold text-primary"><i class="bi bi-calendar3 me-1" style="font-size:0.85rem;"></i>${yearText}</span>` : `<span class="text-muted">-</span>`}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="pt-2 border-top border-light-subtle d-flex align-items-center justify-content-between">
+                                                            <span class="badge ${pillCls} border px-2 py-1 rounded-pill small fw-bold">
+                                                                <i class="bi ${isTol ? 'bi-sliders' : 'bi-check-circle-fill'} me-1"></i>${matchBadgeLabel}
+                                                            </span>
+                                                            ${m.unit ? `<span class="text-muted small" style="font-size:0.72rem;">${m.unit}</span>` : ''}
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Panel Kanan: Perbandingan Angka Lega -->
+                                                    <div class="col-md-7 split-matrix-right d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                                <span class="small text-muted fw-semibold">Nilai Perbandingan:</span>
+                                                                <span class="badge ${pillCls} border px-2 py-0-5 rounded-pill small fw-bold">
+                                                                    ${matchShortBadge}
+                                                                </span>
+                                                            </div>
+
+                                                            <div class="row g-2 align-items-center">
+                                                                <!-- PDF Box -->
+                                                                <div class="col-5">
+                                                                    <div class="p-2-5 rounded-3 bg-white border ${boxBorderCls} shadow-xs text-center h-100">
+                                                                        <div class="small ${valTextCls} fw-bold text-uppercase mb-1" style="font-size:0.7rem; letter-spacing:0.02em;">
+                                                                            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                                                                        </div>
+                                                                        <div class="fs-4 fw-black ${valTextCls} font-monospace text-truncate">${pdfValDisp}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- Separator -->
+                                                                <div class="col-2 text-center">
+                                                                    <span class="badge ${pillCls} border rounded-circle p-2 fw-bold" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">${opSym}</span>
+                                                                </div>
+
+                                                                <!-- DB Box -->
+                                                                <div class="col-5">
+                                                                    <div class="p-2-5 rounded-3 bg-white border ${boxBorderCls} shadow-xs text-center h-100">
+                                                                        <div class="small ${valTextCls} fw-bold text-uppercase mb-1" style="font-size:0.7rem; letter-spacing:0.02em;">
+                                                                            <i class="bi bi-database-fill me-1"></i>Di Database
+                                                                        </div>
+                                                                        <div class="fs-4 fw-black ${valTextCls} font-monospace text-truncate">${srcValDisp}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="pt-3 mt-3 border-top border-light-subtle">
+                                                            <div class="text-muted small text-center py-1">
+                                                                <i class="bi ${isTol ? 'bi-sliders' : 'bi-check-circle-fill'} ${valTextCls} me-1"></i>Di PDF <strong>${pdfValDisp}</strong> &bull; Di Database <strong>${srcValDisp}</strong> (${matchBadgeLabel})
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <span class="badge ${m.is_tolerance_match ? 'bg-info text-white' : 'bg-success text-white'} px-3 py-1 rounded-pill fw-bold shadow-xs">
-                                                    <i class="bi ${m.is_tolerance_match ? 'bi-sliders' : 'bi-check-circle-fill'} me-1"></i> ${m.is_tolerance_match ? 'Cocok (Toleransi ' + (m.tolerance_diff > 0 ? '+' : '') + m.tolerance_diff + ')' : 'Sama Persis (Cocok)'}
-                                                </span>
                                             </div>
-                                            <div class="p-2 rounded-2 ${m.is_tolerance_match ? 'bg-info-subtle border border-info-subtle' : 'bg-success-subtle border border-success-subtle'} d-flex align-items-center justify-content-around flex-wrap gap-2 text-center">
-                                                <div>
-                                                    <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold me-1"><i class="bi bi-file-earmark-pdf me-1"></i>PDF:</span>
-                                                    <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace">${formatAngkaDisplay(m.pdf_val !== undefined ? m.pdf_val : m.val)}</span>
+
+                                            <!-- 2. SPLIT VIEW MODE (Auto-activates when Sandingkan PDF is ON) -->
+                                            <div class="diff-split-layout p-3">
+                                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom border-light">
+                                                    <div class="d-flex align-items-center flex-wrap gap-2">
+                                                        <span class="badge bg-primary text-white px-2 py-1 fs-6 fw-bold shadow-xs">
+                                                            <i class="bi bi-geo-alt-fill me-1"></i>${m.wilayah}
+                                                        </span>
+                                                        <span class="text-secondary fw-semibold small">${colHierarchyHtml}</span>
+                                                        ${yearText !== '-' && !colHierarchyHtml.includes(yearText) ? `<span class="badge bg-light text-primary border fw-bold">${yearText}</span>` : ''}
+                                                    </div>
+                                                    <span class="badge ${splitBadgeCls} px-3 py-1 rounded-pill fw-bold shadow-xs">
+                                                        <i class="bi ${isTol ? 'bi-sliders' : 'bi-check-circle-fill'} me-1"></i>${matchBadgeLabel}
+                                                    </span>
                                                 </div>
-                                                <div class="${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-bold px-1">${m.is_tolerance_match ? '≈' : '='}</div>
-                                                <div>
-                                                    <span class="small ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} fw-semibold me-1"><i class="bi bi-database me-1"></i>Database:</span>
-                                                    <span class="fs-6 fw-bold ${m.is_tolerance_match ? 'text-info-emphasis' : 'text-success'} font-monospace">${formatAngkaDisplay(m.src_val !== undefined ? m.src_val : m.val)}</span>
+
+                                                <div class="row g-2 align-items-stretch mb-2">
+                                                    <div class="col-sm-5 col-12">
+                                                        <div class="p-2 rounded-3 bg-white border ${boxBorderCls} shadow-xs text-center h-100 d-flex flex-column justify-content-center">
+                                                            <div class="small ${valTextCls} fw-bold mb-1 text-uppercase" style="font-size:0.72rem; letter-spacing:0.02em;">
+                                                                <i class="bi bi-file-earmark-pdf-fill me-1"></i> Di Buku PDF
+                                                            </div>
+                                                            <div class="fs-4 fw-black ${valTextCls} font-monospace text-break">${pdfValDisp}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-sm-2 col-12 d-flex align-items-center justify-content-center py-1">
+                                                        <span class="badge ${pillCls} border fw-bold fs-6 rounded-circle p-2 shadow-xs" style="width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;">${opSym}</span>
+                                                    </div>
+                                                    <div class="col-sm-5 col-12">
+                                                        <div class="p-2 rounded-3 bg-white border ${boxBorderCls} shadow-xs text-center h-100 d-flex flex-column justify-content-center">
+                                                            <div class="small ${valTextCls} fw-bold mb-1 text-uppercase" style="font-size:0.72rem; letter-spacing:0.02em;">
+                                                                <i class="bi bi-database-fill me-1"></i> Di Database Sumber
+                                                            </div>
+                                                            <div class="fs-4 fw-black ${valTextCls} font-monospace text-break">${srcValDisp}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="p-2-5 rounded-3 ${pillCls} bg-opacity-50 border small" style="line-height:1.35;">
+                                                    <i class="bi ${isTol ? 'bi-sliders' : 'bi-check-circle-fill'} me-1"></i>
+                                                    Nilai di buku PDF (<strong class="font-monospace">${pdfValDisp}</strong>) sesuai dengan database sumber (<strong class="font-monospace">${srcValDisp}</strong>).
                                                 </div>
                                             </div>
                                         </div>
@@ -2286,36 +2529,147 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                             });
                         }
 
-                        // Render PDF Only (Hidden by default)
+                        // Render PDF Only (Hidden by default) - Seragam Matrix Coordinates
                         if (res.pdf_only && res.pdf_only.length > 0) {
                             res.pdf_only.forEach(p => {
                                 let colHierarchyHtml = buildColHierarchyHtml(p, res.target_year);
-                                let yearMatch = (p.metric || '').match(/\b(19\d{2}|20\d{2})\b/) ||
-                                                (p.pdf_header || '').match(/\b(19\d{2}|20\d{2})\b/);
-                                let yearText = yearMatch ? yearMatch[1] : (res.target_year || '-');
+                                let yearText = resolveItemYear(p, res.target_year);
                                 let cleanSection = (p.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').trim();
 
-                                let valList = ((p.values && p.values.length > 0) ? p.values : [p.val || 0]);
+                                let valList = ((p.values && p.values.length > 0) ? p.values : [p.val !== undefined ? p.val : 0]);
+                                let pdfValDisp = valList.map(v => formatAngkaDisplay(v)).join(' | ');
+                                let pageInfo = p.pages ? (Array.isArray(p.pages) ? p.pages.join(', ') : p.pages) : (p.page || (res.target_pages ? (Array.isArray(res.target_pages) ? res.target_pages.join(', ') : res.target_pages) : ''));
+                                let pageBadge = pageInfo ? `<span class="text-muted small" style="font-size:0.75rem;"><i class="bi bi-book me-1"></i>Hal. ${pageInfo}</span>` : '';
+
                                 html += `
-                                    <div class="card mb-2 border border-warning-subtle shadow-xs item-row" data-type="pdf_only" style="display: none; border-left: 4px solid #f59e0b !important;" data-wilayah="${p.wilayah.toLowerCase()}" data-metric="${(p.metric + ' ' + (p.pdf_header || '') + ' ' + yearText).toLowerCase()}" data-section="${cleanSection.toLowerCase()}">
-                                        <div class="card-body p-2-5 px-3">
-                                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                                                <div class="d-flex align-items-center flex-wrap gap-1">
-                                                    <span class="badge bg-secondary-subtle text-dark border px-2 py-1 fw-bold">
-                                                        <i class="bi bi-geo-alt me-1"></i>${p.wilayah}
-                                                    </span>
-                                                    <span class="text-secondary small fw-medium ms-1">${colHierarchyHtml}</span>
-                                                    ${yearText !== '-' && !colHierarchyHtml.includes(yearText) ? `<span class="badge bg-light text-secondary border small">${yearText}</span>` : ''}
+                                    <div class="card mb-3 border border-warning-subtle shadow-xs item-row pdfonly-card" data-type="pdf_only" style="display: none; border-left: 4px solid #f59e0b !important;" data-wilayah="${escAttrLower(p.wilayah)}" data-metric="${escAttrLower((p.metric || '') + ' ' + (p.pdf_header || '') + ' ' + (p.kolom_path || '') + ' ' + yearText)}" data-section="${escAttrLower(cleanSection)}">
+                                        <div class="card-body p-0">
+                                            <!-- 1. FULL WIDTH MODE (Matrix Coordinates - Seragam dengan Beda Nilai) -->
+                                            <div class="diff-full-layout">
+                                                <div class="row g-0 align-items-stretch">
+                                                    <!-- Panel Kiri: Matrix Coordinates -->
+                                                    <div class="col-md-5 split-matrix-left d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                                                                <span class="fw-bold text-dark small"><i class="bi bi-grid-3x3 me-1 text-primary"></i>Koordinat Sel Tabel:</span>
+                                                                ${pageBadge}
+                                                            </div>
+
+                                                            <div class="s2-grid">
+                                                                <div class="s2-label">Baris:</div>
+                                                                <div class="s2-val">
+                                                                    <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-primary me-1" style="font-size:0.9rem;"></i>${p.wilayah}</span>
+                                                                </div>
+
+                                                                <div class="s2-label">Kolom:</div>
+                                                                <div class="s2-val">
+                                                                    ${colHierarchyHtml}
+                                                                </div>
+
+                                                                <div class="s2-label">Tahun:</div>
+                                                                <div class="s2-val">
+                                                                    ${yearText !== '-' ? `<span class="fw-bold text-primary"><i class="bi bi-calendar3 me-1" style="font-size:0.85rem;"></i>${yearText}</span>` : `<span class="text-muted">-</span>`}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="pt-2 border-top border-light-subtle d-flex align-items-center justify-content-between">
+                                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill small fw-bold">
+                                                                <i class="bi bi-journal-bookmark me-1"></i>Cuma Ada di Cetakan PDF
+                                                            </span>
+                                                            ${p.unit ? `<span class="text-muted small" style="font-size:0.72rem;">${p.unit}</span>` : ''}
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Panel Kanan: Perbandingan Nilai PDF vs Sumber -->
+                                                    <div class="col-md-7 split-matrix-right d-flex flex-column justify-content-between">
+                                                        <div>
+                                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                                <span class="small text-muted fw-semibold">Nilai Perbandingan:</span>
+                                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-0-5 rounded-pill small fw-bold">
+                                                                    Ekstra PDF
+                                                                </span>
+                                                            </div>
+
+                                                            <div class="row g-2 align-items-center">
+                                                                <!-- PDF Box -->
+                                                                <div class="col-5">
+                                                                    <div class="p-2-5 rounded-3 bg-white border border-warning shadow-xs text-center h-100">
+                                                                        <div class="small text-warning-emphasis fw-bold text-uppercase mb-1" style="font-size:0.7rem; letter-spacing:0.02em;">
+                                                                            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Di Buku PDF
+                                                                        </div>
+                                                                        <div class="fs-4 fw-black text-dark font-monospace text-truncate" title="${escAttrLower(pdfValDisp)}">${pdfValDisp}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- Separator -->
+                                                                <div class="col-2 text-center">
+                                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-circle p-2 fw-bold" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;">—</span>
+                                                                </div>
+
+                                                                <!-- DB Box (Not available) -->
+                                                                <div class="col-5">
+                                                                    <div class="p-2-5 rounded-3 bg-light border border-secondary-subtle text-center h-100">
+                                                                        <div class="small text-secondary fw-bold text-uppercase mb-1" style="font-size:0.7rem; letter-spacing:0.02em;">
+                                                                            <i class="bi bi-database me-1"></i>Di Database
+                                                                        </div>
+                                                                        <div class="fs-5 fw-bold text-muted font-monospace text-truncate">Tidak Ada</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="pt-3 mt-3 border-top border-light-subtle">
+                                                            <div class="text-muted small text-center py-1">
+                                                                <i class="bi bi-info-circle me-1"></i>${p.note ? p.note : `Kolom/baris ini hanya tercatat di buku PDF (<strong>${pdfValDisp}</strong>) dan tidak tersedia di sumber database.`}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-1 rounded-pill small fw-bold">
-                                                    <i class="bi bi-journal-bookmark me-1"></i> Cuma Ada di Cetakan PDF
-                                                </span>
                                             </div>
-                                            <div class="p-2 rounded-2 bg-warning-subtle border border-warning-subtle text-center">
-                                                <span class="small text-warning-emphasis fw-bold me-2"><i class="bi bi-journal-bookmark me-1"></i>Nilai di Buku PDF:</span>
-                                                <span class="font-monospace fw-bold text-dark fs-6">${valList.map(v => formatAngkaDisplay(v)).join(' | ')}</span>
+
+                                            <!-- 2. SPLIT VIEW MODE (Auto-activates when Sandingkan PDF is ON) -->
+                                            <div class="diff-split-layout p-3">
+                                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom border-light">
+                                                    <div class="d-flex align-items-center flex-wrap gap-2">
+                                                        <span class="badge bg-primary text-white px-2 py-1 fs-6 fw-bold shadow-xs">
+                                                            <i class="bi bi-geo-alt-fill me-1"></i>${p.wilayah}
+                                                        </span>
+                                                        <span class="text-secondary fw-semibold small">${colHierarchyHtml}</span>
+                                                        ${yearText !== '-' && !colHierarchyHtml.includes(yearText) ? `<span class="badge bg-light text-primary border fw-bold">${yearText}</span>` : ''}
+                                                    </div>
+                                                    <span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold shadow-xs">
+                                                        <i class="bi bi-journal-bookmark me-1"></i>Cuma di PDF
+                                                    </span>
+                                                </div>
+
+                                                <div class="row g-2 align-items-stretch mb-2">
+                                                    <div class="col-sm-5 col-12">
+                                                        <div class="p-2 rounded-3 bg-white border border-warning shadow-xs text-center h-100 d-flex flex-column justify-content-center">
+                                                            <div class="small text-warning-emphasis fw-bold mb-1 text-uppercase" style="font-size:0.72rem; letter-spacing:0.02em;">
+                                                                <i class="bi bi-file-earmark-pdf-fill me-1"></i> Di Buku PDF
+                                                            </div>
+                                                            <div class="fs-4 fw-black text-dark font-monospace text-break">${pdfValDisp}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-sm-2 col-12 d-flex align-items-center justify-content-center py-1">
+                                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold fs-6 rounded-circle p-2 shadow-xs" style="width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;">—</span>
+                                                    </div>
+                                                    <div class="col-sm-5 col-12">
+                                                        <div class="p-2 rounded-3 bg-light border border-secondary-subtle text-center h-100 d-flex flex-column justify-content-center">
+                                                            <div class="small text-secondary fw-bold mb-1 text-uppercase" style="font-size:0.72rem; letter-spacing:0.02em;">
+                                                                <i class="bi bi-database me-1"></i> Di Database Sumber
+                                                            </div>
+                                                            <div class="fs-5 fw-bold text-muted font-monospace">Tidak Ada</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="p-2-5 rounded-3 bg-warning-subtle bg-opacity-50 border border-warning-subtle text-warning-emphasis small" style="line-height:1.35;">
+                                                    <i class="bi bi-info-circle-fill me-1"></i>
+                                                    ${p.note ? p.note : `Nilai <strong class="font-monospace">${pdfValDisp}</strong> hanya tercatat di buku PDF dan tidak tersedia di database sumber.`}
+                                                </div>
                                             </div>
-                                            ${p.note ? `<div class="text-muted small mt-1" style="font-size:0.78rem;">${p.note}</div>` : ''}
                                         </div>
                                     </div>
                                 `;
@@ -2331,17 +2685,20 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         `;
 
                         html += `</div></div></div>`; // Close comparisonList, auditMainPane, modalSplitWrapper
+                    window.currentDiffFilter = totalDiffs > 0 ? 'diff' : (totalMatches > 0 ? 'match' : (totalPdfOnly > 0 ? 'pdf_only' : 'all'));
                     $('#diffContent').html(html);
                     applyDiffFilters();
                 } else {
                     let msg = res.message || 'Terjadi kesalahan saat memproses data';
-                    let isApiEmpty = msg.toLowerCase().includes('tidak ada data dalam api') || msg.toLowerCase().includes('belum diisi') || res.is_api_empty;
+                    let isYearUnavailable = Boolean(res.is_year_unavailable || res.error_kind === 'year_unavailable');
+                    let isApiEmpty = isYearUnavailable || msg.toLowerCase().includes('tidak ada data dalam api') || msg.toLowerCase().includes('belum diisi') || res.is_api_empty;
                     
-                    let status = isApiEmpty ? 'api_empty' : 'diff';
+                    let status = isYearUnavailable ? 'api_year_mismatch' : (isApiEmpty ? 'api_empty' : 'diff');
                     window.batchStatusMap[nomor_tabel] = {
                         status: status,
-                        diff_count: '!',
-                        match_count: 0
+                        diff_count: (isYearUnavailable || isApiEmpty) ? 0 : '!',
+                        match_count: 0,
+                        message: msg
                     };
                     let foundItem = window.currentMatchedTables ? window.currentMatchedTables.find(t => t.nomor_tabel === nomor_tabel) : null;
                     if (foundItem) {
@@ -2361,7 +2718,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                         let pagesLabel = (res.pages && res.pages.length > 0) ? `Hal. ${res.pages.join(', ')}` : '';
                         let autofillBox = '';
 
-                        if (res.can_autofill && res.autofill_cells && res.autofill_cells.length > 0 && res.id_indikator) {
+                        if (ALLOW_PDF_SYNC_TO_DB && res.can_autofill && res.autofill_cells && res.autofill_cells.length > 0 && res.id_indikator) {
                             let sampleRows = res.autofill_cells.slice(0, 12).map(c => `
                                 <tr>
                                     <td class="fw-semibold text-dark">${c.wilayah || '-'}</td>
@@ -2433,10 +2790,10 @@ ${getPdfSplitPaneHtml(pagesLabel)}
 ${getPdfSplitPaneHtml(pagesLabel)}
                                 <div class="col-lg-12" id="auditMainPane">
                                     <div class="text-center py-4">
-                                        <div class="d-inline-flex align-items-center justify-content-center bg-warning-subtle text-warning rounded-circle mb-3 shadow-xs" style="width: 68px; height: 68px;">
-                                            <i class="bi bi-database-slash" style="font-size: 2rem;"></i>
+                                        <div class="d-inline-flex align-items-center justify-content-center ${isYearUnavailable ? 'bg-info-subtle text-info-emphasis' : 'bg-warning-subtle text-warning'} rounded-circle mb-3 shadow-xs" style="width: 68px; height: 68px;">
+                                            <i class="bi ${isYearUnavailable ? 'bi-calendar-x' : 'bi-database-slash'}" style="font-size: 2rem;"></i>
                                         </div>
-                                        <h5 class="fw-bold text-dark mb-1">Data Kosong (${res.source_type || 'Database'})</h5>
+                                        <h5 class="fw-bold text-dark mb-1">${isYearUnavailable ? `Tahun Target Belum Tersedia (${res.source_type || 'API Satudata'})` : `Data Kosong (${res.source_type || 'Database'})`}</h5>
                                         <p class="text-muted small mx-auto mb-2" style="max-width: 520px;">
                                             ${res.message || 'Sumber database belum memuat nilai untuk tabel ini.'}
                                         </p>
@@ -2496,8 +2853,14 @@ ${getPdfSplitPaneHtml(pagesLabel)}
             renderAllMatchedRows();
             updateBatchCounters();
 
-            checkRekapAvailability();
             const urlParams = new URLSearchParams(window.location.search);
+            const urlSource = (urlParams.get('source') || '').toLowerCase();
+            if (urlSource === 'api' || urlSource === 'dinamis' || urlSource === 'all') {
+                const tabMap = { all: '#tabSourceAll', dinamis: '#tabSourceDinamis', api: '#tabSourceApi' };
+                filterMatchedSource(urlSource, $(tabMap[urlSource])[0]);
+            } else {
+                checkRekapAvailability();
+            }
             if (urlParams.get('trigger_export') === '1') {
                 triggerGenerateRekapModal(true);
             }
@@ -2915,6 +3278,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
         if (src === 'api') modalTitle = 'Penyusunan Rekap Excel (Sumber: API Satudata)';
         else if (src === 'dinamis') modalTitle = 'Penyusunan Rekap Excel (Sumber: Tabel Dinamis)';
         $('#modalExportRekapTitle').text(modalTitle);
+        $('#btnDownloadFinishedExcel').attr('href', "<?= base_url('admin/export_rekap_matching?ta=' . ($ta ?? '2026')) ?>&source=" + encodeURIComponent(src));
 
         $('#exportRunningState').show();
         $('#exportCompletedState').hide();
@@ -2927,27 +3291,39 @@ ${getPdfSplitPaneHtml(pagesLabel)}
 
     function startExportWorker(customSource = null) {
         let src = customSource || window.currentSourceFilter || 'all';
+        let postData = { ta: activeYear, source: src };
+        if (typeof window.getLatestCsrfHash === 'function') {
+            postData['<?= csrf_token() ?>'] = window.getLatestCsrfHash();
+        }
         $.ajax({
             url: "<?= base_url('admin/start_export_rekap') ?>",
             type: "POST",
-            data: { ta: activeYear, source: src },
+            data: postData,
             dataType: "json",
             success: function(res) {
-                if (res.status === 'success') {
-                    pollExportProgress(src);
+                if (res && res.status === 'success') {
+                    pollExportProgress(src, 0);
                 } else {
-                    alert("Gagal memulai export: " + (res.message || 'Error'));
                     let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
                     if (myModal) myModal.hide();
+                    alert("Gagal memulai export: " + ((res && res.message) ? res.message : 'Error'));
                 }
             },
-            error: function() {
-                alert("Gagal terhubung ke server untuk memulai export.");
+            error: function(xhr) {
+                let errMsg = "Gagal terhubung ke server untuk memulai export.";
+                if (xhr && xhr.status === 403) {
+                    errMsg = "Sesi keamanan (CSRF) kadaluwarsa. Silakan refresh halaman lalu coba lagi.";
+                } else if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                    errMsg = xhr.responseJSON.message;
+                }
+                let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
+                if (myModal) myModal.hide();
+                alert(errMsg);
             }
         });
     }
 
-    function pollExportProgress(customSource = null) {
+    function pollExportProgress(customSource = null, errStreak = 0) {
         let src = customSource || window.currentSourceFilter || 'all';
         if (exportPollTimer) clearTimeout(exportPollTimer);
         $.ajax({
@@ -2979,10 +3355,17 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                     return;
                 }
 
-                exportPollTimer = setTimeout(function() { pollExportProgress(src); }, 1200);
+                exportPollTimer = setTimeout(function() { pollExportProgress(src, 0); }, 1200);
             },
             error: function() {
-                exportPollTimer = setTimeout(function() { pollExportProgress(src); }, 2500);
+                let nextErr = (errStreak || 0) + 1;
+                if (nextErr >= 6) {
+                    let myModal = bootstrap.Modal.getInstance(document.getElementById('modalExportRekap'));
+                    if (myModal) myModal.hide();
+                    alert("Koneksi pemantauan progres export terputus.");
+                    return;
+                }
+                exportPollTimer = setTimeout(function() { pollExportProgress(src, nextErr); }, 2500);
             }
         });
     }

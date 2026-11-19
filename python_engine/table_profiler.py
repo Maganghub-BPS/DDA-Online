@@ -171,26 +171,58 @@ def detect_active_data_cols(source_data):
             if is_header_or_metadata_row(r) or is_title_row(r): continue
             if any(parse_num(c, is_pdf=False) is not None for c in r):
                 gen_rows.append(r)
-        if len(gen_rows) >= 2:
+        if len(gen_rows) >= 2 or (len(gen_rows) == 1 and len(source_data) >= 2 and len(gen_rows[0]) >= 2):
             data_rows = gen_rows
         else:
             return []
         
+    first_dr_idx = next((i for i, row in enumerate(source_data) if data_rows and row is data_rows[0]), 0)
+    hdr_block = source_data[:max(1, first_dr_idx)]
+
     max_c = max(len(r) for r in data_rows)
     data_cols = []
     for c_idx in range(max_c):
-        vals = [str(r[c_idx]).strip() if c_idx < len(r) else '' for r in data_rows]
+        vals = [
+            '' if (c_idx >= len(r) or r[c_idx] is None or str(r[c_idx]).strip().lower() in ('none', 'null', 'nan'))
+            else str(r[c_idx]).strip()
+            for r in data_rows
+        ]
         non_empty_vals = [v for v in vals if v]
-        
-        if not non_empty_vals or len(non_empty_vals) < len(data_rows) * 0.3: continue
-        
+
         clean_ints = [int(v.rstrip('.')) for v in non_empty_vals if v.rstrip('.').isdigit()]
-        if c_idx <= 1 and len(clean_ints) >= len(data_rows) * 0.8 and all(0 <= x <= 50 for x in clean_ints) and (len(clean_ints) >= 2 and clean_ints[0] in [0, 1] and clean_ints[1] in [1, 2]): continue
+        if (
+            c_idx <= 1
+            and len(clean_ints) >= len(data_rows) * 0.8
+            and all(0 <= x <= 50 for x in clean_ints)
+            and len(clean_ints) >= 3
+            and clean_ints[0] in [0, 1]
+            and clean_ints[1] == clean_ints[0] + 1
+            and clean_ints[2] == clean_ints[1] + 1
+        ):
+            continue
         if c_idx <= 2 and non_empty_vals and all(re.match(r'^33\.\d{2}$', v) for v in non_empty_vals): continue
-        if c_idx == 0 and max_c >= 2 and all(re.match(r'^(?:19|20)\d{2}$', v) for v in non_empty_vals if v.lower() not in ['jumlah', 'total', 'jumlah/total', 'rata-rata']): continue
-        if sum(1 for n in [parse_num(v) for v in non_empty_vals] if n is not None) >= len(non_empty_vals) * 0.5:
+        if c_idx == 0 and max_c >= 2 and non_empty_vals and all(re.match(r'^(?:19|20)\d{2}$', v) for v in non_empty_vals if v.lower() not in ['jumlah', 'total', 'jumlah/total', 'rata-rata']): continue
+
+        hdr_txt = ' '.join(
+            clean_header_text(r[c_idx]).lower()
+            for r in hdr_block
+            if isinstance(r, list) and c_idx < len(r) and r[c_idx] is not None
+        ).strip()
+
+        if non_empty_vals:
+            num_ok = sum(
+                1 for v in non_empty_vals
+                if parse_num(v, is_pdf=False) is not None or v in ('-', '–', '—', '−', '...', '…')
+            )
+            if num_ok >= len(non_empty_vals) * 0.5:
+                data_cols.append(c_idx)
+        elif c_idx >= 1 and hdr_txt and not re.search(
+            r'\b(?:wilayah|kabupaten|kota|provinsi|regency|municipality|uraian|kode|code|nomor|satuan|unit|sumber|keterangan|catatan)\b',
+            hdr_txt,
+        ):
+            # Kolom berheader resmi dengan seluruh sel None/kosong tetap dipertahankan sebagai kolom metrik bernilai '-' (0)
             data_cols.append(c_idx)
-    
+
     return data_cols
 
 def detect_col_headers(source_data):
@@ -439,6 +471,20 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
     bps_row_idx, bps_cells, row_type = find_bps_numbering_row(rows)
     if bps_row_idx >= 0 and bps_cells:
         data_cols = [col_idx for col_idx, val in bps_cells if int(re.match(r'^\(?(\d+)\)?$', str(val).strip()).group(1)) >= 2]
+        if expected_p_len and len(data_cols) > expected_p_len:
+            sample_body = [r for r in rows[bps_row_idx + 1:] if isinstance(r, list) and not is_header_or_metadata_row(r) and not is_title_row(r)]
+            num_cols = [
+                ci for ci in data_cols
+                if any(
+                    ci < len(r) and r[ci] is not None and (
+                        str(r[ci]).strip() in ('...', '…', '..')
+                        or parse_num(str(r[ci]).strip(), is_pdf=True) is not None
+                    )
+                    for r in sample_body
+                )
+            ]
+            if len(num_cols) == expected_p_len:
+                data_cols = num_cols
         if not expected_p_len or len(data_cols) == expected_p_len:
             hdr_rows = [r for r in rows[:bps_row_idx] if isinstance(r, list) and not is_title_row(r)]
             max_c = max(len(r) for r in hdr_rows)
@@ -520,12 +566,27 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
                     f_row.append("")
         filled_hdr.append(f_row)
 
+    body_rows = [r for r in rows[data_start:] if isinstance(r, list) and not is_header_or_metadata_row(r) and not is_title_row(r)]
+    numeric_col_idxs = [
+        ci for ci in range(first_data_col, max_c)
+        if any(
+            ci < len(r) and r[ci] is not None and (
+                str(r[ci]).strip() in ('...', '…', '..')
+                or parse_num(str(r[ci]).strip(), is_pdf=True) is not None
+            )
+            for r in body_rows
+        )
+    ]
+
     col_headers = []
     for c_idx in range(num_to_extract):
         parts = []
         for r in filled_hdr:
-            offset = max(0, len(r) - num_to_extract)
-            r_idx = max(first_data_col + c_idx, offset + c_idx)
+            if len(numeric_col_idxs) == num_to_extract:
+                r_idx = numeric_col_idxs[c_idx]
+            else:
+                offset = max(0, len(r) - num_to_extract)
+                r_idx = max(first_data_col + c_idx, offset + c_idx)
             if r_idx < len(r):
                 val = r[r_idx].strip()
                 if val and not is_bps_col_num(val) and val not in parts:
@@ -547,11 +608,14 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
 
     def extract_year(text):
         if not text: return None
-        cleaned = re.sub(r'\b(19\d{2}|20\d{2})[\d\*\^rR\†\‡]+(?:\s*,\s*[\d\*\^rR\†\‡]+)?', r'\1', str(text))
-        m_range = re.findall(r'(?:19\d{2}|20\d{2})\s*[\-–—/]\s*(19\d{2}|20\d{2})', cleaned)
+        cleaned = re.sub(r'\b(19\d{2}|20\d{2})[1-9\*\^rR\†\‡]+(?:\s*,\s*[1-9\*\^rR\†\‡]+)*\)?(?=\s|$|[\)\-\/.,])', r'\1', str(text))
+        m_acad = re.findall(r'\b(19\d{2}|20\d{2})\s*/\s*(?:19\d{2}|20\d{2})\b', cleaned)
+        if m_acad:
+            return m_acad[-1]
+        m_range = re.findall(r'(?:19\d{2}|20\d{2})\s*[\-–—]\s*(19\d{2}|20\d{2})\b', cleaned)
         if m_range:
             return m_range[-1]
-        m = re.findall(r'\b(19\d{2}|20\d{2}(?:/\d{4,6})?)\b', cleaned)
+        m = re.findall(r'\b(19\d{2}|20\d{2})\b', cleaned)
         if m: return m[-1]
         m_glued = re.findall(r'\b(19\d{2}|20\d{2})[\d\*\^rR\†\‡]', str(text))
         if m_glued: return m_glued[-1]
@@ -559,9 +623,12 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
 
     def extract_tokens(text):
         if not text: return set()
+        t_split = re.sub(r'(?<=\d)(?=[ds]\d)', ' ', str(text).lower())
         cleaned = re.sub(r'[\(\)\[\]\{\}\.,:;/\-–—\*\d]', ' ', str(text).lower())
+        cleaned_split = re.sub(r'[\(\)\[\]\{\}\.,:;/\-–—\*]', ' ', t_split)
         stop = {'tahun', 'year', 'kolom', 'data', 'dan', 'di', 'ke', 'dari', 'yang', 'untuk', 'kabupaten', 'kota'}
         raw_toks = {w for w in cleaned.split() if len(w) >= 3 and w not in stop}
+        raw_toks.update(w for w in cleaned_split.split() if re.match(r'^(?:d[1-4]|s[1-3])$', w))
         norm_toks = set(raw_toks)
         t_full = str(text).lower()
 
@@ -580,6 +647,10 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                 norm_toks.add('perempuan')
             elif t in ('persen', 'percentage', 'persentase'):
                 norm_toks.add('persentase')
+            elif t in ('budha', 'buddha'):
+                norm_toks.add('buddha')
+            elif re.match(r'^kh?ongh?uch?u$', t):
+                norm_toks.add('khonghucu')
 
         if 'kepala' in raw_toks or 'pendidik' in raw_toks or 'guru' in raw_toks:
             norm_toks.add('guru')
@@ -667,7 +738,7 @@ def align_columns_semantically(src_headers, pdf_headers, src_dict, pdf_dict, tar
                 else:
                     score -= 200.0
             elif target_year and py:
-                if target_year == py or str(py).endswith('/' + str(target_year)) or str(py).startswith(str(target_year) + '/'):
+                if str(target_year) == str(py) or str(py).startswith(str(target_year) + '/'):
                     score += 40.0
                 else:
                     score -= 20.0
@@ -858,7 +929,7 @@ def profile_api_schema(api_records):
             col_roles[col] = 'categorical'
             continue
 
-        # 3. Identifiers / Classification codes (kode rekening, no urut, dsb.)
+        # 3. Identifiers / Classification codes (cek sebelum empty agar kode_rekening kosong tetap jadi code)
         if re.search(r'^(kode|code|no|nomor)(_|$)', cl) or 'kode_' in cl:
             col_roles[col] = 'code'
             continue
@@ -868,10 +939,11 @@ def profile_api_schema(api_records):
             col_roles[col] = 'empty'
             continue
 
-        # 4. Regional / Geographic dimension
+        # 4. Regional / Geographic dimension (hanya bila benar-benar nama wilayah atau bukan kolom metrik angka)
         if any(w in cl for w in ['wilayah', 'wiayah', 'wialyah', 'kabupaten', 'kota', 'regency', 'municipality', 'daerah', 'provinsi']):
+            num_ratio_chk = sum(1 for v in vals if parse_num(v, is_pdf=False) is not None) / len(vals)
             jateng_matches = sum(1 for v in set(vals) if resolve_jateng_entity(v)[0] not in [None, 'Total Jawa Tengah'])
-            if jateng_matches >= 3 or len(set(vals)) >= 25:
+            if jateng_matches >= 3 or (len(set(vals)) >= 25 and num_ratio_chk < 0.75):
                 col_roles[col] = 'region'
                 continue
 
@@ -883,30 +955,167 @@ def profile_api_schema(api_records):
         else:
             col_roles[col] = 'categorical'
 
+    # Pertahankan kolom all-None sebagai 'metric' jika dataset memang berisi metrik lain yang terisi
+    # dan kolom tersebut bukan nama/teks/wilayah/keterangan (menjaga kolom bernilai '-' semua seperti 9.1.3/5.3.7)
+    if any(r == 'metric' for r in col_roles.values()):
+        for col, role in list(col_roles.items()):
+            if role != 'empty':
+                continue
+            cl = col.lower().strip()
+            if re.search(r'^(nama|uraian|ket|keterangan|catatan|alamat|sumber|status|satuan)(_|$)', cl):
+                continue
+            if any(w in cl for w in ['wilayah', 'wiayah', 'wialyah', 'kabupaten', 'kota', 'regency', 'municipality', 'provinsi']):
+                continue
+            col_roles[col] = 'metric'
+
     return col_roles
 
 
-def _filter_api_records_by_target_year(records, temporal_cols, pdf_rows):
-    if not temporal_cols: return records
+def _is_non_additive_metric_header(header_name):
+    """True bila kolom metrik bersifat rasio/persentase/indeks/rate sehingga tidak boleh di-sum() ke baris Total."""
+    h_low = str(header_name or '').lower()
+    leaf = re.split(r'\s*(?:-|\|\|)\s*', h_low)[-1].strip() or h_low
+    _non_add_kws = (
+        'persentase', 'persen', 'pct', 'percent', 'rasio', 'ratio',
+        'indeks', 'index', 'ipm', 'uhh', 'rls', 'hls', 'rata', 'average',
+        'kepadatan', 'density', 'laju', 'growth', 'angka ', 'rate',
+        'prevalensi', 'proporsi', 'cakupan', 'coverage',
+        'per 100000', 'per 100.000', 'per 1000', 'per 1.000', 'penemuan kasus',
+        'tahun sk', 'year of decree',
+    )
+    if any(k in leaf for k in _non_add_kws):
+        return True
+    return any(k in h_low for k in _non_add_kws) and not re.search(r'\b(?:jumlah|banyaknya|total)\b', leaf)
+
+
+def _filter_api_records_by_target_year(records, temporal_cols, pdf_rows, pub_year=None, pdf_title=None):
+    if not temporal_cols:
+        return records
     t_col = temporal_cols[0]
     rec_years = sorted(list(set(str(r.get(t_col)).strip() for r in records if r.get(t_col))))
-    if len(rec_years) <= 1:
+    if not rec_years:
         return records
+
+    max_data_y = (int(pub_year) - 1) if pub_year else None
+    eligible_years = [y for y in rec_years if y.isdigit() and (max_data_y is None or int(y) <= max_data_y)]
+    if not eligible_years:
+        if max_data_y is not None and all(y.isdigit() and int(y) > max_data_y for y in rec_years):
+            return []
+        eligible_years = rec_years
+    if len(eligible_years) == 1:
+        target_y = eligible_years[0]
+        return [r for r in records if str(r.get(t_col)).strip() == target_y]
+
     pdf_years = set()
     if pdf_rows:
         pdf_text = " ".join(str(c) for r in pdf_rows[:20] if isinstance(r, list) for c in r if c)
         for y in re.findall(r'\b(20\d{2})\b', pdf_text):
             pdf_years.add(y)
-    common = sorted(list(set(rec_years).intersection(pdf_years)))
+    if not pdf_years and pdf_title:
+        for y in re.findall(r'\b(20\d{2})\b', str(pdf_title)):
+            pdf_years.add(y)
+    common = sorted(list(set(eligible_years).intersection(pdf_years)))
     if common:
         target_y = common[-1]
         return [r for r in records if str(r.get(t_col)).strip() == target_y]
-    latest_y = rec_years[-1]
-    return [r for r in records if str(r.get(t_col)).strip() == latest_y]
+    if max_data_y is not None and str(max_data_y) in eligible_years:
+        target_y = str(max_data_y)
+    else:
+        target_y = eligible_years[-1]
+    return [r for r in records if str(r.get(t_col)).strip() == target_y]
 
 
 
-def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_table=None):
+def _expand_grid_with_config_totals(grid, config, n_label_cols=1):
+    """
+    Menyisipkan kolom 'Jumlah per Kelompok Kolom' (show_group_total) dan/atau
+    kolom 'Jumlah' horizontal (show_total_col) sesuai algoritma portal_table_scripts.php.
+    """
+    if not grid or len(grid) < 2 or not isinstance(config, dict):
+        return grid
+    show_grp = bool(config.get('show_group_total'))
+    show_tot = bool(config.get('show_total_col'))
+    if not show_grp and not show_tot:
+        return grid
+
+    hdr_row = list(grid[0])
+    if len(hdr_row) <= n_label_cols:
+        return grid
+
+    if show_grp:
+        col_specs = [('orig', i, hdr_row[i]) for i in range(n_label_cols)]
+        cur_grp_cols = []
+        last_grp = None
+        for c_idx in range(n_label_cols, len(hdr_row)):
+            h_str = re.sub(r'\s*\|\|\s*', ' - ', str(hdr_row[c_idx] or '')).strip()
+            parts = [p.strip() for p in h_str.split(' - ') if p.strip()]
+            main_grp = parts[0] if parts else h_str
+
+            if last_grp is not None and main_grp != last_grp:
+                if len(cur_grp_cols) > 1 and not any(
+                    re.search(r'\b(jumlah|total|subjumlah)\b', str(hdr_row[ci]).replace('||', ' - ').split(' - ')[-1].lower())
+                    for ci in cur_grp_cols
+                ):
+                    col_specs.append(('grp_tot', list(cur_grp_cols), f"{last_grp} - Jumlah"))
+                cur_grp_cols = []
+
+            col_specs.append(('orig', c_idx, h_str))
+            if not re.search(r'\btahun\b', h_str.lower()):
+                cur_grp_cols.append(c_idx)
+            last_grp = main_grp
+
+        if len(cur_grp_cols) > 1 and last_grp is not None and not any(
+            re.search(r'\b(jumlah|total|subjumlah)\b', str(hdr_row[ci]).replace('||', ' - ').split(' - ')[-1].lower())
+            for ci in cur_grp_cols
+        ):
+            col_specs.append(('grp_tot', list(cur_grp_cols), f"{last_grp} - Jumlah"))
+
+        new_grid = [[spec[2] for spec in col_specs]]
+        for r in grid[1:]:
+            new_r = []
+            is_tot_r = str(r[0] if r else '').strip() in ('Total Jawa Tengah', 'Jumlah/Total')
+            for kind, src, lbl in col_specs:
+                if kind == 'orig':
+                    new_r.append(r[src] if src < len(r) else None)
+                else:
+                    if is_tot_r and _is_non_additive_metric_header(lbl):
+                        new_r.append(None)
+                    else:
+                        vals = [parse_num(r[ci], is_pdf=False) for ci in src if ci < len(r)]
+                        num_vals = [v for v in vals if v is not None]
+                        if num_vals:
+                            s_val = sum(num_vals)
+                            new_r.append(int(s_val) if float(s_val).is_integer() else round(s_val, 4))
+                        else:
+                            new_r.append('-' if any(ci < len(r) and str(r[ci]).strip() == '-' for ci in src) else 0)
+            new_grid.append(new_r)
+        grid = new_grid
+        hdr_row = list(grid[0])
+
+    if show_tot:
+        # Di portal_table_scripts.php (baris 486), showTotal hanya aktif bila belum ada kolom 'jumlah'/'total'
+        has_vis_tot = any(
+            re.search(r'\b(jumlah|total)\b', str(h).lower())
+            for h in hdr_row[n_label_cols:]
+        )
+        if not has_vis_tot:
+            data_indices = list(range(n_label_cols, len(hdr_row)))
+            new_grid = [hdr_row + ['Jumlah']]
+            for r in grid[1:]:
+                vals = [parse_num(r[ci], is_pdf=False) for ci in data_indices if ci < len(r)]
+                num_vals = [v for v in vals if v is not None]
+                if num_vals:
+                    s_val = sum(num_vals)
+                    tot_cell = int(s_val) if float(s_val).is_integer() else round(s_val, 4)
+                else:
+                    tot_cell = 0
+                new_grid.append(list(r) + [tot_cell])
+            grid = new_grid
+
+    return grid
+
+
+def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_table=None, pub_year=None, pdf_title=None):
     """
     Menerapkan konfigurasi layout (config_tabel) dari database ke raw records API Satudata.
     Mendukung kolom visibilitas kustom, reordering, custom labels, baris/kolom total,
@@ -943,19 +1152,23 @@ def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_tab
         # Config basi/lama yang tidak cocok dengan skema API baru -> fallback
         return None
 
-    # Filter target year jika dataset multi-tahun
+    pivot = config.get('pivot', {})
+    # Filter target year jika dataset multi-tahun; jangan ciutkan ke 1 tahun jika tahun menjadi sumbu baris/kolom pivot (mis. 9.1.19)
     temporal_keys = [k for k in api_keys if any(t in k.lower() for t in ['tahun', 'year', 'periode'])]
     if temporal_keys:
-        t_key = temporal_keys[0]
-        pdf_text = " ".join(str(c) for r in (pdf_rows or [])[:15] if isinstance(r, list) for c in r if c)
-        pdf_years = re.findall(r'\b(20\d{2})\b', pdf_text)
-        if pdf_years:
-            ty = pdf_years[-1]
-            f_recs = [r for r in api_records if str(r.get(t_key, '')).strip() == ty]
-            if f_recs:
-                api_records = f_recs
-
-    pivot = config.get('pivot', {})
+        pivot_axes = set(list(pivot.get('row', []) or []) + list(pivot.get('col', []) or []))
+        if pivot.get('enabled') and any(tk in pivot_axes for tk in temporal_keys):
+            if pub_year:
+                max_dy = int(pub_year) - 1
+                tk0 = temporal_keys[0]
+                api_records = [
+                    r for r in api_records
+                    if not (str(r.get(tk0, '')).strip().isdigit() and int(str(r.get(tk0, '')).strip()) > max_dy)
+                ]
+        else:
+            api_records = _filter_api_records_by_target_year(api_records, temporal_keys, pdf_rows, pub_year=pub_year, pdf_title=pdf_title)
+    if not api_records:
+        return None
     if pivot.get('enabled'):
         # Jika di PDF kolomnya adalah deret multi-tahun (>= 3 tahun, misal 2020..2025 pada 10.3.21)
         # sedangkan di API pivot-nya memutar indikator ke kolom, serahkan ke normalizer bertingkat
@@ -968,22 +1181,40 @@ def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_tab
         row_keys = pivot.get('row', [])
         col_keys = pivot.get('col', [])
         val_keys = pivot.get('val', [])
-        if col_keys and val_keys:
+        # Validasi ketat bahwa seluruh key pivot benar-benar ada di skema API saat ini (cegah config basi)
+        required_pivot_keys = [k for k in (list(row_keys) + list(col_keys) + list(val_keys)) if k]
+        if col_keys and val_keys and all(k in api_keys for k in required_pivot_keys):
             mappings = pivot.get('mappings', {})
             mapping_order = pivot.get('mapping_order', [])
 
             def gen_key(r, keys):
                 return " || ".join(str(r.get(k, '')).strip() for k in keys)
 
+            def _canon_col_key(val):
+                return re.sub(r'\s*-\s*', '-', re.sub(r'\s+', ' ', str(val or '').strip())).lower()
+
             cats = []
+            canon_to_cat = {}
             for r in api_records:
                 c = gen_key(r, col_keys)
-                if c and c not in cats:
+                ck = _canon_col_key(c)
+                if ck and ck not in canon_to_cat:
+                    canon_to_cat[ck] = c
                     cats.append(c)
+                elif ck and '-' in c and ' - ' not in c and ' - ' in canon_to_cat[ck]:
+                    old_c = canon_to_cat[ck]
+                    canon_to_cat[ck] = c
+                    cats = [c if x == old_c else x for x in cats]
 
             if mapping_order:
                 def sort_c(cat):
-                    return mapping_order.index(cat) if cat in mapping_order else 999
+                    if cat in mapping_order:
+                        return mapping_order.index(cat)
+                    ck = _canon_col_key(cat)
+                    for idx_m, m_val in enumerate(mapping_order):
+                        if _canon_col_key(m_val) == ck:
+                            return idx_m
+                    return 999
                 cats.sort(key=sort_c)
 
             entities = []
@@ -991,6 +1222,9 @@ def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_tab
                 ent = gen_key(r, row_keys) if row_keys else 'All'
                 if ent not in entities:
                     entities.append(ent)
+
+            if row_keys and (not any(entities) or (len(entities) <= 1 and len(api_records) > 2)):
+                return None
 
             headers = [mappings.get(rk, {}).get('label_id', rk) for rk in row_keys] if row_keys else ['Uraian']
             for c in cats:
@@ -1012,7 +1246,8 @@ def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_tab
                 r_sum = 0.0
                 v_idx = 0
                 for c in cats:
-                    c_recs = [r for r in ent_recs if gen_key(r, col_keys) == c]
+                    ck = _canon_col_key(c)
+                    c_recs = [r for r in ent_recs if _canon_col_key(gen_key(r, col_keys)) == ck]
                     for vk in val_keys:
                         v = sum(parse_num(r.get(vk), is_pdf=False) or 0.0 for r in c_recs)
                         row.append(int(v) if v.is_integer() else v)
@@ -1032,12 +1267,12 @@ def apply_user_table_config(api_records, config_tabel, pdf_rows=None, target_tab
                     tot_row.append(int(grand_tot) if grand_tot.is_integer() else grand_tot)
                 grid.append(tot_row)
 
-            return grid
+            return _expand_grid_with_config_totals(grid, config, n_label_cols=max(1, len(row_keys)))
 
     # Jika pivot tidak diaktifkan (masih format mentah default API), serahkan ke smart schema profiler
     return None
 
-def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tabel=None):
+def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tabel=None, pub_year=None, pdf_title=None):
     """
     Mengonversi list of dict dari API Satudata menjadi representasi 2D tabular generik
     yang kompatibel dengan matching engine compare_table.py (CASE 2).
@@ -1053,7 +1288,7 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
 
     # Prioritaskan layout config_tabel yang disetel admin di portal
     if config_tabel:
-        user_grid = apply_user_table_config(api_records, config_tabel, pdf_rows=pdf_rows, target_table=target_table)
+        user_grid = apply_user_table_config(api_records, config_tabel, pdf_rows=pdf_rows, target_table=target_table, pub_year=pub_year, pdf_title=pdf_title)
         if user_grid and len(user_grid) > 1:
             return user_grid
 
@@ -1067,9 +1302,54 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
     cat_cols = [c for c, r in roles.items() if r == 'categorical']
     metric_cols = [c for c, r in roles.items() if r == 'metric']
 
+    parsed_cfg = None
+    cfg_label_map = {}
+    if config_tabel:
+        try:
+            c_raw = config_tabel.strip() if isinstance(config_tabel, str) else config_tabel
+            if isinstance(c_raw, str):
+                if c_raw.startswith('"') and c_raw.endswith('"'):
+                    c_raw = c_raw[1:-1]
+                c_raw = json.loads(c_raw)
+                if isinstance(c_raw, str):
+                    c_raw = json.loads(c_raw)
+            if isinstance(c_raw, dict):
+                c_cols = c_raw.get('columns', [])
+                api_k = set(api_records[0].keys())
+                cfg_k = {c.get('key') for c in c_cols if isinstance(c, dict) and c.get('key')}
+                if len(api_k.intersection(cfg_k)) >= min(2, len(api_k)):
+                    parsed_cfg = c_raw
+                    p_cfg_chk = parsed_cfg.get('pivot', {}) or {}
+                    is_pivot_ready = bool(
+                        p_cfg_chk.get('enabled')
+                        and p_cfg_chk.get('col')
+                        and p_cfg_chk.get('val')
+                        and (p_cfg_chk.get('metrics_as_row') or p_cfg_chk.get('row'))
+                    )
+                    if not is_pivot_ready:
+                        vis_m = []
+                        has_populated_metric = any(r == 'metric' for r in roles.values())
+                        for c in c_cols:
+                            if not isinstance(c, dict) or not c.get('key'):
+                                continue
+                            k = c['key']
+                            if k not in api_k:
+                                continue
+                            lbl = re.sub(r'\s*\|\|\s*', ' - ', str(c.get('label_id') or k)).strip()
+                            if lbl and lbl.lower() != k.lower():
+                                cfg_label_map[k] = lbl
+                            if c.get('visible', True):
+                                k_role = roles.get(k)
+                                if k_role == 'metric' or (k_role == 'empty' and has_populated_metric and c.get('format', 'number') in ('number', 'decimal', 'percent', 'currency', 'ribuan', 'jutaan')):
+                                    vis_m.append(k)
+                        if vis_m:
+                            metric_cols = vis_m
+        except Exception:
+            parsed_cfg = None
+
     # 1. LAYOUT REGIONAL (35 Kab/Kota)
     if region_cols:
-        api_records = _filter_api_records_by_target_year(api_records, temporal_cols, pdf_rows)
+        api_records = _filter_api_records_by_target_year(api_records, temporal_cols, pdf_rows, pub_year=pub_year, pdf_title=pdf_title)
         reg_col = region_cols[0]
         # Jika ada kolom kategori breakdown juga di tabel wilayah (misal jenis_ppks per kab/kota)
         if cat_cols:
@@ -1086,14 +1366,14 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                     c_val = str(r.get(cat_col, '')).strip()
                     if c_val and c_val not in categories:
                         categories.append(c_val)
-                grid = [[cat_col.replace('_', ' ').title()] + [m.replace('_', ' ').title() for m in metric_cols]]
+                grid = [[cat_col.replace('_', ' ').title()] + [cfg_label_map.get(m, m.replace('_', ' ').title()) for m in metric_cols]]
                 for c_val in categories:
                     row = [c_val]
                     for mk in metric_cols:
                         val = sum(parse_num(r.get(mk), is_pdf=False) or 0.0 for r in api_records if str(r.get(cat_col, '')).strip() == c_val)
                         row.append(int(val) if val.is_integer() else val)
                     grid.append(row)
-                return grid
+                return _expand_grid_with_config_totals(grid, parsed_cfg, n_label_cols=1)
 
         # Standar Regional: Baris = 35 Kab/Kota (atau Kab/Kota x Sub-Kategori), Kolom = Metrik numerik
         is_multi_row_reg_cat = False
@@ -1106,14 +1386,21 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                 is_multi_row_reg_cat = True
                 any_valid_metric = any(parse_num(r.get(mk), is_pdf=False) is not None for r in api_records for mk in metric_cols)
 
-        headers = ['Wilayah'] + [m.replace('_', ' ').title() for m in metric_cols]
+        headers = ['Wilayah'] + [cfg_label_map.get(m, m.replace('_', ' ').title()) for m in metric_cols]
         grid = [headers]
+        has_explicit_kota = any(
+            str(r.get(reg_col, '')).strip().lower().startswith(('kota ', 'kota.'))
+            for r in api_records
+        )
+        cilacap_seen = False
         brebes_seen = False
         for r in api_records:
             w_name = str(r.get(reg_col, '')).strip()
+            if 'Cilacap' in w_name:
+                cilacap_seen = True
             if 'Brebes' in w_name:
                 brebes_seen = True
-            elif brebes_seen and w_name.startswith('Kab. '):
+            elif (not has_explicit_kota) and cilacap_seen and brebes_seen and w_name.startswith('Kab. '):
                 c_name = w_name[5:].strip()
                 if c_name in ['Magelang', 'Semarang', 'Pekalongan', 'Tegal']:
                     w_name = f"Kota {c_name}"
@@ -1133,11 +1420,40 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                 else:
                     row.append(r.get(mk))
             grid.append(row)
-        return grid
+
+        has_pdf_total = False
+        if pdf_rows:
+            for r in pdf_rows:
+                if isinstance(r, list) and r:
+                    r_txt = " ".join(str(c).lower() for c in r[:3] if c)
+                    if any(k in r_txt for k in ['jawa tengah', 'jumlah', 'total']) and not any(k in r_txt for k in ['kabupaten', 'kota', 'dinas']):
+                        has_pdf_total = True
+                        break
+
+        cfg_wants_total = False
+        if config_tabel:
+            try:
+                cfg_obj = json.loads(config_tabel) if isinstance(config_tabel, str) else config_tabel
+                p_cfg = cfg_obj.get('pivot', {}) if isinstance(cfg_obj, dict) else {}
+                cfg_wants_total = bool(p_cfg.get('total_col') or p_cfg.get('total_row') or cfg_obj.get('show_total_col') or cfg_obj.get('total_vertikal'))
+            except Exception:
+                pass
+
+        if (has_pdf_total or cfg_wants_total) and len(grid) > 1 and not is_multi_row_reg_cat:
+            tot_row = ['Total Jawa Tengah']
+            for col_idx in range(1, len(headers)):
+                if _is_non_additive_metric_header(headers[col_idx]):
+                    tot_row.append(None)
+                else:
+                    col_sum = sum(parse_num(row[col_idx], is_pdf=False) or 0.0 for row in grid[1:] if len(row) > col_idx)
+                    tot_row.append(int(col_sum) if col_sum.is_integer() else col_sum)
+            grid.append(tot_row)
+
+        return _expand_grid_with_config_totals(grid, parsed_cfg, n_label_cols=1)
 
     # 2. CROSS-TABULATION / HIERARCHICAL BREAKDOWN PIVOT (misal 2.2.1 Partai Politik x Gender, 2.2.5 x Umur)
     if len(cat_cols) >= 2 and metric_cols:
-        api_records = _filter_api_records_by_target_year(api_records, temporal_cols, pdf_rows)
+        api_records = _filter_api_records_by_target_year(api_records, temporal_cols, pdf_rows, pub_year=pub_year, pdf_title=pdf_title)
         val_col = metric_cols[0]
         # Entitas utama (baris) adalah kategori dengan kardinalitas tertinggi (misal nama partai ~18)
         cat_cardinality = {c: len(set(str(r.get(c, '')).strip() for r in api_records if r.get(c))) for c in cat_cols}
@@ -1259,7 +1575,12 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
         time_col = temporal_cols[0]
         val_col = metric_cols[0]
 
-        years = sorted(list(set(str(r.get(time_col)) for r in api_records if r.get(time_col))))
+        years = sorted(list(set(str(r.get(time_col)).strip() for r in api_records if r.get(time_col))))
+        if pub_year:
+            max_dy = int(pub_year) - 1
+            elig_years = [y for y in years if y.isdigit() and int(y) <= max_dy]
+            if elig_years:
+                years = elig_years
         col_headers = [f"Tahun {y}" for y in years]
 
         # Cek apakah di PDF baris datanya berupa deret tahun (Transpose Mode: Baris = Tahun, Kolom = Kategori)
@@ -1296,7 +1617,7 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
             for c_code, c_name in categories:
                 row = [c_code, c_name]
                 for y in years:
-                    v = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(time_col)) == y and str(r.get(code_col, '')).strip() == c_code)
+                    v = sum(parse_num(r.get(val_col), is_pdf=False) or 0.0 for r in api_records if str(r.get(time_col)) == y and str(r.get(code_col, '')).strip() == c_code and str(r.get(dim_col, '')).strip() == c_name)
                     row.append(int(v) if v.is_integer() else v)
                 grid.append(row)
         else:
@@ -1316,6 +1637,8 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
 
     # 4. FLAT MULTI-METRIC CATEGORICAL (misal 10.1.5 PMA Menurut Negara, 2.3.22 ASN per Dinas, 2.3.9 PNS Golongan)
     if len(cat_cols) == 1 and len(metric_cols) >= 1:
+        if temporal_cols:
+            api_records = _filter_api_records_by_target_year(api_records, temporal_cols, pdf_rows, pub_year=pub_year, pdf_title=pdf_title)
         dim_col = cat_cols[0]
         code_col = code_cols[0] if code_cols else None
 
@@ -1329,11 +1652,12 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                 return 'Jumlah'
             return m.replace('_', ' ').title()
 
-        clean_metrics = [clean_metric_label(m) for m in metric_cols]
+        clean_metrics = [cfg_label_map.get(m, clean_metric_label(m)) for m in metric_cols]
         pdf_text = " ".join(str(c) for r in (pdf_rows or [])[:20] if isinstance(r, list) for c in r if c).lower()
         dim_in_pdf = any(str(r.get(dim_col, '')).strip().lower() in pdf_text for r in api_records[:5] if r.get(dim_col))
         use_code_only = bool(code_col and not dim_in_pdf)
 
+        n_lbl_c = (1 if code_col else 0) + (0 if use_code_only else 1)
         grid_headers = ([code_col.replace('_', ' ').title()] if code_col else []) + ([] if use_code_only else [dim_col.replace('_', ' ').title()]) + clean_metrics
         grid = [grid_headers]
         for r in api_records:
@@ -1344,18 +1668,39 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
             grid.append(row)
 
         pdf_has_total = any(isinstance(r, list) and any(re.sub(r'[\s/]+', ' ', str(c).strip().lower()) in ['jumlah total', 'total jumlah', 'jumlah', 'total'] for c in r[:2] if c is not None) for r in (pdf_rows or []))
-        if pdf_has_total:
-            tot_row = ['Jumlah/Total']
-            for col_i in range(1, len(grid_headers)):
-                vals = [r[col_i] for r in grid[1:] if isinstance(r[col_i], (int, float))]
-                tot_row.append(int(sum(vals)) if sum(vals).is_integer() else sum(vals))
+        pdf_has_prov_total = (
+            not pdf_has_total
+            and bool(pdf_rows)
+            and any(
+                isinstance(r, list) and any(
+                    re.match(r'^(?:provinsi\s+)?jawa\s+tengah$', re.sub(r'\s+', ' ', str(c).strip()), re.I)
+                    for c in r[:2] if c is not None
+                )
+                for r in pdf_rows[-5:]
+            )
+            and not any('jawa tengah' in str(r.get(dim_col, '')).lower() for r in api_records)
+        )
+        if pdf_has_total or pdf_has_prov_total:
+            tot_label = 'Jawa Tengah' if pdf_has_prov_total else 'Jumlah/Total'
+            tot_row = [tot_label] + ([''] * (n_lbl_c - 1) if n_lbl_c > 1 else [])
+            for col_i in range(n_lbl_c, len(grid_headers)):
+                if _is_non_additive_metric_header(grid_headers[col_i]):
+                    tot_row.append(None)
+                else:
+                    vals = [r[col_i] for r in grid[1:] if isinstance(r[col_i], (int, float))]
+                    tot_row.append(int(sum(vals)) if sum(vals).is_integer() else sum(vals))
             grid.append(tot_row)
-        return grid
+        return _expand_grid_with_config_totals(grid, parsed_cfg, n_label_cols=max(1, n_lbl_c))
 
     # 5. TEMPORAL ROWS (misal 8.7 Wisatawan Mancanegara & Domestik per Tahun)
     if temporal_cols and not cat_cols and not region_cols:
         time_col = temporal_cols[0]
-        hdr = ['Tahun Anggaran'] + [m.replace('_', ' ').title() for m in metric_cols]
+        if pub_year:
+            max_dy = int(pub_year) - 1
+            elig_recs = [r for r in api_records if str(r.get(time_col, '')).strip().isdigit() and int(str(r.get(time_col)).strip()) <= max_dy]
+            if elig_recs:
+                api_records = elig_recs
+        hdr = ['Tahun Anggaran'] + [cfg_label_map.get(m, m.replace('_', ' ').title()) for m in metric_cols]
         grid = [hdr]
         try:
             sorted_records = sorted(api_records, key=lambda x: int(x.get(time_col, 0)))
@@ -1367,7 +1712,7 @@ def normalize_api_data(api_records, pdf_rows=None, target_table=None, config_tab
                 v = parse_num(r.get(mk), is_pdf=False)
                 row.append(int(v) if isinstance(v, float) and v.is_integer() else (v if v is not None else r.get(mk)))
             grid.append(row)
-        return grid
+        return _expand_grid_with_config_totals(grid, parsed_cfg, n_label_cols=1)
 
     return None
 

@@ -10,32 +10,9 @@ try:
 except ImportError:
     import fitz
 
-from normalizer import strip_pdf_page_watermark
+from normalizer import strip_pdf_page_watermark, ENGLISH_SIGNAL_WORDS, is_english_line
 
 SINGLE_CHAR_WATERMARK = {'j', 'a', 't', 'e', 'n', 'g', 'b', 'p', 's', 'o', 'i', 'd', '.', 'h', ':'}
-
-ENGLISH_SIGNAL_WORDS = {
-    'of', 'to', 'in', 'by', 'and', 'the', 'for', 'with', 'from', 'on', 'at', 'or',
-    'right', 'rights', 'ownership', 'endowments', 'management', 'mortgage', 'use', 'build',
-    'number', 'total', 'area', 'value', 'rate', 'ratio', 'percentage', 'distribution',
-    'group', 'groups', 'type', 'types', 'kind', 'kinds', 'status', 'level', 'levels',
-    'public', 'private', 'male', 'female', 'sex', 'age', 'urban', 'rural',
-    'regency', 'municipality', 'province', 'district', 'subdistrict', 'village', 'villages',
-    'school', 'schools', 'teacher', 'teachers', 'headmaster', 'headmasters', 'pupil', 'pupils', 'student', 'students',
-    'average', 'minimum', 'maximum', 'temperature', 'humidity', 'velocity', 'pressure', 'precipitation', 'rainy', 'days',
-    'coastal', 'non-coastal', 'flat', 'slope', 'valley', 'altitude', 'distance', 'capital', 'island', 'islands',
-    'production', 'capacity', 'customer', 'customers', 'household', 'households', 'industry', 'business', 'social', 'government',
-    'employee', 'employees', 'civil', 'servant', 'servants', 'state', 'agreement', 'agreements',
-    'population', 'thousand', 'people', 'million', 'billion', 'rupiahs', 'rupiah', 'year', 'years', 'month', 'months',
-    'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'
-}
-
-def is_english_line(line):
-    words = re.findall(r'[a-zA-Z]+', line.lower())
-    if not words:
-        return False
-    eng_hits = sum(1 for w in words if w in ENGLISH_SIGNAL_WORDS)
-    return eng_hits >= 1
 
 def clean_cell_text(val):
     if val is None:

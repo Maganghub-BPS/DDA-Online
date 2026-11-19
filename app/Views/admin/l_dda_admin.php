@@ -28,7 +28,7 @@ $unitkerjalogin = session()->get('admin_unitkerja');
     min-height: 0 !important;
     flex: 1 1 auto;
     overflow-y: auto;
-    overflow-x: hidden !important;
+    overflow-x: auto !important;
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 #f1f5f9;

@@ -2191,6 +2191,8 @@ class Admin extends BaseController
 		$redirectTo = $this->request->getGet('redirect_to');
 		if (!empty($redirectTo)) {
 			$cleanPath = ltrim(urldecode($redirectTo), '/');
+			// Sinkronkan query param ta= atau tahun= pada URL tujuan agar tidak menimpa balik session admin_ta
+			$cleanPath = preg_replace('/([?&])(ta|tahun)=20\d{2}\b/', '$1$2=' . (int)$tahun, $cleanPath);
 			// Keamanan: Pastikan internal path (bukan external url) dan bukan loop ke set_tahun/login
 			if (!preg_match('#^(https?://|//)#i', $cleanPath) && 
 				!str_contains($cleanPath, 'set_tahun') && 
@@ -3913,7 +3915,7 @@ class Admin extends BaseController
 
 		if (PHP_OS_FAMILY === 'Windows') {
 			$redirectErr = !empty($errLog) ? ' 2>' . escapeshellarg($errLog) : '';
-			$cmd = "start /B {$pyBin} {$scriptEscaped} {$argsStr} > NUL{$redirectErr}";
+			$cmd = "start \"DDA_Worker\" /B {$pyBin} {$scriptEscaped} {$argsStr} > NUL{$redirectErr}";
 			if (function_exists('popen')) {
 				$p = @popen($cmd, 'r');
 				if ($p) {
@@ -3962,60 +3964,7 @@ class Admin extends BaseController
 		$dynamicMap = $mDinamis->exportDynamicTablesForMatching((int)$ta);
 		$db_tables = [];
 
-		if ($this->db->tableExists('t_tahun_tabel') && $this->db->tableExists('m_list_tabel')) {
-			$hasTahun = $this->db->table('t_tahun_tabel')->where('tahun', $ta)->countAllResults();
-			if ($hasTahun > 0) {
-				$query = $this->db->query("
-					SELECT 
-						t.id as id_db,
-						COALESCE(t.no_tabel, '') as nomor_tabel, 
-						m.judul_ind as raw_judul, 
-						t.periode_id,
-						t.link_tabel,
-						COALESCE(t.is_dynamic, 0) as is_dynamic,
-						t.config_tabel
-					FROM t_tahun_tabel t
-					JOIN m_list_tabel m ON t.id_tabel = m.id
-					WHERE t.tahun = ?
-				", [$ta]);
-				$raw_tables = $query->getResultArray();
-				foreach ($raw_tables as $r) {
-					$idDb = (int)$r['id_db'];
-					$formatted_judul = function_exists('format_judul_tabel')
-						? format_judul_tabel($r['raw_judul'], $r['periode_id'])
-						: $r['raw_judul'];
-
-					$dynInfo = $dynamicMap[$idDb] ?? null;
-					$isDyn = ((int)$r['is_dynamic'] === 1 || $dynInfo !== null) ? 1 : 0;
-					$linkLower = strtolower(trim($r['link_tabel'] ?? ''));
-
-					if ($isDyn === 1) {
-						$sourceType = 'dinamis';
-					} elseif (strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) {
-						$sourceType = 'api';
-					} else {
-						$sourceType = 'spreadsheet';
-					}
-
-					$db_tables[] = [
-						'id_db'         => $idDb,
-						'id_indikator'  => $dynInfo ? (int)($dynInfo['id_indikator'] ?? 0) : 0,
-						'nomor_tabel'   => $r['nomor_tabel'],
-						'judul_tabel'   => $formatted_judul,
-						'link_tabel'    => $r['link_tabel'],
-						'is_dynamic'    => $isDyn,
-						'source_type'   => $sourceType,
-						'config_tabel'  => $r['config_tabel'] ?? null,
-						'dynamic_empty' => $dynInfo ? (bool)$dynInfo['dynamic_empty'] : ($isDyn === 1),
-						'dynamic_grid'  => $dynInfo ? ($dynInfo['dynamic_grid'] ?? []) : [],
-						'template_grid' => $dynInfo ? ($dynInfo['template_grid'] ?? []) : [],
-						'cell_coords'   => $dynInfo ? ($dynInfo['cell_coords'] ?? []) : [],
-					];
-				}
-			}
-		}
-
-		if (empty($db_tables) && $this->db->tableExists('m_list_tabel')) {
+		if ($this->db->tableExists('m_list_tabel')) {
 			$query = $this->db->query("
 				SELECT 
 					m.id as id_db,
@@ -4096,30 +4045,30 @@ class Admin extends BaseController
 	 */
 	private function getDynamicConfigSignature(string $ta): string
 	{
-		if ($this->db->tableExists('t_tahun_tabel')) {
-			$sigRow = $this->db->query("
-				SELECT COUNT(*) as total_dyn,
-				       GROUP_CONCAT(t.id ORDER BY t.id SEPARATOR ',') as dyn_ids,
-				       (SELECT COUNT(*) FROM m_indikator_tabel) as ind_cnt,
-				       (SELECT MAX(updated_at) FROM m_indikator_tabel) as ind_max_upd,
-				       (SELECT COUNT(*) FROM t_nilai_dinamis) as nilai_cnt,
-				       (SELECT MD5(GROUP_CONCAT(COALESCE(config_tabel, '') SEPARATOR '|')) FROM t_tahun_tabel WHERE tahun = ?) as config_sig
-				FROM t_tahun_tabel t
-				WHERE t.tahun = ? AND (t.is_dynamic = 1 OR EXISTS (SELECT 1 FROM m_indikator_tabel i WHERE i.id_tahun_tabel = t.id))
-			", [$ta, $ta])->getRowArray();
-			return md5(json_encode($sigRow));
-		}
-
 		$sigRow = $this->db->query("
 			SELECT COUNT(*) as total_dyn,
 			       GROUP_CONCAT(m.id ORDER BY m.id SEPARATOR ',') as dyn_ids,
 			       (SELECT COUNT(*) FROM m_indikator_tabel) as ind_cnt,
 			       (SELECT MAX(updated_at) FROM m_indikator_tabel) as ind_max_upd,
-			       (SELECT COUNT(*) FROM t_nilai_dinamis) as nilai_cnt
+			       (SELECT COUNT(*) FROM t_nilai_dinamis) as nilai_cnt,
+			       (SELECT MAX(updated_at) FROM t_nilai_dinamis) as nilai_max_upd,
+			       (SELECT MAX(created_at) FROM t_nilai_dinamis) as nilai_max_crd
 			FROM m_list_tabel m
 			JOIN m_indikator_tabel i ON i.id_tabel = m.id
 			WHERE m.is_active = 1
 		")->getRowArray();
+
+		$stSig = '';
+		if ($this->db->tableExists('t_status_tahunan')) {
+			$stRow = $this->db->query("
+				SELECT COUNT(*) as cnt,
+				       SUM(CASE WHEN is_periksa = 1 OR is_confirm != '0' OR is_publish = 1 THEN 1 ELSE 0 END) as ver_cnt,
+				       MAX(updated_at) as max_upd
+				FROM t_status_tahunan
+				WHERE tahun = ?
+			", [(int)$ta])->getRowArray();
+			$stSig = json_encode($stRow);
+		}
 
 		$kaSig = '';
 		if ($this->db->tableExists('m_konfigurasi_api')) {
@@ -4143,7 +4092,7 @@ class Admin extends BaseController
 			$mlSig = json_encode($mlRow);
 		}
 
-		return md5(json_encode($sigRow) . '_' . $kaSig . '_' . $mlSig . '_' . $ta);
+		return md5(json_encode($sigRow) . '_' . $stSig . '_' . $kaSig . '_' . $mlSig . '_' . $ta);
 	}
 
 	/**
@@ -4186,42 +4135,67 @@ class Admin extends BaseController
 			];
 		}
 
+		$maxDataYr = ((int)$ta >= 1900 && (int)$ta <= 2100) ? ((int)$ta - 1) : (int)date('Y');
 		$sql = "
 			SELECT 
 				i.id as id_indikator,
 				i.id_tabel as id_master,
 				m.no_tabel,
-				COUNT(n.id) as filled_cnt
+				COUNT(n.id) as filled_cnt,
+				SUM(CASE WHEN n.tahun_data = ? THEN 1 ELSE 0 END) as filled_target_cnt,
+				MAX(CASE WHEN st.id IS NOT NULL AND (st.is_periksa = 1 OR st.is_confirm != '0' OR st.is_publish = 1) THEN 1 ELSE 0 END) as has_status_ta
 			FROM m_indikator_tabel i
 			JOIN m_list_tabel m ON m.id = i.id_tabel
-			LEFT JOIN t_nilai_dinamis n ON n.id_indikator = i.id AND (
-				(n.nilai IS NOT NULL AND n.nilai != '') OR 
-				(n.simbol IS NOT NULL AND n.simbol != '')
-			)
+			LEFT JOIN t_status_tahunan st ON st.id_tabel = m.id AND st.tahun = ?
+			LEFT JOIN t_nilai_dinamis n ON n.id_indikator = i.id
+				AND (n.tahun_data IS NULL OR n.tahun_data = 0 OR n.tahun_data <= ?)
+				AND (
+					(n.nilai IS NOT NULL AND n.nilai != '') OR 
+					(n.simbol IS NOT NULL AND n.simbol != '')
+				)
 			WHERE m.is_active = 1
 			GROUP BY i.id, i.id_tabel, m.no_tabel
 		";
-		$rows = $this->db->query($sql)->getResultArray();
+		$rows = $this->db->query($sql, [$maxDataYr, (int)$ta, $maxDataYr])->getResultArray();
 
 		$dbFillById = [];
 		foreach ($rows as $r) {
 			$idM = (string)($r['id_master'] ?? '');
 			$cnt = (int)($r['filled_cnt'] ?? 0);
-			if ($cnt > 0) {
+			$targetCnt = (int)($r['filled_target_cnt'] ?? 0);
+			$hasSt = (int)($r['has_status_ta'] ?? 0) === 1;
+			// Untuk tahun buku $ta: dianggap terisi jika ada data di tahun N-1 ($maxDataYr) ATAU sudah terverifikasi di t_status_tahunan untuk $ta
+			if ($targetCnt > 0 || ($cnt > 0 && $hasSt)) {
 				$dbFillById[$idM] = true;
 			} elseif (!isset($dbFillById[$idM])) {
 				$dbFillById[$idM] = false;
 			}
 		}
 
+		$mDinamis = new \App\Models\M_tabeldinamis();
+		$dynamicMap = $mDinamis->exportDynamicTablesForMatching((int)$ta);
+		$metaRows = $this->db->query("
+			SELECT m.id as id_db,
+			       ka.link_api as link_tabel,
+			       ka.config_tabel,
+			       m.jenis_sumber,
+			       CASE WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END as has_indikator
+			FROM m_list_tabel m
+			LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
+			LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
+			WHERE m.is_active = 1
+		")->getResultArray();
+		$metaById = [];
+		foreach ($metaRows as $mr) {
+			$metaById[(string)$mr['id_db']] = $mr;
+		}
+
 		$dbList = json_decode(@file_get_contents($dbJson), true) ?? [];
 		$stateData = file_exists($stateJson) ? (json_decode(@file_get_contents($stateJson), true) ?? []) : [];
-		$mDinamis = new \App\Models\M_tabeldinamis();
 
 		$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : 'matched_tables';
 		$changedToFilled = [];
 		$changedToEmpty = [];
-		$matchedUpdated = false;
 		$dbUpdated = false;
 		$stateUpdated = false;
 
@@ -4236,27 +4210,62 @@ class Admin extends BaseController
 		foreach ($masterData[$listKey] as &$mItem) {
 			$tNo = trim((string)($mItem['nomor_tabel'] ?? ''));
 			$idDb = (string)($mItem['id_db'] ?? '');
+			if ($idDb === '') {
+				continue;
+			}
+
+			$meta = $metaById[$idDb] ?? null;
+			if ($meta && isset($dbIndexMap[$idDb])) {
+				$idx = $dbIndexMap[$idDb];
+				$freshLink = $meta['link_tabel'] ?? null;
+				$freshCfg = $meta['config_tabel'] ?? null;
+				$freshLinkLower = strtolower(trim((string)$freshLink));
+				$isDynMeta = (($meta['jenis_sumber'] ?? '') === 'dinamis')
+					|| ((int)($meta['has_indikator'] ?? 0) === 1 && ($meta['jenis_sumber'] ?? '') !== 'api_kominfo')
+					|| isset($dynamicMap[(int)$idDb]);
+				$freshSrcType = $isDynMeta ? 'dinamis' : ((($meta['jenis_sumber'] ?? '') === 'api_kominfo' || strpos($freshLinkLower, 'view_portal_tabel') !== false || strpos($freshLinkLower, 'satudata') !== false) ? 'api' : 'spreadsheet');
+
+				if (($dbList[$idx]['link_tabel'] ?? null) !== $freshLink
+					|| ($dbList[$idx]['config_tabel'] ?? null) !== $freshCfg
+					|| ($dbList[$idx]['source_type'] ?? '') !== $freshSrcType) {
+					$dbList[$idx]['link_tabel'] = $freshLink;
+					$dbList[$idx]['config_tabel'] = $freshCfg;
+					$dbList[$idx]['is_dynamic'] = $isDynMeta ? 1 : 0;
+					$dbList[$idx]['source_type'] = $freshSrcType;
+					$mItem['link_tabel'] = $freshLink;
+					$mItem['is_dynamic'] = $isDynMeta ? 1 : 0;
+					$mItem['source_type'] = $freshSrcType;
+					$dbUpdated = true;
+				}
+			}
+
 			$isDyn = ($mItem['source_type'] ?? '') === 'dinamis' || ((int)($mItem['is_dynamic'] ?? 0)) === 1;
-			if (!$isDyn || $idDb === '') {
+			if (!$isDyn) {
 				continue;
 			}
 
 			$currEmpty = !empty($mItem['dynamic_empty']);
 			$hasDataInDb = $dbFillById[$idDb] ?? false;
-			$actualEmpty = !$hasDataInDb;
+			$dynExport = $dynamicMap[(int)$idDb] ?? null;
+			$actualEmpty = $dynExport ? (bool)($dynExport['dynamic_empty'] ?? true) : !$hasDataInDb;
+			$freshGrid = $dynExport ? ($dynExport['dynamic_grid'] ?? []) : [];
+			$freshTpl = $dynExport ? ($dynExport['template_grid'] ?? []) : [];
+			$freshCoords = $dynExport ? ($dynExport['cell_coords'] ?? []) : [];
+
+			$existingGrid = isset($dbIndexMap[$idDb]) ? ($dbList[$dbIndexMap[$idDb]]['dynamic_grid'] ?? []) : [];
+			$existingTpl = isset($dbIndexMap[$idDb]) ? ($dbList[$dbIndexMap[$idDb]]['template_grid'] ?? []) : [];
+			$gridChanged = ($freshGrid !== $existingGrid) || ($freshTpl !== $existingTpl);
 
 			if ($currEmpty && !$actualEmpty) {
 				$mItem['dynamic_empty'] = false;
 				$changedToFilled[] = $tNo;
-				$matchedUpdated = true;
 
-				$dynExport = $mDinamis->exportSingleDynamicTable((int)$idDb);
 				if ($dynExport && isset($dbIndexMap[$idDb])) {
 					$idx = $dbIndexMap[$idDb];
 					$dbList[$idx]['dynamic_empty'] = false;
-					$dbList[$idx]['dynamic_grid'] = $dynExport['dynamic_grid'] ?? [];
-					$dbList[$idx]['template_grid'] = $dynExport['template_grid'] ?? [];
-					$dbList[$idx]['cell_coords'] = $dynExport['cell_coords'] ?? [];
+					$dbList[$idx]['dynamic_grid'] = $freshGrid;
+					$dbList[$idx]['template_grid'] = $freshTpl;
+					$dbList[$idx]['cell_coords'] = $freshCoords;
 					$dbUpdated = true;
 				}
 
@@ -4273,12 +4282,15 @@ class Admin extends BaseController
 			} elseif (!$currEmpty && $actualEmpty) {
 				$mItem['dynamic_empty'] = true;
 				$changedToEmpty[] = $tNo;
-				$matchedUpdated = true;
 
 				if (isset($dbIndexMap[$idDb])) {
 					$idx = $dbIndexMap[$idDb];
 					$dbList[$idx]['dynamic_empty'] = true;
 					$dbList[$idx]['dynamic_grid'] = [];
+					if (!empty($freshTpl)) {
+						$dbList[$idx]['template_grid'] = $freshTpl;
+						$dbList[$idx]['cell_coords'] = $freshCoords;
+					}
 					$dbUpdated = true;
 				}
 
@@ -4292,19 +4304,33 @@ class Admin extends BaseController
 					];
 					$stateUpdated = true;
 				}
+			} elseif ($gridChanged && isset($dbIndexMap[$idDb])) {
+				// Data nilai / simbol / template berubah pada tabel yang tetap terisi -> perbarui snapshot JSON agar Batch Scan selalu memakai data terbaru!
+				$idx = $dbIndexMap[$idDb];
+				$dbList[$idx]['dynamic_empty'] = $actualEmpty;
+				$dbList[$idx]['dynamic_grid'] = $freshGrid;
+				$dbList[$idx]['template_grid'] = $freshTpl;
+				$dbList[$idx]['cell_coords'] = $freshCoords;
+				$dbUpdated = true;
+
+				if ($tNo !== '' && isset($stateData[$tNo])) {
+					$stateData[$tNo]['status'] = 'unverified';
+					$stateData[$tNo]['updated_at'] = date('Y-m-d H:i:s');
+					$stateUpdated = true;
+				}
 			}
 		}
 		unset($mItem);
 
 		$masterData['db_sig'] = $currentDbSig;
-		@file_put_contents($matchedJson, json_encode($masterData, JSON_UNESCAPED_UNICODE));
+		$this->writeJsonAtomic($matchedJson, $masterData, JSON_UNESCAPED_UNICODE);
 
 		if ($dbUpdated) {
-			@file_put_contents($dbJson, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+			$this->writeJsonAtomic($dbJson, $dbList, JSON_UNESCAPED_UNICODE);
 		}
 
 		if ($stateUpdated) {
-			@file_put_contents($stateJson, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+			$this->writeJsonAtomic($stateJson, $stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 		}
 
 		return [
@@ -4361,7 +4387,7 @@ class Admin extends BaseController
 		if (file_exists($pdfMaster)) {
 			$pythonScript = FCPATH . '../python_engine/match_pdf.py';
 			$pyBin = $this->getPythonBin();
-			$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($dbJson) . " 2>&1";
+			$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfMaster) . " " . escapeshellarg($dbJson) . " " . escapeshellarg($ta) . " 2>&1";
 			@shell_exec($command);
 			$reloaded = json_decode(@file_get_contents($matchedJson), true);
 			if (is_array($reloaded) && isset($reloaded['matched_in_pdf'])) {
@@ -4421,12 +4447,32 @@ class Admin extends BaseController
 		}
 
 
-		$ta = $this->session->get('admin_ta');
-		if (empty($ta)) {
-			$ta = (string)date('Y');
+		$uploadPath = WRITEPATH . 'uploads/';
+		$reqTa = preg_replace('/[^0-9]/', '', (string)($this->request->getGet('ta') ?? ''));
+		if ($reqTa !== '' && preg_match('/^20\d{2}$/', $reqTa)) {
+			$ta = $reqTa;
+			$this->session->set('admin_ta', (int)$ta);
+		} else {
+			$ta = (string)($this->session->get('admin_ta') ?: date('Y'));
 		}
 
-		$uploadPath = WRITEPATH . 'uploads/';
+		$availableMasterYears = [];
+		foreach (glob($uploadPath . 'dda_master_*.pdf') ?: [] as $mpFile) {
+			if (preg_match('/dda_master_(20\d{2})\.pdf$/', basename($mpFile), $mY)) {
+				$yr = $mY[1];
+				$availableMasterYears[] = $yr;
+			}
+		}
+		$nextYrStr = (string)((int)date('Y') + 1);
+		foreach ([(string)date('Y'), $nextYrStr, (string)$ta] as $candYr) {
+			if (preg_match('/^20\d{2}$/', $candYr) && !in_array($candYr, $availableMasterYears, true)) {
+				$availableMasterYears[] = $candYr;
+			}
+		}
+		if (!empty($availableMasterYears)) {
+			rsort($availableMasterYears);
+		}
+
 		$pdfMaster = $uploadPath . "dda_master_{$ta}.pdf";
 		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
 		$dbJson = $uploadPath . "dda_db_{$ta}.json";
@@ -4445,6 +4491,7 @@ class Admin extends BaseController
 				$hasMaster = true;
 				$masterData['pdf_path'] = $pdfMaster;
 				$masterData['db_json_path'] = $dbJson;
+				$masterData['pdf_mtime'] = @filemtime($pdfMaster) ?: time();
 				$masterData['upload_time'] = date('d M Y H:i', filemtime($pdfMaster));
 				$masterData['file_size_mb'] = round(filesize($pdfMaster) / (1024 * 1024), 1);
 			}
@@ -4517,26 +4564,74 @@ class Admin extends BaseController
 
 		$a['page'] = "matching_pdf";
 		$a['ta'] = $ta;
+		$a['available_master_years'] = $availableMasterYears;
 		$a['has_master'] = $hasMaster;
 		$a['master_data'] = $masterData;
 		$a['batch_status'] = $batchStatus;
 		$a['is_batch_running'] = $isBatchRunning;
+		$a['allow_pdf_sync_to_db'] = $this->isPdfSyncToDbEnabled();
 
 		return view('admin/index', $a);
 	}
 
 	/**
+	 * Feature flag .env untuk mengizinkan/mengunci fitur "Samakan Semua Selisih ke Tabel Dinamis".
+	 * Set DDA_ALLOW_PDF_SYNC_TO_DB = false saat deploy produksi.
+	 */
+	private function isPdfSyncToDbEnabled(): bool
+	{
+		$raw = env('DDA_ALLOW_PDF_SYNC_TO_DB', true);
+		if (is_bool($raw)) {
+			return $raw;
+		}
+		$s = strtolower(trim((string)$raw));
+		return !in_array($s, ['false', '0', 'off', 'no', ''], true);
+	}
+
+	/**
+	 * Membersihkan seluruh cache validasi, progress, rekap Excel, dan render gambar halaman PNG
+	 * untuk slot tahun tertentu saat PDF baru/revisi diunggah (mencegah state lama nyangkut).
+	 */
+	private function clearMatchingYearCache(string $ta): void
+	{
+		$uploadPath = WRITEPATH . 'uploads/';
+		$exactTargets = [
+			$uploadPath . "dda_master_{$ta}.pdf",
+			$uploadPath . "dda_master_{$ta}.pdf.index.json",
+			$uploadPath . "dda_matched_{$ta}.json",
+			$uploadPath . "dda_state_{$ta}.json",
+			$uploadPath . "dda_progress_{$ta}.json",
+			$uploadPath . "dda_progress_{$ta}.json.stop",
+			$uploadPath . "dda_db_sig_{$ta}.txt",
+		];
+		foreach ($exactTargets as $target) {
+			if (is_file($target)) {
+				@unlink($target);
+			}
+		}
+
+		$globPatterns = [
+			$uploadPath . "dda_export_progress_{$ta}*.json*",
+			$uploadPath . "Rekap_Tabel_Selisih_DDA_{$ta}*.xlsx",
+			WRITEPATH . "cache/pdf_pages/dda_{$ta}_*.png",
+		];
+		foreach ($globPatterns as $pattern) {
+			$matches = glob($pattern) ?: [];
+			foreach ($matches as $mFile) {
+				if (is_file($mFile)) {
+					@unlink($mFile);
+				}
+			}
+		}
+	}
+
+	/**
 	 * Memproses unggahan publikasi PDF buku DDA (Initial Upload maupun Revisi).
 	 *
-	 * Menggunakan arsitektur "Deterministic Slot Master per Tahun":
-	 * 1. File disimpan dengan nama statis `dda_master_{ta}.pdf` (overwrite file lama).
-	 * 2. Mengambil metadata tabel tahun aktif dari tabel `m_list_tabel`.
-	 * 3. Menjalankan Python engine `match_pdf.py` untuk pemindaian tabel dan indexing halaman.
-	 * 4. Menyimpan hasil pencocokan struktur tabel ke `dda_matched_{ta}.json`.
-	 * 5. Menjalankan Lazy Garbage Collection otomatis: menghapus file upload sementara
-	 *    yang berumur > 24 jam untuk menjaga kapasitas disk server tetap ramping.
-	 *
-	 * @return \CodeIgniter\HTTP\ResponseInterface JSON response status dan data hasil scan
+	 * Menggunakan arsitektur "Deterministic Slot Master per Tahun" (Opsi A):
+	 * 1. Mendeteksi tahun publikasi asli dari cover PDF (--detect-year) agar PDF 2025/2026/2027 masuk ke slot masing-masing.
+	 * 2. Membersihkan cache state, progress, PNG halaman, & rekap Excel lama pada slot tahun tersebut.
+	 * 3. Mengambil metadata & matriks DB (dengan aturan N-1 terhadap tahun publikasi) lalu menjalankan match_pdf.py.
 	 */
 	public function process_matching_pdf()
 	{
@@ -4558,51 +4653,72 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Hanya file PDF yang diizinkan.']);
 		}
 
-		$ta = $this->session->get('admin_ta');
-		if (empty($ta)) {
-			$ta = (string)date('Y');
-		}
-
 		$uploadPath = WRITEPATH . 'uploads/';
 		if (!is_dir($uploadPath)) {
 			mkdir($uploadPath, 0777, true);
 		}
 
-		// Master file paths for year $ta
+		// Pindahkan dulu ke file temporer unik agar file asli 2026/tahun lain tidak langsung tertimpa sebelum deteksi tahun cover PDF
+		$origClientName = (string)($file->getClientName() ?: '');
+		$tmpPdfName = 'tmp_upload_' . str_replace('.', '', uniqid('', true)) . '.pdf';
+		$tmpPdfPath = $uploadPath . $tmpPdfName;
+
+		try {
+			$file->move($uploadPath, $tmpPdfName, true);
+		} catch (\Exception $e) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal memindahkan file PDF: ' . $e->getMessage()]);
+		}
+
+		$pythonScript = FCPATH . '../python_engine/match_pdf.py';
+		$pyBin = $this->getPythonBin();
+
+		// Deteksi tahun publikasi dari cover PDF (Opsi A: pisahkan slot otomatis per tahun buku PDF)
+		$detectedYear = null;
+		$detectCmd = "{$pyBin} " . escapeshellarg($pythonScript) . " --detect-year " . escapeshellarg($tmpPdfPath) . " " . escapeshellarg($origClientName) . " 2>&1";
+		$detectOut = @shell_exec($detectCmd);
+		if (!empty($detectOut)) {
+			$jsonStart = strpos($detectOut, '{');
+			$jsonEnd = strrpos($detectOut, '}');
+			if ($jsonStart !== false && $jsonEnd !== false && $jsonEnd >= $jsonStart) {
+				$detData = json_decode(substr($detectOut, $jsonStart, $jsonEnd - $jsonStart + 1), true);
+				if (!empty($detData['year']) && preg_match('/^(20\d{2})$/', (string)$detData['year'])) {
+					$detectedYear = (string)$detData['year'];
+				}
+			}
+		}
+
+		$ta = $detectedYear ?: ($this->session->get('admin_ta') ?: (string)date('Y'));
+		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: (string)date('Y');
+		$this->session->set('admin_ta', $ta);
+
+		// Master file paths for detected/active year $ta
 		$pdfMasterName = "dda_master_{$ta}.pdf";
 		$pdfPath = $uploadPath . $pdfMasterName;
 		$dbJsonPath = $uploadPath . "dda_db_{$ta}.json";
 		$matchedJsonPath = $uploadPath . "dda_matched_{$ta}.json";
 
-		// Overwrite master PDF file & bersihkan cache index lama
-		if (file_exists($pdfPath)) {
-			@unlink($pdfPath);
+		// Bersihkan master & seluruh cache validasi/PNG/rekap lama untuk tahun $ta agar tidak pernah nyangkut
+		$this->clearMatchingYearCache((string)$ta);
+
+		if (!@rename($tmpPdfPath, $pdfPath)) {
+			@copy($tmpPdfPath, $pdfPath);
+			@unlink($tmpPdfPath);
 		}
-		if (file_exists($pdfPath . '.index.json')) {
-			@unlink($pdfPath . '.index.json');
-		}
-		if (file_exists($matchedJsonPath)) {
-			@unlink($matchedJsonPath);
+		if (!file_exists($pdfPath)) {
+			if (file_exists($tmpPdfPath)) {
+				@unlink($tmpPdfPath);
+			}
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal menyimpan file PDF master ke slot tahun ' . $ta]);
 		}
 
-		try {
-			$file->move($uploadPath, $pdfMasterName, true);
-		} catch (\Exception $e) {
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal memindahkan file PDF: ' . $e->getMessage()]);
-		}
-
-		// Ambil data database (termasuk Tabel Dinamis & API Satu Data)
+		// Ambil data database (termasuk Tabel Dinamis & API Satu Data sesuai aturan N-1 untuk $ta)
 		$db_tables = $this->buildDbTablesForMatching((string)$ta);
 
-		// Save array DB ke master JSON file untuk tahun $ta
-		file_put_contents($dbJsonPath, json_encode($db_tables, JSON_UNESCAPED_UNICODE));
+		// Save array DB ke master JSON file untuk tahun $ta secara atomik
+		$this->writeJsonAtomic($dbJsonPath, $db_tables, JSON_UNESCAPED_UNICODE);
 
-		// Path ke script Python match_pdf.py
-		$pythonScript = FCPATH . '../python_engine/match_pdf.py';
-		$pyBin = $this->getPythonBin();
-		
-		// Run Python lewat shell_exec
-		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " 2>&1";
+		// Run Python lewat shell_exec (operkan $ta eksplisit)
+		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg((string)$ta) . " 2>&1";
 		$output = shell_exec($command);
 
 		// Prioritaskan membaca hasil yang disimpan langsung oleh Python ke dda_matched_{ta}.json
@@ -4625,10 +4741,13 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Error parsing Python output. Detail: ' . $safeMsg]);
 		}
 
-		// Pastikan file dda_matched_{ta}.json tersimpan
-		if (!file_exists($matchedJsonPath)) {
-			file_put_contents($matchedJsonPath, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-		}
+		$result['db_sig'] = $this->getDynamicConfigSignature((string)$ta);
+
+		// Pastikan file dda_matched_{ta}.json tersimpan atomik (lengkap dengan db_sig)
+		$this->writeJsonAtomic($matchedJsonPath, $result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+		// Rekam pemetaan nomor & judul tabel per tahun publikasi ke t_mapping_tabel_tahunan (isolasi lintas tahun 2026/2027+)
+		$this->saveYearlyTableMapping((int)$ta, $result);
 
 		// Lazy Garbage Collection: Hapus file sampah lama (>24 jam) yang bukan master
 		$now = time();
@@ -4652,10 +4771,215 @@ class Admin extends BaseController
 
 		$result['pdf_path'] = $pdfPath;
 		$result['db_json_path'] = $dbJsonPath;
+		$result['active_year'] = (string)$ta;
+		$result['detected_pub_year'] = $detectedYear ?: (string)$ta;
+		$result['pdf_mtime'] = @filemtime($pdfPath) ?: time();
 		$result['upload_time'] = date('d M Y H:i');
 		$result['file_size_mb'] = round(filesize($pdfPath) / (1024 * 1024), 1);
 
 		return $this->response->setJSON($result);
+	}
+
+	/**
+	 * Menulis payload JSON ke disk secara atomik (.tmp + rename) dengan retry singkat
+	 * agar tidak bentrok atau terbaca setengah saat diakses paralel oleh Python worker.
+	 */
+	private function writeJsonAtomic(string $path, array $data, int $flags = JSON_UNESCAPED_UNICODE): bool
+	{
+		$json = json_encode($data, $flags);
+		if ($json === false) {
+			return false;
+		}
+		$tmpPath = $path . '.tmp_' . uniqid((string)getmypid() . '_', true);
+		if (@file_put_contents($tmpPath, $json, LOCK_EX) === false) {
+			@unlink($tmpPath);
+			return @file_put_contents($path, $json, LOCK_EX) !== false;
+		}
+		for ($attempt = 0; $attempt < 6; $attempt++) {
+			if (@rename($tmpPath, $path)) {
+				return true;
+			}
+			usleep(30000 * ($attempt + 1));
+		}
+		$copied = @copy($tmpPath, $path);
+		@unlink($tmpPath);
+		return $copied || (@file_put_contents($path, $json, LOCK_EX) !== false);
+	}
+
+	/**
+	 * Mengekstrak JSON hasil eksekusi CLI script Python meskipun ada peringatan stderr.
+	 */
+	private function decodePythonJsonOutput(?string $output): ?array
+	{
+		if (!$output) {
+			return null;
+		}
+		$res = json_decode($output, true);
+		if (!$res) {
+			$jsonStart = strpos($output, '{');
+			$jsonEnd = strrpos($output, '}');
+			if ($jsonStart !== false && $jsonEnd !== false && $jsonEnd >= $jsonStart) {
+				$res = json_decode(substr($output, $jsonStart, $jsonEnd - $jsonStart + 1), true);
+			}
+			if (!$res) {
+				$cleanOutput = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
+				$res = json_decode($cleanOutput, true);
+			}
+		}
+		return is_array($res) ? $res : null;
+	}
+
+	/**
+	 * Menyimpan pemetaan permanen (id_tabel, tahun_publikasi) -> nomor & judul PDF ke t_mapping_tabel_tahunan.
+	 * Menjaga identitas abadi tabel DB (m_list_tabel.id) meskipun nomor tabel PDF bergeser di tahun publikasi berikutnya.
+	 */
+	private function saveYearlyTableMapping(int $tahunPublikasi, array $matchResult): void
+	{
+		if ($tahunPublikasi < 1900 || $tahunPublikasi > 2100) {
+			return;
+		}
+		try {
+			if (!$this->db->tableExists('t_mapping_tabel_tahunan')) {
+				return;
+			}
+			$now = date('Y-m-d H:i:s');
+			$rows = [];
+			$seenIds = [];
+
+			foreach (($matchResult['matched_in_pdf'] ?? []) as $item) {
+				$idTabel = (int)($item['id_db'] ?? 0);
+				$noPdf = trim((string)($item['nomor_tabel'] ?? ''));
+				if ($idTabel <= 0 || $noPdf === '' || isset($seenIds[$idTabel])) {
+					continue;
+				}
+				$seenIds[$idTabel] = true;
+				$pagesArr = is_array($item['pages'] ?? null) ? $item['pages'] : [];
+				$rows[] = [
+					'id_tabel'        => $idTabel,
+					'tahun_publikasi' => $tahunPublikasi,
+					'no_tabel_pdf'    => mb_substr($noPdf, 0, 50),
+					'judul_pdf'       => isset($item['judul_pdf']) ? mb_substr((string)$item['judul_pdf'], 0, 1000) : null,
+					'halaman_pdf'     => !empty($pagesArr) ? mb_substr(implode(',', $pagesArr), 0, 100) : null,
+					'skor_judul'      => isset($item['similarity']) && is_numeric($item['similarity']) ? round((float)$item['similarity'], 2) : null,
+					'status_match'    => 'matched',
+					'created_at'      => $now,
+					'updated_at'      => $now,
+				];
+			}
+
+			foreach (($matchResult['missing_in_pdf'] ?? []) as $item) {
+				$idTabel = (int)($item['id_db'] ?? 0);
+				if ($idTabel <= 0 || isset($seenIds[$idTabel])) {
+					continue;
+				}
+				$seenIds[$idTabel] = true;
+				$noDb = trim((string)($item['nomor_tabel'] ?? '-'));
+				$rows[] = [
+					'id_tabel'        => $idTabel,
+					'tahun_publikasi' => $tahunPublikasi,
+					'no_tabel_pdf'    => mb_substr($noDb !== '' ? $noDb : '-', 0, 50),
+					'judul_pdf'       => null,
+					'halaman_pdf'     => null,
+					'skor_judul'      => 0.00,
+					'status_match'    => 'unmatched',
+					'created_at'      => $now,
+					'updated_at'      => $now,
+				];
+			}
+
+			if (empty($rows)) {
+				return;
+			}
+
+			foreach (array_chunk($rows, 200) as $chunk) {
+				$placeholders = [];
+				$params = [];
+				foreach ($chunk as $r) {
+					$placeholders[] = '(?, ?, ?, ?, ?, ?, ?, ?, ?)';
+					$params[] = $r['id_tabel'];
+					$params[] = $r['tahun_publikasi'];
+					$params[] = $r['no_tabel_pdf'];
+					$params[] = $r['judul_pdf'];
+					$params[] = $r['halaman_pdf'];
+					$params[] = $r['skor_judul'];
+					$params[] = $r['status_match'];
+					$params[] = $r['created_at'];
+					$params[] = $r['updated_at'];
+				}
+				$sql = "INSERT INTO t_mapping_tabel_tahunan
+						(id_tabel, tahun_publikasi, no_tabel_pdf, judul_pdf, halaman_pdf, skor_judul, status_match, created_at, updated_at)
+						VALUES " . implode(', ', $placeholders) . "
+						ON DUPLICATE KEY UPDATE
+							no_tabel_pdf = VALUES(no_tabel_pdf),
+							judul_pdf = VALUES(judul_pdf),
+							halaman_pdf = VALUES(halaman_pdf),
+							skor_judul = VALUES(skor_judul),
+							status_match = VALUES(status_match),
+							updated_at = VALUES(updated_at)";
+				$this->db->query($sql, $params);
+			}
+		} catch (\Throwable $e) {
+			log_message('warning', '[saveYearlyTableMapping] Gagal menyimpan mapping tahunan: ' . $e->getMessage());
+		}
+	}
+
+	/**
+	 * Membentuk entri `dda_state_{ta}.json` kanonik dari output `compare_table.py`.
+	 */
+	private function buildStateEntryFromVerifyResult(string $tableNo, array $res, string $idDb = ''): array
+	{
+		$status = 'diff';
+		$diff_count = 0;
+		$match_count = 0;
+
+		if (isset($res['status']) && $res['status'] === 'success') {
+			$totalDiffs = $res['summary']['total_diffs'] ?? (isset($res['diffs']) ? count($res['diffs']) : 0);
+			$totalMatches = $res['summary']['total_matches'] ?? (isset($res['matches']) ? count($res['matches']) : 0);
+			$totalPdfOnly = $res['summary']['total_pdf_only'] ?? (isset($res['pdf_only']) ? count($res['pdf_only']) : 0);
+			if ($totalDiffs > 0) {
+				$status = 'diff';
+				$diff_count = $totalDiffs;
+				$match_count = $totalMatches;
+			} elseif ($totalMatches == 0) {
+				if ($totalPdfOnly > 0) {
+					$status = 'pdf_only';
+					$diff_count = $totalPdfOnly;
+				} elseif (!empty($res['is_api_empty'])) {
+					$status = 'api_empty';
+					$diff_count = 0;
+				} else {
+					$status = 'diff';
+					$diff_count = '!';
+				}
+				$match_count = 0;
+			} else {
+				$status = 'match';
+				$diff_count = 0;
+				$match_count = $totalMatches;
+			}
+		} elseif (!empty($res['is_year_unavailable']) || ($res['error_kind'] ?? '') === 'year_unavailable') {
+			$status = 'api_year_mismatch';
+		} elseif (!empty($res['is_api_empty'])) {
+			$status = 'api_empty';
+		} else {
+			$status = 'diff';
+			$diff_count = '!';
+		}
+
+		$resolvedIdDb = $idDb !== '' ? $idDb : (string)($res['id_db'] ?? '');
+		$stateEntry = [
+			'nomor_tabel'   => $tableNo,
+			'id_db'         => $resolvedIdDb,
+			'status'        => $status,
+			'diff_count'    => $diff_count,
+			'match_count'   => $match_count,
+			'updated_at'    => date('Y-m-d H:i:s'),
+			'updated_epoch' => round(microtime(true), 4),
+		];
+		if (!empty($res['message']) && in_array($status, ['api_year_mismatch', 'api_empty'], true)) {
+			$stateEntry['message'] = $res['message'];
+		}
+		return $stateEntry;
 	}
 
 	/**
@@ -4675,22 +4999,38 @@ class Admin extends BaseController
 		$pdfPath = $this->request->getPost("pdf_path");
 		$dbJsonPath = $this->request->getPost("db_json_path");
 		$tolerance = $this->request->getPost("tolerance") ?? "0.0";
+		$postedIdDb = (int)($this->request->getPost("id_db") ?? 0);
 
 		if (empty($nomor_tabel) || empty($pdfPath) || empty($dbJsonPath)) {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Nomor tabel tidak valid']);
 		}
 
-		// AUTO-SYNC: Selalu perbarui link_tabel & matriks Tabel Dinamis untuk nomor tabel ini dari database ke file JSON snapshot
+		// AUTO-SYNC: Selalu perbarui link_tabel & matriks Tabel Dinamis untuk tabel ini dari database ke file JSON snapshot
 		$ta = $this->session->get('admin_ta') ?? (string)date('Y');
 		if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
 			$ta = $mYear[1];
 		}
+
+		if ($postedIdDb <= 0) {
+			$matchedJsonPath = WRITEPATH . "uploads/dda_matched_{$ta}.json";
+			if (file_exists($matchedJsonPath)) {
+				$mData = json_decode(@file_get_contents($matchedJsonPath), true);
+				$mList = $mData['matched_in_pdf'] ?? ($mData['matched_tables'] ?? []);
+				foreach ($mList as $mItem) {
+					if (trim((string)($mItem['nomor_tabel'] ?? '')) === trim((string)$nomor_tabel) && !empty($mItem['id_db'])) {
+						$postedIdDb = (int)$mItem['id_db'];
+						break;
+					}
+				}
+			}
+		}
+
 		if (file_exists($dbJsonPath)) {
 			$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomor_tabel));
 			$cleanNo = rtrim($cleanNo, '.');
-			
-			$rowDb = $this->db->query("
-				SELECT m.id as id_db, ka.link_api as link_tabel, 
+
+			$selectPart = "
+				SELECT m.id as id_db, ka.link_api as link_tabel, ka.config_tabel,
 				CASE 
 					WHEN m.jenis_sumber = 'api_kominfo' THEN 0 
 					WHEN m.jenis_sumber = 'dinamis' THEN 1 
@@ -4700,18 +5040,26 @@ class Admin extends BaseController
 				FROM m_list_tabel m
 				LEFT JOIN m_konfigurasi_api ka ON ka.id_tabel = m.id
 				LEFT JOIN m_indikator_tabel mi ON mi.id_tabel = m.id
-				WHERE (
-					TRIM(m.no_tabel) = ? OR 
-					TRIM(m.no_tabel) = ? OR 
-					TRIM(REPLACE(m.no_tabel, 'Tabel ', '')) = ?
-				)
-				ORDER BY CASE WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END DESC, m.id DESC
-				LIMIT 1
-			", [$nomor_tabel, $cleanNo, $cleanNo])->getRow();
+			";
+			$rowDb = null;
+			if ($postedIdDb > 0) {
+				$rowDb = $this->db->query($selectPart . " WHERE m.id = ? LIMIT 1", [$postedIdDb])->getRow();
+			}
+			if (!$rowDb) {
+				$rowDb = $this->db->query($selectPart . "
+					WHERE (
+						TRIM(m.no_tabel) = ? OR 
+						TRIM(m.no_tabel) = ? OR 
+						TRIM(REPLACE(m.no_tabel, 'Tabel ', '')) = ?
+					)
+					ORDER BY CASE WHEN mi.id IS NOT NULL THEN 1 ELSE 0 END DESC, m.id DESC
+					LIMIT 1
+				", [$nomor_tabel, $cleanNo, $cleanNo])->getRow();
+			}
 
 			if ($rowDb) {
 				$mDinamis = new \App\Models\M_tabeldinamis();
-				$dynInfo = $mDinamis->exportSingleDynamicTable((int)$rowDb->id_db);
+				$dynInfo = $mDinamis->exportSingleDynamicTable((int)$rowDb->id_db, (int)$ta);
 				$isDyn = ((int)$rowDb->is_dynamic === 1 || $dynInfo !== null) ? 1 : 0;
 				$linkLower = strtolower(trim($rowDb->link_tabel ?? ''));
 				$srcType = $isDyn === 1 ? 'dinamis' : ((strpos($linkLower, 'view_portal_tabel') !== false || strpos($linkLower, 'satudata') !== false) ? 'api' : 'spreadsheet');
@@ -4723,14 +5071,14 @@ class Admin extends BaseController
 					foreach ($listTables as &$item) {
 						$curClean = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $item['nomor_tabel'] ?? ''));
 						$curClean = rtrim($curClean, '.');
-						$isMatch = ($curClean === $cleanNo)
-							|| ((int)($item['id_db'] ?? 0) === (int)$rowDb->id_db)
-							|| (trim((string)($item['nomor_tabel'] ?? '')) === trim((string)$nomor_tabel));
+						$isMatch = ((int)($item['id_db'] ?? 0) === (int)$rowDb->id_db)
+							|| ($postedIdDb <= 0 && ($curClean === $cleanNo || trim((string)($item['nomor_tabel'] ?? '')) === trim((string)$nomor_tabel)));
 
 						if ($isMatch) {
 							$item['id_db']         = (int)$rowDb->id_db;
 							$item['id_indikator']  = $dynInfo ? ($dynInfo['id_indikator'] ?? null) : null;
 							$item['link_tabel']    = $rowDb->link_tabel;
+							$item['config_tabel']  = $rowDb->config_tabel ?? ($item['config_tabel'] ?? null);
 							$item['is_dynamic']    = $isDyn;
 							$item['source_type']   = $srcType;
 							$item['dynamic_empty'] = $dynInfo ? (bool)$dynInfo['dynamic_empty'] : ($isDyn === 1);
@@ -4743,34 +5091,26 @@ class Admin extends BaseController
 					}
 					unset($item);
 					if ($updated) {
-						@file_put_contents($dbJsonPath, json_encode($listTables, JSON_UNESCAPED_UNICODE));
+						$this->writeJsonAtomic($dbJsonPath, $listTables, JSON_UNESCAPED_UNICODE);
 					}
+				}
+				if ($postedIdDb <= 0) {
+					$postedIdDb = (int)$rowDb->id_db;
 				}
 			}
 		}
 
 		$pythonScript = FCPATH . "../python_engine/compare_table.py";
 		$pyBin = $this->getPythonBin();
-		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($tolerance) . " 2>&1";
+		$idDbArg = $postedIdDb > 0 ? (" " . escapeshellarg((string)$postedIdDb)) : "";
+		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($tolerance) . $idDbArg . " 2>&1";
 		$output = shell_exec($command);
 
 		if (!$output) {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal mengeksekusi script Python']);
 		}
 
-		$res = json_decode($output, true);
-		if (!$res && !empty($output)) {
-			$jsonStart = strpos($output, '{');
-			$jsonEnd = strrpos($output, '}');
-			if ($jsonStart !== false && $jsonEnd !== false && $jsonEnd >= $jsonStart) {
-				$subJson = substr($output, $jsonStart, $jsonEnd - $jsonStart + 1);
-				$res = json_decode($subJson, true);
-			}
-			if (!$res) {
-				$cleanOutput = mb_convert_encoding($output, 'UTF-8', 'UTF-8');
-				$res = json_decode($cleanOutput, true);
-			}
-		}
+		$res = $this->decodePythonJsonOutput($output);
 		if (!$res) {
 			$cleanOutput = mb_convert_encoding($output ?? 'Gagal membaca respon python.', 'UTF-8', 'UTF-8');
 			return $this->response->setJSON(['status' => 'error', 'message' => $cleanOutput]);
@@ -4783,47 +5123,9 @@ class Admin extends BaseController
 				$ta = $mYear[1];
 			}
 			$statePath = WRITEPATH . "uploads/dda_state_{$ta}.json";
-			$stateData = [];
-			if (file_exists($statePath)) {
-				$stateData = json_decode(@file_get_contents($statePath), true) ?? [];
-			}
-
-			$status = 'diff';
-			$diff_count = 0;
-			$match_count = 0;
-
-			if (isset($res['status']) && $res['status'] === 'success') {
-				$totalDiffs = $res['summary']['total_diffs'] ?? (isset($res['diffs']) ? count($res['diffs']) : 0);
-				$totalMatches = $res['summary']['total_matches'] ?? (isset($res['matches']) ? count($res['matches']) : 0);
-				$totalPdfOnly = $res['summary']['total_pdf_only'] ?? (isset($res['pdf_only']) ? count($res['pdf_only']) : 0);
-				if ($totalDiffs > 0) {
-					$status = 'diff';
-					$diff_count = $totalDiffs;
-					$match_count = $totalMatches;
-				} else if ($totalMatches == 0) {
-					$status = 'diff';
-					$diff_count = ($totalPdfOnly > 0) ? $totalPdfOnly : '!';
-					$match_count = 0;
-				} else {
-					$status = 'match';
-					$diff_count = 0;
-					$match_count = $totalMatches;
-				}
-			} else if (isset($res['is_api_empty']) && $res['is_api_empty']) {
-				$status = 'api_empty';
-			} else {
-				$status = 'diff';
-				$diff_count = '!';
-			}
-
-			$stateData[$nomor_tabel] = [
-				'nomor_tabel' => $nomor_tabel,
-				'status' => $status,
-				'diff_count' => $diff_count,
-				'match_count' => $match_count,
-				'updated_at' => date('Y-m-d H:i:s')
-			];
-			@file_put_contents($statePath, json_encode($stateData, JSON_PRETTY_PRINT));
+			$stateData = file_exists($statePath) ? (json_decode(@file_get_contents($statePath), true) ?? []) : [];
+			$stateData[$nomor_tabel] = $this->buildStateEntryFromVerifyResult((string)$nomor_tabel, $res, (string)($id_db ?? ''));
+			$this->writeJsonAtomic($statePath, $stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 		}
 
 		return $this->response->setJSON($res);
@@ -4943,6 +5245,12 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
 		}
+		if (!$this->isPdfSyncToDbEnabled()) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'  => 'error',
+				'message' => 'Fitur sinkronisasi nilai PDF ke Tabel Dinamis dinonaktifkan pada lingkungan ini (DDA_ALLOW_PDF_SYNC_TO_DB=false).'
+			]);
+		}
 
 		$idIndikator = (int)($this->request->getPost('id_indikator') ?? 0);
 		$cellsRaw = $this->request->getPost('cells');
@@ -4954,21 +5262,26 @@ class Admin extends BaseController
 
 		$mDinamis = new \App\Models\M_tabeldinamis();
 		$indObj = $this->db->table('m_indikator_tabel')->where('id', $idIndikator)->get()->getRow();
-		$availYears = $mDinamis->getAvailableYears($idIndikator);
-		$adminTa = (int)($this->session->get('admin_ta') ?: date('Y'));
-
-		if (!empty($availYears)) {
-			$taDefault = (int)end($availYears);
-		} elseif ($indObj && !empty($indObj->tahun_tampil)) {
-			$tParts = array_values(array_filter(array_map('intval', explode(',', (string)$indObj->tahun_tampil))));
-			$taDefault = !empty($tParts) ? (int)end($tParts) : ($adminTa - 1);
-		} elseif ($indObj && !empty($indObj->tahun) && (int)$indObj->tahun >= 1900) {
-			$taDefault = (int)$indObj->tahun;
-		} else {
-			$taDefault = $adminTa;
+		if (!$indObj || empty($indObj->id_tabel)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Indikator Tabel Dinamis tidak ditemukan.']);
+		}
+		// Guard ketat: Samakan data dari PDF HANYA diperbolehkan untuk Tabel Dinamis, bukan API Satu Data!
+		$masterTblRow = $this->db->table('m_list_tabel')->select('id, jenis_sumber, no_tabel')->where('id', (int)$indObj->id_tabel)->get()->getRow();
+		if (!$masterTblRow || strtolower((string)($masterTblRow->jenis_sumber ?? '')) !== 'dinamis') {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Sinkronisasi nilai dari PDF hanya diperbolehkan untuk Tabel Dinamis, bukan tabel API Satu Data.']);
 		}
 
+		$postedTa = preg_replace('/[^0-9]/', '', (string)($this->request->getPost('ta') ?? ''));
+		$postedPdf = (string)($this->request->getPost('pdf_path') ?? '');
+		if ($postedTa === '' && preg_match('/dda_master_(\d{4})\.pdf/i', $postedPdf, $mYr)) {
+			$postedTa = $mYr[1];
+		}
+		$adminTa = (int)($postedTa ?: ($this->session->get('admin_ta') ?: date('Y')));
+		// Default tahun_data sel yang disinkronkan dari buku PDF tahun $adminTa adalah N-1 ($adminTa - 1)
+		$taDefault = ($adminTa >= 1900 && $adminTa <= 2100) ? ($adminTa - 1) : (int)date('Y');
+
 		$payload = [];
+		$skippedEmptyCount = 0;
 		foreach ($cells as $c) {
 			$idB = (int)($c['id_baris_item'] ?? ($c['b'] ?? 0));
 			$idK = (int)($c['id_karakteristik_item'] ?? ($c['k'] ?? 0));
@@ -4986,7 +5299,14 @@ class Admin extends BaseController
 				$idP       = 0;
 			}
 
+			// Guard anti-hapus data: jika nilai dari PDF null/kosong (ekstraksi PDF gagal), JANGAN menimpa angka di DB!
+			if ($rawVal === null || (is_string($rawVal) && trim($rawVal) === '')) {
+				$skippedEmptyCount++;
+				continue;
+			}
+
 			$rawStr = is_string($rawVal) ? trim($rawVal) : (is_numeric($rawVal) ? (string)$rawVal : '');
+			$rawStrLower = strtolower($rawStr);
 			$dashTokens = ['-', '–', '—', '−', "\u{2212}", "\u{2011}", "\u{2015}"];
 			$dotTokens  = ['...', '…', "\u{2026}", 'na', 'n.a', 'n.a.', 'n/a'];
 
@@ -4995,8 +5315,8 @@ class Admin extends BaseController
 				$nilai = 0.0;
 				$simbol = '-';
 				$jmlDesimal = 0;
-			} elseif (in_array($rawStr, $dotTokens, true) || $rawStr === '') {
-				// Simbol BPS '...' (Data belum tersedia) -> simpan nilai = null, simbol = '...'
+			} elseif (in_array($rawStrLower, $dotTokens, true)) {
+				// Simbol BPS '...' / 'NA' (Data belum tersedia) -> simpan nilai = null, simbol = '...'
 				$nilai = null;
 				$simbol = '...';
 				$jmlDesimal = null;
@@ -5047,6 +5367,15 @@ class Admin extends BaseController
 			];
 		}
 
+		if (empty($payload)) {
+			return $this->response->setJSON([
+				'status'              => 'error',
+				'saved_count'         => 0,
+				'skipped_empty_count' => $skippedEmptyCount,
+				'message'             => 'Tidak ada nilai valid dari PDF untuk disimpan (sel PDF kosong dilewati agar tidak menimpa data database).'
+			]);
+		}
+
 		// Deteksi presisi desimal jika ada data desimal pecahan
 		$maxDetectedDec = 0;
 		foreach ($payload as $pItem) {
@@ -5062,6 +5391,22 @@ class Admin extends BaseController
 
 		$affected = $mDinamis->batchUpsertNilai($idIndikator, $payload, $taDefault);
 
+		$savedYearsInPayload = array_values(array_unique(array_filter(array_map(function ($p) {
+			return (int)($p['tahun_data'] ?? 0);
+		}, $payload), function ($y) {
+			return $y >= 1900 && $y <= 2100;
+		})));
+
+		// Verifikasi read-back langsung dari MySQL untuk memastikan data benar-benar ter-commit permanen
+		$verifiedDbCount = 0;
+		if (!empty($savedYearsInPayload)) {
+			$verifiedDbCount = (int)$this->db->table('t_nilai_dinamis')
+				->where('id_indikator', $idIndikator)
+				->whereIn('tahun_data', $savedYearsInPayload)
+				->where('(nilai IS NOT NULL OR (simbol IS NOT NULL AND simbol != \'\'))', null, false)
+				->countAllResults();
+		}
+
 		if ($affected > 0) {
 			$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
 			$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
@@ -5069,51 +5414,113 @@ class Admin extends BaseController
 			$indRow = $mDinamis->find($idIndikator);
 			if ($indRow && !empty($indRow->id_tabel)) {
 				$idMasterTabel = (int)$indRow->id_tabel;
-				$mDinamis->upsertStatusTahunan($idMasterTabel, $taDefault, [
+				// Pastikan seluruh tahun_data yang baru disimpan selalu terdaftar di tahun_tampil (termasuk saat awalnya baru 1 tahun)
+				if (!empty($savedYearsInPayload)) {
+					$curTampil = !empty($indRow->tahun_tampil)
+						? array_values(array_filter(array_map('intval', explode(',', (string)$indRow->tahun_tampil))))
+						: [];
+					$mergedTampil = array_values(array_unique(array_merge($curTampil, $savedYearsInPayload)));
+					sort($mergedTampil);
+					$newTampilStr = implode(',', $mergedTampil);
+					if ($newTampilStr !== (string)($indRow->tahun_tampil ?? '')) {
+						$this->db->table('m_indikator_tabel')->where('id', $idIndikator)->update(['tahun_tampil' => $newTampilStr]);
+					}
+				}
+
+				// Catat status pemeriksaan pada tahun buku publikasi ($adminTa), bukan tahun data ($taDefault), agar terisolasi per tahun buku!
+				$mDinamis->upsertStatusTahunan($idMasterTabel, $adminTa, [
 					'is_periksa'      => 1,
 					'catatan_periksa' => $catatan
 				]);
 
-				// Perbarui snapshot dda_db_{ta}.json secara real-time agar verifikasi langsung membaca data baru
-				$targetYears = array_unique([$adminTa, $taDefault]);
-				$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idMasterTabel);
-				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', (string)($indRow->no_tabel ?? '')));
+				// Perbarui HANYA snapshot dda_db_{$adminTa}.json, dda_matched_{$adminTa}.json & dda_state_{$adminTa}.json milik tahun buku yang sedang aktif
+				$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idMasterTabel, $adminTa);
+				$rawNoStr = (string)(($indRow->no_tabel ?? '') !== '' ? $indRow->no_tabel : ($masterTblRow->no_tabel ?? ''));
+				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $rawNoStr));
 				$cleanNo = rtrim($cleanNo, '.');
 
-				foreach ($targetYears as $ty) {
-					$dbJsonPath = WRITEPATH . "uploads/dda_db_{$ty}.json";
-					if (file_exists($dbJsonPath)) {
-						$rawJson = @file_get_contents($dbJsonPath);
-						$dbList = json_decode($rawJson, true);
-						if (is_array($dbList) && $dynInfoAfter) {
-							$updated = false;
-							foreach ($dbList as &$dbItem) {
-								$curClean = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $dbItem['nomor_tabel'] ?? ''));
-								$curClean = rtrim($curClean, '.');
-								if ((int)($dbItem['id_db'] ?? 0) === $idMasterTabel || ($cleanNo !== '' && $curClean === $cleanNo)) {
-									$dbItem['dynamic_empty'] = false;
-									$dbItem['dynamic_grid']  = $dynInfoAfter['dynamic_grid'] ?? [];
-									$dbItem['template_grid'] = $dynInfoAfter['template_grid'] ?? [];
-									$dbItem['cell_coords']   = $dynInfoAfter['cell_coords'] ?? [];
-									$dbItem['cell_count']    = $dynInfoAfter['cell_count'] ?? count($dynInfoAfter['cell_coords'] ?? []);
-									$updated = true;
+				$dbJsonPath = WRITEPATH . "uploads/dda_db_{$adminTa}.json";
+				if (file_exists($dbJsonPath)) {
+					$rawJson = @file_get_contents($dbJsonPath);
+					$dbList = json_decode($rawJson, true);
+					if (is_array($dbList) && $dynInfoAfter) {
+						$updated = false;
+						foreach ($dbList as &$dbItem) {
+							$curClean = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $dbItem['nomor_tabel'] ?? ''));
+							$curClean = rtrim($curClean, '.');
+							if ((int)($dbItem['id_db'] ?? 0) === $idMasterTabel || ($cleanNo !== '' && $curClean === $cleanNo)) {
+								$dbItem['dynamic_empty'] = false;
+								$dbItem['dynamic_grid']  = $dynInfoAfter['dynamic_grid'] ?? [];
+								$dbItem['template_grid'] = $dynInfoAfter['template_grid'] ?? [];
+								$dbItem['cell_coords']   = $dynInfoAfter['cell_coords'] ?? [];
+								$dbItem['cell_count']    = $dynInfoAfter['cell_count'] ?? count($dynInfoAfter['cell_coords'] ?? []);
+								$updated = true;
+								break;
+							}
+						}
+						unset($dbItem);
+						if ($updated) {
+							$this->writeJsonAtomic($dbJsonPath, $dbList, JSON_UNESCAPED_UNICODE);
+						}
+					}
+				}
+
+				// Sinkronkan juga db_sig & dynamic_empty pada dda_matched_{$adminTa}.json agar refresh halaman tidak me-reset status menjadi 'unverified'
+				$matchedJsonPath = WRITEPATH . "uploads/dda_matched_{$adminTa}.json";
+				if (file_exists($matchedJsonPath)) {
+					$masterData = json_decode((string)@file_get_contents($matchedJsonPath), true);
+					if (is_array($masterData)) {
+						$listKey = isset($masterData['matched_in_pdf']) ? 'matched_in_pdf' : (isset($masterData['matched_tables']) ? 'matched_tables' : null);
+						if ($listKey !== null && is_array($masterData[$listKey])) {
+							foreach ($masterData[$listKey] as &$mItem) {
+								$mIdDb = (int)($mItem['id_db'] ?? 0);
+								$mClean = rtrim(trim(preg_replace('/^(?:tabel|table)\s*/i', '', (string)($mItem['nomor_tabel'] ?? ''))), '.');
+								if ($mIdDb === $idMasterTabel || ($cleanNo !== '' && $mClean === $cleanNo)) {
+									$mItem['dynamic_empty'] = false;
 									break;
 								}
 							}
-							unset($dbItem);
-							if ($updated) {
-								@file_put_contents($dbJsonPath, json_encode($dbList, JSON_UNESCAPED_UNICODE));
-							}
+							unset($mItem);
 						}
+						$masterData['db_sig'] = $this->getDynamicConfigSignature((string)$adminTa);
+						$this->writeJsonAtomic($matchedJsonPath, $masterData, JSON_UNESCAPED_UNICODE);
+					}
+				}
+
+				$stateJsonPath = WRITEPATH . "uploads/dda_state_{$adminTa}.json";
+				$pdfVerifyPath = ($postedPdf !== '' && file_exists($postedPdf)) ? $postedPdf : (WRITEPATH . "uploads/dda_master_{$adminTa}.pdf");
+				if (!empty($cleanNo)) {
+					$verifiedEntry = null;
+					if (file_exists($pdfVerifyPath) && file_exists($dbJsonPath)) {
+						$compareScript = FCPATH . '../python_engine/compare_table.py';
+						$pyBin = $this->getPythonBin();
+						$cmdVerify = "{$pyBin} " . escapeshellarg($compareScript) . " " . escapeshellarg($pdfVerifyPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($cleanNo) . " 0.0 " . escapeshellarg((string)$idMasterTabel) . " 2>&1";
+						$verRes = $this->decodePythonJsonOutput(@shell_exec($cmdVerify));
+						if ($verRes !== null) {
+							$verifiedEntry = $this->buildStateEntryFromVerifyResult($cleanNo, $verRes, (string)$idMasterTabel);
+						}
+					}
+
+					$stateData = file_exists($stateJsonPath) ? (json_decode(@file_get_contents($stateJsonPath), true) ?? []) : [];
+					if ($verifiedEntry !== null) {
+						$stateData[$cleanNo] = $verifiedEntry;
+						$this->writeJsonAtomic($stateJsonPath, $stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+					} elseif (isset($stateData[$cleanNo]) && is_array($stateData[$cleanNo])) {
+						$stateData[$cleanNo]['id_db'] = (string)$idMasterTabel;
+						$stateData[$cleanNo]['updated_at'] = date('Y-m-d H:i:s');
+						$stateData[$cleanNo]['updated_epoch'] = round(microtime(true), 4);
+						$this->writeJsonAtomic($stateJsonPath, $stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 					}
 				}
 			}
 		}
 
 		return $this->response->setJSON([
-			'status'      => 'success',
-			'saved_count' => $affected,
-			'message'     => "Berhasil menyinkronkan {$affected} sel angka dari PDF ke Tabel Dinamis."
+			'status'              => 'success',
+			'saved_count'         => $affected,
+			'verified_db_count'   => $verifiedDbCount,
+			'skipped_empty_count' => $skippedEmptyCount,
+			'message'             => "Berhasil menyinkronkan {$affected} sel angka dari PDF ke Tabel Dinamis (terverifikasi {$verifiedDbCount} sel tersimpan permanen di database)."
 		]);
 	}
 
@@ -5138,29 +5545,7 @@ class Admin extends BaseController
 		$ta = (string)($this->request->getPost('ta') ?: ($this->session->get('admin_ta') ?: '2026'));
 
 		$row = null;
-		if ($this->db->tableExists('t_tahun_tabel') && $this->db->tableExists('m_list_tabel')) {
-			if ($idDb > 0) {
-				$row = $this->db->query("
-					SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
-					FROM t_tahun_tabel t
-					JOIN m_list_tabel m ON t.id_tabel = m.id
-					WHERE t.id = ?
-					LIMIT 1
-				", [$idDb])->getRowArray();
-			}
-			if (!$row && $nomorTabel !== '') {
-				$cleanNo = trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomorTabel));
-				$row = $this->db->query("
-					SELECT t.id, t.id_tabel, t.no_tabel, t.link_tabel, t.config_tabel, m.judul_ind, m.judul_en
-					FROM t_tahun_tabel t
-					JOIN m_list_tabel m ON t.id_tabel = m.id
-					WHERE t.tahun = ? AND (TRIM(t.no_tabel) = ? OR TRIM(REPLACE(t.no_tabel, 'Tabel ', '')) = ?)
-					LIMIT 1
-				", [$ta, $cleanNo, $cleanNo])->getRowArray();
-			}
-		}
-
-		if (!$row && $this->db->tableExists('m_list_tabel')) {
+		if ($this->db->tableExists('m_list_tabel')) {
 			if ($idDb > 0) {
 				$row = $this->db->query("
 					SELECT m.id, m.id as id_tabel, m.no_tabel, ka.link_api as link_tabel, ka.config_tabel, m.judul_ind, m.judul_en
@@ -5508,12 +5893,51 @@ class Admin extends BaseController
 			", [$idDb])->getRow();
 		}
 		if (!$tabelRow) {
-			$tabelRow = $this->db->query("
+			$candidates = $this->db->query("
 				SELECT m.id, m.no_tabel, m.judul_ind, m.judul_en, m.id_unitkerja
 				FROM m_list_tabel m
 				WHERE (TRIM(m.no_tabel) = ? OR TRIM(REPLACE(m.no_tabel, 'Tabel ', '')) = ?)
-				LIMIT 1
-			", [$cleanNo, $cleanNo])->getRow();
+			", [$cleanNo, $cleanNo])->getResult();
+
+			if ($judulPdf !== '' && !empty($candidates)) {
+				$normTitle = function (string $t): string {
+					$t = mb_strtolower($t, 'UTF-8');
+					$t = preg_replace('/\b(19|20)\d{2}\b/', ' ', $t);
+					$t = preg_replace('/\b(tabel|table|di|provinsi|jawa|tengah|dan|serta|atau|menurut|tahunan|bulanan)\b/u', ' ', $t);
+					$t = preg_replace('/[^a-z0-9\s]/', ' ', $t);
+					return trim(preg_replace('/\s+/', ' ', $t));
+				};
+				$pdfNorm = $normTitle($judulPdf);
+				$pdfToks = array_values(array_filter(explode(' ', $pdfNorm), function ($w) {
+					return strlen($w) >= 3;
+				}));
+				$bestCand = null;
+				$bestScore = 0.0;
+				foreach ($candidates as $cand) {
+					$dbNorm = $normTitle((string)$cand->judul_ind);
+					$dbToks = array_values(array_filter(explode(' ', $dbNorm), function ($w) {
+						return strlen($w) >= 3;
+					}));
+					$pct = 0.0;
+					if ($pdfNorm !== '' && $dbNorm !== '') {
+						similar_text($pdfNorm, $dbNorm, $pct);
+					}
+					$union = array_unique(array_merge($pdfToks, $dbToks));
+					$inter = array_intersect($pdfToks, $dbToks);
+					$jaccard = !empty($union) ? (count($inter) / count($union)) * 100.0 : 0.0;
+					$score = max($pct, $jaccard);
+					if ($score > $bestScore) {
+						$bestScore = $score;
+						$bestCand = $cand;
+					}
+				}
+				// Hanya pakai ulang entri m_list_tabel jika topiknya memang sama (>= 50%); cegah tabrakan nomor tabel bergeser lintas tahun
+				if ($bestScore >= 50.0) {
+					$tabelRow = $bestCand;
+				}
+			} elseif (!empty($candidates)) {
+				$tabelRow = $candidates[0];
+			}
 		}
 
 		if (!$tabelRow) {
@@ -5778,6 +6202,31 @@ class Admin extends BaseController
 		$idMasterTabel = (int)$tabelRow->id;
 		$idTahunTabel  = $idDb > 0 ? $idDb : $idMasterTabel;
 		$existingInd = $mDinamis->where('id_tabel', $idMasterTabel)->first();
+		$mergedTahunTampil = $tahunTampilPdf;
+		if ($existingInd && !empty($existingInd->tahun_tampil)) {
+			$oldYears = array_values(array_filter(array_map('trim', explode(',', (string)$existingInd->tahun_tampil)), function ($y) {
+				return (bool)preg_match('/^\d{4}$/', $y);
+			}));
+			$newYears = !empty($tahunTampilPdf)
+				? array_values(array_filter(array_map('trim', explode(',', (string)$tahunTampilPdf)), function ($y) {
+					return (bool)preg_match('/^\d{4}$/', $y);
+				}))
+				: [];
+			if (count($oldYears) > 1 || count($newYears) > 1) {
+				$combined = array_values(array_unique(array_merge($oldYears, $newYears)));
+				sort($combined, SORT_NUMERIC);
+				if (!empty($combined)) {
+					$mergedTahunTampil = implode(',', $combined);
+				}
+			} else {
+				// Tabel 1 tahun: pertahankan tahun tertinggi agar tidak berubah menjadi multi-tahun
+				$combined = array_values(array_unique(array_merge($oldYears, $newYears)));
+				if (!empty($combined)) {
+					rsort($combined, SORT_NUMERIC);
+					$mergedTahunTampil = (string)$combined[0];
+				}
+			}
+		}
 		$indPayload = [
 			'id_tabel'                  => $idMasterTabel,
 			'no_tabel'                  => $tabelRow->no_tabel ?: $cleanNo,
@@ -5793,7 +6242,7 @@ class Admin extends BaseController
 			'konfigurasi_total'         => $konfigurasiTotal,
 			'format_nomor_baris'        => 'none',
 			'desimal'                   => isset($ext['desimal']) ? (int)$ext['desimal'] : 0,
-			'tahun_tampil'              => $tahunTampilPdf,
+			'tahun_tampil'              => $mergedTahunTampil,
 			'updated_at'                => $now,
 		];
 
@@ -5814,7 +6263,7 @@ class Admin extends BaseController
 		$matchedJsonPath = WRITEPATH . "uploads/dda_matched_{$ta}.json";
 		$stateJsonPath   = WRITEPATH . "uploads/dda_state_{$ta}.json";
 
-		$dynInfo = $mDinamis->exportSingleDynamicTable($idMasterTabel);
+		$dynInfo = $mDinamis->exportSingleDynamicTable($idMasterTabel, (int)$ta);
 		$formattedJudul = function_exists('format_judul_tabel')
 			? format_judul_tabel($tabelRow->judul_ind, $ta)
 			: $tabelRow->judul_ind;
@@ -5949,7 +6398,7 @@ class Admin extends BaseController
 						]);
 					}
 					// Perbarui snapshot dda_db_{ta}.json dengan nilai yang baru diisi
-					$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idMasterTabel);
+					$dynInfoAfter = $mDinamis->exportSingleDynamicTable($idMasterTabel, (int)$ta);
 					$dbList = json_decode(@file_get_contents($dbJsonPath), true) ?? [];
 					foreach ($dbList as &$dbItem) {
 						if ((int)($dbItem['id_db'] ?? 0) === $idMasterTabel || trim($dbItem['nomor_tabel'] ?? '') === $cleanNo) {
@@ -5959,22 +6408,15 @@ class Admin extends BaseController
 						}
 					}
 					unset($dbItem);
-					@file_put_contents($dbJsonPath, json_encode($dbList, JSON_UNESCAPED_UNICODE));
+					$this->writeJsonAtomic($dbJsonPath, $dbList, JSON_UNESCAPED_UNICODE);
 
 					$newMatchedEntry['dynamic_empty'] = false;
 
 					// Verifikasi ulang untuk mendapatkan status match resmi
 					$outVerify2 = @shell_exec($cmdVerify);
-					$verRes2 = $outVerify2 ? json_decode(mb_convert_encoding($outVerify2, 'UTF-8', 'UTF-8'), true) : null;
-					if (is_array($verRes2) && ($verRes2['status'] ?? '') === 'success') {
-						$diffCnt = count($verRes2['diffs'] ?? []);
-						$matchCnt = count($verRes2['matches'] ?? []);
-						$stateEntry = [
-							'status'      => ($diffCnt > 0) ? 'diff' : 'match',
-							'match_count' => $matchCnt,
-							'diff_count'  => $diffCnt,
-							'updated_at'  => date('Y-m-d H:i:s'),
-						];
+					$verRes2 = $this->decodePythonJsonOutput($outVerify2);
+					if ($verRes2 !== null) {
+						$stateEntry = $this->buildStateEntryFromVerifyResult($cleanNo, $verRes2, (string)$idMasterTabel);
 					}
 				}
 			}
@@ -6006,13 +6448,16 @@ class Admin extends BaseController
 			$mData[$listKey] = $mList;
 			$mData['matched_count'] = count($mList);
 			$mData['db_sig'] = $this->getDynamicConfigSignature($ta);
-			@file_put_contents($matchedJsonPath, json_encode($mData, JSON_UNESCAPED_UNICODE));
+			$this->writeJsonAtomic($matchedJsonPath, $mData, JSON_UNESCAPED_UNICODE);
 		}
 
 		// Update dda_state_{ta}.json
+		if (!isset($stateEntry['updated_epoch'])) {
+			$stateEntry['updated_epoch'] = round(microtime(true), 4);
+		}
 		$stateData = file_exists($stateJsonPath) ? (json_decode(@file_get_contents($stateJsonPath), true) ?? []) : [];
 		$stateData[$cleanNo] = $stateEntry;
-		@file_put_contents($stateJsonPath, json_encode($stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+		$this->writeJsonAtomic($stateJsonPath, $stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
 		$msg = $filledCellsCount > 0
 			? "Tabel {$cleanNo} berhasil dikonfigurasi otomatis dari PDF dan {$filledCellsCount} sel angka langsung terisi!"
@@ -6081,12 +6526,15 @@ class Admin extends BaseController
 		}
 		$cacheFile = $cacheDir . "dda_{$ta}_p{$page}_{$dpi}.png";
 
-		if (!file_exists($cacheFile) || filesize($cacheFile) === 0) {
+		$pdfMtime = @filemtime($pdfPath) ?: 0;
+		$needRender = !file_exists($cacheFile) || filesize($cacheFile) === 0 || (filemtime($cacheFile) < $pdfMtime);
+		if ($needRender) {
 			$pythonScript = FCPATH . '../python_engine/render_pdf_page.py';
 			$pyBin = $this->getPythonBin();
 			$cmd = "{$pyBin} " . escapeshellarg($pythonScript) . " --pdf " . escapeshellarg($pdfPath) . " --page " . (int)$page . " --output " . escapeshellarg($cacheFile) . " --dpi " . (int)$dpi . " 2>&1";
 			$out = shell_exec($cmd);
 
+			clearstatcache(true, $cacheFile);
 			if (!file_exists($cacheFile) || filesize($cacheFile) === 0) {
 				log_message('error', 'Gagal render halaman PDF: ' . ($out ?? ''));
 				return $this->response->setStatusCode(500)->setBody('Gagal merender halaman PDF: ' . htmlspecialchars($out ?? 'Unknown error'));
@@ -6360,99 +6808,6 @@ class Admin extends BaseController
 	}
 
 	/**
-	 * Legacy Fallback HTML-Table Export (.xls)
-	 */
-	public function export_rekap_matching_legacy()
-	{
-		$ta = $this->request->getGet('ta') ?? $this->session->get('admin_ta') ?? '2026';
-		$ta = preg_replace('/[^0-9]/', '', (string)$ta) ?: '2026';
-		$uploadPath = WRITEPATH . 'uploads/';
-		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
-		$stateJson = $uploadPath . "dda_state_{$ta}.json";
-
-		$masterData = file_exists($matchedJson) ? (json_decode(@file_get_contents($matchedJson), true) ?? []) : [];
-		$stateData = file_exists($stateJson) ? (json_decode(@file_get_contents($stateJson), true) ?? []) : [];
-
-		$matchedList = $masterData['matched_in_pdf'] ?? $masterData['matched_tables'] ?? [];
-		$unregList = $masterData['unregistered_in_db'] ?? [];
-
-		$filename = "Rekap_Audit_Tabel_DDA_{$ta}_" . date('Ymd_His') . ".xls";
-		header("Content-Type: application/vnd.ms-excel; charset=UTF-8");
-		header("Content-Disposition: attachment; filename=" . $filename);
-		echo "\xEF\xBB\xBF";
-
-		echo '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body>';
-		echo "<h3>REKAPITULASI AUDIT & MATCHING TABEL PUBLIKASI DDA TAHUN {$ta}</h3>";
-		echo "<p>Waktu Ekspor: " . date('d M Y H:i:s') . "</p>";
-		echo '<table border="1" cellpadding="5" cellspacing="0">';
-		echo '<thead style="background:#0f172a;color:#ffffff;font-weight:bold;">';
-		echo '<tr><th>No</th><th>Nomor Tabel</th><th>Judul Tabel</th><th>Sumber Data</th><th>Halaman PDF</th><th>Status Validasi</th><th>Angka Cocok</th><th>Angka Selisih</th><th>Update Terakhir</th></tr>';
-		echo '</thead><tbody>';
-
-		foreach ($matchedList as $idx => $item) {
-			$noTabel = $item['nomor_tabel'] ?? '-';
-			$judul = htmlspecialchars($item['judul_db'] ?? ($item['judul_pdf'] ?? '-'));
-			$src = (($item['source_type'] ?? '') === 'dinamis' || (int)($item['is_dynamic'] ?? 0) === 1) ? 'Tabel Dinamis' : 'API Satu Data';
-			$pages = !empty($item['pages']) ? implode(', ', (array)$item['pages']) : '-';
-			$stInfo = $stateData[$noTabel] ?? [];
-			$stCode = $stInfo['status'] ?? 'unverified';
-
-			if ($stCode === 'match') {
-				$stLabel = 'Cocok 100%';
-				$bg = '#dcfce7';
-			} elseif ($stCode === 'diff') {
-				$stLabel = 'Ada Selisih';
-				$bg = '#fee2e2';
-			} elseif ($stCode === 'api_empty') {
-				$stLabel = 'Data Kosong';
-				$bg = '#fef9c3';
-			} else {
-				$stLabel = 'Belum Dicek';
-				$bg = '#f8fafc';
-			}
-
-			$matchCnt = $stInfo['match_count'] ?? 0;
-			$diffCnt = $stInfo['diff_count'] ?? 0;
-			$upd = $stInfo['updated_at'] ?? '-';
-
-			echo "<tr style='background:{$bg};'>";
-			echo '<td>' . ($idx + 1) . '</td>';
-			echo '<td style="mso-number-format:\@;">' . htmlspecialchars((string)$noTabel) . '</td>';
-			echo '<td>' . $judul . '</td>';
-			echo '<td>' . $src . '</td>';
-			echo '<td style="mso-number-format:\@;">' . htmlspecialchars((string)$pages) . '</td>';
-			echo '<td><b>' . $stLabel . '</b></td>';
-			echo '<td>' . (int)$matchCnt . '</td>';
-			echo '<td>' . htmlspecialchars((string)$diffCnt) . '</td>';
-			echo '<td>' . htmlspecialchars((string)$upd) . '</td>';
-			echo '</tr>';
-		}
-		echo '</tbody></table>';
-
-		if (!empty($unregList)) {
-			echo "<br><h4>DAFTAR TABEL BELUM DIKONFIGURASI TABEL DINAMIS (" . count($unregList) . " TABEL)</h4>";
-			echo '<table border="1" cellpadding="5" cellspacing="0">';
-			echo '<thead style="background:#7f1d1d;color:#ffffff;font-weight:bold;">';
-			echo '<tr><th>No</th><th>Nomor Tabel</th><th>Judul di PDF</th><th>Halaman PDF</th><th>Keterangan</th></tr>';
-			echo '</thead><tbody>';
-			foreach ($unregList as $idx => $u) {
-				$pages = !empty($u['pages']) ? implode(', ', (array)$u['pages']) : '-';
-				echo '<tr>';
-				echo '<td>' . ($idx + 1) . '</td>';
-				echo '<td style="mso-number-format:\@;">' . htmlspecialchars((string)($u['nomor_tabel'] ?? '-')) . '</td>';
-				echo '<td>' . htmlspecialchars((string)($u['judul_pdf'] ?? '-')) . '</td>';
-				echo '<td style="mso-number-format:\@;">' . htmlspecialchars((string)$pages) . '</td>';
-				echo '<td>' . htmlspecialchars((string)($u['reason'] ?? '-')) . '</td>';
-				echo '</tr>';
-			}
-			echo '</tbody></table>';
-		}
-
-		echo '</body></html>';
-		exit;
-	}
-
-	/**
 	 * Mengambil progres terkini dan update status tabel dari Background Worker.
 	 *
 	 * Dipanggil secara ringan (polling) oleh browser setiap 1.5 detik untuk memperbarui
@@ -6566,22 +6921,69 @@ class Admin extends BaseController
 		$pdfPath = $this->request->getGet("pdf_path");
 		$dbJsonPath = $this->request->getGet("db_json_path");
 		$tolerance = $this->request->getGet("tolerance") ?? "0.0";
+		$idDb = trim((string)($this->request->getGet("id_db") ?? ""));
 
 		if (empty($nomor_tabel) || empty($pdfPath) || empty($dbJsonPath)) {
 			return $this->response->setStatusCode(400)->setBody("Parameter tidak valid");
 		}
 
+		$ta = (string)($this->session->get('admin_ta') ?: date('Y'));
+		if (preg_match('/dda_master_(\d{4})\.pdf/i', $pdfPath, $mYear)) {
+			$ta = $mYear[1];
+		}
+
+		// Auto-sync matriks Tabel Dinamis untuk tahun $ta sebelum ekspor agar hasil Excel selalu akurat & sinkron dengan modal Detail
+		if (file_exists($dbJsonPath)) {
+			$cleanNo = rtrim(trim(preg_replace('/^(?:tabel|table)\s*/i', '', $nomor_tabel)), '.');
+			$postedIdDb = (int)$idDb;
+			if ($postedIdDb <= 0) {
+				$matchedJsonPath = WRITEPATH . "uploads/dda_matched_{$ta}.json";
+				if (file_exists($matchedJsonPath)) {
+					$mData = json_decode(@file_get_contents($matchedJsonPath), true);
+					foreach (($mData['matched_in_pdf'] ?? ($mData['matched_tables'] ?? [])) as $mItem) {
+						if (trim((string)($mItem['nomor_tabel'] ?? '')) === trim((string)$nomor_tabel) && !empty($mItem['id_db'])) {
+							$postedIdDb = (int)$mItem['id_db'];
+							$idDb = (string)$postedIdDb;
+							break;
+						}
+					}
+				}
+			}
+			if ($postedIdDb > 0) {
+				$mDinamis = new \App\Models\M_tabeldinamis();
+				$dynInfo = $mDinamis->exportSingleDynamicTable($postedIdDb, (int)$ta);
+				if ($dynInfo) {
+					$listTables = json_decode(@file_get_contents($dbJsonPath), true);
+					if (is_array($listTables)) {
+						foreach ($listTables as &$item) {
+							if ((int)($item['id_db'] ?? 0) === $postedIdDb) {
+								$item['id_indikator']  = $dynInfo['id_indikator'] ?? null;
+								$item['dynamic_empty'] = (bool)$dynInfo['dynamic_empty'];
+								$item['dynamic_grid']  = $dynInfo['dynamic_grid'] ?? [];
+								$item['template_grid'] = $dynInfo['template_grid'] ?? [];
+								$item['cell_coords']   = $dynInfo['cell_coords'] ?? [];
+								@file_put_contents($dbJsonPath, json_encode($listTables, JSON_UNESCAPED_UNICODE));
+								break;
+							}
+						}
+						unset($item);
+					}
+				}
+			}
+		}
+
 		$cleanTable = preg_replace('/[^a-zA-Z0-9_\.]/', '_', $nomor_tabel);
-		$outputFileName = "Laporan_Validasi_Tabel_" . $cleanTable . "_" . time() . ".xlsx";
+		$outputFileName = "Laporan_Validasi_DDA_{$ta}_Tabel_" . $cleanTable . "_" . time() . ".xlsx";
 		$outputPath = WRITEPATH . "uploads/" . $outputFileName;
 
 		$pythonScript = FCPATH . "../python_engine/export_excel.py";
 		$pyBin = $this->getPythonBin();
-		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($outputPath) . " " . escapeshellarg($tolerance) . " 2>&1";
+		$idDbArg = $idDb !== '' ? (" " . escapeshellarg($idDb)) : "";
+		$command = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($dbJsonPath) . " " . escapeshellarg($nomor_tabel) . " " . escapeshellarg($outputPath) . " " . escapeshellarg($tolerance) . $idDbArg . " 2>&1";
 		$output = shell_exec($command);
 
 		if (file_exists($outputPath)) {
-			return $this->response->download($outputPath, null)->setFileName("Laporan_Validasi_Tabel_" . $cleanTable . ".xlsx");
+			return $this->response->download($outputPath, null)->setFileName("Laporan_Validasi_DDA_{$ta}_Tabel_" . $cleanTable . ".xlsx");
 		} else {
 			return $this->response->setStatusCode(500)->setBody("Gagal membuat file Excel: " . $output);
 		}
@@ -6606,7 +7008,17 @@ class Admin extends BaseController
 			$ta = $mYear[1];
 		}
 		$statePath = WRITEPATH . "uploads/dda_state_{$ta}.json";
-		file_put_contents($statePath, $batchData);
+		$decodedIncoming = is_string($batchData) ? json_decode($batchData, true) : $batchData;
+		if (!is_array($decodedIncoming)) {
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Format state batch tidak valid']);
+		}
+		$existingState = file_exists($statePath) ? (json_decode(@file_get_contents($statePath), true) ?? []) : [];
+		if (!is_array($existingState)) {
+			$existingState = [];
+		}
+		// Gabungkan state agar tidak menimpa balik hasil sinkronisasi server yang lebih baru
+		$mergedState = array_merge($existingState, $decodedIncoming);
+		file_put_contents($statePath, json_encode($mergedState, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
 
 		return $this->response->setJSON(['status' => 'success', 'message' => 'Status batch berhasil disimpan']);
 	}
