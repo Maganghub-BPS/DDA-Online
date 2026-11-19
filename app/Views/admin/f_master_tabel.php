@@ -438,38 +438,169 @@ if ($mode == "edt" || $mode == "act_edt") {
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <style>
-    /* Custom adjustments for Select2 inside BS5 theme */
+    /* ===== SELECT2 CUSTOM OVERRIDES SESUAI TEMA AKSARA (BPS NAVY #154679) ===== */
     .select2-container--bootstrap-5 .select2-selection {
-        font-size: 0.95rem;
-        min-height: 42px;
-        display: flex;
-        align-items: center;
-        border: 1px solid #dee2e6;
-        border-radius: 0.5rem;
+        font-size: 0.875rem !important;
+        min-height: 39px !important;
+        height: 39px !important;
+        display: flex !important;
+        align-items: center !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 0.375rem !important;
+        background-color: #ffffff !important;
+        padding: 0 !important;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
     }
-    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-        color: #212529;
-        line-height: normal;
-        padding-left: 0.75rem;
+    .select2-container--bootstrap-5 .select2-selection:hover {
+        border-color: #cbd5e1 !important;
+    }
+    .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+    .select2-container--bootstrap-5.select2-container--open .select2-selection {
+        border-color: #154679 !important;
+        box-shadow: 0 0 0 0.2rem rgba(21, 70, 121, 0.15) !important;
+        border-radius: 0.375rem !important;
     }
     .select2-container--bootstrap-5 .select2-selection--single {
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        background-size: 16px 12px;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 0.75rem center !important;
+        background-size: 13px 10px !important;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        color: #1e293b !important;
+        line-height: 1.4 !important;
+        padding-left: 0.75rem !important;
+        padding-right: 3.4rem !important;
+        font-weight: 500 !important;
+        font-size: 0.855rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
+        color: #94a3b8 !important;
+        font-weight: 400 !important;
+        font-size: 0.855rem !important;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+        position: absolute !important;
+        right: 2.05rem !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 20px !important;
+        height: 20px !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        opacity: 0.55 !important;
+        transition: opacity 0.15s ease, background-color 0.15s ease !important;
+    }
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear:hover {
+        opacity: 1 !important;
+        background-color: #f1f5f9 !important;
     }
     .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
-        display: none;
+        display: none !important;
     }
-    .select2-dropdown {
-        border: 1px solid #dee2e6;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-        overflow: hidden;
+
+    /* Dropdown Panel */
+    .select2-container--bootstrap-5 .select2-dropdown {
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 4px 10px -4px rgba(15, 23, 42, 0.08) !important;
+        overflow: hidden !important;
+        margin-top: 4px !important;
+        background-color: #ffffff !important;
+        z-index: 1060 !important;
     }
-    .select2-search__field {
-        border-radius: 0.375rem !important;
-        padding: 0.5rem 0.75rem !important;
+    .select2-container--bootstrap-5 .select2-dropdown.select2-dropdown--above {
+        margin-top: 0 !important;
+        margin-bottom: 4px !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown.select2-dropdown--below {
+        border-top: 1px solid #cbd5e1 !important;
+    }
+
+    /* Search Bar di dalam Dropdown */
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search {
+        padding: 8px 10px !important;
+        background-color: #f8fafc !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field {
+        width: 100% !important;
+        border-radius: 7px !important;
+        padding: 0.42rem 0.75rem 0.42rem 2.1rem !important;
+        font-size: 0.84rem !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        background-color: #ffffff !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%2394a3b8' viewBox='0 0 16 16'%3e%3cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3e%3c/svg%3e") !important;
+        background-repeat: no-repeat !important;
+        background-position: 0.65rem center !important;
+        background-size: 13px 13px !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field::placeholder {
+        color: #94a3b8 !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field:focus {
+        border-color: #154679 !important;
+        outline: none !important;
+        box-shadow: 0 0 0 0.18rem rgba(21, 70, 121, 0.15) !important;
+    }
+
+    /* Daftar Opsi & Scrollbar */
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options {
+        padding: 6px !important;
+        max-height: 260px !important;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f8fafc;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options::-webkit-scrollbar {
+        width: 6px;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options::-webkit-scrollbar-track {
+        background: #f8fafc;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__option {
+        padding: 7px 11px !important;
+        font-size: 0.84rem !important;
+        line-height: 1.4 !important;
+        color: #334155 !important;
+        border-radius: 6px !important;
+        margin-bottom: 2px !important;
+        transition: background-color 0.12s ease, color 0.12s ease !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__option:last-child {
+        margin-bottom: 0 !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__option.select2-results__option--selected,
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__option[aria-selected="true"] {
+        background-color: #eef4fb !important;
+        color: #154679 !important;
+        font-weight: 600 !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__option.select2-results__option--highlighted,
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__option.select2-results__option--highlighted.select2-results__option--selectable,
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__option.select2-results__option--selected.select2-results__option--highlighted {
+        background-color: #154679 !important;
+        color: #ffffff !important;
+    }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-results__options .select2-results__message {
+        text-align: center !important;
+        color: #64748b !important;
+        font-size: 0.82rem !important;
+        padding: 14px 12px !important;
     }
     /* Conflict Option Cards */
     .conflict-card-option {
@@ -574,6 +705,12 @@ $(document).ready(function() {
             noResults: function() {
                 return "Instansi tidak ditemukan";
             }
+        }
+    }).on('select2:open', function() {
+        var searchField = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchField) {
+            searchField.setAttribute('placeholder', 'Cari nama instansi...');
+            searchField.focus();
         }
     });
 
