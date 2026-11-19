@@ -4396,11 +4396,11 @@ class Admin extends BaseController
 
 	/**
 	 * Feature flag .env untuk mengizinkan/mengunci fitur "Samakan Semua Selisih ke Tabel Dinamis".
-	 * Set DDA_ALLOW_PDF_SYNC_TO_DB = false saat deploy produksi.
+	 * Default aman = false (terkunci di produksi); set DDA_ALLOW_PDF_SYNC_TO_DB = true di .env lokal bila diperlukan.
 	 */
 	private function isPdfSyncToDbEnabled(): bool
 	{
-		$raw = env('DDA_ALLOW_PDF_SYNC_TO_DB', true);
+		$raw = env('DDA_ALLOW_PDF_SYNC_TO_DB', false);
 		if (is_bool($raw)) {
 			return $raw;
 		}
@@ -4660,7 +4660,29 @@ class Admin extends BaseController
 		}
 		try {
 			if (!$this->db->tableExists('t_mapping_tabel_tahunan')) {
-				return;
+				try {
+					$this->db->query("CREATE TABLE IF NOT EXISTS `t_mapping_tabel_tahunan` (
+						`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+						`id_tabel` INT NOT NULL,
+						`tahun_publikasi` SMALLINT UNSIGNED NOT NULL,
+						`no_tabel_pdf` VARCHAR(50) NOT NULL,
+						`judul_pdf` VARCHAR(1000) NULL,
+						`halaman_pdf` VARCHAR(100) NULL,
+						`skor_judul` DECIMAL(5,2) NULL,
+						`status_match` ENUM('matched','unmatched') NOT NULL DEFAULT 'matched',
+						`created_at` DATETIME NULL,
+						`updated_at` DATETIME NULL,
+						PRIMARY KEY (`id`),
+						UNIQUE KEY `uk_mapping_tabel_tahun` (`id_tabel`, `tahun_publikasi`),
+						KEY `idx_tahun_no_pdf` (`tahun_publikasi`, `no_tabel_pdf`)
+					) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+				} catch (\Throwable $eCreate) {
+					log_message('warning', '[DDA] Auto-create t_mapping_tabel_tahunan dilewati: ' . $eCreate->getMessage());
+					return;
+				}
+				if (!$this->db->tableExists('t_mapping_tabel_tahunan')) {
+					return;
+				}
 			}
 			$now = date('Y-m-d H:i:s');
 			$rows = [];
