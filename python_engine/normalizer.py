@@ -402,8 +402,12 @@ def parse_num(val_str, is_pdf=False):
     if s_clean_token in dot_unavail or re.match(r'^\.{2,}$', s_clean_token):
         return '...'
 
-    # Simbol BPS '-' (Nihil / Nol) atau sel kosong pada matriks PDF -> kembalikan 0.0
-    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', '\ufffd', ''}
+    # Simbol BPS '-' (Nihil / Nol) -> kembalikan 0.0
+    # PENTING: Jangan masukkan string kosong '' ke dash_nihil karena '' in '.' bernilai True di Python
+    # dan membuat fragmen tanda baca watermark seperti '.\ns' -> '.' disangka 0.0!
+    if not s_clean_token:
+        return None
+    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', '\ufffd'}
     if s_clean_token in dash_nihil:
         return 0.0
     if any(d in s_clean_token for d in dash_nihil) and not any(c.isalnum() for c in s_clean_token):
@@ -574,6 +578,10 @@ def clean_header_text(c):
     s = ' '.join(s_parts).strip()
     s = s.rstrip('*').strip()
     s = re.sub(r'\b(19\d{2}|20\d{2})[1-9\*\^rR\†\‡]+(?:\s*,\s*[1-9\*\^rR\†\‡]+)*\)?(?=\s|$|[\)\-\/.,])', r'\1', s)
+    # Bersihkan huruf watermark diagonal BPS yang menempel langsung pada angka tahun (mis. 'd\n2022i' -> '2022')
+    m_wm_yr = re.match(r'^[htpsjangeboid\.\s]{0,3}((?:19|20)\d{2}(?:/(?:19|20)?\d{2,4})?)[htpsjangeboid\.\s]{0,3}$', s, re.IGNORECASE)
+    if m_wm_yr:
+        s = m_wm_yr.group(1)
     if '/' in s and not re.search(r'\d/\d', s):
         p = s.split('/', 1)
         if len(p) == 2 and any(ch.isalpha() for ch in p[0]) and any(ch.isalpha() for ch in p[1]):

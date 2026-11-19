@@ -1912,6 +1912,7 @@
                                     <span class="badge bg-primary px-2.5 py-1 fw-bold fs-6">
                                         <i class="bi bi-table me-1"></i>Tabel ${nomor_tabel}
                                     </span>
+                                    ${(foundItem && foundItem.nomor_bergeser && foundItem.nomor_tabel_db && String(foundItem.nomor_tabel_db) !== String(nomor_tabel)) ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill fw-semibold" style="font-size:0.75rem;" title="Nomor tabel di buku PDF bergeser dari nomor di Database, dicocokkan otomatis berdasarkan judul"><i class="bi bi-arrow-left-right me-1"></i>PDF ${nomor_tabel} ↔ DB ${foundItem.nomor_tabel_db}</span>` : ''}
                                     ${pagesLabel ? `<span class="badge bg-light text-secondary border fw-normal" style="font-size:0.78rem;"><i class="bi bi-book me-1"></i>PDF ${pagesLabel}</span>` : ''}
                                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill fw-semibold" style="font-size:0.75rem;">
                                         <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sumber: ${res.source_type}
@@ -2377,11 +2378,11 @@ ${getPdfSplitPaneHtml(pagesLabel)}
                                 let yearText = resolveItemYear(m, res.target_year);
                                 let cleanSection = (m.section || '').replace(/^(?:Halaman|Hal\.)\s+[\d\-\(\)\s\w]+/i, '').trim();
                                 let isTol = Boolean(m.is_tolerance_match);
-                                let isApiSym = Boolean(m.is_api_symbol_equiv);
+                                let isApiSym = Boolean(m.is_symbol_equiv || m.is_api_symbol_equiv);
                                 let matchBadgeLabel = isTol
                                     ? 'Cocok (Toleransi ' + (m.tolerance_diff > 0 ? '+' : '') + m.tolerance_diff + ')'
-                                    : (isApiSym ? 'Cocok (Simbol API ... ≡ 0)' : 'Sama Persis (Cocok)');
-                                let matchShortBadge = isTol ? 'Toleransi' : (isApiSym ? 'Simbol API' : 'Cocok');
+                                    : (isApiSym ? 'Cocok (Simbol ... ≡ 0)' : 'Sama Persis (Cocok)');
+                                let matchShortBadge = isTol ? 'Toleransi' : (isApiSym ? 'Simbol ≡ 0' : 'Cocok');
                                 let accentHex = isTol ? '#0ea5e9' : '#10b981';
                                 let borderSubtle = isTol ? 'border-info-subtle' : 'border-success-subtle';
                                 let pillCls = isTol ? 'bg-info-subtle text-info-emphasis border-info-subtle' : 'bg-success-subtle text-success border-success-subtle';

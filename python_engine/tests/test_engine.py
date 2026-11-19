@@ -1846,11 +1846,10 @@ class TestGenericRegressionAndSystemicFixes(unittest.TestCase):
                     preloaded_db_tables=dyn_tbl, preloaded_index=idx_tbl
                 )
             # 15-24: (NA vs None -> match), (1.5M vs 1.5M -> match), (... vs "" -> match)
-            # 25-34: (NA vs 0 -> diff!), (2M vs 2M -> match), (2.5M vs None -> diff!)
-            self.assertEqual(len(res["matches"]), 4)
-            self.assertEqual(len(res["diffs"]), 2)
+            # 25-34: (NA vs 0 -> match via simbol ekuivalen), (2M vs 2M -> match), (2.5M vs None -> diff!)
+            self.assertEqual(len(res["matches"]), 5)
+            self.assertEqual(len(res["diffs"]), 1)
             diff_pairs = {(d["pdf_val"], d["src_val"]) for d in res["diffs"]}
-            self.assertIn(("...", 0), diff_pairs)
             self.assertIn((2500000, None), diff_pairs)
         finally:
             os.remove(db_path)
@@ -2185,11 +2184,20 @@ class TestGenericRegressionAndSystemicFixes(unittest.TestCase):
         self.assertEqual(len(equiv_matches), 1)
         self.assertEqual(equiv_matches[0]["pdf_val"], "...")
 
-        # 2. Uji sumber Tabel Dinamis (is_dynamic=1) dengan data identik
+        # 2. Uji sumber Tabel Dinamis (is_dynamic=1): '...' vs '0' disetarakan Match,
+        # namun nilai non-nol sekecil apa pun (mis. '0.001' vs '...' atau '1' vs '0') WAJIB tetap Diff!
         din_grid = [
             ["Kabupaten/Kota", "Jumlah Panti", "Jumlah Penghuni"],
             ["Kab. Cilacap", "0", "0"],
             ["Kab. Kebumen", "1", "50"],
+            ["Kab. Banyumas", "0.001", "0"],
+        ]
+        pdf_rows_din = [
+            ["Kabupaten/Kota", "Jumlah Panti", "Jumlah Penghuni"],
+            ["(1)", "(2)", "(3)"],
+            ["Kab. Cilacap", "1", "..."],
+            ["Kab. Kebumen", "1", "50"],
+            ["Kab. Banyumas", "...", "0"],
         ]
         din_payload = [{
             "id_db": "3223",
@@ -2206,18 +2214,70 @@ class TestGenericRegressionAndSystemicFixes(unittest.TestCase):
             json.dump(din_payload, tf)
             din_file = tf.name
         try:
-            with patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_rows})), \
-                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_rows), \
+            with patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_rows_din})), \
+                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_rows_din), \
                  patch.object(compare_table, "detect_table_archetype", return_value="SINGLE_PAGE_REGIONAL"), \
                  patch.object(match_pdf, "detect_pdf_publication_year", return_value=2026):
                 res_din = compare_table.compare_head_to_head("dummy.pdf", "3.2.23", din_file, id_db="3223", preloaded_db_tables=din_payload, preloaded_index=fake_idx_din)
         finally:
             os.remove(din_file)
 
-        # Pada Tabel Dinamis: baik '1' vs '0' maupun '...' vs '0' pada Cilacap WAJIB tetap terdeteksi sebagai diff (2 diffs, 2 matches dari Kebumen)!
+        # Cilacap ('1' vs '0') & Banyumas ('...' vs '0.001') WAJIB tetap Diff (2 diffs);
+        # Cilacap ('...' vs '0'), Kebumen (1, 50), Banyumas (0 vs 0) -> 4 matches!
         self.assertEqual(res_din["source_type"], "Tabel Dinamis")
         self.assertEqual(len(res_din["diffs"]), 2)
-        self.assertEqual(len(res_din["matches"]), 2)
+        self.assertEqual(len(res_din["matches"]), 4)
+        self.assertTrue(any(m.get("is_symbol_equiv") for m in res_din["matches"]))
+
+    def test_watermark_on_bps_numbering_and_year_subheader_preserved(self):
+        """
+        Pastikan watermark diagonal BPS pada baris nomor kolom '(1)..(7)' (mis. 'd\\n(5)', '.\\no\\n(3)')
+        dan pada sel tahun header ('d\\n2022i') tidak merusak deteksi baris BPS maupun memotong tahun sub-header.
+        """
+        import table_profiler
+        from normalizer import clean_header_text
+
+        # 1. Pola 1.1.3 PDF 2024: watermark 'd\\n(5)' di baris nomor kolom BPS
+        rows_113 = [
+            ["Kabupaten/Kota\nRegency/Municipality", None, "Tepi Laut\nCoastal Altitude", None, None, "Bukan Tepi Laut\nNon-Coastal", None, None],
+            [None, None, "2014", "2018", "2021", "2014", "2018", "2021"],
+            ["(1)", None, "(2)", "(3)", "(4)", "d\n(5)", "(6)", "(7)"],
+            ["1.", "Cilacap", "36", "36", "34", "o\n248", "248", "250"],
+        ]
+        bps_idx, bps_cells, rtype = table_profiler.find_bps_numbering_row(rows_113)
+        self.assertEqual(bps_idx, 2)
+        self.assertEqual(rtype, "bps")
+        hdrs = table_profiler.extract_pdf_headers(rows_113, 6)
+        self.assertEqual(hdrs, [
+            "Tepi Laut - 2014", "Tepi Laut - 2018", "Tepi Laut - 2021",
+            "Bukan Tepi Laut - 2014", "Bukan Tepi Laut - 2018", "Bukan Tepi Laut - 2021",
+        ])
+
+        # 2. Pola tanpa baris (1)..(7) (murni row_type='year'): baris tahun tetap ikut masuk ke header
+        rows_year_only = [
+            ["Kabupaten/Kota", "Tepi Laut", None, None],
+            [None, "2014", "2018", "2021"],
+            ["Cilacap", "36", "36", "34"],
+        ]
+        hdrs_yr = table_profiler.extract_pdf_headers(rows_year_only, 3)
+        self.assertEqual(hdrs_yr, ["Tepi Laut - 2014", "Tepi Laut - 2018", "Tepi Laut - 2021"])
+
+        # 3. Pola 1.2.1 PDF 2024: watermark pada '(3)' dan 'd\\n2022i' serta 'i\\n.\\no\\n(3)' dan '.\\ns'
+        rows_121 = [
+            ["Unsur Iklim\nClimate Elements", "2021", "d\n2022i", "2023"],
+            ["(1)", "(2)", ".\no\n(3)", "(4)"],
+            ["Suhu Minimum", "23,1", "23,5", "24,1"],
+        ]
+        bps_idx2, _, rtype2 = table_profiler.find_bps_numbering_row(rows_121)
+        self.assertEqual(bps_idx2, 1)
+        self.assertEqual(rtype2, "bps")
+        self.assertEqual(clean_header_text("d\n2022i"), "2022")
+        self.assertEqual(table_profiler._clean_bps_or_year_cell("i\n.\no\n(3)"), "(3)")
+        self.assertEqual(table_profiler.extract_pdf_headers(rows_121, 3), ["Tahun 2021", "Tahun 2022", "Tahun 2023"])
+        # Fragmen watermark titik tunggal '.\ns' / '.' WAJIB None (bukan 0.0), sementara '-' tetap 0.0
+        self.assertIsNone(parse_num(".\ns", is_pdf=True))
+        self.assertIsNone(parse_num(".", is_pdf=True))
+        self.assertEqual(parse_num("–", is_pdf=True), 0.0)
 
 
 if __name__ == "__main__":

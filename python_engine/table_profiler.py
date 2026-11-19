@@ -6,7 +6,8 @@ from normalizer import (
     parse_num, clean_header_text, find_wilayah_with_type,
     is_bps_col_num, is_title_row, resolve_jateng_entity,
     resolve_provinsi_entity, is_header_or_metadata_row,
-    strip_pdf_page_watermark, clean_pdf_watermark_text
+    strip_pdf_page_watermark, clean_pdf_watermark_text,
+    is_watermark_only_token
 )
 from pdf_extractor import extract_table_content
 
@@ -48,6 +49,27 @@ def extract_clean_page_tables(pdf_path, page_num):
         _CLEAN_PAGE_CACHE[cache_key] = tables_data
     return tables_data
 
+def _clean_bps_or_year_cell(raw_val):
+    """Bersihkan fragmen huruf watermark diagonal BPS pada sel nomor kolom '(1)' atau sel tahun '2022'."""
+    s = str(raw_val).strip()
+    if not s or s.lower() == 'none':
+        return ''
+    if '\n' in s:
+        lines = [ln.strip() for ln in s.split('\n') if ln.strip()]
+        kept = [ln for ln in lines if not is_watermark_only_token(ln) and not re.match(r'^[htpsjangeboid\./:]{1,3}$', ln, re.IGNORECASE)]
+        if kept:
+            s = ' '.join(kept).strip()
+    # Cek jika sel berupa nomor kolom ber-tanda kurung yang ketempelan fragmen watermark (mis. 'i . (3)', 'd\n(5)')
+    m_bps = re.match(r'^[htpsjangeboid\./:\s]{0,8}(\(\d{1,3}\))[htpsjangeboid\./:\s]{0,8}$', s, re.IGNORECASE)
+    if m_bps:
+        return m_bps.group(1)
+    # Cek jika sel berupa tahun yang ketempelan huruf watermark (mis. 'd\n2022i' -> '2022')
+    m_yr = re.match(r'^[htpsjangeboid\./:\s]{0,8}((?:19|20)\d{2}(?:/\d{2,6})?)[htpsjangeboid\./:\s]{0,8}$', s, re.IGNORECASE)
+    if m_yr:
+        return m_yr.group(1)
+    return s
+
+
 def find_bps_numbering_row(source_data):
     if not source_data or not isinstance(source_data, list): return -1, [], 'none'
     year_idx, year_cells = -1, []
@@ -56,7 +78,13 @@ def find_bps_numbering_row(source_data):
 
     for i, r in enumerate(source_data[:25]):
         if not isinstance(r, list): continue
-        non_empty = [(idx, str(c).strip()) for idx, c in enumerate(r) if c is not None and str(c).strip() and str(c).strip().lower() != 'none']
+        non_empty = []
+        for idx, c in enumerate(r):
+            if c is None:
+                continue
+            cv = _clean_bps_or_year_cell(c)
+            if cv and not is_watermark_only_token(cv):
+                non_empty.append((idx, cv))
         if len(non_empty) < 2: continue
         
         all_bps = all((re.match(r'^[\(\-]?(\d+)\)?$', v) and int(re.match(r'^[\(\-]?(\d+)\)?$', v).group(1)) <= 150) for _, v in non_empty)
@@ -470,7 +498,10 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
     if not rows or not isinstance(rows, list): return []
     bps_row_idx, bps_cells, row_type = find_bps_numbering_row(rows)
     if bps_row_idx >= 0 and bps_cells:
-        data_cols = [col_idx for col_idx, val in bps_cells if int(re.match(r'^\(?(\d+)\)?$', str(val).strip()).group(1)) >= 2]
+        if row_type == 'year':
+            data_cols = [col_idx for col_idx, _ in bps_cells]
+        else:
+            data_cols = [col_idx for col_idx, val in bps_cells if re.match(r'^\(?(\d+)\)?$', str(val).strip()) and int(re.match(r'^\(?(\d+)\)?$', str(val).strip()).group(1)) >= 2]
         if expected_p_len and len(data_cols) > expected_p_len:
             sample_body = [r for r in rows[bps_row_idx + 1:] if isinstance(r, list) and not is_header_or_metadata_row(r) and not is_title_row(r)]
             num_cols = [
@@ -486,7 +517,8 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
             if len(num_cols) == expected_p_len:
                 data_cols = num_cols
         if not expected_p_len or len(data_cols) == expected_p_len:
-            hdr_rows = [r for r in rows[:bps_row_idx] if isinstance(r, list) and not is_title_row(r)]
+            hdr_end = (bps_row_idx + 1) if row_type == 'year' else bps_row_idx
+            hdr_rows = [r for r in rows[:hdr_end] if isinstance(r, list) and not is_title_row(r)]
             max_c = max(len(r) for r in hdr_rows)
             filled_hdr = []
             for r in hdr_rows:
@@ -498,7 +530,7 @@ def extract_pdf_headers(rows, expected_p_len=None, pdf_path=None, target_pages=N
                         cur = cell
                         f_row.append(cell)
                     else:
-                        if cur and not is_bps_col_num(cur):
+                        if cur and not is_bps_col_num(cur) and not re.match(r'^(?:19|20)\d{2}(?:/\d{2,6})?$', cur):
                             f_row.append(cur)
                         else:
                             f_row.append("")

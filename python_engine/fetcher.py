@@ -86,8 +86,10 @@ def fetch_data_from_link(link: str):
                     break
                 try:
                     os.makedirs(cache_dir, exist_ok=True)
-                    with open(cache_file, "w", encoding="utf-8") as f:
-                        json.dump(records, f)
+                    tmp_cache = f"{cache_file}.tmp.{os.getpid()}"
+                    with open(tmp_cache, "w", encoding="utf-8") as f:
+                        json.dump(records, f, ensure_ascii=False)
+                    os.replace(tmp_cache, cache_file)
                 except Exception:
                     pass
                 id_records = records

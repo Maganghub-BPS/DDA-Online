@@ -802,7 +802,7 @@
         'l_forum_komen'  => 'Forum Komentar',
         'l_oi'           => 'Organization Info',
         'report'         => 'Laporan Rekap',
-        'matching_pdf'   => 'Matching PDF (Python)',
+        'matching_pdf'   => 'Matching PDF',
         'f_passwod'      => 'Ganti Password',
         'f_profil'       => 'Profil Saya',
         'v_portal_tabel' => 'View Portal Tabel',
@@ -864,7 +864,7 @@
                     <?php if (can('matching_pdf')): ?>
                         <a href="<?php echo base_url(); ?>admin/matching_pdf/" class="sidebar-link <?php echo ($page == 'matching_pdf') ? 'active' : ''; ?>">
                             <i class="bi bi-file-earmark-pdf"></i>
-                            <span class="link-text">Matching PDF (Python)</span>
+                            <span class="link-text">Matching PDF</span>
                         </a>
                     <?php endif; ?>
 

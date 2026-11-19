@@ -378,11 +378,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             try:
                 cur_cache = {}
                 if os.path.exists(index_cache_path):
-                    with open(index_cache_path, "r", encoding="utf-8") as f:
-                        cur_cache = json.load(f)
+                    try:
+                        with open(index_cache_path, "r", encoding="utf-8") as f:
+                            loaded = json.load(f)
+                        if isinstance(loaded, dict):
+                            cur_cache = loaded
+                    except Exception:
+                        cur_cache = {}
                 cur_cache[target_table] = {"pages": target_pages, "display_title": pdf_tables[matched_k].get("display_title", "")}
-                with open(index_cache_path, "w", encoding="utf-8") as f:
-                    json.dump(cur_cache, f)
+                tmp_idx = f"{index_cache_path}.tmp.{os.getpid()}"
+                with open(tmp_idx, "w", encoding="utf-8") as f:
+                    json.dump(cur_cache, f, ensure_ascii=False)
+                os.replace(tmp_idx, index_cache_path)
             except Exception:
                 pass
 
@@ -417,11 +424,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 try:
                     cur_cache = {}
                     if os.path.exists(index_cache_path):
-                        with open(index_cache_path, "r", encoding="utf-8") as f:
-                            cur_cache = json.load(f)
+                        try:
+                            with open(index_cache_path, "r", encoding="utf-8") as f:
+                                loaded = json.load(f)
+                            if isinstance(loaded, dict):
+                                cur_cache = loaded
+                        except Exception:
+                            cur_cache = {}
                     cur_cache[target_table] = {"pages": target_pages, "display_title": target_info.get("judul_tabel", "")}
-                    with open(index_cache_path, "w", encoding="utf-8") as f:
+                    tmp_idx = f"{index_cache_path}.tmp.{os.getpid()}"
+                    with open(tmp_idx, "w", encoding="utf-8") as f:
                         json.dump(cur_cache, f, ensure_ascii=False)
+                    os.replace(tmp_idx, index_cache_path)
                 except Exception:
                     pass
         except Exception:
@@ -1077,7 +1091,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 bps_header_limit_idx = -1
 
                 def _resolve_bps_cols(row_idx, r_check):
-                    bps_num_cols = [idx for idx, cell in enumerate(r_check) if cell is not None and re.match(r'^\(\d+\)$', str(cell).strip()) and int(re.search(r'\d+', str(cell)).group(0)) >= 2]
+                    from table_profiler import _clean_bps_or_year_cell
+                    bps_num_cols = []
+                    for idx, cell in enumerate(r_check):
+                        if cell is None:
+                            continue
+                        cleaned_c = _clean_bps_or_year_cell(cell)
+                        if re.match(r'^\(\d+\)$', cleaned_c) and int(re.search(r'\d+', cleaned_c).group(0)) >= 2:
+                            bps_num_cols.append(idx)
                     if not bps_num_cols:
                         return None, set()
                     cur_unit_cols = set()
@@ -3262,30 +3283,53 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             except Exception:
                 pass
 
-    # Opsi A (Hybrid Symbol Equivalence):
-    # Khusus tabel sumber API Satudata (Portal Satu Data Kominfo), kolom numerik API
-    # tidak dapat menyimpan simbol '...' (Data Tidak Tersedia) sehingga mengembalikan 0.
-    # Untuk API Satudata saja, pasangan PDF '...' vs API 0 disetarakan sebagai Cocok (Match),
-    # sedangkan Tabel Dinamis tetap diproteksi ketat (... != 0).
-    if results.get("source_type") == "API Satudata" and results.get("diffs"):
+    # Kebijakan Penyetaraan Simbol Kosong/Nol (Khusus Matching Tabel — Berlaku untuk API Satudata & Tabel Dinamis):
+    # Pasangan simbol tidak tersedia ('...', '…', 'NA', kosong) vs nilai tepat nol/nihil (0, 0.0, '-')
+    # disetarakan sebagai Cocok (Match). Jika salah satu sisi bernilai non-nol sekecil apa pun (mis. 0.001 atau 1),
+    # WAJIB tetap terdeteksi sebagai Selisih (Diff).
+    if results.get("diffs"):
+        def _is_unavail_sym(v):
+            if v is None:
+                return True
+            s = str(v).strip().lower()
+            return s in ("", "...", "…", "na", "n/a", "n.a", "n.a.")
+
+        def _is_exact_zero_or_dash(v):
+            if isinstance(v, bool) or v is None:
+                return False
+            if isinstance(v, (int, float)):
+                return float(v) == 0.0
+            s = str(v).strip()
+            if s in ("0", "0.0", "0,0", "-", "–", "—", "−"):
+                return True
+            try:
+                return float(s.replace(",", ".")) == 0.0
+            except Exception:
+                return False
+
         filtered_diffs = []
+        _is_api_src = (results.get("source_type") == "API Satudata")
         for _d in results["diffs"]:
-            _p_str = str(_d.get("pdf_val") if _d.get("pdf_val") is not None else "").strip()
-            _s_val = _d.get("src_val")
-            _s_str = str(_s_val if _s_val is not None else "").strip()
-            _is_api_zero = (_s_val in (0, 0.0)) or (_s_str in ("0", "0.0", "0,0", "-", "–", "—"))
-            if _p_str in ("...", "…") and _is_api_zero:
+            _pv = _d.get("pdf_val")
+            _sv = _d.get("src_val")
+            _sym_equiv = (
+                (_is_unavail_sym(_pv) and _is_exact_zero_or_dash(_sv))
+                or (_is_exact_zero_or_dash(_pv) and _is_unavail_sym(_sv))
+            )
+            if _sym_equiv:
                 _m_equiv = {
                     "wilayah": _d.get("wilayah", ""),
                     "section": _d.get("section", ""),
                     "metric": _d.get("metric", ""),
                     "pdf_header": _d.get("pdf_header", ""),
                     "src_header": _d.get("src_header", ""),
-                    "val": _d.get("pdf_val"),
-                    "pdf_val": _d.get("pdf_val"),
-                    "src_val": _d.get("src_val"),
-                    "is_api_symbol_equiv": True,
+                    "val": _pv,
+                    "pdf_val": _pv,
+                    "src_val": _sv,
+                    "is_symbol_equiv": True,
                 }
+                if _is_api_src:
+                    _m_equiv["is_api_symbol_equiv"] = True
                 if _d.get("coord"):
                     _m_equiv["coord"] = _d["coord"]
                 results["matches"].append(_m_equiv)

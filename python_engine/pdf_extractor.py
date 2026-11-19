@@ -200,7 +200,7 @@ def stitch_table_pages(pdf_path, pages):
     all_pages_data = [get_cached_page_tables(pdf_path, p) for p in pages]
 
     from table_profiler import find_bps_numbering_row, is_header_or_metadata_row
-    from normalizer import parse_num, resolve_jateng_entity
+    from normalizer import parse_num, resolve_jateng_entity, clean_header_text
 
     def _get_bps_cols(rows):
         idx, cells, r_type = find_bps_numbering_row(rows)
@@ -245,8 +245,9 @@ def stitch_table_pages(pdf_path, pages):
             parts = []
             for r in p_rows[:bps_idx]:
                 if isinstance(r, list) and c_idx < len(r) and r[c_idx] is not None:
-                    # Normalisasi '/' dan spasi agar variasi 'Laki-Laki/Male' vs 'Laki-Laki Male' identik
-                    s = re.sub(r'[/\s]+', ' ', str(r[c_idx])).strip().lower()
+                    # Bersihkan watermark & normalisasi '/' dan spasi agar variasi 'd\n2022i' vs '2022' identik
+                    s_clean = clean_header_text(r[c_idx]) or str(r[c_idx])
+                    s = re.sub(r'[/\s]+', ' ', s_clean).strip().lower()
                     if s and s != 'none':
                         parts.append(s)
             sigs.append(' '.join(parts))
