@@ -1485,11 +1485,12 @@ class M_tabeldinamis extends Model
     // 5. NILAI DATA MATRIKS DINAMIS (t_nilai_dinamis)
     // =========================================================================
 
-    public function getMatrixLookup(int $id_indikator): array
+    public function getMatrixLookup(int $id_indikator, ?int $maxDataYear = null): array
     {
         $rows = $this->db->table('t_nilai_dinamis')
             ->where('id_indikator', $id_indikator)
             ->orderBy('tahun_data', 'ASC')
+            ->orderBy("COALESCE(updated_at, created_at, '1970-01-01 00:00:00')", 'ASC', false)
             ->orderBy('id', 'ASC')
             ->get()
             ->getResult();
@@ -1498,6 +1499,9 @@ class M_tabeldinamis extends Model
         foreach ($rows as $row) {
             $pItem = (int)$row->id_periode_item;
             $thData = (int)$row->tahun_data;
+            if ($maxDataYear !== null && $thData > 0 && $thData > $maxDataYear) {
+                continue;
+            }
             $cellData = [
                 'id'         => $row->id,
                 'tahun_data' => $thData,
@@ -1571,6 +1575,33 @@ class M_tabeldinamis extends Model
 
             $this->db->query($sql, $params);
             $totalAffected += count($chunk);
+
+            // Bersihkan baris kembar bayangan (id_periode_item = tahun_data saat menyimpan id_periode_item = 0, atau sebaliknya)
+            foreach ($chunk as $c) {
+                $tahunCell = isset($c['tahun_data']) && (int)$c['tahun_data'] > 0 ? (int)$c['tahun_data'] : $defaultTahun;
+                $idBaris = (int)($c['id_baris_item'] ?? 0);
+                $idKarakteristik = (int)($c['id_karakteristik_item'] ?? 0);
+                $idPeriode = (int)($c['id_periode_item'] ?? 0);
+                if ($tahunCell >= 1900 && $tahunCell <= 2100) {
+                    if ($idPeriode === 0) {
+                        $this->db->table('t_nilai_dinamis')
+                            ->where('id_indikator', $id_indikator)
+                            ->where('tahun_data', $tahunCell)
+                            ->where('id_baris_item', $idBaris)
+                            ->where('id_karakteristik_item', $idKarakteristik)
+                            ->where('id_periode_item', $tahunCell)
+                            ->delete();
+                    } elseif ($idPeriode === $tahunCell) {
+                        $this->db->table('t_nilai_dinamis')
+                            ->where('id_indikator', $id_indikator)
+                            ->where('tahun_data', $tahunCell)
+                            ->where('id_baris_item', $idBaris)
+                            ->where('id_karakteristik_item', $idKarakteristik)
+                            ->where('id_periode_item', 0)
+                            ->delete();
+                    }
+                }
+            }
         }
 
         $this->db->transComplete();
@@ -1681,9 +1712,9 @@ class M_tabeldinamis extends Model
      * Mengekspor satu tabel dinamis berdasarkan id_tahun_tabel ke format grid 2D
      * yang langsung kompatibel dengan compare_table.py.
      */
-    public function exportSingleDynamicTable(int $id_tahun_tabel): ?array
+    public function exportSingleDynamicTable(int $id_tahun_tabel, ?int $tahunAktif = null): ?array
     {
-        $ctx = $this->resolveTableContext($id_tahun_tabel);
+        $ctx = $this->resolveTableContext($id_tahun_tabel, $tahunAktif);
         $indikator = $ctx['indikator'] ?? null;
         if (!$indikator) {
             return null;
@@ -1691,6 +1722,14 @@ class M_tabeldinamis extends Model
         if (!empty($ctx['tahun_tabel'])) {
             $indikator->tahun = $ctx['tahun_tabel']->tahun;
             $indikator->no_tabel = $ctx['tahun_tabel']->no_tabel ?: $indikator->no_tabel;
+            $indikator->has_status_for_pub_year = (
+                (int)($ctx['tahun_tabel']->is_periksa ?? 0) === 1
+                || (string)($ctx['tahun_tabel']->is_confirm ?? '0') !== '0'
+                || (int)($ctx['tahun_tabel']->is_publish ?? 0) === 1
+            ) ? 1 : 0;
+        }
+        if ($tahunAktif !== null) {
+            $indikator->tahun = $tahunAktif;
         }
 
         return $this->buildDynamicTableExport($indikator);
@@ -1702,7 +1741,7 @@ class M_tabeldinamis extends Model
     public function exportDynamicTablesForMatching(int $tahun): array
     {
         $indikators = $this->db->table('m_indikator_tabel i')
-            ->select('i.*, m.id as id_tahun_tabel_resolved, COALESCE(t.tahun, ' . (int)$tahun . ') as tahun, m.no_tabel as no_tabel, m.id as master_tabel_id', false)
+            ->select('i.*, m.id as id_tahun_tabel_resolved, COALESCE(t.tahun, ' . (int)$tahun . ') as tahun, CASE WHEN t.id IS NOT NULL AND (t.is_periksa = 1 OR t.is_confirm != \'0\' OR t.is_publish = 1) THEN 1 ELSE 0 END as has_status_for_pub_year, m.no_tabel as no_tabel, m.id as master_tabel_id', false)
             ->join('m_list_tabel m', 'm.id = i.id_tabel', 'inner')
             ->join('t_status_tahunan t', 't.id_tabel = m.id AND t.tahun = ' . (int)$tahun, 'left')
             ->where('(m.is_active = 1 OR m.is_active IS NULL)')
@@ -1765,15 +1804,20 @@ class M_tabeldinamis extends Model
             }
         }
         if (!empty($indIds)) {
+            $targetDataYear = ($tahun >= 1900 && $tahun <= 2100) ? ($tahun - 1) : null;
             $rows = $this->db->table('t_nilai_dinamis')
                 ->whereIn('id_indikator', $indIds)
                 ->orderBy('tahun_data', 'ASC')
+                ->orderBy("COALESCE(updated_at, created_at, '1970-01-01 00:00:00')", 'ASC', false)
                 ->orderBy('id', 'ASC')
                 ->get()->getResult();
             foreach ($rows as $row) {
                 $idInd = (int)$row->id_indikator;
                 $pItem = (int)$row->id_periode_item;
                 $thData = (int)$row->tahun_data;
+                if ($targetDataYear !== null && $thData > 0 && $thData > $targetDataYear) {
+                    continue;
+                }
                 if ($thData > 0 && ($row->nilai !== null || (!empty($row->simbol) && trim((string)$row->simbol) !== ''))) {
                     $cache['data_years'][$idInd][$thData] = true;
                 }
@@ -1847,7 +1891,9 @@ class M_tabeldinamis extends Model
             $dataYears       = $this->getAvailableYears($idIndikator);
         }
 
-        // Resolusi tahun aktif untuk tabel tahunan/multi-tahun
+        $pubYear = (int)($indikator->tahun ?? 0);
+
+        // Resolusi tahun aktif untuk tabel tahunan/multi-tahun (dengan aturan N-1 terhadap tahun publikasi $pubYear)
         $tahunTampil = [];
         if (!empty($indikator->tahun_tampil)) {
             foreach (explode(',', (string)$indikator->tahun_tampil) as $ty) {
@@ -1857,16 +1903,53 @@ class M_tabeldinamis extends Model
                 }
             }
         }
-        if (!empty($tahunTampil)) {
-            // Pertahankan seluruh tahun yang dikonfigurasi di tahun_tampil (misal multi-tahun atau tahun ajaran)
-            // agar template kolom dan koordinat sel tetap lengkap meski data salah satu tahun belum terisi.
-            $activeYears = $tahunTampil;
-            if (!empty($dataYears)) {
-                $dataYearsInt = array_map('intval', $dataYears);
-                $activeYears = array_values(array_unique(array_merge($activeYears, $dataYearsInt)));
+        $dataYearsInt = array_values(array_filter(array_map('intval', $dataYears), function ($y) {
+            return $y >= 1900 && $y <= 2100;
+        }));
+        $rawYears = array_values(array_unique(array_merge($tahunTampil, $dataYearsInt)));
+        sort($rawYears);
+
+        $filledEligible = [];
+        $hasStatusForPubYear = !empty($indikator->has_status_for_pub_year);
+        if ($pubYear >= 1900 && $pubYear <= 2100) {
+            $maxDataYear = $pubYear - 1;
+            $filledEligible = array_values(array_filter($dataYearsInt, function ($y) use ($maxDataYear) {
+                return $y <= $maxDataYear;
+            }));
+            $isMultiYear = $isRuntunWaktu || (count($tahunTampil) > 1);
+            if ($isMultiYear) {
+                $eligible = array_values(array_filter($rawYears, function ($y) use ($maxDataYear) {
+                    return $y <= $maxDataYear;
+                }));
+                if (!empty($filledEligible)) {
+                    $activeYears = array_values(array_unique(array_merge($filledEligible, $eligible)));
+                } else {
+                    $activeYears = !empty($eligible) ? $eligible : [$maxDataYear];
+                }
+                // Expanding Window untuk tahun publikasi baru (mis. DDA 2027 saat data baru s.d. 2025 dan belum ada status 2027):
+                // sertakan $maxDataYear agar template_grid & cell_coords siap menerima pengisian tahun depan.
+                if (!$hasStatusForPubYear && !empty($rawYears) && $maxDataYear > max($rawYears) && !in_array($maxDataYear, $activeYears, true)) {
+                    $activeYears[] = $maxDataYear;
+                }
+                sort($activeYears);
+            } else {
+                // Tabel 1 Tahun:
+                // 1) Jika $maxDataYear (N-1) sudah terisi, gunakan [$maxDataYear].
+                // 2) Jika $maxDataYear belum ada tetapi tabel ini memang sudah terverifikasi/diperiksa untuk buku $pubYear
+                //    dengan data tahun periodik/sensus sebelumnya (mis. Pemilu 2024 atau Industri 2022 di DDA 2026),
+                //    pertahankan tahun data terakhir yang valid di $filledEligible.
+                // 3) Selain itu (mis. buku tahun depan DDA 2027 yang datanya belum diisi), kunci ke [$maxDataYear]
+                //    agar tidak membocorkan data tahun sebelumnya (2025) dan siap di-autofill untuk tahun 2026.
+                if (in_array($maxDataYear, $filledEligible, true)) {
+                    $activeYears = [$maxDataYear];
+                } elseif ($hasStatusForPubYear && !empty($filledEligible)) {
+                    $activeYears = [(int)end($filledEligible)];
+                } else {
+                    $activeYears = [$maxDataYear];
+                }
             }
         } else {
-            $activeYears = !empty($dataYears) ? $dataYears : [(int)($indikator->tahun ?? date('Y'))];
+            $activeYears = !empty($rawYears) ? $rawYears : [(int)date('Y') - 1];
         }
         sort($activeYears);
 
@@ -1878,12 +1961,29 @@ class M_tabeldinamis extends Model
             if (empty($runtunYears) && !empty($tahunTampil) && count($tahunTampil) > 1) {
                 $runtunYears = array_values(array_map('intval', $tahunTampil));
             }
-            if (empty($runtunYears) && !empty($dataYears) && count($dataYears) > 1) {
-                $runtunYears = array_values(array_map('intval', $dataYears));
+            if (empty($runtunYears) && !empty($dataYearsInt) && count($dataYearsInt) > 1) {
+                $runtunYears = $dataYearsInt;
             }
             if (empty($runtunYears)) {
-                $baseY = !empty($activeYears) ? (int)end($activeYears) : (int)($indikator->tahun ?? date('Y'));
+                $baseY = !empty($activeYears) ? (int)end($activeYears) : (($pubYear >= 1900) ? ($pubYear - 1) : (int)date('Y'));
                 $runtunYears = [$baseY, $baseY - 1, $baseY - 2, $baseY - 3, $baseY - 4];
+            }
+            if ($pubYear >= 1900 && $pubYear <= 2100) {
+                $maxDataYear = $pubYear - 1;
+                $filteredRuntun = array_values(array_filter($runtunYears, function ($y) use ($maxDataYear) {
+                    return $y <= $maxDataYear;
+                }));
+                if (!empty($filteredRuntun)) {
+                    $runtunYears = $filteredRuntun;
+                }
+                if (!empty($filledEligible)) {
+                    $filledRuntun = array_values(array_filter($runtunYears, function ($y) use ($filledEligible) {
+                        return in_array($y, $filledEligible, true);
+                    }));
+                    if (!empty($filledRuntun)) {
+                        $runtunYears = $filledRuntun;
+                    }
+                }
             }
             rsort($runtunYears);
         }
@@ -1909,7 +2009,7 @@ class M_tabeldinamis extends Model
                     'judul_periode_en'  => ($tipePeriode === 'tahun_ajaran') ? 'Academic Year' : 'Year',
                 ];
             }
-        } elseif (count($activeYears) > 1) {
+        } elseif (count($activeYears) > 1 || (empty($itemsBaris) && !empty($activeYears) && !preg_match('/\b(19|20)\d{2}\b/', (string)($itemsPeriode[0]->nama_periode_ind ?? '')))) {
             $expandedPeriode = [];
             $u = 1;
             foreach ($activeYears as $yr) {
@@ -2061,7 +2161,7 @@ class M_tabeldinamis extends Model
             $leafColumns[] = [
                 'item_id'    => 0,
                 'periode_id' => 0,
-                'label'      => (string)($indikator->tahun ?? date('Y')),
+                'label'      => (string)(!empty($activeYears) ? end($activeYears) : (($pubYear >= 1900) ? ($pubYear - 1) : date('Y'))),
             ];
         } elseif ($hasKolom && $hasPeriode) {
             if ($isRuntunWaktu || $posisiHirarki === 'periode_baris') {
@@ -2074,24 +2174,34 @@ class M_tabeldinamis extends Model
                     ];
                 }
             } elseif ($posisiHirarki === 'periode_atas') {
+                $maxDataYr = ($pubYear >= 1900 && $pubYear <= 2100) ? ($pubYear - 1) : 0;
                 foreach ($itemsPeriode as $p) {
+                    $pName = trim((string)$p->nama_periode_ind);
+                    $includePeriodInLabel = (count($itemsPeriode) > 1)
+                        || ($tipePeriode === 'tahun_ajaran')
+                        || ($maxDataYr > 0 && (int)$p->id >= 1900 && (int)$p->id <= 2100 && (int)$p->id !== $maxDataYr);
                     foreach ($flatKolom as $child) {
                         $colName = $makeFullColLabel($child);
                         $leafColumns[] = [
                             'item_id'    => (int)$child->id,
                             'periode_id' => (int)$p->id,
-                            'label'      => (count($itemsPeriode) > 1) ? trim($p->nama_periode_ind . ' ' . $colName) : trim((string)$colName),
+                            'label'      => $includePeriodInLabel ? trim($pName . ' ' . $colName) : trim((string)$colName),
                         ];
                     }
                 }
             } else {
+                $maxDataYr = ($pubYear >= 1900 && $pubYear <= 2100) ? ($pubYear - 1) : 0;
                 foreach ($flatKolom as $child) {
                     $colName = $makeFullColLabel($child);
                     foreach ($itemsPeriode as $p) {
+                        $pName = trim((string)$p->nama_periode_ind);
+                        $includePeriodInLabel = (count($itemsPeriode) > 1)
+                            || ($tipePeriode === 'tahun_ajaran')
+                            || ($maxDataYr > 0 && (int)$p->id >= 1900 && (int)$p->id <= 2100 && (int)$p->id !== $maxDataYr);
                         $leafColumns[] = [
                             'item_id'    => (int)$child->id,
                             'periode_id' => (int)$p->id,
-                            'label'      => (count($itemsPeriode) > 1) ? trim($colName . ' (' . $p->nama_periode_ind . ')') : trim((string)$colName),
+                            'label'      => $includePeriodInLabel ? trim($colName . ' (' . $pName . ')') : trim((string)$colName),
                         ];
                     }
                 }
@@ -2099,7 +2209,8 @@ class M_tabeldinamis extends Model
         }
 
         // Ambil nilai sel dari t_nilai_dinamis
-        $lookup = ($cache !== null) ? ($cache['nilai'][$idIndikator] ?? []) : $this->getMatrixLookup($idIndikator);
+        $maxDataYrLookup = ($pubYear >= 1900 && $pubYear <= 2100) ? ($pubYear - 1) : null;
+        $lookup = ($cache !== null) ? ($cache['nilai'][$idIndikator] ?? []) : $this->getMatrixLookup($idIndikator, $maxDataYrLookup);
         $filledCellCount = 0;
         $countedIds = [];
         foreach ($lookup as $cell) {
@@ -2142,19 +2253,61 @@ class M_tabeldinamis extends Model
             if (!$cell) {
                 return null;
             }
-            if (!empty($cell['simbol']) && $cell['nilai'] === null) {
-                return $cell['simbol'];
+            $sym = isset($cell['simbol']) ? trim((string)$cell['simbol']) : '';
+            if ($sym !== '') {
+                $symLower = strtolower($sym);
+                if (in_array($symLower, ['...', '…', 'na', 'n.a', 'n.a.', 'n/a'], true) && ($cell['nilai'] === null || abs((float)$cell['nilai']) < 0.0000001)) {
+                    return '...';
+                }
+                if ($cell['nilai'] === null) {
+                    return $sym;
+                }
             }
             if ($cell['nilai'] !== null) {
                 $v = (float)$cell['nilai'];
                 return (floor($v) == $v) ? (int)$v : $v;
             }
-            return $cell['simbol'] ?? null;
+            return $sym !== '' ? $sym : null;
         };
 
-        $defaultTahunCoord = !empty($activeYears) ? (int)end($activeYears) : (int)($indikator->tahun ?? date('Y'));
-        $pushCellWithCoord = function (array &$valRow, array &$tplRow, int $bId, int $cId, int $pId, ?array $cell) use (&$seq, &$cellCoords, $formatCellValue, $defaultTahunCoord) {
+        $defaultTahunCoord = !empty($activeYears) ? (int)end($activeYears) : (($pubYear >= 1900) ? ($pubYear - 1) : (int)date('Y'));
+        $singleTargetYear = (count($activeYears) === 1 && (int)$activeYears[0] >= 1900) ? (int)$activeYears[0] : 0;
+        $renderedFilledCount = 0;
+
+        $resolveLookupCell = function (int $bId, int $cId, int $pId) use (&$lookup, $singleTargetYear) {
+            if ($pId > 190000000 || ($pId >= 1900 && $pId <= 2100)) {
+                return $lookup["{$bId}_{$cId}_{$pId}"] ?? null;
+            }
+            if ($singleTargetYear > 0) {
+                if ($pId === 0) {
+                    $yrKey = "{$bId}_{$cId}_{$singleTargetYear}";
+                    if (isset($lookup[$yrKey])) {
+                        return $lookup[$yrKey];
+                    }
+                    $plainCell = $lookup["{$bId}_{$cId}_0"] ?? null;
+                    if ($plainCell && ((int)($plainCell['tahun_data'] ?? 0) === 0 || (int)$plainCell['tahun_data'] === $singleTargetYear)) {
+                        return $plainCell;
+                    }
+                    return null;
+                }
+                $compKey = "{$bId}_{$cId}_" . (($singleTargetYear * 100000) + $pId);
+                if (isset($lookup[$compKey])) {
+                    return $lookup[$compKey];
+                }
+                $plainCell = $lookup["{$bId}_{$cId}_{$pId}"] ?? null;
+                if ($plainCell && ((int)($plainCell['tahun_data'] ?? 0) === 0 || (int)$plainCell['tahun_data'] === $singleTargetYear)) {
+                    return $plainCell;
+                }
+                return null;
+            }
+            return $lookup["{$bId}_{$cId}_{$pId}"] ?? null;
+        };
+
+        $pushCellWithCoord = function (array &$valRow, array &$tplRow, int $bId, int $cId, int $pId, ?array $cell) use (&$seq, &$cellCoords, &$renderedFilledCount, $formatCellValue, $defaultTahunCoord) {
             $valRow[] = $formatCellValue($cell);
+            if ($cell && ($cell['nilai'] !== null || (!empty($cell['simbol']) && trim((string)$cell['simbol']) !== ''))) {
+                $renderedFilledCount++;
+            }
             $seq++;
             $tplRow[] = -900000 - $seq;
             $tCoord = !empty($cell['tahun_data']) ? (int)$cell['tahun_data'] : $defaultTahunCoord;
@@ -2187,8 +2340,9 @@ class M_tabeldinamis extends Model
                 $row = [trim((string)$p->nama_periode_ind)];
                 $tRow = [trim((string)$p->nama_periode_ind)];
                 foreach ($leafColumns as $lc) {
-                    $key = "0_{$lc['item_id']}_{$p->id}";
-                    $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
+                    $cId = (int)$lc['item_id'];
+                    $pId = (int)$p->id;
+                    $pushCellWithCoord($row, $tRow, 0, $cId, $pId, $resolveLookupCell(0, $cId, $pId));
                 }
                 $grid[] = $row;
                 $templateGrid[] = $tRow;
@@ -2196,10 +2350,7 @@ class M_tabeldinamis extends Model
         } else {
             $idPeriodeAktif = 0;
             if (!empty($itemsPeriode)) {
-                $targetTahun = trim((string)($indikator->tahun ?? ''));
-                if ($targetTahun === '' && !empty($tahun)) {
-                    $targetTahun = (string)($tahun - 1);
-                }
+                $targetTahun = !empty($activeYears) ? (string)end($activeYears) : (($pubYear >= 1900) ? (string)($pubYear - 1) : '');
                 foreach ($itemsPeriode as $p) {
                     if ($targetTahun !== '' && trim((string)$p->nama_periode_ind) === $targetTahun) {
                         $idPeriodeAktif = (int)$p->id;
@@ -2296,9 +2447,10 @@ class M_tabeldinamis extends Model
                             $row = [$namaBaris . ' ' . $rYr];
                             $tRow = [$namaBaris . ' ' . $rYr];
                             foreach ($leafColumns as $lc) {
-                                $key = "{$idB}_{$lc['item_id']}_{$rYr}";
-                                $key0 = "0_{$lc['item_id']}_{$rYr}";
-                                $val = $lookup[$key] ?? ($lookup[$key0] ?? null);
+                                $val = $resolveLookupCell($idB, (int)$lc['item_id'], (int)$rYr);
+                                if ($val === null) {
+                                    $val = $resolveLookupCell(0, (int)$lc['item_id'], (int)$rYr);
+                                }
                                 $pushCellWithCoord($row, $tRow, $idB ?: 0, (int)$lc['item_id'], (int)$rYr, $val);
                             }
                             $grid[] = $row;
@@ -2308,8 +2460,8 @@ class M_tabeldinamis extends Model
                         $row = [$namaBaris];
                         $tRow = [$namaBaris];
                         foreach ($leafColumns as $lc) {
-                            $key = "{$idB}_{$lc['item_id']}_{$idPeriodeAktif}";
-                            $pushCellWithCoord($row, $tRow, $idB, (int)$lc['item_id'], (int)$idPeriodeAktif, $lookup[$key] ?? null);
+                            $cId = (int)$lc['item_id'];
+                            $pushCellWithCoord($row, $tRow, $idB, $cId, (int)$idPeriodeAktif, $resolveLookupCell($idB, $cId, (int)$idPeriodeAktif));
                         }
                         $grid[] = $row;
                         $templateGrid[] = $tRow;
@@ -2319,8 +2471,9 @@ class M_tabeldinamis extends Model
                         $row = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
                         $tRow = [$namaBaris . ' ' . trim((string)$p->nama_periode_ind)];
                         foreach ($leafColumns as $lc) {
-                            $key = "{$idB}_{$lc['item_id']}_{$p->id}";
-                            $pushCellWithCoord($row, $tRow, $idB, (int)$lc['item_id'], (int)$p->id, $lookup[$key] ?? null);
+                            $cId = (int)$lc['item_id'];
+                            $pId = (int)$p->id;
+                            $pushCellWithCoord($row, $tRow, $idB, $cId, $pId, $resolveLookupCell($idB, $cId, $pId));
                         }
                         $grid[] = $row;
                         $templateGrid[] = $tRow;
@@ -2331,8 +2484,7 @@ class M_tabeldinamis extends Model
                     foreach ($leafColumns as $lc) {
                         $pId = (int)$lc['periode_id'];
                         $cId = (int)$lc['item_id'];
-                        $key = "{$idB}_{$cId}_{$pId}";
-                        $pushCellWithCoord($row, $tRow, $idB, $cId, $pId, $lookup[$key] ?? null);
+                        $pushCellWithCoord($row, $tRow, $idB, $cId, $pId, $resolveLookupCell($idB, $cId, $pId));
                     }
                     $grid[] = $row;
                     $templateGrid[] = $tRow;
@@ -2346,8 +2498,8 @@ class M_tabeldinamis extends Model
                         $row = ['Jumlah ' . $rYr];
                         $tRow = ['Jumlah ' . $rYr];
                         foreach ($leafColumns as $lc) {
-                            $key = "0_{$lc['item_id']}_{$rYr}";
-                            $pushCellWithCoord($row, $tRow, 0, (int)$lc['item_id'], (int)$rYr, $lookup[$key] ?? null);
+                            $cId = (int)$lc['item_id'];
+                            $pushCellWithCoord($row, $tRow, 0, $cId, (int)$rYr, $resolveLookupCell(0, $cId, (int)$rYr));
                         }
                         $grid[] = $row;
                         $templateGrid[] = $tRow;
@@ -2356,12 +2508,13 @@ class M_tabeldinamis extends Model
             }
         }
 
+        $effectiveFilled = ($seq > 0) ? $renderedFilledCount : $filledCellCount;
         return [
             'id_indikator'  => $idIndikator,
             'is_dynamic'    => 1,
-            'dynamic_empty' => ($filledCellCount === 0),
-            'cell_count'    => $filledCellCount,
-            'dynamic_grid'  => ($filledCellCount === 0) ? [] : $grid,
+            'dynamic_empty' => ($effectiveFilled === 0),
+            'cell_count'    => $effectiveFilled,
+            'dynamic_grid'  => ($effectiveFilled === 0) ? [] : $grid,
             'template_grid' => $templateGrid,
             'cell_coords'   => $cellCoords,
         ];

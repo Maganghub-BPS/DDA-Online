@@ -109,7 +109,7 @@ def clean_pdf_watermark_text(text):
     return s.strip()
 
 ENGLISH_SIGNAL_WORDS = {
-    'of', 'to', 'in', 'by', 'and', 'the', 'for', 'with', 'from', 'on', 'at', 'or',
+    'of', 'to', 'in', 'by', 'and', 'the', 'for', 'with', 'from', 'on', 'at', 'or', 'not',
     'right', 'rights', 'ownership', 'endowments', 'management', 'mortgage', 'use', 'build',
     'number', 'total', 'area', 'value', 'rate', 'ratio', 'percentage', 'distribution',
     'group', 'groups', 'type', 'types', 'kind', 'kinds', 'status', 'level', 'levels',
@@ -121,13 +121,56 @@ ENGLISH_SIGNAL_WORDS = {
     'production', 'capacity', 'customer', 'customers', 'household', 'households', 'industry', 'business', 'social', 'government',
     'employee', 'employees', 'civil', 'servant', 'servants', 'state', 'agreement', 'agreements',
     'population', 'thousand', 'people', 'million', 'billion', 'rupiahs', 'rupiah', 'year', 'years', 'month', 'months',
-    'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'
+    'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+    'passenger', 'passengers', 'car', 'cars', 'truck', 'trucks', 'buses', 'motorcycle', 'motorcycles', 'vehicle', 'vehicles',
+    'paved', 'unpaved', 'others', 'other', 'surface', 'road', 'roads', 'length', 'condition', 'good', 'moderate', 'damaged', 'heavily',
+    'sawn', 'timber', 'roundwood', 'wood', 'logs', 'plywood', 'forest', 'forestry', 'processed',
+    'raw', 'material', 'materials', 'fuel', 'fuels', 'energy', 'electricity', 'water', 'sold', 'distributed', 'installed',
+    'hatchery', 'heads', 'capture', 'aquaculture', 'marine', 'inland', 'fish', 'fishery', 'fisheries', 'livestock', 'poultry',
+    'certified', 'uncertified', 'accredited', 'unaccredited', 'education', 'elementary', 'junior', 'senior', 'vocational', 'higher',
+    'worker', 'workers', 'wage', 'wages', 'salary', 'income', 'expenditure', 'poverty', 'poor', 'unemployment', 'labor', 'labour', 'force',
+    'agriculture', 'manufacturing', 'services', 'service', 'trade', 'construction', 'mining', 'finance', 'health', 'hospital', 'hospitals',
+    'inpatient', 'outpatient', 'bed', 'beds', 'doctor', 'doctors', 'nurse', 'nurses', 'midwife', 'midwives',
+    'prisoner', 'prisoners', 'inmate', 'inmates', 'adult', 'adults', 'child', 'children', 'crime', 'cases', 'case',
+    'star', 'non-star', 'room', 'rooms', 'guest', 'guests', 'visitor', 'visitors', 'foreign', 'domestic', 'nights',
+    'harvested', 'planted', 'yield', 'crops', 'crop', 'food', 'fruits', 'vegetables', 'export', 'exports', 'import', 'imports',
+    'main', 'primary', 'secondary', 'tertiary', 'general', 'special', 'growth', 'density', 'share', 'index', 'price', 'prices',
+    'region', 'imprisonment', 'death', 'penalty', 'lifetime', 'mature', 'series', 'industrial', 'code',
+    'increase', 'decrease', 'receipt', 'stock', 'semi', 'finished', 'product', 'products', 'produced', 'rendered',
+    'gross', 'net', 'output', 'input', 'criminal', 'sentence', 'concession', 'establishment', 'enterprises', 'enterprise',
+    'community', 'veneers', 'flakes', 'pulp', 'plup', 'lumber', 'charcoal',
+}
+
+_INDONESIAN_HEADER_WORDS = {
+    'jumlah', 'banyaknya', 'penumpang', 'barang', 'sepeda', 'mobil', 'truk', 'kayu', 'gergajian', 'bulat', 'olahan',
+    'bahan', 'baku', 'bakar', 'energi', 'kepala', 'sekolah', 'pendidik', 'guru', 'peserta', 'didik', 'murid', 'siswa',
+    'satuan', 'pendidikan', 'negeri', 'swasta', 'aspal', 'tidak', 'diaspal', 'lainnya', 'lain', 'permukaan', 'jalan', 'panjang',
+    'laki', 'perempuan', 'dewasa', 'anak', 'perkotaan', 'perdesaan', 'pedesaan', 'kabupaten', 'kota', 'desa', 'provinsi',
+    'belum', 'sudah', 'tersertifikasi', 'bersertifikat', 'akreditasi', 'terakreditasi', 'mahasiswa', 'dosen',
+    'pertanian', 'perkebunan', 'kehutanan', 'perikanan', 'tangkap', 'budidaya', 'peternakan', 'industri', 'jasa', 'jadi',
+    'setengah', 'selisih', 'stok', 'penerimaan', 'diterima', 'pihak', 'dihasilkan', 'dijual', 'tenaga', 'nomor', 'urut', 'kode',
+    'pekerja', 'buruh', 'karyawan', 'pegawai', 'pendapatan', 'upah', 'gaji', 'pengeluaran', 'makanan', 'bukan', 'data', 'usia',
+    'rawat', 'inap', 'rumah', 'sakit', 'puskesmas', 'kesehatan', 'dokter', 'perawat', 'bidan',
+    'bintang', 'nonbintang', 'kamar', 'tamu', 'asing', 'domestik', 'wisatawan', 'pengunjung', 'restoran',
+    'luas', 'panen', 'tanam', 'produksi', 'produktivitas', 'nilai', 'ekspor', 'impor', 'harga', 'berlaku', 'konstan',
+    'ribu', 'juta', 'miliar', 'ekor', 'orang', 'jiwa', 'batang', 'tangkai', 'hari', 'bulan', 'tahun', 'persen',
+    'dan', 'atau', 'serta', 'yang', 'pada', 'dalam', 'dari', 'untuk', 'menurut', 'dengan', 'tanpa', 'atas', 'bawah',
+    'pembenihan', 'pembesaran', 'perusahaan', 'usaha', 'pelanggan', 'daya', 'terpasang', 'terjual', 'listrik', 'air',
+    'pidana', 'penjara', 'narapidana', 'tahanan', 'perkara', 'kasus', 'kejahatan', 'kebakaran', 'bencana', 'alam',
+    'hukuman', 'mati', 'seumur', 'hidup', 'wilayah', 'bubur', 'serpih', 'lapis',
 }
 
 def is_english_line(line):
     words = re.findall(r'[a-zA-Z]+', str(line).lower())
-    if not words: return False
-    return sum(1 for w in words if w in ENGLISH_SIGNAL_WORDS) >= 1
+    if not words:
+        return False
+    en_hits = sum(1 for w in words if w in ENGLISH_SIGNAL_WORDS)
+    if en_hits == 0:
+        return False
+    id_hits = sum(1 for w in words if w in _INDONESIAN_HEADER_WORDS)
+    if id_hits > 0 and id_hits >= en_hits:
+        return False
+    return True
 
 TYPO_WATERMARK_MAP = {
     'sejahtepra': 'sejahtera',
@@ -169,13 +212,17 @@ def resolve_jateng_entity(text, is_kota_mode=False):
         return "33.00", "Provinsi Jawa Tengah"
     
     # Priority check for cities sharing names with regencies
+    has_kab_kw = bool(re.search(r'\b(?:kab|kabupaten)\b', t))
     for w in ['magelang', 'semarang', 'pekalongan', 'tegal']:
-        if f'kota {w}' in t or (is_kota_mode and re.search(rf'\b{w}\b', t) and 'kab' not in t):
+        if re.search(rf'\bkota\s+{w}\b', t):
             code = next(c for c, name, _ in JATENG_REGISTRY if name == f"Kota {w.title()}")
             return code, f"Kota {w.title()}"
-        elif f'kab {w}' in t or f'kabupaten {w}' in t:
+        elif re.search(rf'\b(?:kab\.?|kabupaten)\s*{w}\b', t):
             code = next(c for c, name, _ in JATENG_REGISTRY if name == f"Kab. {w.title()}")
             return code, f"Kab. {w.title()}"
+        elif is_kota_mode and re.search(rf'\b{w}\b', t) and not has_kab_kw:
+            code = next(c for c, name, _ in JATENG_REGISTRY if name == f"Kota {w.title()}")
+            return code, f"Kota {w.title()}"
             
     for code, name, patterns in JATENG_REGISTRY:
         if code in ["33.08", "33.22", "33.26", "33.28", "33.71", "33.74", "33.75", "33.76"]:
@@ -186,7 +233,7 @@ def resolve_jateng_entity(text, is_kota_mode=False):
                 
     for w in ['magelang', 'semarang', 'pekalongan', 'tegal']:
         if re.search(rf'\b{w}\b', t):
-            if is_kota_mode:
+            if is_kota_mode and not has_kab_kw:
                 code = next(c for c, name, _ in JATENG_REGISTRY if name == f"Kota {w.title()}")
                 return code, f"Kota {w.title()}"
             else:
@@ -319,9 +366,17 @@ def parse_num(val_str, is_pdf=False):
     s = str(val_str).strip()
     if not s: return None
 
+    # Tolak eksplisit label kelas/golongan/kode alfanumerik (mis. 'Kelas 1A', '1A', '1B', '1A1') agar tidak diparsing jadi angka
+    if re.search(r'(?i)\b(?:kelas|golongan|gol\.?|grade|strata|tingkat)\b', s):
+        return None
+    if re.match(r'^\s*\(?[1-9]\d?[A-Z][A-Za-z0-9]{0,2}\)?\s*$', s) and not re.match(r'^\s*\d+\s*(?:km|cm|mm|dm|sm|ha|kg|rp|m[23]?)\s*$', s, re.I):
+        return None
+
     if is_pdf:
         s = clean_pdf_watermark_text(s)
         if not s: return None
+        if re.match(r'^\s*\(?[1-9]\d?[A-Z][A-Za-z0-9]{0,2}\)?\s*$', s) and not re.match(r'^\s*\d+\s*(?:km|cm|mm|dm|sm|ha|kg|rp|m[23]?)\s*$', s, re.I):
+            return None
 
     # Interval label seperti '21-35' atau '60+' bukan angka
     if is_interval_label(s):
@@ -347,8 +402,12 @@ def parse_num(val_str, is_pdf=False):
     if s_clean_token in dot_unavail or re.match(r'^\.{2,}$', s_clean_token):
         return '...'
 
-    # Simbol BPS '-' (Nihil / Nol) atau sel kosong pada matriks PDF -> kembalikan 0.0
-    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', '\ufffd', ''}
+    # Simbol BPS '-' (Nihil / Nol) -> kembalikan 0.0
+    # PENTING: Jangan masukkan string kosong '' ke dash_nihil karena '' in '.' bernilai True di Python
+    # dan membuat fragmen tanda baca watermark seperti '.\ns' -> '.' disangka 0.0!
+    if not s_clean_token:
+        return None
+    dash_nihil = {'–', '-', '—', '−', '\u2212', '\u2011', '\u2015', '\ufffd'}
     if s_clean_token in dash_nihil:
         return 0.0
     if any(d in s_clean_token for d in dash_nihil) and not any(c.isalnum() for c in s_clean_token):
@@ -412,7 +471,8 @@ def parse_num(val_str, is_pdf=False):
     s = re.sub(r'[,.](?:–|-|—|−|\u2212)+$', '', s)
     s = re.sub(r'(\d)(?:–|-|—|−|\u2212)$', r'\g<1>0', s)
 
-    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd', '\u2026', '…']) and not any(c.isdigit() for c in s): return 0.0
+    if any(d in s for d in ['\u2026', '…']) and not any(c.isdigit() for c in s): return '...'
+    if any(d in s for d in ['–', '-', '—', '−', '\u2212', '\ufffd']) and not any(c.isdigit() for c in s): return 0.0
 
     ambiguous_alt = None
     # Sisi sumber murni (DB/API tanpa format teks/akuntansi): titik tunggal = desimal programatik
@@ -453,22 +513,77 @@ def parse_num(val_str, is_pdf=False):
             pass
     return value
 
+def _is_indonesian_slash_term(left_part, right_part):
+    """True jika '/' adalah pemisah istilah bahasa Indonesia (mis. 'Bahan Baku/Bakar', 'Kabupaten/Kota', 'Upah/Gaji'),
+    bukan pemisah dwibahasa 'Indonesia / English'."""
+    l_low = (left_part or '').strip().lower()
+    r_low = (right_part or '').strip().lower()
+    if not r_low:
+        return True
+    if re.search(r'\d$', l_low) and re.search(r'^\d', r_low):
+        return True
+    r_words = re.findall(r'[a-zA-Z]+', r_low)
+    if not r_words:
+        return True
+    if any(w in _INDONESIAN_HEADER_WORDS for w in r_words) and not is_english_line(r_low):
+        return True
+    # Pasangan akronim/istilah resmi ID pendek (mis. 'SD/MI', 'SMP/MTs', 'SMA/MA', 'TNI/Polri', 'BUMN/BUMD')
+    if len(r_words) == 1 and r_words[0] in {'kota', 'bakar', 'gaji', 'kelurahan', 'belum', 'mi', 'mts', 'ma', 'smk', 'polri', 'bumd', 'bumn', 'swasta', 'instansi', 'golongan', 'barang', 'jasa', 'non', 'lainnya', 'sejenisnya', 'sederajat'}:
+        return True
+    return False
+
+
 def clean_header_text(c):
     if not c: return ""
     raw_lines = [line.strip() for line in str(c).split('\n') if line.strip()]
     if not raw_lines: return ""
-    
-    # Rekonstruksi baris bahasa Indonesia yang terpotong baris baru (misal: 'Pembenihan (ribu' + 'ekor)')
+
+    # Rekonstruksi header bahasa Indonesia multi-baris secara utuh (mis. 'Mobil\nPenumpang\nPassenger\nCars' -> 'Mobil Penumpang',
+    # 'Kayu\nGergajian\nSawn Timber' -> 'Kayu Gergajian', 'Bahan Baku/\nBakar\nRaw Material/\nFuel' -> 'Bahan Baku/Bakar')
     indo_lines = []
-    for line in raw_lines:
+    for idx_l, line in enumerate(raw_lines):
+        if is_watermark_only_token(line) and line.strip().lower() not in _INDONESIAN_HEADER_WORDS:
+            continue
+        if indo_lines:
+            full_so_far = ' '.join(indo_lines)
+            unclosed_paren = full_so_far.count('(') > full_so_far.count(')')
+            ends_with_id_slash = indo_lines[-1].endswith('/') and _is_indonesian_slash_term(indo_lines[-1][:-1], line)
+            if not unclosed_paren and not ends_with_id_slash:
+                if is_english_line(line):
+                    break
+                # Deteksi generik terjemahan Inggris jamak/kognat (mis. 'Veneer' -> 'Veneers (m3)', 'Hotel' -> 'Hotels')
+                prev_w = re.sub(r'[^a-z]', '', indo_lines[-1].lower())
+                cur_w = re.sub(r'\([^)]*\)', '', line.lower()).strip()
+                cur_w_alpha = re.sub(r'[^a-z]', '', cur_w)
+                if prev_w and cur_w_alpha in (prev_w + 's', prev_w + 'es'):
+                    break
+        if '/' in line and not re.search(r'\d/\d', line):
+            p_chk = line.split('/', 1)
+            if len(p_chk) == 2 and any(ch.isalpha() for ch in p_chk[0]) and p_chk[1].strip():
+                if not _is_indonesian_slash_term(p_chk[0], p_chk[1]):
+                    indo_lines.append(line)
+                    break
         indo_lines.append(line)
-        full = ' '.join(indo_lines)
-        if full.count('(') == full.count(')'):
-            break
-    s = ' '.join(indo_lines).strip()
+
+    if not indo_lines:
+        indo_lines = [raw_lines[0]]
+
+    # Gabungkan baris; jika baris sebelumnya diakhiri '/' (mis. 'Bahan Baku/' + 'Bakar'), rapatkan tanpa spasi
+    s_parts = []
+    for ln in indo_lines:
+        if s_parts and s_parts[-1].endswith('/'):
+            s_parts[-1] = s_parts[-1] + ln
+        else:
+            s_parts.append(ln)
+    s = ' '.join(s_parts).strip()
     s = s.rstrip('*').strip()
+    s = re.sub(r'\b(19\d{2}|20\d{2})[1-9\*\^rR\†\‡]+(?:\s*,\s*[1-9\*\^rR\†\‡]+)*\)?(?=\s|$|[\)\-\/.,])', r'\1', s)
+    # Bersihkan huruf watermark diagonal BPS yang menempel langsung pada angka tahun (mis. 'd\n2022i' -> '2022')
+    m_wm_yr = re.match(r'^[htpsjangeboid\.\s]{0,3}((?:19|20)\d{2}(?:/(?:19|20)?\d{2,4})?)[htpsjangeboid\.\s]{0,3}$', s, re.IGNORECASE)
+    if m_wm_yr:
+        s = m_wm_yr.group(1)
     if '/' in s and not re.search(r'\d/\d', s):
-        p = s.split('/')
+        p = s.split('/', 1)
         if len(p) == 2 and any(ch.isalpha() for ch in p[0]) and any(ch.isalpha() for ch in p[1]):
             p0_low = p[0].lower()
             p1_low = p[1].lower()
@@ -478,7 +593,7 @@ def clean_header_text(c):
                 s = "Guru"
             elif any(k in p1_low for k in ['pupils', 'students']) or 'peserta didik' in p0_low:
                 s = "Murid"
-            else:
+            elif not _is_indonesian_slash_term(p[0], p[1]):
                 s = p[0].strip()
     return s
 
@@ -543,6 +658,9 @@ def is_header_or_metadata_row(row):
         return True
 
     if any(k in ctx for k in ['laki-laki', 'perempuan', 'female', 'male', 'jenis kelamin', 'sex', 'pangkat', 'golongan', 'tingkat pendidikan']):
+        # Sub-header baris kategori seperti "Golongan I" / "Golongan I/Range I" bukan header kolom tabel
+        if len(non_empty) == 1 and re.search(r'\bgolongan\s+[ivx]+\b', ctx):
+            return False
         if plain_nums == 0: return True
 
     if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit', 'jenis pelayaran', 'ship sector', 'unit kapal', 'ship unit', 'gross tonage', 'non pelayaran', 'non-shipping', 'samudra', 'nusantara', 'tunker', 'kementerian', 'ministry', 'pagu dipa', 'realisasi']):
@@ -604,16 +722,18 @@ def explain_mismatch(pv, sv):
         if abs(sv - pv * 1000000) <= 2000.0 or abs(pv - sv * 1000000) <= 2000.0:
             return "pola: beda satuan jutaan (x1.000.000)"
         r = max(abs(sv), abs(pv)) / min(abs(sv), abs(pv))
-        if 80.0 <= r <= 180.0 or 8000.0 <= r <= 18000.0:
-            return "pola: konversi valuta asing (kemungkinan data sumber dalam Ribu USD vs cetakan PDF dalam Juta Rupiah kurs berjalan)"
         if r >= 9.9:
             import math
             l = math.log10(r)
-            if abs(l - round(l)) < 1e-4 and round(l) in (1, 2, 3, 4, 6, 8, 10, 12):
-                exp_val = int(round(l))
+            exp_cand = round(l)
+            tol_log = 0.005 if exp_cand == 2 else 1e-4
+            if abs(l - exp_cand) < tol_log and exp_cand in (1, 2, 3, 4, 6, 8, 10, 12):
+                exp_val = int(exp_cand)
                 if exp_val == 2:
                     return "pola: format persentase (nilai rasio 1.0 vs persen 100%)"
                 return f"pola: kelipatan 10^{exp_val} (kemungkinan salah format satuan/desimal)"
+        if 80.0 <= r <= 180.0 or 8000.0 <= r <= 18000.0:
+            return "pola: konversi valuta asing (kemungkinan data sumber dalam Ribu USD vs cetakan PDF dalam Juta Rupiah kurs berjalan)"
     if pv > 10 and sv > 10:
         try:
             s_pv, s_sv = str(int(round(pv))), str(int(round(sv)))
@@ -656,8 +776,13 @@ def evaluate_cell_match(pv, sv, tolerance=0.0):
         return False, False, 0.0
 
     if isinstance(pv, str) or isinstance(sv, str):
-        is_same = str(pv).strip() == str(sv).strip()
-        return is_same, False, (0.0 if is_same else None)
+        p_num = parse_num(pv, is_pdf=True) if isinstance(pv, str) else pv
+        s_num = parse_num(sv, is_pdf=False) if isinstance(sv, str) else sv
+        if isinstance(p_num, (int, float)) and isinstance(s_num, (int, float)):
+            pv, sv = p_num, s_num
+        else:
+            is_same = str(pv).strip().lower() == str(sv).strip().lower()
+            return is_same, False, (0.0 if is_same else None)
 
     diff_val = round(sv - pv, 3)
 

@@ -1,5 +1,6 @@
 # Mengunduh data live dari Portal Satu Data API
 
+import os
 import ssl
 import json
 import time
@@ -54,59 +55,84 @@ def fetch_data_from_link(link: str):
     if not SATUDATA_TOKEN:
         return _error("SATUDATA_TOKEN belum di-set (isi di .env atau environment)", "missing_token")
 
-    id_p = link.split("?id=")[1].split(",")[0].strip()
-    if not id_p.isdigit():
-        return _error(f"ID data tidak valid pada tautan: '{id_p}'", "invalid_id")
+    id_param = link.split("?id=")[1].split("&")[0].strip()
+    raw_ids = [x.strip() for x in id_param.split(",") if x.strip()]
+    if not raw_ids:
+        return _error("ID data tidak ditemukan pada tautan", "invalid_id")
 
-    api_url = API_URL.format(id=id_p)
+    for id_p in raw_ids:
+        if not id_p.isdigit():
+            return _error(f"ID data tidak valid pada tautan: '{id_p}'", "invalid_id")
+
     ssl_ctx = _ssl_context()
-    last = None
+    base_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cache_dir = os.path.join(base_root, "writable", "cache", "api")
 
-    cache_dir = "writable/cache/api"
-    cache_file = f"{cache_dir}/{id_p}.json"
+    combined_records = []
+    last_err = None
 
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        try:
-            data = _request_once(api_url, ssl_ctx)
-            records = data.get("data", data) if isinstance(data, dict) else data
-            if not records:
-                return _error("Tidak ada data dalam API", "empty", is_api_empty=True)
+    for id_p in raw_ids:
+        api_url = API_URL.format(id=id_p)
+        cache_file = os.path.join(cache_dir, f"{id_p}.json")
+        id_records = None
+        last = None
+
+        for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
-                import os
-                os.makedirs(cache_dir, exist_ok=True)
-                with open(cache_file, "w", encoding="utf-8") as f:
-                    json.dump(records, f)
+                data = _request_once(api_url, ssl_ctx)
+                records = data.get("data", data) if isinstance(data, dict) else data
+                if not records:
+                    last = _error("Tidak ada data dalam API", "empty", is_api_empty=True)
+                    break
+                try:
+                    os.makedirs(cache_dir, exist_ok=True)
+                    tmp_cache = f"{cache_file}.tmp.{os.getpid()}"
+                    with open(tmp_cache, "w", encoding="utf-8") as f:
+                        json.dump(records, f, ensure_ascii=False)
+                    os.replace(tmp_cache, cache_file)
+                except Exception:
+                    pass
+                id_records = records
+                break
+            except urllib.error.HTTPError as e:
+                detail = f"HTTP Error {e.code}: {e.reason}"
+                if e.code in EMPTY_HTTP:
+                    last = _error("Tidak ada data dalam API", "empty", detail, is_api_empty=True)
+                    break
+                if e.code in (401, 403):
+                    return _error("Token Satu Data ditolak (periksa SATUDATA_TOKEN)", "auth", detail)
+                last = _error(f"API Satu Data error: {detail}", "http", detail)
+                if e.code not in RETRYABLE_HTTP:
+                    break
+            except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
+                reason = getattr(e, "reason", e)
+                kind = "ssl" if isinstance(reason, ssl.SSLError) else "network"
+                last = _error(f"Gagal terhubung ke API Satu Data: {reason}", kind, str(reason))
+            except (ValueError, json.JSONDecodeError) as e:
+                last = _error(f"Respons API bukan JSON valid: {e}", "bad_json", str(e))
+                break
+
+            if attempt < MAX_ATTEMPTS:
+                time.sleep(BACKOFF_SECONDS * attempt)
+
+        if id_records is None and last and last.get("error_kind") != "empty":
+            # Fallback ke cache lokal jika server Satu Data sedang 502/down
+            try:
+                if os.path.exists(cache_file):
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        cached_data = json.load(f)
+                        if cached_data:
+                            id_records = cached_data
             except Exception:
                 pass
-            return records
-        except urllib.error.HTTPError as e:
-            detail = f"HTTP Error {e.code}: {e.reason}"
-            if e.code in EMPTY_HTTP:
-                return _error("Tidak ada data dalam API", "empty", detail, is_api_empty=True)
-            if e.code in (401, 403):
-                return _error("Token Satu Data ditolak (periksa SATUDATA_TOKEN)", "auth", detail)
-            last = _error(f"API Satu Data error: {detail}", "http", detail)
-            if e.code not in RETRYABLE_HTTP:
-                break
-        except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as e:
-            reason = getattr(e, "reason", e)
-            kind = "ssl" if isinstance(reason, ssl.SSLError) else "network"
-            last = _error(f"Gagal terhubung ke API Satu Data: {reason}", kind, str(reason))
-        except (ValueError, json.JSONDecodeError) as e:
-            return _error(f"Respons API bukan JSON valid: {e}", "bad_json", str(e))
 
-        if attempt < MAX_ATTEMPTS:
-            time.sleep(BACKOFF_SECONDS * attempt)
+        if isinstance(id_records, list):
+            combined_records.extend(id_records)
+        elif id_records is not None:
+            combined_records.append(id_records)
+        elif last:
+            last_err = last
 
-    # Fallback ke cache lokal jika server Satu Data sedang 502/down
-    try:
-        import os
-        if os.path.exists(cache_file):
-            with open(cache_file, "r", encoding="utf-8") as f:
-                cached_data = json.load(f)
-                if cached_data:
-                    return cached_data
-    except Exception:
-        pass
-
-    return last
+    if combined_records:
+        return combined_records
+    return last_err or _error("Tidak ada data dalam API", "empty", is_api_empty=True)

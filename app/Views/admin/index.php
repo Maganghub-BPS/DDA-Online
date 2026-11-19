@@ -24,6 +24,27 @@
     <link rel="stylesheet" href="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.css" />
     <script src="<?php echo base_url(); ?>aset/js/jquery.min.js"></script>
     <script src="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.js"></script>
+    <script>
+        // Registrasi global CSRF X-CSRF-TOKEN seketika setelah jQuery termuat
+        // agar AJAX di $(document).ready() view anak (mis. trigger_export=1) selalu membawa token valid.
+        (function() {
+            var csrfName = '<?= csrf_token() ?>';
+            var csrfFallback = '<?= csrf_hash() ?>';
+            window.getLatestCsrfHash = function() {
+                var metaEl = document.getElementById('meta-csrf');
+                return (metaEl && metaEl.getAttribute('content')) ? metaEl.getAttribute('content') : csrfFallback;
+            };
+            if (window.jQuery) {
+                jQuery.ajaxSetup({
+                    beforeSend: function(xhr, settings) {
+                        if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                            xhr.setRequestHeader('X-CSRF-TOKEN', window.getLatestCsrfHash());
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
 
     <!-- Chart Libraries - Conditional Load (Hanya di Dashboard) -->
     <?php if ($page == 'd_amain' || $page == 'dashboard'): ?>
@@ -781,7 +802,7 @@
         'l_forum_komen'  => 'Forum Komentar',
         'l_oi'           => 'Organization Info',
         'report'         => 'Laporan Rekap',
-        'matching_pdf'   => 'Matching PDF (Python)',
+        'matching_pdf'   => 'Matching PDF',
         'f_passwod'      => 'Ganti Password',
         'f_profil'       => 'Profil Saya',
         'v_portal_tabel' => 'View Portal Tabel',
@@ -843,7 +864,7 @@
                     <?php if (can('matching_pdf')): ?>
                         <a href="<?php echo base_url(); ?>admin/matching_pdf/" class="sidebar-link <?php echo ($page == 'matching_pdf') ? 'active' : ''; ?>">
                             <i class="bi bi-file-earmark-pdf"></i>
-                            <span class="link-text">Matching PDF (Python)</span>
+                            <span class="link-text">Matching PDF</span>
                         </a>
                     <?php endif; ?>
 
@@ -1052,15 +1073,13 @@
             }
             $('.table-scroll-container').scrollTop(0);
 
-            // Global CSRF Protection Setup for AJAX & Forms
+            // Global CSRF Protection Setup for AJAX & Forms (memakai window.getLatestCsrfHash dari <head>)
             var csrfTokenName = '<?= csrf_token() ?>';
-            var csrfHash = '<?= csrf_hash() ?>';
+            var getLatestCsrfHash = window.getLatestCsrfHash || function() {
+                return $('#meta-csrf').attr('content') || '<?= csrf_hash() ?>';
+            };
 
-            function getLatestCsrfHash() {
-                return $('#meta-csrf').attr('content') || csrfHash;
-            }
-
-            // Global jQuery AJAX Setup: Otomatis kirim X-CSRF-TOKEN header pada request non-GET
+            // Pastikan $.ajaxSetup juga aktif bila ada plugin menimpa jQuery
             $.ajaxSetup({
                 beforeSend: function(xhr, settings) {
                     if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {

@@ -16,7 +16,7 @@ from openpyxl.utils import get_column_letter
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from compare_table import compare_head_to_head
-from export_excel import populate_matrix_sheet, get_instansi_name, get_real_pdf_only, FONT_FAMILY, HEADER_GRAY, BORDER_THIN, PDF_COL_HDR, DB_COL_HDR, DIFF_FILL, DIFF_FONT, PDF_ONLY_FILL, PDF_ONLY_FONT, MATCH_FILL, MATCH_FONT
+from export_excel import populate_matrix_sheet, get_instansi_name, get_real_pdf_only, _collect_result_years, FONT_FAMILY, HEADER_GRAY, BORDER_THIN, PDF_COL_HDR, DB_COL_HDR, DIFF_FILL, DIFF_FONT, PDF_ONLY_FILL, PDF_ONLY_FONT, MATCH_FILL, MATCH_FONT
 
 OPD_BANNER_FILL = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
 OPD_BANNER_FONT = Font(name=FONT_FAMILY, size=11, bold=True, color="0F172A")
@@ -104,6 +104,12 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     elif src_filter == "dinamis":
         src_subtitle = "SUMBER: TABEL DINAMIS"
 
+    db_by_id = {
+        str(r.get("id_db")): r
+        for r in (preloaded_db or [])
+        if isinstance(r, dict) and r.get("id_db") is not None
+    }
+
     for item in all_matched:
         tnum = str(item.get("nomor_tabel", "")).strip()
         st_info = state_data.get(tnum, {})
@@ -114,10 +120,16 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             total_match_count += 1
             continue
 
-        if st in ("diff", "api_empty"):
-            item_src = str(item.get("source_type") or ("dinamis" if item.get("is_dynamic") else "api")).lower().strip()
+        if st in ("diff", "api_empty", "api_year_mismatch", "pdf_only"):
+            db_row = db_by_id.get(str(item.get("id_db", "")), {})
+            item_src = str(db_row.get("source_type") or item.get("source_type") or ("dinamis" if (db_row.get("is_dynamic") or item.get("is_dynamic")) else "api")).lower().strip()
             if src_filter != "all" and item_src != src_filter:
                 continue
+            if src_filter == "api":
+                j_inst = str(db_row.get("jenis_instansi") or item.get("jenis_instansi") or "").lower().strip()
+                inst_lbl = get_instansi_name(tnum, item.get("id_db"), preloaded_db)
+                if "vertikal" in j_inst or "(vertikal)" in inst_lbl.lower():
+                    continue
             diff_tables.append((item, st_info))
 
     total = len(diff_tables)
@@ -181,7 +193,7 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
 
     # Header Tabel Indeks di Baris 11
     idx_header_row = 11
-    idx_headers = ["No", "Nomor Tabel", "Judul Tabel Lengkap", "Sumber Data", "Instansi / OPD", "Halaman PDF", "Status Validasi", "Jumlah Selisih", "Tautan Lembar Kerja"]
+    idx_headers = ["No", "Nomor Tabel", "Judul Tabel Lengkap", "Tahun Data", "Sumber Data", "Instansi / OPD", "Halaman PDF", "Status Validasi", "Jumlah Selisih", "Tautan Lembar Kerja"]
     ws_idx.row_dimensions[idx_header_row].height = 26
     for c_i, h in enumerate(idx_headers, 1):
         cell = ws_idx.cell(idx_header_row, c_i, h)
@@ -257,12 +269,51 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
                     state_data[tnum]["match_count"] = len(matches)
                     state_modified = True
                 continue
+        elif isinstance(res, dict) and (res.get("is_year_unavailable") or res.get("error_kind") == "year_unavailable"):
+            st_info = dict(st_info) if isinstance(st_info, dict) else {}
+            st_info["status"] = "api_year_mismatch"
+            if tnum in state_data and state_data[tnum].get("status") != "api_year_mismatch":
+                state_data[tnum]["status"] = "api_year_mismatch"
+                state_data[tnum]["diff_count"] = 0
+                state_data[tnum]["match_count"] = 0
+                if res.get("message"):
+                    state_data[tnum]["message"] = res.get("message")
+                state_modified = True
+            entry = (item, st_info, res)
+        elif isinstance(res, dict) and res.get("is_api_empty"):
+            st_info = dict(st_info) if isinstance(st_info, dict) else {}
+            st_info["status"] = "api_empty"
+            entry = (item, st_info, res)
         computed_results.append(entry)
 
     if state_modified and state_json_path:
         try:
-            with open(state_json_path, "w", encoding="utf-8") as f_st:
-                json.dump(state_data, f_st, ensure_ascii=False, indent=2)
+            # Atomic merge & write agar tidak menimpa update eksternal yang lebih baru
+            disk_state = {}
+            if os.path.exists(state_json_path):
+                try:
+                    with open(state_json_path, "r", encoding="utf-8") as f_rd:
+                        disk_state = json.load(f_rd)
+                except Exception:
+                    disk_state = {}
+            if not isinstance(disk_state, dict):
+                disk_state = {}
+            now_ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            now_ep = round(time.time(), 4)
+            for k_st, v_st in state_data.items():
+                if not isinstance(v_st, dict):
+                    continue
+                ex = disk_state.get(k_st)
+                if isinstance(ex, dict) and float(ex.get("updated_epoch") or 0) > float(v_st.get("updated_epoch") or 0):
+                    continue
+                v_copy = dict(v_st)
+                v_copy["updated_at"] = now_ts
+                v_copy["updated_epoch"] = now_ep
+                disk_state[k_st] = v_copy
+            tmp_st = f"{state_json_path}.tmp_{os.getpid()}"
+            with open(tmp_st, "w", encoding="utf-8") as f_st:
+                json.dump(disk_state, f_st, ensure_ascii=False, indent=2)
+            os.replace(tmp_st, state_json_path)
         except Exception:
             pass
 
@@ -304,7 +355,7 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     ws_opd['A2'] = f"Publikasi DDA: Menampilkan daftar seluruh OPD / Instansi sumber data ({src_subtitle}) yang memiliki tabel bermasalah (Selisih atau Data Kosong). Total: {len(sorted_instansi_names)} Instansi Sumber Data."
     ws_opd['A2'].font = Font(name=FONT_FAMILY, size=10, italic=True, color="475569")
 
-    opd_headers = ["No", "Instansi / OPD (Source)", "Jumlah Tabel Bermasalah", "Ada Selisih Nilai", "Data Kosong di DB", "Daftar Nomor Tabel", "Tautan Cepat"]
+    opd_headers = ["No", "Instansi / OPD (Source)", "Jumlah Tabel Bermasalah", "Ada Selisih Nilai", "Data Kosong di DB", "Beda Tahun API", "Daftar Nomor Tabel", "Tautan Cepat"]
     opd_header_row = 4
     ws_opd.row_dimensions[opd_header_row].height = 26
     for c_i, h in enumerate(opd_headers, 1):
@@ -318,6 +369,7 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     tot_tbl_all = 0
     tot_diff_all = 0
     tot_empty_all = 0
+    tot_ym_all = 0
 
     # Tentukan baris anchor untuk setiap instansi di sheet Daftar Tabel Bermasalah
     opd_anchor_rows = {}
@@ -337,11 +389,13 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
         cnt_tbl = len(tbl_list)
         cnt_diff = sum(1 for _, (_, s_info, _) in tbl_list if s_info.get("status") == "diff")
         cnt_empty = sum(1 for _, (_, s_info, _) in tbl_list if s_info.get("status") == "api_empty")
+        cnt_ym = sum(1 for _, (_, s_info, _) in tbl_list if s_info.get("status") == "api_year_mismatch")
         t_numbers = ", ".join(t_no for t_no, _ in tbl_list)
 
         tot_tbl_all += cnt_tbl
         tot_diff_all += cnt_diff
         tot_empty_all += cnt_empty
+        tot_ym_all += cnt_ym
 
         ws_opd.row_dimensions[opd_row_ptr].height = 22
         ws_opd.cell(opd_row_ptr, 1, o_idx).alignment = Alignment(horizontal="center", vertical="center")
@@ -369,13 +423,19 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             c_e.font = Font(name=FONT_FAMILY, size=10.5, bold=True, color="D97706")
         c_e.border = BORDER_THIN
 
-        c_tnums = ws_opd.cell(opd_row_ptr, 6, t_numbers)
+        c_ym = ws_opd.cell(opd_row_ptr, 6, cnt_ym if cnt_ym > 0 else "-")
+        c_ym.alignment = Alignment(horizontal="center", vertical="center")
+        if cnt_ym > 0:
+            c_ym.font = Font(name=FONT_FAMILY, size=10.5, bold=True, color="0369A1")
+        c_ym.border = BORDER_THIN
+
+        c_tnums = ws_opd.cell(opd_row_ptr, 7, t_numbers)
         c_tnums.alignment = Alignment(vertical="center", indent=1)
         c_tnums.font = Font(name=FONT_FAMILY, size=9.5, color="334155")
         c_tnums.border = BORDER_THIN
 
         target_row = opd_anchor_rows.get(inst_name, 12)
-        c_link = ws_opd.cell(opd_row_ptr, 7, "Lihat Rincian Tabel ➔")
+        c_link = ws_opd.cell(opd_row_ptr, 8, "Lihat Rincian Tabel ➔")
         c_link.hyperlink = f"#'📋 Daftar Tabel Bermasalah'!A{target_row}"
         c_link.font = Font(name=FONT_FAMILY, size=10, color="2563EB", underline="single", bold=True)
         c_link.alignment = Alignment(horizontal="center", vertical="center")
@@ -392,19 +452,19 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     tot_label.fill = TOTAL_ROW_FILL
     ws_opd.cell(opd_row_ptr, 2).fill = TOTAL_ROW_FILL
 
-    for col_c, val in [(3, tot_tbl_all), (4, tot_diff_all), (5, tot_empty_all)]:
+    for col_c, val in [(3, tot_tbl_all), (4, tot_diff_all), (5, tot_empty_all), (6, tot_ym_all)]:
         c_tot_val = ws_opd.cell(opd_row_ptr, col_c, val)
         c_tot_val.font = TOTAL_ROW_FONT
         c_tot_val.alignment = Alignment(horizontal="center", vertical="center")
         c_tot_val.fill = TOTAL_ROW_FILL
 
-    for col_empty in [6, 7]:
+    for col_empty in [7, 8]:
         c_emp = ws_opd.cell(opd_row_ptr, col_empty, "-")
         c_emp.font = TOTAL_ROW_FONT
         c_emp.alignment = Alignment(horizontal="center", vertical="center")
         c_emp.fill = TOTAL_ROW_FILL
 
-    for c_i in range(1, 8):
+    for c_i in range(1, 9):
         ws_opd.cell(opd_row_ptr, c_i).border = BORDER_THIN
 
     ws_opd.column_dimensions['A'].width = 8
@@ -412,8 +472,9 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     ws_opd.column_dimensions['C'].width = 24
     ws_opd.column_dimensions['D'].width = 18
     ws_opd.column_dimensions['E'].width = 18
-    ws_opd.column_dimensions['F'].width = 40
-    ws_opd.column_dimensions['G'].width = 22
+    ws_opd.column_dimensions['F'].width = 18
+    ws_opd.column_dimensions['G'].width = 40
+    ws_opd.column_dimensions['H'].width = 22
 
     # -------------------------------------------------------------------------
     # SHEET 2: DAFTAR TABEL BERMASALAH (DIKELOMPOKKAN BERDASARKAN SOURCE / OPD)
@@ -428,12 +489,12 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
 
         # Banner Header Instansi / OPD
         ws_idx.row_dimensions[row_ptr].height = 24
-        ws_idx.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=9)
+        ws_idx.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=10)
         c_banner = ws_idx.cell(row_ptr, 1, f"🏛️  {inst_name.upper()} — ({cnt_in_inst} Tabel Bermasalah)")
         c_banner.font = OPD_BANNER_FONT
         c_banner.fill = OPD_BANNER_FILL
         c_banner.alignment = Alignment(vertical="center", indent=1)
-        for col_b in range(1, 10):
+        for col_b in range(1, 11):
             ws_idx.cell(row_ptr, col_b).border = BORDER_THIN
         row_ptr += 1
 
@@ -454,6 +515,9 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
                 except (ValueError, TypeError):
                     diff_cnt = 0
 
+            tbl_years = _collect_result_years(res) if isinstance(res, dict) else []
+            tahun_lbl = ", ".join(tbl_years) if tbl_years else (str(res.get("target_year") or "-") if isinstance(res, dict) else "-")
+
             sheet_title = f"Tabel {clean_no}"[:31]
             if sheet_title in created_sheet_titles:
                 sheet_title = f"{sheet_title[:27]}_{global_t_idx}"
@@ -472,27 +536,36 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
             c_jd.alignment = Alignment(vertical="center", indent=1)
             c_jd.border = BORDER_THIN
 
-            ws_idx.cell(row_ptr, 4, src_label).alignment = Alignment(horizontal="center", vertical="center")
+            ws_idx.cell(row_ptr, 4, tahun_lbl).alignment = Alignment(horizontal="center", vertical="center")
             ws_idx.cell(row_ptr, 4).border = BORDER_THIN
 
-            c_inst = ws_idx.cell(row_ptr, 5, inst_name)
+            ws_idx.cell(row_ptr, 5, src_label).alignment = Alignment(horizontal="center", vertical="center")
+            ws_idx.cell(row_ptr, 5).border = BORDER_THIN
+
+            c_inst = ws_idx.cell(row_ptr, 6, inst_name)
             c_inst.alignment = Alignment(vertical="center", indent=1)
             c_inst.border = BORDER_THIN
 
-            ws_idx.cell(row_ptr, 6, pages).alignment = Alignment(horizontal="center", vertical="center")
-            ws_idx.cell(row_ptr, 6).border = BORDER_THIN
+            ws_idx.cell(row_ptr, 7, pages).alignment = Alignment(horizontal="center", vertical="center")
+            ws_idx.cell(row_ptr, 7).border = BORDER_THIN
 
-            st_lbl = "⚠️ Ada Selisih" if st == "diff" else ("Data Kosong" if st == "api_empty" else st)
-            c_st = ws_idx.cell(row_ptr, 7, st_lbl)
+            st_lbl = (
+                "⚠️ Ada Selisih" if st == "diff" else (
+                    "📅 Beda Tahun API" if st == "api_year_mismatch" else (
+                        "Data Kosong" if st == "api_empty" else ("Hanya di PDF" if st == "pdf_only" else st)
+                    )
+                )
+            )
+            c_st = ws_idx.cell(row_ptr, 8, st_lbl)
             c_st.alignment = Alignment(horizontal="center", vertical="center")
-            c_st.font = Font(name=FONT_FAMILY, size=11, bold=True, color="991B1B")
+            c_st.font = Font(name=FONT_FAMILY, size=11, bold=True, color="0369A1" if st == "api_year_mismatch" else "991B1B")
             c_st.border = BORDER_THIN
 
-            c_cnt = ws_idx.cell(row_ptr, 8, f"{diff_cnt} Data Beda" if diff_cnt > 0 else "-")
+            c_cnt = ws_idx.cell(row_ptr, 9, f"{diff_cnt} Data Beda" if diff_cnt > 0 else "-")
             c_cnt.alignment = Alignment(horizontal="center", vertical="center")
             c_cnt.border = BORDER_THIN
 
-            c_link = ws_idx.cell(row_ptr, 9, f"Buka Sheet {sheet_title}")
+            c_link = ws_idx.cell(row_ptr, 10, f"Buka Sheet {sheet_title}")
             c_link.hyperlink = f"#'{sheet_title}'!A1"
             c_link.font = Font(name=FONT_FAMILY, size=11, color="2563EB", underline="single")
             c_link.alignment = Alignment(horizontal="center", vertical="center")
@@ -507,7 +580,7 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
                     ws_table = wb.create_sheet(title=sheet_title)
                     t_title = res.get("judul_tabel") or judul
                     populate_matrix_sheet(ws_table, clean_no, t_title, res.get("source_type") or src_label, res, instansi=inst_name)
-                elif res.get("is_api_empty"):
+                elif res.get("is_api_empty") or res.get("is_year_unavailable"):
                     ws_table = wb.create_sheet(title=sheet_title)
                     ws_table.row_dimensions[1].height = 26
                     ws_table.cell(1, 1, f"Tabel {clean_no} : {judul}").font = Font(name=FONT_FAMILY, size=12, bold=True, color="0F172A")
@@ -516,12 +589,15 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
                     ws_table.row_dimensions[3].height = 20
                     ws_table.cell(3, 1, f"Instansi / OPD: {inst_name}").font = Font(name=FONT_FAMILY, size=10, bold=True, color="1E3A8A")
                     ws_table.row_dimensions[4].height = 20
-                    ws_table.cell(4, 1, "Status: Data Kosong di Database Sistem").font = Font(name=FONT_FAMILY, size=10, bold=True, color="991B1B")
+                    is_ym = bool(res.get("is_year_unavailable") or res.get("error_kind") == "year_unavailable")
+                    st_sheet_txt = "Status: Tahun Target PDF Belum Tersedia di API (Data API Tersedia untuk Tahun Lain)" if is_ym else "Status: Data Kosong di Database Sistem"
+                    st_ket_txt = f"Keterangan: {res.get('message')}" if (is_ym and res.get("message")) else "Keterangan: Data tabel ini belum diisi di database sumber."
+                    ws_table.cell(4, 1, st_sheet_txt).font = Font(name=FONT_FAMILY, size=10, bold=True, color="0369A1" if is_ym else "991B1B")
                     ws_table.row_dimensions[5].height = 20
                     ws_table.cell(5, 1, "Petunjuk Warna:  [Merah Muda] Selisih Nilai   |   [Kuning] Hanya Ada di PDF   |   [Putih] Cocok 100%").font = Font(name=FONT_FAMILY, size=9.5, italic=True, color="334155")
                     ws_table.row_dimensions[7].height = 22
-                    ws_table.cell(7, 1, "Keterangan: Data tabel ini belum diisi di database sumber.").font = Font(name=FONT_FAMILY, size=11, italic=True)
-                    ws_table.column_dimensions['A'].width = 35
+                    ws_table.cell(7, 1, st_ket_txt).font = Font(name=FONT_FAMILY, size=11, italic=True)
+                    ws_table.column_dimensions['A'].width = 45
             except Exception:
                 pass
 
@@ -532,12 +608,13 @@ def export_global_diffs_to_excel(pdf_path, matched_json_path, db_json_path, stat
     ws_idx.column_dimensions['A'].width = 14
     ws_idx.column_dimensions['B'].width = 16
     ws_idx.column_dimensions['C'].width = 44
-    ws_idx.column_dimensions['D'].width = 18
-    ws_idx.column_dimensions['E'].width = 38
-    ws_idx.column_dimensions['F'].width = 14
-    ws_idx.column_dimensions['G'].width = 18
+    ws_idx.column_dimensions['D'].width = 16
+    ws_idx.column_dimensions['E'].width = 18
+    ws_idx.column_dimensions['F'].width = 38
+    ws_idx.column_dimensions['G'].width = 14
     ws_idx.column_dimensions['H'].width = 18
-    ws_idx.column_dimensions['I'].width = 22
+    ws_idx.column_dimensions['I'].width = 18
+    ws_idx.column_dimensions['J'].width = 22
 
     wb.remove(default_sheet)
     
