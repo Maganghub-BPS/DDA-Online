@@ -33,10 +33,19 @@ if (empty($data)) {
                                                 <i class="bi bi-boxes me-1"></i> TABEL DINAMIS
                                             </a>
                                         <?php elseif ($is_portal): ?>
+                                            <?php
+                                            $display_api_label = $api_uuid;
+                                            if ($display_api_label === '' && preg_match('/[?&]id=([^&]+)/i', $api_link, $mApiId)) {
+                                                $display_api_label = trim(urldecode($mApiId[1]));
+                                            }
+                                            if ($display_api_label === '') {
+                                                $display_api_label = str_replace('index.php/admin/', '', $api_link);
+                                            }
+                                            ?>
                                             <span class="badge badge-sm bg-primary-soft text-primary border-primary-soft align-self-start fw-bold" style="font-size: 10px;">
                                                 <i class="bi bi-cloud-check me-1"></i> API
                                             </span>
-                                            <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 190px;" title="<?php echo esc($api_uuid ?: $api_link); ?>"><?php echo esc($api_uuid ?: str_replace('index.php/admin/', '', $api_link)); ?></code>
+                                            <code class="text-xxs text-secondary text-truncate d-block mt-1" style="max-width: 190px;" title="<?php echo esc($api_link ?: $api_uuid); ?>"><?php echo esc($display_api_label); ?></code>
                                         <?php elseif ($is_sheet): ?>
                                             <a href="<?php echo esc($api_link); ?>" target="_blank" class="badge badge-sm bg-success-soft text-success border-success-soft align-self-start fw-bold text-decoration-none" style="font-size: 10px;" title="Buka Spreadsheet">
                                                 <i class="bi bi-file-spreadsheet me-1"></i> SPREADSHEET
