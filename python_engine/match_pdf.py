@@ -18,7 +18,10 @@ if sys.platform == "win32":
         pass
 
 from datetime import datetime
-import pymupdf
+try:
+    import pymupdf
+except ImportError:
+    import fitz as pymupdf
 import numpy as np
 from rapidfuzz import fuzz
 from scipy.optimize import linear_sum_assignment

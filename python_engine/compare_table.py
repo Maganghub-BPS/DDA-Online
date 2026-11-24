@@ -396,7 +396,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     # Additive Fallback: Self-Healing Spatial Page Finder if pages still empty
     if not target_pages and os.path.exists(pdf_path):
         try:
-            import pymupdf
+            try:
+                import pymupdf
+            except ImportError:
+                import fitz as pymupdf
             doc = pymupdf.open(pdf_path)
             t_clean = clean_num(target_table)
             pat_sp = re.compile(rf'(?:(?:Tabel|Table|Lanjutan\s+Tabel|Continued\s+Table)\s*{re.escape(t_clean)}\b|^\s*{re.escape(t_clean)}\s*[\t ])', re.IGNORECASE | re.MULTILINE)
@@ -513,7 +516,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         valid_pages = []
         pymupdf_doc = None
         try:
-            import pymupdf as _pm_spill
+            try:
+                import pymupdf as _pm_spill
+            except ImportError:
+                import fitz as _pm_spill
             if os.path.exists(pdf_path):
                 pymupdf_doc = _pm_spill.open(pdf_path)
         except Exception:
@@ -1000,7 +1006,25 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 elig_ty_title = [y for y in title_years if int(y) <= (pub_year - 1)]
                 if elig_ty_title:
                     title_years = elig_ty_title
-            target_year = title_years[-1] if title_years else (api_year if 'api_year' in locals() and api_year else None)
+
+            # Ekstrak tahun tercetak langsung dari judul PDF untuk referensi murni sisi PDF (tidak menyontek tahun lama DB)
+            _pdf_title_src = str(pdf_index_title or '')
+            if not _pdf_title_src and rows:
+                _pdf_title_src = ' '.join(str(c) for r in rows[:4] if isinstance(r, list) for c in r if c and is_title_row(r))
+            _m_acad_pdf = re.findall(r'\b((?:19|20)\d{2}/(?:19|20)\d{2})\b', _pdf_title_src)
+            _pdf_title_yrs = _extract_header_years(_pdf_title_src)
+            if pub_year and _pdf_title_yrs:
+                _elig_pdf_ty = [y for y in _pdf_title_yrs if int(y) <= (pub_year - 1)]
+                if _elig_pdf_ty:
+                    _pdf_title_yrs = _elig_pdf_ty
+            if _m_acad_pdf:
+                results["pdf_target_year"] = _m_acad_pdf[-1]
+            elif _pdf_title_yrs:
+                results["pdf_target_year"] = _pdf_title_yrs[-1]
+            elif pub_year:
+                results["pdf_target_year"] = str(pub_year - 1)
+
+            target_year = title_years[-1] if title_years else (_pdf_title_yrs[-1] if _pdf_title_yrs else (api_year if 'api_year' in locals() and api_year else None))
             if not target_year:
                 max_dy_str = str(pub_year - 1) if pub_year else None
                 coord_years = [str(c.get('t')) for c in cell_coords.values() if isinstance(c, dict) and c.get('t')]
@@ -1057,14 +1081,33 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
 
             active_cat_cols = detect_active_data_cols(clean_db_rows)
 
-            def get_gender_sec(txt, r):
-                all_txt = txt.lower()
+            def get_gender_sec(txt, r, cur_sec_val="", has_tpl_coord=False):
+                if has_tpl_coord:
+                    return None
                 if any(parse_num(c, is_pdf=True) is not None for c in r if str(c).strip()):
                     return None
+                non_empty_cells = [str(c).strip() for c in r if c is not None and str(c).strip() and str(c).strip().lower() != 'none']
+                if not non_empty_cells:
+                    return None
+                if len(non_empty_cells) >= 2 and any(c in ('-', '–', '—', '−', '...', '…') for c in non_empty_cells[1:]):
+                    return None
+                all_txt = txt.lower()
                 if re.search(r'\b(kabupaten|regency)\b', all_txt) and not re.search(r'\b(kota|municipality)\b', all_txt):
                     return "Kabupaten"
                 elif re.search(r'\b(kota|municipality)\b', all_txt) and not re.search(r'\b(kabupaten|regency)\b', all_txt):
                     return "Kota"
+                if len(non_empty_cells) == 1:
+                    clean_lbl = clean_cat_display(non_empty_cells[0]).lower().strip()
+                    clean_lbl = re.sub(r'^(?:\d+|[a-z]|[ivxlcdm]+)[\.\)]\s*', '', clean_lbl).strip()
+                    if clean_lbl in ('perkotaan', 'urban', 'daerah perkotaan'):
+                        return "Perkotaan"
+                    if clean_lbl in ('perdesaan', 'pedesaan', 'rural', 'daerah perdesaan', 'daerah pedesaan'):
+                        return "Perdesaan"
+                    if clean_lbl in ('perkotaan + perdesaan', 'perkotaan dan perdesaan', 'perdesaan + perkotaan'):
+                        return "Jumlah"
+                    if clean_lbl in ('jumlah', 'total') and cur_sec_val in ("Laki-Laki", "Perempuan", "Laki-Laki + Perempuan", "Perkotaan", "Perdesaan"):
+                        return "Jumlah"
+                    all_txt = clean_lbl or all_txt
                 has_male = bool(re.search(r'\b(laki[\s\-_]?laki|lakilaki|male)\b', all_txt))
                 has_female = bool(re.search(r'\b(perempuan|female)\b', all_txt))
                 if has_male and has_female:
@@ -1173,7 +1216,13 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     if is_pdf and any(k in all_txt for k in ['jenis usaha', 'satuan']) and re.search(r'\b(?:19|20)\d{2}\b', all_txt):
                         continue
 
-                    sec = get_gender_sec(all_txt, r)
+                    _row_has_tpl_coord = False
+                    if _tpl is not None and r_idx < len(_tpl) and isinstance(_tpl[r_idx], list):
+                        _row_has_tpl_coord = any(
+                            isinstance(_tpl[r_idx][c], (int, float)) and int(round(_tpl[r_idx][c])) <= -900001
+                            for c in (use_cols or range(1, len(_tpl[r_idx]))) if c < len(_tpl[r_idx])
+                        )
+                    sec = get_gender_sec(all_txt, r, cur_sec_val=cur_sec, has_tpl_coord=_row_has_tpl_coord)
                     if sec:
                         cur_sec = sec
                         raw_items.append({'kind': 'sec'})
@@ -1186,11 +1235,20 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     row_coords = []
                     if not is_pdf and use_cols:
                         first_col = use_cols[0]
-                        if first_col > 1:
+                        db_attr_cols = set()
+                        if first_col > 1 and data_list and isinstance(data_list[0], list):
                             c0 = str(r[0]).strip()
                             if re.match(r'^\d+(?:\.\d+)*\.?$', c0) and not re.match(r'^(?:19|20)\d{2}', c0):
                                 code = c0.rstrip('.')
-                        _raw_label_parts = [str(c).strip() for c in r[:first_col] if str(c).strip() and str(c).strip().lower() != 'none']
+                            for _ci in range(1, first_col):
+                                if _ci < len(data_list[0]) and data_list[0][_ci] is not None:
+                                    _htxt = str(data_list[0][_ci]).strip().lower()
+                                    if bool(re.search(r'\b(satuan|unit|jenjang|akreditasi)\b', _htxt)) and not bool(re.search(r'\b(jumlah|banyaknya|total|nilai|pendidikan|kapal|kerja|usaha|rumah)\b', _htxt)):
+                                        db_attr_cols.add(_ci)
+                        _raw_label_parts = [
+                            str(r[_ci]).strip() for _ci in range(first_col)
+                            if _ci not in db_attr_cols and _ci < len(r) and r[_ci] is not None and str(r[_ci]).strip() and str(r[_ci]).strip().lower() != 'none'
+                        ]
                         _has_num_prefix = bool(code) or any(re.match(r'^\d+[\.\)]\s+\S', lc) for lc in _raw_label_parts)
                         label_cells = [re.sub(r'^\d+\.\s+', '', lc) for lc in _raw_label_parts]
                         raw_vals = [
@@ -1688,6 +1746,14 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 for idx_s, s in enumerate(s_recs):
                     s['id'] = idx_s
 
+                _has_gender_abbrev_ctx = (
+                    any(any(k in str(h).lower() for k in ('jenis kelamin', 'kelamin', 'sex', 'gender')) for h in headers)
+                    or (
+                        any(re.fullmatch(r'l|lk', p.strip().lower()) for h in headers for p in re.split(r'\s*(?:\|\||[-–—/])\s*', str(h)))
+                        and any(re.fullmatch(r'p|pr', p.strip().lower()) for h in headers for p in re.split(r'\s*(?:\|\||[-–—/])\s*', str(h)))
+                    )
+                )
+
                 def _norm_hdr(raw_h):
                     h = str(raw_h).lower().replace('-', ' ').replace('–', ' ').replace('—', ' ')
                     h = re.sub(r'(?<=\d)(?=[ds]\d)', ' ', h)
@@ -1700,6 +1766,16 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     h = re.sub(r'\bkh?ongh?uch?u\b', 'khonghucu', h)
                     h = re.sub(r'\biuphhk\s*(ha|ht)\b', r'iuphhk \1', h)
                     tokens = set(re.findall(r'\b\w+\b', h))
+                    if _has_gender_abbrev_ctx:
+                        raw_segs = [seg.strip().lower() for seg in re.split(r'\s*(?:\|\||[-–—/])\s*', str(raw_h)) if seg.strip()]
+                        if any(seg in ('l', 'lk') for seg in raw_segs) and '+' not in str(raw_h):
+                            tokens.discard('l')
+                            tokens.discard('lk')
+                            tokens.add('laki')
+                        elif any(seg in ('p', 'pr') for seg in raw_segs) and '+' not in str(raw_h):
+                            tokens.discard('p')
+                            tokens.discard('pr')
+                            tokens.add('perempuan')
                     if '+' in str(raw_h) or any(k in str(raw_h).lower() for k in ['laki+perempuan', 'laki laki+ perempuan', 'pria+wanita', 'l+p', 'wni+wna', 'negeri+swasta']):
                         tokens.add('jumlah')
                         tokens.add('total')
@@ -2672,7 +2748,19 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                             idx_freq = Counter(idx for p in reg_slot_rows for idx, _ in p)
                             min_freq = max(2, int(len(reg_slot_rows) * 0.25))
                             cand_cols = sorted(ci for ci, cnt in idx_freq.items() if cnt >= min_freq)
-                            if len(cand_cols) == modal_n:
+                            bps_r_idx, bps_r_cells, bps_r_type = find_bps_numbering_row(data_list)
+                            bps_data_cols = None
+                            if bps_r_idx >= 0 and bps_r_type == 'bps' and len(data_list[bps_r_idx]) == modal_rlen:
+                                _bdc = sorted(
+                                    ci for ci, lbl in bps_r_cells
+                                    if re.search(r'\d+', str(lbl)) and int(re.search(r'\d+', str(lbl)).group(0)) >= 2
+                                )
+                                observed_cols = {idx for p in reg_slot_rows for idx, _ in p}
+                                if _bdc and observed_cols.issubset(set(_bdc)) and any(len(p) == len(_bdc) for p in reg_slot_rows):
+                                    bps_data_cols = _bdc
+                            if bps_data_cols and len(bps_data_cols) >= len(cand_cols):
+                                canonical_pdf_cols = bps_data_cols
+                            elif len(cand_cols) == modal_n:
                                 canonical_pdf_cols = cand_cols
                     canonical_set = set(canonical_pdf_cols) if canonical_pdf_cols else None
                     for w_s, rlen, pairs in pdf_row_slots:
@@ -3337,19 +3425,25 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 filtered_diffs.append(_d)
         results["diffs"] = filtered_diffs
 
-    def _extract_item_year(it):
+    def _extract_item_year(it, bucket_name=""):
         """Ekstrak tahun eksplisit (mendukung tahun ajaran 2024/2025 maupun tahun tunggal 2025)."""
         yr_pat = re.compile(r'\b((?:19|20)\d{2}(?:/(?:19|20)\d{2})?)\b')
-        for fld in ('metric', 'src_header', 'pdf_header', 'wilayah', 'section'):
+        flds = ('metric', 'pdf_header', 'wilayah', 'section') if bucket_name == 'pdf_only' else ('metric', 'src_header', 'pdf_header', 'wilayah', 'section')
+        for fld in flds:
             txt_f = str(it.get(fld) or '')
             m_y = yr_pat.search(txt_f)
             if m_y:
                 return m_y.group(1)
-        co = it.get('coord')
-        if isinstance(co, dict):
-            t_co = co.get('tahun_data')
-            if t_co and str(t_co).isdigit() and 1900 <= int(t_co) <= 2100:
-                return str(t_co)
+        if bucket_name != 'pdf_only':
+            co = it.get('coord')
+            if isinstance(co, dict):
+                t_co = co.get('tahun_data')
+                if t_co and str(t_co).isdigit() and 1900 <= int(t_co) <= 2100:
+                    return str(t_co)
+        else:
+            pty = results.get('pdf_target_year') or (str(pub_year - 1) if pub_year else None)
+            if pty and str(pty).strip():
+                return str(pty).strip()
         ty = results.get('target_year')
         if ty and str(ty).strip():
             return str(ty).strip()
@@ -3416,7 +3510,7 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     for _bucket_key in ("matches", "diffs", "pdf_only"):
         for _it in results.get(_bucket_key, []):
             if isinstance(_it, dict):
-                _yr = _extract_item_year(_it)
+                _yr = _extract_item_year(_it, _bucket_key)
                 _kh = _build_item_kolom_hierarki(_it, _yr)
                 _it["tahun"] = _yr
                 _it["kolom_hierarki"] = _kh

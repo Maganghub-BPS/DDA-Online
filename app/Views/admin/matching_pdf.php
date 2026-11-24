@@ -560,7 +560,7 @@
     let masterPdfVersion = <?= json_encode($master_data['pdf_mtime'] ?? time()) ?>;
     let hasMasterInitial = <?= !empty($has_master) ? 'true' : 'false' ?>;
     let isBatchRunningInitial = <?= !empty($is_batch_running) ? 'true' : 'false' ?>;
-    const ALLOW_PDF_SYNC_TO_DB = <?= !isset($allow_pdf_sync_to_db) || !empty($allow_pdf_sync_to_db) ? 'true' : 'false' ?>;
+    const ALLOW_PDF_SYNC_TO_DB = <?= !empty($allow_pdf_sync_to_db) ? 'true' : 'false' ?>;
     window.currentMatchedTables = <?= json_encode($master_data['matched_in_pdf'] ?? $master_data['matched_tables'] ?? []) ?>;
     window.batchStatusMap = <?= json_encode($batch_status ?? []) ?>;
 
@@ -767,10 +767,12 @@
             let unconfWithData = ['2.4.3', '4.2.4', '4.2.20', '4.2.33', '4.3.12', '4.3.13', '4.3.14', '4.5.11', '4.6.9', '5.1.6', '10.3.21'];
             let isUnconfWithData = (hasCfg === 0 && unconfWithData.includes(item.nomor_tabel));
             let autoLayoutBtn = '';
-            if (hasCfg === 1) {
-                autoLayoutBtn = `<button onclick="openAutoLayoutModal('${safeTnum}', ${item.id_db || 0})" class="btn btn-xs btn-outline-info rounded-pill px-2 py-1 shadow-xs" title="Lihat / Sesuaikan Layout Kolom API" style="font-size:0.75rem;"><i class="bi bi-sliders me-1"></i>Layout</button>`;
-            } else if (isUnconfWithData) {
-                autoLayoutBtn = `<button onclick="openAutoLayoutModal('${safeTnum}', ${item.id_db || 0})" class="btn btn-xs btn-warning text-dark fw-bold rounded-pill px-2 py-1 shadow-xs" title="⚡ Auto-Layout: Format kolom & pivot otomatis sesuai standar PDF" style="font-size:0.75rem;"><i class="bi bi-magic me-1"></i>Auto-Layout</button>`;
+            if (ALLOW_PDF_SYNC_TO_DB) {
+                if (hasCfg === 1) {
+                    autoLayoutBtn = `<button onclick="openAutoLayoutModal('${safeTnum}', ${item.id_db || 0})" class="btn btn-xs btn-outline-info rounded-pill px-2 py-1 shadow-xs" title="Lihat / Sesuaikan Layout Kolom API" style="font-size:0.75rem;"><i class="bi bi-sliders me-1"></i>Layout</button>`;
+                } else if (isUnconfWithData) {
+                    autoLayoutBtn = `<button onclick="openAutoLayoutModal('${safeTnum}', ${item.id_db || 0})" class="btn btn-xs btn-warning text-dark fw-bold rounded-pill px-2 py-1 shadow-xs" title="⚡ Auto-Layout: Format kolom & pivot otomatis sesuai standar PDF" style="font-size:0.75rem;"><i class="bi bi-magic me-1"></i>Auto-Layout</button>`;
+                }
             }
             let openPortalBtn = `<a href="${portalUrl}" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 shadow-xs" title="Buka Halaman View Portal Tabel" style="font-size:0.75rem;"><i class="bi bi-box-arrow-up-right"></i></a>`;
             apiBtns = `${autoLayoutBtn} ${openPortalBtn}`;
@@ -963,14 +965,15 @@
                 ? `<a href="<?= base_url('admin/generator_tabel') ?>/${item.id_db}" target="_blank" class="btn btn-xs btn-outline-secondary fw-semibold rounded-pill px-2 py-1 shadow-xs" style="font-size:0.72rem;" title="Buka Generator Tabel Dinamis (Konfigurasi Manual)"><i class="bi bi-sliders2-vertical me-1"></i>Manual</a>`
                 : `<a href="<?= base_url('admin/master_tabel') ?>?q=${encodeURIComponent(item.nomor_tabel)}" target="_blank" class="btn btn-xs btn-outline-secondary fw-semibold rounded-pill px-2 py-1 shadow-xs" style="font-size:0.72rem;" title="Cari di Master Tabel"><i class="bi bi-plus-circle me-1"></i>Master</a>`;
 
-            let actionGroup = `
-                <div class="d-flex align-items-center gap-1 flex-shrink-0 flex-wrap justify-content-end">
+            let autoCfgBtns = ALLOW_PDF_SYNC_TO_DB ? `
                     <button type="button" onclick="autoConfigFromPdf('${safeNo}', 0, this)" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 py-1 shadow-xs" style="font-size:0.74rem;" title="Deteksi otomatis baris, kolom & periode dari PDF lalu pindahkan ke Data Kosong">
                         <i class="bi bi-Cpu-fill bi-magic me-1"></i>Auto-Konfigurasi PDF
                     </button>
                     <button type="button" onclick="autoConfigFromPdf('${safeNo}', 1, this)" class="btn btn-sm btn-success text-white fw-bold rounded-pill px-3 py-1 shadow-xs" style="font-size:0.74rem;" title="Konfigurasi struktur otomatis dari PDF sekaligus langsung isi angka ke Tabel Dinamis">
                         <i class="bi bi-lightning-charge-fill me-1"></i>Auto-Konfig + Isi Data
-                    </button>
+                    </button>` : '';
+            let actionGroup = `
+                <div class="d-flex align-items-center gap-1 flex-shrink-0 flex-wrap justify-content-end">${autoCfgBtns}
                     ${manualBtn}
                 </div>`;
 
@@ -1002,6 +1005,7 @@
         }
     });
     function autoConfigFromPdf(nomorTabel, autoFill, btnEl) {
+        if (!ALLOW_PDF_SYNC_TO_DB) return;
         let item = (window.currentUnregTables || []).find(u => u.nomor_tabel === nomorTabel);
         if (!item) return;
 
@@ -2883,6 +2887,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
     let currentAutoLayoutData = null;
 
     function openAutoLayoutModal(nomor_tabel, id_db) {
+        if (!ALLOW_PDF_SYNC_TO_DB) return;
         let modalEl = document.getElementById('modalAutoLayoutApi');
         let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
 
@@ -3163,6 +3168,7 @@ ${getPdfSplitPaneHtml(pagesLabel)}
     }
 
     function saveAutoLayoutConfig() {
+        if (!ALLOW_PDF_SYNC_TO_DB) return;
         let config = getActiveAutoLayoutConfig();
         if (!config || !currentAutoLayoutData) return;
 

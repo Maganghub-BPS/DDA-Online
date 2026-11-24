@@ -2034,10 +2034,10 @@ class M_tabeldinamis extends Model
 
         // Resolusi tingkat kolom aktif
         $maxDepth = !empty($kolomStructure['max_depth']) ? (int)$kolomStructure['max_depth'] : (!empty($kolomStructure['has_groups']) ? 2 : 1);
-        $activeLevels = ($maxDepth === 3) ? [1, 2, 3] : (($maxDepth === 2) ? [1, 2] : [1]);
+        $activeLevels = range(1, max(1, $maxDepth));
         if (!empty($tingkatKolom) && $tingkatKolom !== 'semua') {
             if ($tingkatKolom === 'sub_bab') {
-                $activeLevels = ($maxDepth === 3) ? [2, 3] : [2];
+                $activeLevels = ($maxDepth >= 3) ? range(2, $maxDepth) : [2];
             } elseif ($tingkatKolom === 'bab') {
                 $activeLevels = [1];
             } else {
