@@ -48,6 +48,7 @@ from normalizer import (
     is_english_line,
     is_safe_fuzzy_match,
     match_party_name,
+    extract_pdf_years_expanded,
 )
 from table_profiler import (
     find_bps_numbering_row,
@@ -654,10 +655,16 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if elig_api_y:
                     api_years = elig_api_y
             if rows:
-                pdf_hdr_txt = " ".join(str(c) for r in rows[:20] if isinstance(r, list) for c in r if c)
-                pdf_years_set.update(re.findall(r'\b(20\d{2})\b', pdf_hdr_txt))
-            if not pdf_years_set and pdf_index_title:
-                pdf_years_set.update(re.findall(r'\b(20\d{2})\b', str(pdf_index_title)))
+                pdf_hdr_txt = "\n".join(
+                    str(c) for r in rows[:30]
+                    if isinstance(r, list) and not is_title_row(r)
+                    for c in r if c is not None
+                )
+                pdf_years_set.update(extract_pdf_years_expanded(pdf_hdr_txt, pub_year=pub_year))
+            if pdf_index_title:
+                title_yrs_exp = extract_pdf_years_expanded(str(pdf_index_title), pub_year=pub_year)
+                if not pdf_years_set or len(title_yrs_exp) > len(pdf_years_set):
+                    pdf_years_set.update(title_yrs_exp)
             common_api_pdf_y = sorted(set(api_years).intersection(pdf_years_set))
             if common_api_pdf_y:
                 api_year = common_api_pdf_y[-1]
@@ -1764,7 +1771,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     h = re.sub(r'\bbiia\b', 'biia', h)
                     h = re.sub(r'\bbudha\b', 'buddha', h)
                     h = re.sub(r'\bkh?ongh?uch?u\b', 'khonghucu', h)
+                    h = re.sub(r'\bolah\s+raga\b', 'olahraga', h)
                     h = re.sub(r'\biuphhk\s*(ha|ht)\b', r'iuphhk \1', h)
+                    h = re.sub(r'\b([a-z]{4,})[1-9]+\b', r'\1', h)
                     tokens = set(re.findall(r'\b\w+\b', h))
                     if _has_gender_abbrev_ctx:
                         raw_segs = [seg.strip().lower() for seg in re.split(r'\s*(?:\|\||[-–—/])\s*', str(raw_h)) if seg.strip()]
@@ -3024,17 +3033,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     results["id_db"] = target_info.get("id_db")
     results["id_indikator"] = target_info.get("id_indikator")
 
-    # Guard lintas-tahun untuk API Satudata (termasuk persiapan tahun depan 2027+ dan kasus seperti 2.4.9):
-    # Jika sumber adalah API Satudata dan tahun data di API belum memiliki irisan dengan tahun yang tercetak di PDF
-    # (misal PDF 2027 meminta data 2026 namun API baru sampai 2025, atau PDF mencetak 2023-2024 namun API hanya 2025),
-    # jangan tampilkan hasil membingungkan (0 cocok / selisih palsu lintas tahun), melainkan laporkan status API tahun terkait belum tersedia.
+    # Guard lintas-tahun untuk API Satudata:
+    # Status Beda Tahun (year_unavailable) HANYA muncul bila 0% tahun yang tercetak di PDF beririsan
+    # dengan tahun yang tersedia di API (misal PDF 2023-2024 vs API cuma 2025, atau PDF 2025 vs API cuma 2026).
+    # Selama minimal 1 tahun beririsan (misal PDF 2021-2025 dengan 2025 kosong, dan API punya 2021-2024),
+    # sistem WAJIB menjalankan komparasi penuh per data dan per tahun tanpa memvonis Beda Tahun!
     if not is_dynamic and source_label == "API Satudata" and 'api_all_years' in locals() and api_all_years:
         _pdf_yrs_chk = sorted(pdf_years_set) if ('pdf_years_set' in locals() and pdf_years_set) else []
         _max_dy_chk = (pub_year - 1) if pub_year else None
         _elig_api_chk = [y for y in api_all_years if y.isdigit() and (_max_dy_chk is None or int(y) <= _max_dy_chk)]
         _common_chk = set(_elig_api_chk).intersection(set(_pdf_yrs_chk))
         if _pdf_yrs_chk and not _common_chk:
-            if len(results["matches"]) == 0:
+            if len(results["matches"]) == 0 or len(results["diffs"]) > len(results["matches"]):
                 _req_y_str = ", ".join(_pdf_yrs_chk)
                 _avail_y_str = ", ".join(_elig_api_chk or api_all_years)
                 return {
@@ -3045,20 +3055,6 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     "is_year_unavailable": True,
                     "error_kind": "year_unavailable",
                     "requested_years": _pdf_yrs_chk,
-                    "available_years": _elig_api_chk or api_all_years,
-                    "id_db": target_info.get("id_db"),
-                    "pages": target_pages or []
-                }
-            elif _max_dy_chk and str(_max_dy_chk) in _pdf_yrs_chk and str(_max_dy_chk) not in _elig_api_chk and len(results["diffs"]) > len(results["matches"]):
-                _avail_y_str = ", ".join(_elig_api_chk or api_all_years)
-                return {
-                    "status": "error",
-                    "source_type": "API Satudata",
-                    "message": f"Data API untuk Tahun {_max_dy_chk} belum diisi di Portal Satu Data (data terakhir di API: Tahun {_avail_y_str})",
-                    "is_api_empty": True,
-                    "is_year_unavailable": True,
-                    "error_kind": "year_unavailable",
-                    "requested_years": [str(_max_dy_chk)],
                     "available_years": _elig_api_chk or api_all_years,
                     "id_db": target_info.get("id_db"),
                     "pages": target_pages or []

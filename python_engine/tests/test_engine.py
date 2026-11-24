@@ -2487,6 +2487,119 @@ class TestGenericRegressionAndSystemicFixes(unittest.TestCase):
         self.assertEqual(len(res_4120["pdf_only"]), 1)
         self.assertEqual(res_4120["pdf_only"][0]["tahun"], "2025")
 
+    def test_smart_pdf_year_expansion_and_api_multi_year_matrix(self):
+        import json
+        import os
+        import tempfile
+        from unittest.mock import patch
+        import compare_table
+        import match_pdf
+        import normalizer
+        # 1. Ekspansi rentang tahun, footnote tahun, dan pembersih noise sampul buku
+        yrs = normalizer.extract_pdf_years_expanded(
+            "Provinsi Jawa Tengah Dalam Angka 2026 | Tabel 2.4.10 Realisasi, 2021–2024 dan 2024r, 2023¹",
+            pub_year=2026,
+        )
+        self.assertEqual(yrs, {"2021", "2022", "2023", "2024"})
+        self.assertEqual(normalizer.clean_header_text("Target1\nTarget1"), "Target")
+        self.assertEqual(normalizer.clean_header_text("Realisasi2\nRealization2"), "Realisasi")
+        self.assertEqual(normalizer.clean_header_text("D3"), "D3")
+        self.assertEqual(normalizer.clean_header_text("S1"), "S1")
+
+        # 2. Multi-Year API Regional (2021-2024 terisi di API, 2025 kosong di PDF & API):
+        #    Seluruh 4 tahun (2021..2024) wajib dikomparasi penuh (bukan cuma 2024, bukan Beda Tahun!)
+        pdf_multi_reg = [
+            ["Kabupaten/Kota\nRegency/Municipality", None, "2021", "2022", "2023*", "2024r", "2025"],
+            ["(1)", None, "(2)", "(3)", "(4)", "(5)", "(6)"],
+            ["Kabupaten/Regency", None, "", "", "", "", ""],
+            ["1.", "Cilacap", "24", "24", "24", "24", "–"],
+            ["2.", "Banyumas", "27", "27", "27", "27", "–"],
+            ["3.", "Purbalingga", "18", "18", "18", "18", "–"],
+            ["4.", "Banjarnegara", "20", "20", "20", "20", "–"],
+            ["5.", "Kebumen", "26", "26", "26", "26", "–"],
+        ]
+        api_multi_reg = []
+        for yr in ("2021", "2022", "2023", "2024"):
+            for kd, nm, val in [
+                ("33.01", "Kab. Cilacap", 24),
+                ("33.02", "Kab. Banyumas", 27),
+                ("33.03", "Kab. Purbalingga", 18),
+                ("33.04", "Kab. Banjarnegara", 20),
+                ("33.05", "Kab. Kebumen", 26),
+            ]:
+                api_multi_reg.append({"tahun_data": yr, "kode_wilayah": kd, "nama_wilayah": nm, "jumlah_kecamatan": val})
+
+        p_api_multi = [{
+            "id_db": "9901",
+            "nomor_tabel": "2.1.1",
+            "judul_tabel": "Jumlah Kecamatan Menurut Kabupaten/Kota, Tahunan",
+            "judul_pdf": "Jumlah Kecamatan Menurut Kabupaten/Kota di Provinsi Jawa Tengah, 2021–2025",
+            "source_type": "api",
+            "is_dynamic": 0,
+            "link_tabel": "index.php/admin/view_portal_tabel?id=509",
+            "config_tabel": json.dumps({
+                "columns": [
+                    {"key": "tahun_data", "label_id": "tahun_data", "visible": True, "format": "number"},
+                    {"key": "nama_wilayah", "label_id": "nama_wilayah", "visible": True, "format": "text"},
+                    {"key": "jumlah_kecamatan", "label_id": "Jumlah Kecamatan", "visible": True, "format": "number"},
+                ]
+            }),
+        }]
+        idx_api_multi = {"2.1.1": {"nomor_tabel": "2.1.1", "id_db": "9901", "pages": [101], "similarity": 100, "display_title": "Jumlah Kecamatan, 2021–2025"}}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
+            json.dump(p_api_multi, tf)
+            f_api_multi = tf.name
+        try:
+            with patch.object(compare_table, "fetch_data_from_link", return_value=api_multi_reg), \
+                 patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_multi_reg})), \
+                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_multi_reg), \
+                 patch.object(match_pdf, "detect_pdf_publication_year", return_value=2026):
+                res_multi = compare_table.compare_head_to_head("dda_master_2026.pdf", "2.1.1", f_api_multi, id_db="9901", preloaded_db_tables=p_api_multi, preloaded_index=idx_api_multi)
+        finally:
+            os.remove(f_api_multi)
+
+        self.assertEqual(res_multi["status"], "success")
+        # 5 wilayah x 4 tahun (2021..2024) = 20 sel cocok penuh!
+        self.assertEqual(len(res_multi["matches"]), 20)
+        self.assertEqual(len(res_multi["diffs"]), 0)
+
+        # 3. Jika 0% tahun beririsan (PDF 2023-2024 vs API cuma 2025), barulah wajib Beda Tahun
+        pdf_disjoint = [
+            ["Kabupaten/Kota", None, "2023", "2024"],
+            ["(1)", None, "(2)", "(3)"],
+            ["1.", "Cilacap", "100", "200"],
+            ["2.", "Banyumas", "150", "250"],
+            ["3.", "Purbalingga", "80", "90"],
+        ]
+        api_only_2025 = [
+            {"tahun_data": "2025", "kode_wilayah": "33.01", "nama_wilayah": "Kab. Cilacap", "pajak": 999},
+            {"tahun_data": "2025", "kode_wilayah": "33.02", "nama_wilayah": "Kab. Banyumas", "pajak": 888},
+            {"tahun_data": "2025", "kode_wilayah": "33.03", "nama_wilayah": "Kab. Purbalingga", "pajak": 777},
+        ]
+        p_disjoint = [{
+            "id_db": "9902",
+            "nomor_tabel": "2.4.9",
+            "judul_tabel": "Realisasi Pajak Daerah",
+            "judul_pdf": "Realisasi Pajak Daerah, 2023 dan 2024",
+            "source_type": "api",
+            "is_dynamic": 0,
+            "link_tabel": "index.php/admin/view_portal_tabel?id=561",
+        }]
+        idx_disjoint = {"2.4.9": {"nomor_tabel": "2.4.9", "id_db": "9902", "pages": [170], "similarity": 100, "display_title": "Realisasi Pajak Daerah, 2023 dan 2024"}}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
+            json.dump(p_disjoint, tf)
+            f_disj = tf.name
+        try:
+            with patch.object(compare_table, "fetch_data_from_link", return_value=api_only_2025), \
+                 patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_disjoint})), \
+                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_disjoint), \
+                 patch.object(match_pdf, "detect_pdf_publication_year", return_value=2026):
+                res_disj = compare_table.compare_head_to_head("dda_master_2026.pdf", "2.4.9", f_disj, id_db="9902", preloaded_db_tables=p_disjoint, preloaded_index=idx_disjoint)
+        finally:
+            os.remove(f_disj)
+        self.assertEqual(res_disj["status"], "error")
+        self.assertTrue(res_disj.get("is_year_unavailable"))
+
 
 if __name__ == "__main__":
     unittest.main()
