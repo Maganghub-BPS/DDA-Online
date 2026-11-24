@@ -22,7 +22,10 @@ def extract_clean_page_tables(pdf_path, page_num):
 
     tables_data = []
     try:
-        import pymupdf as fitz
+        try:
+            import pymupdf as fitz
+        except ImportError:
+            import fitz
         doc = fitz.open(pdf_path)
         if 0 <= page_num - 1 < len(doc):
             page = doc[page_num - 1]

@@ -2279,6 +2279,214 @@ class TestGenericRegressionAndSystemicFixes(unittest.TestCase):
         self.assertIsNone(parse_num(".", is_pdf=True))
         self.assertEqual(parse_num("–", is_pdf=True), 0.0)
 
+    def test_gender_lp_column_abbreviations_and_mixed_sections(self):
+        """
+        Verifikasi regresi:
+        1. Singkatan kolom API 'L' & 'P' terpetakan presisi ke kolom PDF 'Jenis Kelamin - Laki-Laki' & 'Jenis Kelamin - Perempuan' (kasus 2.2.1).
+        2. Seksi baris campuran ('Laki-Laki', 'Perempuan', 'Perkotaan', 'h\\nPerdesaan/Rural', 'Jumlah/Total') terpisah bersih tanpa bocor antar-seksi (kasus 4.1.14).
+        3. Sel kosong melompong ('') pada >75% baris tabel Regional tetap terkunci ke indeks kolom BPS '(1)..(4)' tanpa menggeser kolom kanan ke kiri.
+        4. Paginasi fetcher API menarik seluruh halaman jika total_pages > 1 dan berhenti aman saat halaman habis.
+        """
+        import json
+        import tempfile
+        from unittest.mock import patch
+        import compare_table
+        import fetcher
+        import match_pdf
+
+        # 1. Uji singkatan kolom L & P vs Laki-Laki & Perempuan
+        pdf_lp = [
+            ["Partai Politik\nPolitical Parties", None, "Jenis Kelamin/Sex", None, None],
+            [None, None, "Laki-Laki\nMale", "Perempuan\nFemale", "Jumlah\nTotal"],
+            ["", "(1)", "(2)", "(3)", "(4)"],
+            ["1.", "Partai Demokrasi Indonesia Perjuangan (PDI-P)", "25", "8", "33"],
+            ["2.", "Partai Kebangkitan Bangsa (PKB)", "15", "5", "20"],
+        ]
+        api_lp_grid = [
+            ["asal_partai_politik", "L", "P", "Jumlah"],
+            ["Partai Demokrasi Indonesia Perjuangan (PDI-P)", 25, 8, 33],
+            ["Partai Kebangkitan Bangsa (PKB)", 15, 5, 20],
+        ]
+        lp_payload = [{
+            "id_db": "9221",
+            "nomor_tabel": "2.2.1",
+            "judul_tabel": "Jumlah Anggota DPRD Menurut Partai dan Jenis Kelamin",
+            "source_type": "dinamis",
+            "is_dynamic": 1,
+            "dynamic_empty": False,
+            "dynamic_grid": api_lp_grid,
+        }]
+        idx_lp = {"2.2.1": {"nomor_tabel": "2.2.1", "id_db": "9221", "pages": [114], "similarity": 100}}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
+            json.dump(lp_payload, tf)
+            lp_file = tf.name
+        try:
+            with patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_lp})), \
+                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_lp), \
+                 patch.object(compare_table, "detect_table_archetype", return_value="SINGLE_PAGE_CATEGORICAL"), \
+                 patch.object(match_pdf, "detect_pdf_publication_year", return_value=2026):
+                res_lp = compare_table.compare_head_to_head("dummy.pdf", "2.2.1", lp_file, id_db="9221", preloaded_db_tables=lp_payload, preloaded_index=idx_lp)
+        finally:
+            os.remove(lp_file)
+        self.assertEqual(len(res_lp["matches"]), 6)
+        self.assertEqual(len(res_lp["diffs"]), 0)
+        self.assertEqual(len(res_lp["pdf_only"]), 0)
+
+        # 2. Uji seksi campuran Laki-Laki, Perempuan, Perkotaan, h\nPerdesaan/Rural, Jumlah/Total
+        pdf_sec = [
+            ["Kelompok Umur", "2024", "2025"],
+            ["(1)", "(2)", "(3)"],
+            ["Laki-Laki/Male", None, None],
+            ["15–24", "99,88", "99,88"],
+            ["s\np\nPerempuan/Female", None, None],
+            ["15–24", "99,99", "99,99"],
+            ["t\na\nPerkotaan/Urban", None, None],
+            ["15–24", "99,94", "99,95"],
+            ["h\nPerdesaan/Rural", None, None],
+            ["15–24", "99,93", "99,92"],
+            ["Jumlah/Total", None, None],
+            ["15–24", "99,93", "99,94"],
+        ]
+        db_sec = [
+            ["Kelompok Umur", "2024", "2025"],
+            ["(1)", "(2)", "(3)"],
+            ["Laki-Laki", None, None],
+            ["15–24", 99.88, 99.88],
+            ["Perempuan", None, None],
+            ["15–24", 99.99, 99.99],
+            ["Perkotaan", None, None],
+            ["15–24", 99.94, 99.95],
+            ["Perdesaan", None, None],
+            ["15–24", 99.93, 99.92],
+            ["Jumlah", None, None],
+            ["15–24", 99.93, 99.94],
+        ]
+        sec_payload = [{
+            "id_db": "9414",
+            "nomor_tabel": "4.1.14",
+            "judul_tabel": "Angka Melek Aksara",
+            "source_type": "dinamis",
+            "is_dynamic": 1,
+            "dynamic_empty": False,
+            "dynamic_grid": db_sec,
+        }]
+        idx_sec = {"4.1.14": {"nomor_tabel": "4.1.14", "id_db": "9414", "pages": [353], "similarity": 100}}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
+            json.dump(sec_payload, tf)
+            sec_file = tf.name
+        try:
+            with patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_sec})), \
+                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_sec), \
+                 patch.object(compare_table, "detect_table_archetype", return_value="SINGLE_PAGE_CATEGORICAL"), \
+                 patch.object(match_pdf, "detect_pdf_publication_year", return_value=2026):
+                res_sec = compare_table.compare_head_to_head("dummy.pdf", "4.1.14", sec_file, id_db="9414", preloaded_db_tables=sec_payload, preloaded_index=idx_sec)
+        finally:
+            os.remove(sec_file)
+        self.assertEqual(len(res_sec["matches"]), 10)
+        self.assertEqual(len(res_sec["diffs"]), 0)
+        wil_set = {m["wilayah"] for m in res_sec["matches"]}
+        self.assertIn("Perdesaan (15 - 24 Tahun)", wil_set)
+        self.assertIn("Jumlah (15 - 24 Tahun)", wil_set)
+
+        # 3. Uji tabel Regional dengan kolom tengah kosong melompong ('') di >80% kabupaten
+        pdf_reg_sparse = [
+            ["Kabupaten/Kota", None, "SD", "SMP", "SMA"],
+            ["(1)", None, "(2)", "(3)", "(4)"],
+            ["1.", "Cilacap", "10", "", "30"],
+            ["2.", "Banyumas", "11", "", "31"],
+            ["3.", "Purbalingga", "12", "", "32"],
+            ["4.", "Banjarnegara", "13", "", "33"],
+            ["5.", "Kebumen", "14", "", "34"],
+            ["6.", "Purworejo", "15", "25", "35"],
+        ]
+        db_reg_sparse = [
+            ["Kabupaten/Kota", "SD", "SMP", "SMA"],
+            ["Kab. Cilacap", 10, 0, 30],
+            ["Kab. Banyumas", 11, 0, 31],
+            ["Kab. Purbalingga", 12, 0, 32],
+            ["Kab. Banjarnegara", 13, 0, 33],
+            ["Kab. Kebumen", 14, 0, 34],
+            ["Kab. Purworejo", 15, 25, 35],
+        ]
+        reg_payload = [{
+            "id_db": "9901",
+            "nomor_tabel": "4.1.1",
+            "judul_tabel": "Sekolah Uji Sparse",
+            "source_type": "dinamis",
+            "is_dynamic": 1,
+            "dynamic_empty": False,
+            "dynamic_grid": db_reg_sparse,
+        }]
+        idx_reg = {"4.1.1": {"nomor_tabel": "4.1.1", "id_db": "9901", "pages": [300], "similarity": 100}}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
+            json.dump(reg_payload, tf)
+            reg_file = tf.name
+        try:
+            with patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_reg_sparse})), \
+                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_reg_sparse), \
+                 patch.object(compare_table, "detect_table_archetype", return_value="SINGLE_PAGE_REGIONAL"), \
+                 patch.object(match_pdf, "detect_pdf_publication_year", return_value=2026):
+                res_reg = compare_table.compare_head_to_head("dummy.pdf", "4.1.1", reg_file, id_db="9901", preloaded_db_tables=reg_payload, preloaded_index=idx_reg)
+        finally:
+            os.remove(reg_file)
+        self.assertEqual(len(res_reg["diffs"]), 0)
+        self.assertEqual(len(res_reg["matches"]), 18)
+
+        # 4. Uji paginasi multi-halaman di fetcher.py
+        page_responses = [
+            {"data": [{"id": i, "val": i} for i in range(1, 101)], "pagination": {"total_pages": 2}},
+            {"data": [{"id": i, "val": i} for i in range(101, 126)], "pagination": {"total_pages": 2}},
+        ]
+        with patch.object(fetcher, "SATUDATA_TOKEN", "dummy_token"), \
+             patch.object(fetcher, "_request_once", side_effect=page_responses) as mock_req:
+            fetched = fetcher.fetch_data_from_link("index.php/admin/view_portal_tabel?id=999999")
+            self.assertEqual(len(fetched), 125)
+            self.assertEqual(mock_req.call_count, 2)
+
+        # 5. Uji kolom atribut teks DB ('Jenjang', 'Akreditasi') tidak mengotori label baris (kasus 4.1.20)
+        #    dan fallback tahun pdf_only memakai tahun cetakan PDF / N-1 (bukan tahun lama DB).
+        pdf_4120 = [
+            ["Perguruan Tinggi Agama Islam Swasta\nNon Government Islamic Universities", None, "Jenjang\nLadder", "Akreditasi\nAccreditation", "Mahasiswa\nStudent"],
+            ["(1)", None, "(2)", "(3)", "(4)"],
+            ["1.", "FAI Universitas Muhammadiyah Surakarta", "S.1, S.2, dan S.3", "Unggul", "2.626"],
+            ["2.", "FAI Universitas Nahdlatul Ulama (UNU) Surakarta", "S.1, S.2, dan S.3", "Baik Sekali", "1.982"],
+            ["3.", "FAI Universitas Nahdlatul Ulama (UNU)", "S.1", "Baik", "149"],
+            ["4.", "STAI Baru Cetakan PDF", "S.1", "Baik", "350"],
+        ]
+        db_4120 = [
+            ["Perguruan Tinggi Agama Islam Swasta", "2024 Jenjang", "2024 Akreditasi", "2024 Mahasiswa"],
+            ["(1)", "(2)", "(3)", "(4)"],
+            ["FAI Universitas Muhammadiyah Surakarta", "S.1, S.2, dan S.3", "Unggul", 2.626],
+            ["FAI Universitas Nahdlatul Ulama (UNU) Surakarta", "S.1, S.2, dan S.3", "Baik Sekali", 1982],
+            ["FAI Universitas Nahdlatul Ulama (UNU)", "S.1", "Baik", 149],
+        ]
+        p_4120 = [{
+            "id_db": "9420",
+            "nomor_tabel": "4.1.20",
+            "judul_tabel": "Banyaknya Mahasiswa PTAI Swasta, Tahunan",
+            "judul_pdf": "Banyaknya Mahasiswa PTAI Swasta di Provinsi Jawa Tengah, 2025",
+            "source_type": "dinamis",
+            "is_dynamic": 1,
+            "dynamic_empty": False,
+            "dynamic_grid": db_4120,
+        }]
+        idx_4120 = {"4.1.20": {"nomor_tabel": "4.1.20", "id_db": "9420", "pages": [369], "similarity": 100, "display_title": "Banyaknya Mahasiswa PTAI Swasta, 2025"}}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
+            json.dump(p_4120, tf)
+            f_4120 = tf.name
+        try:
+            with patch.object(compare_table, "extract_table_content", side_effect=lambda _p, infos: infos[0].update({"extracted_data": pdf_4120})), \
+                 patch.object(compare_table, "get_cached_page_tables", return_value=pdf_4120), \
+                 patch.object(compare_table, "detect_table_archetype", return_value="SINGLE_PAGE_CATEGORICAL"), \
+                 patch.object(match_pdf, "detect_pdf_publication_year", return_value=2026):
+                res_4120 = compare_table.compare_head_to_head("dda_master_2026.pdf", "4.1.20", f_4120, id_db="9420", preloaded_db_tables=p_4120, preloaded_index=idx_4120)
+        finally:
+            os.remove(f_4120)
+        self.assertEqual(len(res_4120["matches"]), 3)
+        self.assertEqual(len(res_4120["diffs"]), 0)
+        self.assertEqual(len(res_4120["pdf_only"]), 1)
+        self.assertEqual(res_4120["pdf_only"][0]["tahun"], "2025")
+
 
 if __name__ == "__main__":
     unittest.main()

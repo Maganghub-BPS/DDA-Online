@@ -658,12 +658,21 @@ def is_header_or_metadata_row(row):
         return True
 
     if any(k in ctx for k in ['laki-laki', 'perempuan', 'female', 'male', 'jenis kelamin', 'sex', 'pangkat', 'golongan', 'tingkat pendidikan']):
-        # Sub-header baris kategori seperti "Golongan I" / "Golongan I/Range I" bukan header kolom tabel
-        if len(non_empty) == 1 and re.search(r'\bgolongan\s+[ivx]+\b', ctx):
-            return False
+        # Sub-header baris kategori pada kolom pertama (mis. "Golongan I", "Laki-Laki", "Perempuan") dengan kolom data kosong bukan header kolom tabel
+        if len(non_empty) == 1:
+            if re.search(r'\bgolongan\s+[ivx]+\b', ctx):
+                return False
+            c0_raw = str(row[0]).strip() if (len(row) >= 2 and row[0] is not None) else ""
+            if c0_raw and all(c is None or not str(c).strip() or str(c).strip().lower() == 'none' for c in row[1:]):
+                c0_clean = re.sub(r'^[a-z\.\s/:\n]+(?=[A-Z0-9])', '', c0_raw).strip()
+                c0_left = c0_clean.split('/')[0].strip().lower()
+                c0_left = re.sub(r'^(?:\d+|[a-z]|[ivxlcdm]+)[\.\)]\s*', '', c0_left).strip()
+                if c0_left in ('laki-laki', 'perempuan', 'laki-laki + perempuan', 'laki-laki dan perempuan'):
+                    return False
         if plain_nums == 0: return True
 
-    if any(k in ctx_norm for k in ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit', 'jenis pelayaran', 'ship sector', 'unit kapal', 'ship unit', 'gross tonage', 'non pelayaran', 'non-shipping', 'samudra', 'nusantara', 'tunker', 'kementerian', 'ministry', 'pagu dipa', 'realisasi']):
+    _hdr_kws = ['kabupaten/kota', 'regency/municipality', 'nama kabupaten', 'nama kota', 'ibukota kabupaten', 'capital of regency', 'luas wilayah', 'total area', 'tinggi wilayah', 'jarak ke ibukota', 'area height', 'distance to', 'persentase terhadap', 'percentage to', 'jumlah pulau', 'number of island', 'tepi laut', 'bukan tepi laut', 'coastal', 'non-coastal', 'hak milik', 'hak guna', 'jual beli', 'hibah', 'sekolah', 'schools', 'negeri', 'swasta', 'public', 'private', 'guru', 'teachers', 'murid', 'pupils', 'students', 'pemilih', 'pindah', 'dptb', 'kecamatan', 'desa', 'kelurahan', 'tps', 'organisasi perangkat daerah', 'regional apparatus', 'jenis tanaman', 'kind of plant', 'satuan unit', 'satuan/unit', 'satuan / unit', 'jenis pelayaran', 'ship sector', 'unit kapal', 'ship unit', 'gross tonage', 'non pelayaran', 'non-shipping', 'samudra', 'nusantara', 'tunker', 'kementerian', 'ministry', 'pagu dipa', 'realisasi']
+    if any((bool(re.search(rf'\b{re.escape(k)}\b', ctx_norm)) if k in ('desa', 'kota') else (k in ctx_norm)) for k in _hdr_kws):
         if plain_nums == 0: return True
         
     return False

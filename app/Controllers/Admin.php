@@ -3691,9 +3691,9 @@ class Admin extends BaseController
 	 */
 	private function getPythonBin(): string
 	{
-		$custom = getenv('PYTHON_BIN');
-		if (!empty($custom)) {
-			return $custom;
+		$custom = env('PYTHON_BIN') ?: getenv('PYTHON_BIN');
+		if (!empty($custom) && is_string($custom)) {
+			return trim($custom);
 		}
 
 		if (PHP_OS_FAMILY === 'Windows') {
@@ -4409,6 +4409,42 @@ class Admin extends BaseController
 	}
 
 	/**
+	 * Memastikan path file input Matching PDF selalu berada di dalam direktori resmi WRITEPATH/uploads.
+	 */
+	private function resolveSafeMatchingUploadPath(?string $inputPath, string $expectedExt = ''): ?string
+	{
+		$raw = trim((string)($inputPath ?? ''));
+		if ($raw === '' || strpos($raw, "\0") !== false) {
+			return null;
+		}
+		$uploadsDir = realpath(WRITEPATH . 'uploads');
+		if ($uploadsDir === false) {
+			return null;
+		}
+		$normBase = rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $uploadsDir), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+		$real = realpath($raw);
+		if ($real === false) {
+			$cand = $normBase . basename(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $raw));
+			$real = realpath($cand);
+		}
+		if ($real === false) {
+			return null;
+		}
+		$normReal = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $real);
+		$startsOk = (DIRECTORY_SEPARATOR === '\\')
+			? (stripos($normReal, $normBase) === 0)
+			: (strpos($normReal, $normBase) === 0);
+		if (!$startsOk) {
+			return null;
+		}
+		if ($expectedExt !== '' && strtolower(pathinfo($normReal, PATHINFO_EXTENSION)) !== strtolower($expectedExt)) {
+			return null;
+		}
+		return $normReal;
+	}
+
+	/**
 	 * Membersihkan seluruh cache validasi, progress, rekap Excel, dan render gambar halaman PNG
 	 * untuk slot tahun tertentu saat PDF baru/revisi diunggah (mencegah state lama nyangkut).
 	 */
@@ -4838,13 +4874,13 @@ class Admin extends BaseController
 	public function verify_tabel_pdf()
 	{
 		$nomor_tabel = $this->request->getPost("nomor_tabel");
-		$pdfPath = $this->request->getPost("pdf_path");
-		$dbJsonPath = $this->request->getPost("db_json_path");
+		$pdfPath = $this->resolveSafeMatchingUploadPath($this->request->getPost("pdf_path"), 'pdf');
+		$dbJsonPath = $this->resolveSafeMatchingUploadPath($this->request->getPost("db_json_path"), 'json');
 		$tolerance = $this->request->getPost("tolerance") ?? "0.0";
 		$postedIdDb = (int)($this->request->getPost("id_db") ?? 0);
 
 		if (empty($nomor_tabel) || empty($pdfPath) || empty($dbJsonPath)) {
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Nomor tabel tidak valid']);
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Nomor tabel atau path file tidak valid']);
 		}
 
 		// AUTO-SYNC: Selalu perbarui link_tabel & matriks Tabel Dinamis untuk tabel ini dari database ke file JSON snapshot
@@ -4966,7 +5002,7 @@ class Admin extends BaseController
 			}
 			$statePath = WRITEPATH . "uploads/dda_state_{$ta}.json";
 			$stateData = file_exists($statePath) ? (json_decode(@file_get_contents($statePath), true) ?? []) : [];
-			$stateData[$nomor_tabel] = $this->buildStateEntryFromVerifyResult((string)$nomor_tabel, $res, (string)($id_db ?? ''));
+			$stateData[$nomor_tabel] = $this->buildStateEntryFromVerifyResult((string)$nomor_tabel, $res, $postedIdDb > 0 ? (string)$postedIdDb : '');
 			$this->writeJsonAtomic($statePath, $stateData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 		}
 
@@ -5381,6 +5417,12 @@ class Admin extends BaseController
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
 		}
+		if (!$this->isPdfSyncToDbEnabled()) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'  => 'error',
+				'message' => 'Fitur Auto-Layout dinonaktifkan pada lingkungan ini (DDA_ALLOW_PDF_SYNC_TO_DB=false).'
+			]);
+		}
 
 		$idDb = (int)$this->request->getPost('id_db');
 		$nomorTabel = trim((string)$this->request->getPost('nomor_tabel'));
@@ -5535,7 +5577,7 @@ class Admin extends BaseController
 				$pyBin = $this->getPythonBin();
 				$b64Pages = base64_encode(json_encode(array_values($matchedPages)));
 				$b64Keys  = base64_encode(json_encode(array_values($baseKeys)));
-				$targetYearArg = escapeshellarg($ta);
+				$targetYearArg = escapeshellarg((string)((int)$ta - 1));
 				$cmd = "{$pyBin} " . escapeshellarg($pythonScript) . " " . escapeshellarg($pdfPath) . " " . escapeshellarg($b64Pages) . " " . escapeshellarg($b64Keys) . " " . $targetYearArg . " 2>&1";
 				$rawOut = (string)@shell_exec($cmd);
 				if (preg_match('/===JSON_START===(.*?)===JSON_END===/s', $rawOut, $mJson)) {
@@ -5703,6 +5745,12 @@ class Admin extends BaseController
 	{
 		if ($this->session->get('admin_valid') == FALSE && $this->session->get('admin_id') == "") {
 			return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+		}
+		if (!$this->isPdfSyncToDbEnabled()) {
+			return $this->response->setStatusCode(403)->setJSON([
+				'status'  => 'error',
+				'message' => 'Fitur Auto-Konfigurasi & Isi Data PDF dinonaktifkan pada lingkungan ini (DDA_ALLOW_PDF_SYNC_TO_DB=false).'
+			]);
 		}
 
 		$nomorTabel = trim((string)$this->request->getPost('nomor_tabel'));
@@ -6180,12 +6228,13 @@ class Admin extends BaseController
 			$verRes = $outVerify ? json_decode(mb_convert_encoding($outVerify, 'UTF-8', 'UTF-8'), true) : null;
 
 			if (is_array($verRes) && !empty($verRes['autofill_cells'])) {
+				$taDataFallback = ((int)$ta >= 1901) ? ((int)$ta - 1) : (int)$ta;
 				$upsertCells = [];
 				foreach ($verRes['autofill_cells'] as $ac) {
 					$bId = (int)($ac['id_baris_item'] ?? 0);
 					$kId = (int)($ac['id_karakteristik_item'] ?? 0);
 					$pId = (int)($ac['id_periode_item'] ?? 0);
-					$tahunDataCell = (int)($ac['tahun_data'] ?? $ta);
+					$tahunDataCell = (int)($ac['tahun_data'] ?? $taDataFallback);
 					if ($pId > 190000000) {
 						$tahunDataCell = intdiv($pId, 100000);
 						$pId           = $pId % 100000;
@@ -6230,7 +6279,7 @@ class Admin extends BaseController
 					}
 				}
 				if (!empty($upsertCells)) {
-					$filledCellsCount = $mDinamis->batchUpsertNilai($idIndikator, $upsertCells);
+					$filledCellsCount = $mDinamis->batchUpsertNilai($idIndikator, $upsertCells, $taDataFallback);
 					if ($filledCellsCount > 0) {
 						$uploaderName = $this->session->get('admin_nama') ?: ($this->session->get('admin_user') ?: 'Administrator');
 						$catatan = "Diunggah oleh {$uploaderName} pada " . date('d/m/Y H:i');
@@ -6760,8 +6809,8 @@ class Admin extends BaseController
 	public function export_tabel_excel()
 	{
 		$nomor_tabel = $this->request->getGet("nomor_tabel");
-		$pdfPath = $this->request->getGet("pdf_path");
-		$dbJsonPath = $this->request->getGet("db_json_path");
+		$pdfPath = $this->resolveSafeMatchingUploadPath($this->request->getGet("pdf_path"), 'pdf');
+		$dbJsonPath = $this->resolveSafeMatchingUploadPath($this->request->getGet("db_json_path"), 'json');
 		$tolerance = $this->request->getGet("tolerance") ?? "0.0";
 		$idDb = trim((string)($this->request->getGet("id_db") ?? ""));
 
@@ -6838,7 +6887,7 @@ class Admin extends BaseController
 	 */
 	public function save_batch_status()
 	{
-		$pdfPath = $this->request->getPost("pdf_path");
+		$pdfPath = $this->resolveSafeMatchingUploadPath($this->request->getPost("pdf_path"), 'pdf');
 		$batchData = $this->request->getPost("batch_data");
 
 		if (empty($pdfPath) || empty($batchData)) {
