@@ -139,6 +139,9 @@ ENGLISH_SIGNAL_WORDS = {
     'increase', 'decrease', 'receipt', 'stock', 'semi', 'finished', 'product', 'products', 'produced', 'rendered',
     'gross', 'net', 'output', 'input', 'criminal', 'sentence', 'concession', 'establishment', 'enterprises', 'enterprise',
     'community', 'veneers', 'flakes', 'pulp', 'plup', 'lumber', 'charcoal',
+    'recreation', 'sport', 'sports', 'culture', 'transportation', 'information', 'communication',
+    'financial', 'accomodation', 'accommodation', 'personal', 'care', 'protection', 'miscellaneous',
+    'restaurant', 'restaurants', 'realization', 'planning', 'budget', 'revenue', 'financing', 'issuance', 'renewal',
 }
 
 _INDONESIAN_HEADER_WORDS = {
@@ -551,11 +554,11 @@ def clean_header_text(c):
             if not unclosed_paren and not ends_with_id_slash:
                 if is_english_line(line):
                     break
-                # Deteksi generik terjemahan Inggris jamak/kognat (mis. 'Veneer' -> 'Veneers (m3)', 'Hotel' -> 'Hotels')
-                prev_w = re.sub(r'[^a-z]', '', indo_lines[-1].lower())
-                cur_w = re.sub(r'\([^)]*\)', '', line.lower()).strip()
+                # Deteksi generik terjemahan Inggris jamak/kognat atau duplikat identik baris ke-2 (mis. 'Veneer' -> 'Veneers (m3)', 'Target1' -> 'Target1')
+                prev_w = re.sub(r'[^a-z]', '', re.sub(r'([a-zA-Z]{4,})[1-9\u00b9\u00b2\u00b3\u2070-\u2079]+(?=\s|$|[/,;\)\-])', r'\1', indo_lines[-1]).lower())
+                cur_w = re.sub(r'\([^)]*\)', '', re.sub(r'([a-zA-Z]{4,})[1-9\u00b9\u00b2\u00b3\u2070-\u2079]+(?=\s|$|[/,;\)\-])', r'\1', line).lower()).strip()
                 cur_w_alpha = re.sub(r'[^a-z]', '', cur_w)
-                if prev_w and cur_w_alpha in (prev_w + 's', prev_w + 'es'):
+                if prev_w and cur_w_alpha in (prev_w, prev_w + 's', prev_w + 'es'):
                     break
         if '/' in line and not re.search(r'\d/\d', line):
             p_chk = line.split('/', 1)
@@ -577,7 +580,9 @@ def clean_header_text(c):
             s_parts.append(ln)
     s = ' '.join(s_parts).strip()
     s = s.rstrip('*').strip()
-    s = re.sub(r'\b(19\d{2}|20\d{2})[1-9\*\^rR\†\‡]+(?:\s*,\s*[1-9\*\^rR\†\‡]+)*\)?(?=\s|$|[\)\-\/.,])', r'\1', s)
+    s = re.sub(r'\b(19\d{2}|20\d{2})[1-9\*\^rRpP\†\‡\u00b9\u00b2\u00b3\u2070-\u2079]+(?:\s*,\s*[1-9\*\^rRpP\†\‡\u00b9\u00b2\u00b3\u2070-\u2079]+)*\)?(?=\s|$|[\)\-\u2013\u2014\/.,;:])', r'\1', s)
+    # Bersihkan angka footnote superscript pada kata header >= 4 huruf (mis. 'Target1' -> 'Target', 'Realisasi2' -> 'Realisasi', 'Desa1/Kelurahan' -> 'Desa/Kelurahan'; aman terhadap D3/S1/K4/P1/B3)
+    s = re.sub(r'\b([A-Za-z]{4,})[1-9\u00b9\u00b2\u00b3\u2070-\u2079]+(?=\s|$|[/,;\)\-])', r'\1', s)
     # Bersihkan huruf watermark diagonal BPS yang menempel langsung pada angka tahun (mis. 'd\n2022i' -> '2022')
     m_wm_yr = re.match(r'^[htpsjangeboid\.\s]{0,3}((?:19|20)\d{2}(?:/(?:19|20)?\d{2,4})?)[htpsjangeboid\.\s]{0,3}$', s, re.IGNORECASE)
     if m_wm_yr:
@@ -596,6 +601,49 @@ def clean_header_text(c):
             elif not _is_indonesian_slash_term(p[0], p[1]):
                 s = p[0].strip()
     return s
+
+def extract_pdf_years_expanded(text, pub_year=None):
+    """
+    Ekstrak himpunan tahun data 4-digit dari teks/header/judul PDF secara cerdas:
+    1. Membuang noise running header sampul buku ('Dalam Angka 2026' / 'in Figures 2026').
+    2. Membersihkan footnote yang menempel pada tahun ('2024r', '2024*', '2024¹', '20241').
+    3. Menormalkan tahun ajaran '2024/2025' -> '2024'.
+    4. Memperluas rentang tahun '2021–2024' / '2020-2025' -> {'2021', '2022', '2023', '2024'}.
+    5. Jika pub_year diberikan, membuang noise tahun >= pub_year bila sudah ada tahun data <= pub_year - 1.
+    """
+    if not text:
+        return set()
+    s = str(text)
+    s = re.sub(r'(?:dalam\s+angka|in\s+figures)\s+(?:19|20)\d{2}\b', ' ', s, flags=re.IGNORECASE)
+    s = re.sub(
+        r'\b(19\d{2}|20\d{2})[1-9\*\^rRpP\†\‡\u00b9\u00b2\u00b3\u2070-\u2079]+(?:\s*,\s*[1-9\*\^rRpP\†\‡\u00b9\u00b2\u00b3\u2070-\u2079]+)*\)?(?=\s|$|[\)\-\u2013\u2014\/.,;:])',
+        r'\1',
+        s,
+    )
+    # Tahun ajaran 2024/2025 -> tahun awal 2024 (selaras konvensi tahun_data BPS/API)
+    s = re.sub(r'\b(19\d{2}|20\d{2})\s*/\s*(?:19\d{2}|20\d{2})\b', r'\1', s)
+
+    years = set()
+    for m_rng in re.finditer(r'\b(19\d{2}|20\d{2})\s*[\-\u2013\u2014\u2212]\s*(19\d{2}|20\d{2})\b', s):
+        y1, y2 = int(m_rng.group(1)), int(m_rng.group(2))
+        if 1980 <= y1 <= y2 <= 2100 and (y2 - y1) <= 20:
+            for y in range(y1, y2 + 1):
+                years.add(str(y))
+
+    for m_single in re.finditer(r'\b(19\d{2}|20\d{2})\b', s):
+        years.add(m_single.group(1))
+
+    if pub_year:
+        try:
+            max_dy = int(pub_year) - 1
+            elig = {y for y in years if int(y) <= max_dy}
+            if elig:
+                return elig
+            years = {y for y in years if int(y) != int(pub_year)}
+        except (ValueError, TypeError):
+            pass
+    return years
+
 
 def find_wilayah_with_type(ctx, is_kota=False):
     code, name = resolve_jateng_entity(ctx, is_kota_mode=is_kota)

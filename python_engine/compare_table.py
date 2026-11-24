@@ -48,6 +48,7 @@ from normalizer import (
     is_english_line,
     is_safe_fuzzy_match,
     match_party_name,
+    extract_pdf_years_expanded,
 )
 from table_profiler import (
     find_bps_numbering_row,
@@ -261,7 +262,7 @@ def match_opd_name(text):
     return None
 
 
-def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None, preloaded_db_tables=None, preloaded_index=None):
+def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None, preloaded_db_tables=None, preloaded_index=None, _ignore_api_config=False, _prefetched_api_data=None):
     m_pub_yr = re.search(r'dda_master_(\d{4})\.pdf', str(pdf_path or ''), re.IGNORECASE)
     pub_year = int(m_pub_yr.group(1)) if m_pub_yr else None
     if pub_year is None and pdf_path:
@@ -297,6 +298,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             if str(t.get("id_db", t.get("id", ""))) == str(id_db)
             or clean_num(t.get("nomor_tabel")) == clean_num(id_db)
         ), None)
+        # Abaikan baris dinamis yatim tanpa id_indikator & tanpa nomor_tabel (mis. id=201 lama di cache) agar fallback ke nomor_tabel sah (id=203)
+        if target_info and (int(target_info.get("is_dynamic", 0) or 0) == 1 or str(target_info.get("source_type", "")).lower() == "dinamis"):
+            if not target_info.get("id_indikator") and not target_info.get("dynamic_grid") and not clean_num(target_info.get("nomor_tabel")):
+                target_info = None
 
     # 2. Lookup via Nomor Tabel dari PDF
     if not target_info:
@@ -497,7 +502,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         if not link:
             return {"status": "error", "source_type": "API Satudata", "message": "Tidak ada link API untuk tabel ini", "is_api_empty": True, "pages": target_pages or []}
 
-        source_data = fetch_data_from_link(link)
+        source_data = _prefetched_api_data if _prefetched_api_data is not None else fetch_data_from_link(link)
+        _raw_api_records = source_data if isinstance(source_data, list) else None
         if isinstance(source_data, dict) and "error" in source_data:
             err_msg = source_data.get('error', '')
             detail_msg = source_data.get('detail', '')
@@ -654,10 +660,16 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                 if elig_api_y:
                     api_years = elig_api_y
             if rows:
-                pdf_hdr_txt = " ".join(str(c) for r in rows[:20] if isinstance(r, list) for c in r if c)
-                pdf_years_set.update(re.findall(r'\b(20\d{2})\b', pdf_hdr_txt))
-            if not pdf_years_set and pdf_index_title:
-                pdf_years_set.update(re.findall(r'\b(20\d{2})\b', str(pdf_index_title)))
+                pdf_hdr_txt = "\n".join(
+                    str(c) for r in rows[:30]
+                    if isinstance(r, list) and not is_title_row(r)
+                    for c in r if c is not None
+                )
+                pdf_years_set.update(extract_pdf_years_expanded(pdf_hdr_txt, pub_year=pub_year))
+            if pdf_index_title:
+                title_yrs_exp = extract_pdf_years_expanded(str(pdf_index_title), pub_year=pub_year)
+                if not pdf_years_set or len(title_yrs_exp) > len(pdf_years_set):
+                    pdf_years_set.update(title_yrs_exp)
             common_api_pdf_y = sorted(set(api_years).intersection(pdf_years_set))
             if common_api_pdf_y:
                 api_year = common_api_pdf_y[-1]
@@ -666,7 +678,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             elif pub_year and str(pub_year - 1) in api_years:
                 api_year = str(pub_year - 1)
 
-        grid = normalize_api_data(source_data, rows, target_table, config_tabel=target_info.get("config_tabel"), pub_year=pub_year, pdf_title=pdf_index_title)
+        _eff_cfg = None if _ignore_api_config else target_info.get("config_tabel")
+        grid = normalize_api_data(source_data, rows, target_table, config_tabel=_eff_cfg, pub_year=pub_year, pdf_title=pdf_index_title)
         if grid and len(grid) > 1 and max((len(r) for r in grid if isinstance(r, list)), default=0) > 1:
             source_data = grid
         else:
@@ -1764,7 +1777,9 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     h = re.sub(r'\bbiia\b', 'biia', h)
                     h = re.sub(r'\bbudha\b', 'buddha', h)
                     h = re.sub(r'\bkh?ongh?uch?u\b', 'khonghucu', h)
+                    h = re.sub(r'\bolah\s+raga\b', 'olahraga', h)
                     h = re.sub(r'\biuphhk\s*(ha|ht)\b', r'iuphhk \1', h)
+                    h = re.sub(r'\b([a-z]{4,})[1-9]+\b', r'\1', h)
                     tokens = set(re.findall(r'\b\w+\b', h))
                     if _has_gender_abbrev_ctx:
                         raw_segs = [seg.strip().lower() for seg in re.split(r'\s*(?:\|\||[-–—/])\s*', str(raw_h)) if seg.strip()]
@@ -3024,17 +3039,18 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     results["id_db"] = target_info.get("id_db")
     results["id_indikator"] = target_info.get("id_indikator")
 
-    # Guard lintas-tahun untuk API Satudata (termasuk persiapan tahun depan 2027+ dan kasus seperti 2.4.9):
-    # Jika sumber adalah API Satudata dan tahun data di API belum memiliki irisan dengan tahun yang tercetak di PDF
-    # (misal PDF 2027 meminta data 2026 namun API baru sampai 2025, atau PDF mencetak 2023-2024 namun API hanya 2025),
-    # jangan tampilkan hasil membingungkan (0 cocok / selisih palsu lintas tahun), melainkan laporkan status API tahun terkait belum tersedia.
+    # Guard lintas-tahun untuk API Satudata:
+    # Status Beda Tahun (year_unavailable) HANYA muncul bila 0% tahun yang tercetak di PDF beririsan
+    # dengan tahun yang tersedia di API (misal PDF 2023-2024 vs API cuma 2025, atau PDF 2025 vs API cuma 2026).
+    # Selama minimal 1 tahun beririsan (misal PDF 2021-2025 dengan 2025 kosong, dan API punya 2021-2024),
+    # sistem WAJIB menjalankan komparasi penuh per data dan per tahun tanpa memvonis Beda Tahun!
     if not is_dynamic and source_label == "API Satudata" and 'api_all_years' in locals() and api_all_years:
         _pdf_yrs_chk = sorted(pdf_years_set) if ('pdf_years_set' in locals() and pdf_years_set) else []
         _max_dy_chk = (pub_year - 1) if pub_year else None
         _elig_api_chk = [y for y in api_all_years if y.isdigit() and (_max_dy_chk is None or int(y) <= _max_dy_chk)]
         _common_chk = set(_elig_api_chk).intersection(set(_pdf_yrs_chk))
         if _pdf_yrs_chk and not _common_chk:
-            if len(results["matches"]) == 0:
+            if len(results["matches"]) == 0 or len(results["diffs"]) > len(results["matches"]):
                 _req_y_str = ", ".join(_pdf_yrs_chk)
                 _avail_y_str = ", ".join(_elig_api_chk or api_all_years)
                 return {
@@ -3045,20 +3061,6 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
                     "is_year_unavailable": True,
                     "error_kind": "year_unavailable",
                     "requested_years": _pdf_yrs_chk,
-                    "available_years": _elig_api_chk or api_all_years,
-                    "id_db": target_info.get("id_db"),
-                    "pages": target_pages or []
-                }
-            elif _max_dy_chk and str(_max_dy_chk) in _pdf_yrs_chk and str(_max_dy_chk) not in _elig_api_chk and len(results["diffs"]) > len(results["matches"]):
-                _avail_y_str = ", ".join(_elig_api_chk or api_all_years)
-                return {
-                    "status": "error",
-                    "source_type": "API Satudata",
-                    "message": f"Data API untuk Tahun {_max_dy_chk} belum diisi di Portal Satu Data (data terakhir di API: Tahun {_avail_y_str})",
-                    "is_api_empty": True,
-                    "is_year_unavailable": True,
-                    "error_kind": "year_unavailable",
-                    "requested_years": [str(_max_dy_chk)],
                     "available_years": _elig_api_chk or api_all_years,
                     "id_db": target_info.get("id_db"),
                     "pages": target_pages or []
@@ -3528,6 +3530,44 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     results["pdf_count"] = len(results["diffs"]) + len(results["matches"]) + len(results["pdf_only"])
     results["source_count"] = len(results["diffs"]) + len(results["matches"])
     results["data_row_count"] = len(source_data) if isinstance(source_data, list) else 0
+
+    # Best-of-Both-Worlds Fallback untuk API Satu Data:
+    # Di Portal Web, admin sering menyetel Pivot/Config tampilan web yang berbeda arah/urutan dari cetakan buku PDF.
+    # Jika komparasi memakai config_tabel masih menghasilkan selisih atau 0 match, uji Smart Schema Profiler murni
+    # di memori (tanpa HTTP request ulang) dan gunakan hasilnya bila terbukti lebih presisi terhadap cetakan PDF.
+    if (
+        not _ignore_api_config
+        and not is_dynamic
+        and source_label == "API Satudata"
+        and target_info.get("config_tabel")
+        and '_raw_api_records' in locals()
+        and _raw_api_records
+        and (len(results["diffs"]) > 0 or len(results["matches"]) == 0)
+    ):
+        try:
+            _alt_idx = {str(target_table): {"pages": target_pages or [], "display_title": pdf_index_title or ""}}
+            alt_res = compare_head_to_head(
+                pdf_path,
+                target_table,
+                db_json_path,
+                tolerance=tolerance,
+                id_db=id_db,
+                preloaded_db_tables=[target_info],
+                preloaded_index=_alt_idx,
+                _ignore_api_config=True,
+                _prefetched_api_data=_raw_api_records,
+            )
+            if isinstance(alt_res, dict) and alt_res.get("status") == "success":
+                c_m, c_d = len(results["matches"]), len(results["diffs"])
+                a_m, a_d = len(alt_res.get("matches", [])), len(alt_res.get("diffs", []))
+                if (
+                    (c_m == 0 and a_m > 0)
+                    or (a_d == 0 and c_d > 0 and a_m >= max(5, int(c_m * 0.85)))
+                    or (a_m > c_m * 1.25 and a_d < c_d)
+                ):
+                    return alt_res
+        except Exception:
+            pass
 
     return results
 

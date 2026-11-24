@@ -102,6 +102,45 @@
         line-height: 1.4;
         word-break: break-word;
     }
+
+    /* Drag & Drop Upload PDF Zone */
+    .pdf-drop-zone {
+        border: 2px dashed #cbd5e1 !important;
+        background: #f8fafc !important;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+    }
+    .pdf-drop-zone:hover {
+        border-color: #3b82f6 !important;
+        background: #f0f7ff !important;
+    }
+    .pdf-drop-zone.is-dragover {
+        border-color: #0d6efd !important;
+        background: #eff6ff !important;
+        box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.12);
+        transform: translateY(-1px);
+    }
+    .pdf-drop-zone.is-dragover .drop-zone-icon {
+        color: #0d6efd !important;
+        transform: translateY(-3px) scale(1.06);
+    }
+    .pdf-drop-zone .drop-zone-icon {
+        transition: transform 0.2s ease, color 0.2s ease;
+    }
+    .pdf-file-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-size: 0.76rem;
+        font-weight: 600;
+    }
 </style>
 
 <div class="row mb-3 mt-2">
@@ -178,10 +217,12 @@
 
                 <div id="formUploadContainer" style="display: none;" class="mt-3 pt-3 border-top">
                     <form id="formUploadPDF" onsubmit="return startMatching(event)">
-                        <div class="mb-3 text-center p-3 rounded" style="border: 2px dashed #dee2e6; background: #f8f9fa;">
-                            <i class="bi bi-cloud-arrow-up text-secondary mb-1" style="font-size: 2rem; display: block;"></i>
-                            <label for="pdf_file" class="form-label fw-bold mb-1 small">Pilih File PDF Revisi</label>
-                            <input class="form-control form-control-sm mt-1" type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                        <div class="mb-3 text-center p-3 rounded-3 pdf-drop-zone">
+                            <i class="bi bi-cloud-arrow-up text-secondary mb-1 drop-zone-icon" style="font-size: 2rem; display: block;"></i>
+                            <label for="pdf_file" class="form-label fw-bold mb-0 small drop-zone-title" style="cursor:pointer;">Tarik &amp; Lepas PDF Revisi ke Sini</label>
+                            <div class="text-muted mb-2 drop-zone-hint" style="font-size: 0.72rem;">atau klik untuk memilih file (.pdf)</div>
+                            <div class="pdf-selected-info d-none mb-2"></div>
+                            <input class="form-control form-control-sm mt-1" type="file" id="pdf_file" name="pdf_file" accept=".pdf,application/pdf" required>
                         </div>
                         <button type="submit" id="btnScan" class="btn btn-primary btn-sync-action text-white" style="background: linear-gradient(135deg, #0d6efd, #0b5ed7); border: none;">
                             <i class="bi bi-cpu-fill me-2"></i> PERBARUI MASTER PDF
@@ -201,10 +242,12 @@
                 <span class="section-title mb-3">Pindai Publikasi PDF</span>
                 
                 <form id="formUploadPDF" onsubmit="return startMatching(event)">
-                    <div class="mb-4 text-center p-4 rounded" style="border: 2px dashed #dee2e6; background: #f8f9fa;">
-                        <i class="bi bi-cloud-arrow-up-fill text-secondary mb-2" style="font-size: 2.5rem; display: block;"></i>
-                        <label for="pdf_file" class="form-label fw-bold mb-1">Pilih File PDF</label>
-                        <input class="form-control form-control-sm mt-2" type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                    <div class="mb-4 text-center p-4 rounded-3 pdf-drop-zone">
+                        <i class="bi bi-cloud-arrow-up-fill text-secondary mb-2 drop-zone-icon" style="font-size: 2.5rem; display: block;"></i>
+                        <label for="pdf_file" class="form-label fw-bold mb-0 drop-zone-title" style="cursor:pointer;">Pilih atau Tarik File PDF ke Sini</label>
+                        <div class="text-muted mb-2 drop-zone-hint" style="font-size: 0.75rem;">Drag &amp; drop publikasi PDF atau klik tombol di bawah</div>
+                        <div class="pdf-selected-info d-none mb-2"></div>
+                        <input class="form-control form-control-sm mt-2" type="file" id="pdf_file" name="pdf_file" accept=".pdf,application/pdf" required>
                     </div>
                     
                     <button type="submit" id="btnScan" class="btn btn-primary btn-sync-action text-white" style="background: linear-gradient(135deg, #0d6efd, #0b5ed7); border: none;">
@@ -564,17 +607,107 @@
     window.currentMatchedTables = <?= json_encode($master_data['matched_in_pdf'] ?? $master_data['matched_tables'] ?? []) ?>;
     window.batchStatusMap = <?= json_encode($batch_status ?? []) ?>;
 
+    function initPdfDropZones() {
+        document.querySelectorAll('.pdf-drop-zone').forEach(function(zone) {
+            const fileInput = zone.querySelector('input[type="file"]');
+            const infoBox = zone.querySelector('.pdf-selected-info');
+            const hintBox = zone.querySelector('.drop-zone-hint');
+            if (!fileInput) return;
+
+            function renderSelectedFile(file) {
+                if (!infoBox) return;
+                if (!file) {
+                    infoBox.classList.add('d-none');
+                    infoBox.innerHTML = '';
+                    if (hintBox) hintBox.classList.remove('d-none');
+                    return;
+                }
+                const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+                const safeName = String(file.name || 'dokumen.pdf')
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                infoBox.innerHTML = `<span class="pdf-file-badge text-truncate" title="${safeName}"><i class="bi bi-check-circle-fill text-success"></i><span class="text-truncate" style="max-width:190px;">${safeName}</span><span class="text-secondary fw-normal">(${sizeMb} MB)</span></span>`;
+                infoBox.classList.remove('d-none');
+                if (hintBox) hintBox.classList.add('d-none');
+            }
+
+            zone.addEventListener('click', function(ev) {
+                if (ev.target === fileInput || ev.target.closest('input[type="file"]') || ev.target.closest('label')) {
+                    return;
+                }
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', function() {
+                const f = (fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
+                renderSelectedFile(f);
+            });
+
+            ['dragenter', 'dragover'].forEach(function(evtName) {
+                zone.addEventListener(evtName, function(ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    zone.classList.add('is-dragover');
+                });
+            });
+
+            ['dragleave', 'dragend'].forEach(function(evtName) {
+                zone.addEventListener(evtName, function(ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (!zone.contains(ev.relatedTarget)) {
+                        zone.classList.remove('is-dragover');
+                    }
+                });
+            });
+
+            zone.addEventListener('drop', function(ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                zone.classList.remove('is-dragover');
+
+                const files = ev.dataTransfer && ev.dataTransfer.files ? ev.dataTransfer.files : null;
+                if (!files || files.length === 0) return;
+
+                const droppedFile = files[0];
+                const isPdf = (droppedFile.type === 'application/pdf') || /\.pdf$/i.test(droppedFile.name || '');
+                if (!isPdf) {
+                    alert('Format file tidak didukung. Harap tarik & lepas file berformat .PDF!');
+                    return;
+                }
+
+                try {
+                    const dt = new DataTransfer();
+                    dt.items.add(droppedFile);
+                    fileInput.files = dt.files;
+                } catch (err) {
+                    // Fallback untuk browser lama bila DataTransfer dibatasi
+                    window._droppedPdfFile = droppedFile;
+                }
+                renderSelectedFile(droppedFile);
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPdfDropZones);
+    } else {
+        initPdfDropZones();
+    }
+
     function startMatching(e) {
         e.preventDefault();
         
         let fileInput = document.getElementById('pdf_file');
-        if (fileInput.files.length === 0) {
-            alert('Pilih file PDF terlebih dahulu!');
+        let chosenFile = (fileInput && fileInput.files && fileInput.files.length > 0)
+            ? fileInput.files[0]
+            : (window._droppedPdfFile || null);
+        if (!chosenFile) {
+            alert('Pilih atau tarik file PDF terlebih dahulu!');
             return false;
         }
 
         let formData = new FormData();
-        formData.append('pdf_file', fileInput.files[0]);
+        formData.append('pdf_file', chosenFile);
 
         // UI Loading State
         $('#btnScan').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> MEMPROSES...');
