@@ -661,10 +661,14 @@ def _score(a, b):
 
 def _resolve_source_type(item):
     src = str(item.get("source_type", "")).strip().lower()
-    if src in ("dinamis", "api", "spreadsheet"):
-        return src
-    if int(item.get("is_dynamic", 0) or 0) == 1:
+    is_dyn = src == "dinamis" or int(item.get("is_dynamic", 0) or 0) == 1
+    if is_dyn:
+        has_ind = bool(item.get("id_indikator")) or bool(item.get("template_grid")) or bool(item.get("dynamic_grid"))
+        if not has_ind and not str(item.get("nomor_tabel", "")).strip():
+            return "spreadsheet"
         return "dinamis"
+    if src in ("api", "spreadsheet"):
+        return src
     link_lower = str(item.get("link_tabel", "")).strip().lower()
     if "view_portal_tabel" in link_lower or "satudata" in link_lower:
         return "api"
@@ -714,7 +718,15 @@ def match_tables(toc, db_tables, min_score=65):
         for idx_c, (item, db_id, title, source_type) in enumerate(candidates):
             title_sim = _score(normalize_title(title), normalize_title(pdf_title))
             if title_sim < min_score or _has_semantic_conflict(title, pdf_title):
-                continue
+                # Fallback verifikasi matriks aktual: jika nomor_tabel persis sama, satu-satunya kandidat dinamis terisi,
+                # dan dimensi header dynamic_grid cocok dengan judul PDF (mengatasi judul_ind lama yang belum diedit admin seperti 3.2.22 id=203)
+                dyn_grid = item.get("dynamic_grid") or []
+                hdr_txt = " ".join(str(c).lower() for c in (dyn_grid[0] if dyn_grid and isinstance(dyn_grid[0], list) else []) if c)
+                pdf_low = pdf_title.lower()
+                dim_hits = sum(1 for kw in ("kelompok umur", "umur", "lapangan pekerjaan", "pendidikan", "jenis kelamin", "kabupaten/kota") if kw in hdr_txt and kw in pdf_low)
+                if not (source_type == "dinamis" and not item.get("dynamic_empty", True) and len(candidates) == 1 and dim_hits >= 1):
+                    continue
+                title_sim = max(title_sim, float(min_score))
             # Prioritaskan dinamis/api di atas spreadsheet, lalu skor judul tertinggi
             is_configured = 1 if source_type in ("dinamis", "api") else 0
             rank = (is_configured, round(float(title_sim), 2), -prio_map.get(source_type, 3), -idx_c)

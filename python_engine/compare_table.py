@@ -262,7 +262,7 @@ def match_opd_name(text):
     return None
 
 
-def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None, preloaded_db_tables=None, preloaded_index=None):
+def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id_db=None, preloaded_db_tables=None, preloaded_index=None, _ignore_api_config=False, _prefetched_api_data=None):
     m_pub_yr = re.search(r'dda_master_(\d{4})\.pdf', str(pdf_path or ''), re.IGNORECASE)
     pub_year = int(m_pub_yr.group(1)) if m_pub_yr else None
     if pub_year is None and pdf_path:
@@ -298,6 +298,10 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             if str(t.get("id_db", t.get("id", ""))) == str(id_db)
             or clean_num(t.get("nomor_tabel")) == clean_num(id_db)
         ), None)
+        # Abaikan baris dinamis yatim tanpa id_indikator & tanpa nomor_tabel (mis. id=201 lama di cache) agar fallback ke nomor_tabel sah (id=203)
+        if target_info and (int(target_info.get("is_dynamic", 0) or 0) == 1 or str(target_info.get("source_type", "")).lower() == "dinamis"):
+            if not target_info.get("id_indikator") and not target_info.get("dynamic_grid") and not clean_num(target_info.get("nomor_tabel")):
+                target_info = None
 
     # 2. Lookup via Nomor Tabel dari PDF
     if not target_info:
@@ -498,7 +502,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
         if not link:
             return {"status": "error", "source_type": "API Satudata", "message": "Tidak ada link API untuk tabel ini", "is_api_empty": True, "pages": target_pages or []}
 
-        source_data = fetch_data_from_link(link)
+        source_data = _prefetched_api_data if _prefetched_api_data is not None else fetch_data_from_link(link)
+        _raw_api_records = source_data if isinstance(source_data, list) else None
         if isinstance(source_data, dict) and "error" in source_data:
             err_msg = source_data.get('error', '')
             detail_msg = source_data.get('detail', '')
@@ -673,7 +678,8 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
             elif pub_year and str(pub_year - 1) in api_years:
                 api_year = str(pub_year - 1)
 
-        grid = normalize_api_data(source_data, rows, target_table, config_tabel=target_info.get("config_tabel"), pub_year=pub_year, pdf_title=pdf_index_title)
+        _eff_cfg = None if _ignore_api_config else target_info.get("config_tabel")
+        grid = normalize_api_data(source_data, rows, target_table, config_tabel=_eff_cfg, pub_year=pub_year, pdf_title=pdf_index_title)
         if grid and len(grid) > 1 and max((len(r) for r in grid if isinstance(r, list)), default=0) > 1:
             source_data = grid
         else:
@@ -3524,6 +3530,44 @@ def compare_head_to_head(pdf_path, target_table, db_json_path, tolerance=0.0, id
     results["pdf_count"] = len(results["diffs"]) + len(results["matches"]) + len(results["pdf_only"])
     results["source_count"] = len(results["diffs"]) + len(results["matches"])
     results["data_row_count"] = len(source_data) if isinstance(source_data, list) else 0
+
+    # Best-of-Both-Worlds Fallback untuk API Satu Data:
+    # Di Portal Web, admin sering menyetel Pivot/Config tampilan web yang berbeda arah/urutan dari cetakan buku PDF.
+    # Jika komparasi memakai config_tabel masih menghasilkan selisih atau 0 match, uji Smart Schema Profiler murni
+    # di memori (tanpa HTTP request ulang) dan gunakan hasilnya bila terbukti lebih presisi terhadap cetakan PDF.
+    if (
+        not _ignore_api_config
+        and not is_dynamic
+        and source_label == "API Satudata"
+        and target_info.get("config_tabel")
+        and '_raw_api_records' in locals()
+        and _raw_api_records
+        and (len(results["diffs"]) > 0 or len(results["matches"]) == 0)
+    ):
+        try:
+            _alt_idx = {str(target_table): {"pages": target_pages or [], "display_title": pdf_index_title or ""}}
+            alt_res = compare_head_to_head(
+                pdf_path,
+                target_table,
+                db_json_path,
+                tolerance=tolerance,
+                id_db=id_db,
+                preloaded_db_tables=[target_info],
+                preloaded_index=_alt_idx,
+                _ignore_api_config=True,
+                _prefetched_api_data=_raw_api_records,
+            )
+            if isinstance(alt_res, dict) and alt_res.get("status") == "success":
+                c_m, c_d = len(results["matches"]), len(results["diffs"])
+                a_m, a_d = len(alt_res.get("matches", [])), len(alt_res.get("diffs", []))
+                if (
+                    (c_m == 0 and a_m > 0)
+                    or (a_d == 0 and c_d > 0 and a_m >= max(5, int(c_m * 0.85)))
+                    or (a_m > c_m * 1.25 and a_d < c_d)
+                ):
+                    return alt_res
+        except Exception:
+            pass
 
     return results
 
