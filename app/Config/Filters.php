@@ -35,6 +35,7 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'rbac'          => \App\Filters\RbacFilter::class,
+        'secheaders'    => \App\Filters\SecurityHeadersFilter::class,
     ];
 
     /**
@@ -59,6 +60,7 @@ class Filters extends BaseFilters
             'pagecache',   // Web Page Caching
             'performance', // Performance Metrics
             'toolbar',     // Debug Toolbar
+            'secheaders',  // Security Headers (always applied, including 404 & redirects)
         ],
     ];
 
@@ -109,7 +111,7 @@ class Filters extends BaseFilters
      */
     public array $filters = [
         'rbac' => [
-            'before' => ['admin', 'admin/*'],
+            'before' => ['admin', 'admin/*', 'mail', 'mail/*'],
         ],
     ];
 }

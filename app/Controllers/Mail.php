@@ -10,7 +10,6 @@ use Psr\Log\LoggerInterface;
  
 class Mail extends BaseController {
     public $m_kelolakegiatan;
-    public $web_model;
     public $upload;
  
  

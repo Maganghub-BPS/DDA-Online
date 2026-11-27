@@ -1,7 +1,7 @@
 <!-- Swiper CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10.3.1/swiper-bundle.min.css" integrity="sha384-WDy11dc+3v52BOTt9WHuWenX6bjqGVBwYrU4XtgPIrneMtg1bXhpmWEZECSNrasO" crossorigin="anonymous" />
 <!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" integrity="sha384-OXVF05DQEe311p6ohU11NwlnX08FzMCsyoXzGOaL+83dKAb3qS17yZJxESl8YrJQ" crossorigin="anonymous" />
 <style>
     /* Select2 Overrides */
     .select2-container {
@@ -2687,7 +2687,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Swiper JS -->
-<script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/swiper@10.3.1/swiper-bundle.min.js" integrity="sha384-UpSTlZpLDzenAXs6CRRa5gU7uk1xaEJy+7uIz+c0niFDR3yuAlqzV7w0SgZhmEX3" crossorigin="anonymous"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var swiperEl = document.querySelector('.tabel-terbaru-swiper');
@@ -2740,8 +2740,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- jQuery and Select2 JS -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" integrity="sha384-d3UHjPdzJkZuk5H3qKYMLRyWLAQBJbby2yr2Q58hXXtAGF8RSNO9jpLDlKKPv5v3" crossorigin="anonymous"></script>
 <script>
 $(document).ready(function() {
     $('select[name="opd_search"]').select2();

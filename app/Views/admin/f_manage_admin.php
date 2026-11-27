@@ -53,6 +53,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                 
                 <div class="card-body p-4 pt-3">
                     <form action="<?php echo base_URL(); ?>index.php/admin/manage_admin/<?php echo esc($act); ?>" method="post" accept-charset="utf-8">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="idp" value="<?php echo esc($idp); ?>">
 
                         <div class="row g-3">
@@ -162,16 +163,30 @@ if ($mode == "edt" || $mode == "act_edt") {
                                         <div class="mb-3">
                                             <label class="form-label text-xs fw-bold text-dark ps-1 mb-1">Level Akses</label>
                                             <div class="input-group input-group-alternative border-radius-lg border border-gray-100 overflow-hidden shadow-none bg-white">
-                                                <select name="level" class="form-select border-0 py-2 text-sm fw-bold" style="color: #154679 !important;" required tabindex="7">
-                                                    <option value="">- Level -</option>
-                                                    <?php
-                                                    $l_sifat = array('Super Admin', 'Admin', 'spv', 'lo', 'walidata');
-                                                    foreach ($l_sifat as $lvl) {
-                                                        $selected = ($lvl == $level) ? "selected" : "";
-                                                        echo "<option value='" . $lvl . "' " . $selected . ">" . strtoupper($lvl) . "</option>";
-                                                    }
-                                                    ?>
-                                                </select>
+                                                <?php $isSelfEdit = ($mode == "edt" && (int) $idp === (int) session()->get('admin_id')); ?>
+                                                <?php if ($isSelfEdit): ?>
+                                                    <input type="hidden" name="level" value="<?= esc($level, 'attr') ?>">
+                                                    <select class="form-select border-0 py-2 text-sm fw-bold" style="color: #154679 !important;" disabled title="Level akun sendiri tidak dapat diubah">
+                                                        <?php
+                                                        $l_sifat = array('Super Admin', 'Admin', 'spv', 'lo', 'walidata');
+                                                        foreach ($l_sifat as $lvl) {
+                                                            $selected = ($lvl == $level) ? "selected" : "";
+                                                            echo "<option value='" . esc($lvl, 'attr') . "' " . $selected . ">" . strtoupper($lvl) . "</option>";
+                                                        }
+                                                        ?>
+                                                    </select>
+                                                <?php else: ?>
+                                                    <select name="level" class="form-select border-0 py-2 text-sm fw-bold" style="color: #154679 !important;" required tabindex="7">
+                                                        <option value="">- Level -</option>
+                                                        <?php
+                                                        $l_sifat = array('Super Admin', 'Admin', 'spv', 'lo', 'walidata');
+                                                        foreach ($l_sifat as $lvl) {
+                                                            $selected = ($lvl == $level) ? "selected" : "";
+                                                            echo "<option value='" . esc($lvl, 'attr') . "' " . $selected . ">" . strtoupper($lvl) . "</option>";
+                                                        }
+                                                        ?>
+                                                    </select>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>

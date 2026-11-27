@@ -16,6 +16,7 @@ $canEditKondef = function_exists('can') ? can('input_dda_input') : true;
             
             <div class="card-body p-4">
                 <form action="<?php echo base_URL()?>index.php/admin/dda/kondef_update" method="POST">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="idp" value="<?php echo esc($idp); ?>">
                     
                     <div class="mb-4">

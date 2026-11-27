@@ -16,6 +16,15 @@ class Home extends BaseController
         $this->tabelDinamisModel = new \App\Models\M_tabeldinamis();
     }
 
+    private function sanitizeSearchInput($value): string
+    {
+        $str = (string) ($value ?? '');
+        // Hapus byte null dan pola komentar/pemisah SQL tanpa mengganggu strip tunggal (mis. 2024-2025)
+        $str = str_replace(["\0", '--', '/*', '*/', ';'], ' ', $str);
+        $str = trim((string) preg_replace('/\s+/', ' ', $str));
+        return mb_substr($str, 0, 120);
+    }
+
     public function index()
     {
         $recent_tables = $this->frontendModel->getRecentTables(15);
@@ -36,9 +45,9 @@ class Home extends BaseController
 
     public function search()
     {
-        $q = $this->request->getGet('q');
-        $unit = $this->request->getGet('unit');
-        $opd_search = $this->request->getGet('opd_search');
+        $q = $this->sanitizeSearchInput($this->request->getGet('q'));
+        $unit = $this->sanitizeSearchInput($this->request->getGet('unit'));
+        $opd_search = $this->sanitizeSearchInput($this->request->getGet('opd_search'));
         $page = max(1, (int)($this->request->getVar('page') ?? 1));
         $perPage = 12;
 
@@ -68,8 +77,12 @@ class Home extends BaseController
 
     protected function callApi2($url)
     {
+        $token = (string) env('SATUDATA_TOKEN', '');
+        if ($token === '') {
+            return ['error' => 'Konfigurasi akses data belum tersedia.'];
+        }
+
         $ch = curl_init();
-        $token = 'sdj_UYf5h0TPgUW3E0kcZisn33xrTe5PMRqLuXq6CWbAfb69tEA7dILT0TLhpFtjQiWHqrd1pn9SGvE4NYlN';
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
@@ -104,24 +117,32 @@ class Home extends BaseController
         $match_rows = $this->frontendModel->getMatchMapping($ids);
             
         $new_ids = [];
+        $has_mapped = false;
         foreach ($ids as $id) {
             $mapped = false;
             foreach ($match_rows as $row) {
                 if ($row['id_api'] === trim($id) && $row['id_api_new'] != 0) {
-                    $new_ids[] = $row['id_api_new'];
-                    $mapped = true;
+                    $cleanMapped = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $row['id_api_new']);
+                    if ($cleanMapped !== '') {
+                        $new_ids[] = $cleanMapped;
+                        $mapped = true;
+                        $has_mapped = true;
+                    }
                     break;
                 }
             }
             if (!$mapped) {
-                $new_ids[] = trim($id);
+                $cleanId = preg_replace('/[^a-zA-Z0-9_-]/', '', trim((string) $id));
+                if ($cleanId !== '') {
+                    $new_ids[] = $cleanId;
+                }
             }
         }
         $new_ids_str = implode(',', $new_ids);
 
-        if ($new_ids_str !== trim($id_api) && !empty($new_ids_str)) {
+        if ($has_mapped && $new_ids_str !== trim($id_api) && !empty($new_ids_str)) {
             $table_id_param = (!empty($table_id) && is_numeric($table_id)) ? '&table_id=' . (int)$table_id : '';
-            return redirect()->to("home/view_tabel?id=" . $new_ids_str . $table_id_param);
+            return redirect()->to("home/view_tabel?id=" . rawurlencode($new_ids_str) . $table_id_param);
         }
 
         $all_results = [];
@@ -142,6 +163,10 @@ class Home extends BaseController
             }
             $id_p = trim($id_p, '/ ');
 
+            if (!preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $id_p)) {
+                continue;
+            }
+
             // 1. Cek apakah respons API sudah tersimpan di Cache CI4
             $cache_key = 'satudata_api_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $id_p);
             $cached_payload = !$force_refresh ? cache($cache_key) : null;
@@ -156,7 +181,7 @@ class Home extends BaseController
                 $first_row_ids = [];
 
                 do {
-                    $url = "https://satudata.jatengprov.go.id/api/v1/data/{$id_p}?peruntukan=DDA";
+                    $url = "https://satudata.jatengprov.go.id/api/v1/data/" . rawurlencode($id_p) . "?peruntukan=DDA";
                     $res = $this->callApi2($url);
 
                     if ($res && !isset($res['error'])) {
@@ -261,6 +286,10 @@ class Home extends BaseController
             $all_results[] = $final_res;
         }
 
+        if (empty($all_results) && empty($api_error_msgs)) {
+            return redirect()->to('/home/search')->with('error', 'Parameter tabel tidak valid.');
+        }
+
         $data = [
             'title' => 'Lihat Tabel',
             'api_results' => $all_results,
@@ -290,6 +319,16 @@ class Home extends BaseController
 
         if (empty($url) && $dda_info) {
             $url = $dda_info->link_tabel;
+        }
+
+        $parsedUrl = is_string($url) ? parse_url(trim($url)) : false;
+        $isValidSheetUrl = is_array($parsedUrl)
+            && strtolower($parsedUrl['scheme'] ?? '') === 'https'
+            && strtolower($parsedUrl['host'] ?? '') === 'docs.google.com'
+            && str_starts_with($parsedUrl['path'] ?? '', '/spreadsheets/');
+
+        if (!$isValidSheetUrl) {
+            return redirect()->to('/home/search')->with('error', 'Tautan spreadsheet tidak valid.');
         }
 
         $data = [
@@ -537,7 +576,7 @@ class Home extends BaseController
 
     public function instansi()
     {
-        $q = $this->request->getGet('q');
+        $q = $this->sanitizeSearchInput($this->request->getGet('q'));
         $opd_list = $this->frontendModel->getInstansiList($q);
 
         $data = [

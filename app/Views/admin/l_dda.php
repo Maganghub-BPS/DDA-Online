@@ -356,6 +356,7 @@ if (empty($data)) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?php echo base_url(); ?>index.php/admin/act_update_isi" method="post">
+                <?= csrf_field() ?>
                 <div class="modal-body">
                     <input type="hidden" name="id_tabel" id="id_tabel_modal">
                     <div class="mb-3">

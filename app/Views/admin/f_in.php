@@ -27,6 +27,7 @@
         <div class="modal-body">
 
         	<form action="<?php echo base_URL()?>index.php/admin/oi/act_in/" name="modal_popup" enctype="multipart/form-data" method="POST">
+        		<?= csrf_field() ?>
 
         		
 

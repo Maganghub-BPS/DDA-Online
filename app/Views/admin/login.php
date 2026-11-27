@@ -8,16 +8,16 @@
     <meta charset="utf-8">
 
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <!-- Google Fonts: Plus Jakarta Sans & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
-    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
+    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=1.0">
+    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=1.0">
 
     <style>
         :root {
@@ -457,7 +457,7 @@
     <!-- 1. TOP HEADER NAVBAR (Hanya Logo & Instansi, Tanpa Tombol Kembali) -->
     <header class="top-navbar">
         <a href="<?php echo base_url(); ?>" class="brand-logo-link" title="AKSARA: Akses Data Provinsi Jawa Tengah Dalam Angka">
-            <img src="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>" 
+            <img src="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=1.0" 
                  alt="Logo AKSARA" 
                  class="brand-logo-icon">
             <div class="brand-logo-text">
@@ -504,7 +504,6 @@
             <form action="<?php echo base_URL(); ?>index.php/admin/do_login" method="post">
                 <?= csrf_field(); ?>
 
-                <!-- Username -->
                 <div class="form-group-item">
                     <label class="form-label-custom" for="username">Username</label>
                     <div class="input-box">
@@ -520,7 +519,6 @@
                     </div>
                 </div>
 
-                <!-- Password -->
                 <div class="form-group-item">
                     <label class="form-label-custom" for="password">Password</label>
                     <div class="input-box">
@@ -570,11 +568,11 @@
     <!-- 3. FOOTER -->
     <footer class="page-footer">
         AKSARA &copy; <?php echo date('Y'); ?> 
-        <a href="http://jateng.bps.go.id" target="_blank" rel="noopener">BPS Provinsi Jawa Tengah</a>
+        <a href="https://jateng.bps.go.id" target="_blank" rel="noopener">BPS Provinsi Jawa Tengah</a>
     </footer>
 
     <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Dismiss alert

@@ -78,41 +78,83 @@ abstract class BaseController extends Controller
                                 return false;
                             }
 
+                            // Ambil properti file SEBELUM $file->move(),
+                            // karena file temporary di tmp/ akan hilang setelah dipindahkan
+                            $clientName = $file->getClientName();
+                            $clientMime = $file->getClientMimeType();
+                            $clientExt  = strtolower((string) $file->getClientExtension());
+                            $realMime   = strtolower((string) $file->getMimeType());
+                            $clientSize = $file->getSizeByUnit('kb');
+                            $isImage    = strpos($realMime, 'image') !== false;
+
+                            // Tentukan ekstensi aman saat file temp masih ada
+                            $ext = strtolower((string) ($file->getExtension() ?: $clientExt ?: pathinfo($clientName, PATHINFO_EXTENSION)));
+
+                            // 1. Tolak mutlak ekstensi berbahaya
+                            $blockedExts = ['php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'php7', 'php8', 'htaccess', 'sh', 'exe', 'bat', 'cmd', 'js', 'svg', 'html', 'htm', 'jsp', 'asp', 'aspx', 'py', 'pl', 'cgi'];
+                            if ($ext === '' || in_array($ext, $blockedExts, true)) {
+                                $this->errors = 'Jenis berkas tidak diizinkan demi keamanan.';
+                                return false;
+                            }
+
+                            // 2. Validasi whitelist allowed_types
+                            $allowedStr   = strtolower((string) ($this->config['allowed_types'] ?? 'jpg|jpeg|png|gif|pdf|doc|docx|xls|xlsx'));
+                            $allowedTypes = array_values(array_filter(array_map('trim', explode('|', $allowedStr))));
+                            if (!in_array($ext, $allowedTypes, true)) {
+                                $this->errors = 'Ekstensi berkas .' . $ext . ' tidak diizinkan.';
+                                return false;
+                            }
+
+                            // 3. Validasi MIME type asli dari isi file
+                            $mimeMap = [
+                                'jpg'  => ['image/jpeg', 'image/pjpeg'],
+                                'jpeg' => ['image/jpeg', 'image/pjpeg'],
+                                'png'  => ['image/png'],
+                                'gif'  => ['image/gif'],
+                                'pdf'  => ['application/pdf'],
+                                'doc'  => ['application/msword', 'application/octet-stream', 'application/cdfv2'],
+                                'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/octet-stream'],
+                                'xls'  => ['application/vnd.ms-excel', 'application/octet-stream', 'application/cdfv2'],
+                                'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/octet-stream'],
+                                'csv'  => ['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'],
+                            ];
+                            $allowedMimes = $mimeMap[$ext] ?? [];
+                            if (empty($allowedMimes) || !in_array($realMime, $allowedMimes, true)) {
+                                $this->errors = 'Tipe konten berkas tidak sesuai dengan ekstensi .' . $ext . '.';
+                                return false;
+                            }
+
+                            // 4. Validasi ukuran maksimal (dalam KB)
+                            $maxKb = (int) ($this->config['max_size'] ?? 10240);
+                            if ($maxKb > 0 && $clientSize > $maxKb) {
+                                $this->errors = "Ukuran berkas melebihi batas maksimal ({$maxKb} KB).";
+                                return false;
+                            }
+
                             $path = $this->config['upload_path'] ?? './upload';
-                            
+
                             // Handle CI3 style relative path
                             if (strpos($path, './') === 0) {
                                 $path = FCPATH . substr($path, 2);
                             }
 
-                            // Pastikan folder tujuan upload ada
+                            // Pastikan folder tujuan upload ada dengan permission aman
                             if (!is_dir($path)) {
-                                mkdir($path, 0777, true);
-                            }
-
-                            // Ambil properti file SEBELUM $file->move(),
-                            // karena file temporary di tmp/ akan hilang setelah dipindahkan
-                            $clientName = $file->getClientName();
-                            $clientMime = $file->getClientMimeType();
-                            $clientExt  = $file->getClientExtension();
-                            $clientSize = $file->getSizeByUnit('kb');
-                            $isImage    = strpos($clientMime, 'image') !== false;
-
-                            // Tentukan ekstensi aman saat file temp masih ada
-                            $ext = $file->getExtension();
-                            if (empty($ext)) {
-                                $ext = $clientExt ?: pathinfo($clientName, PATHINFO_EXTENSION);
+                                mkdir($path, 0755, true);
                             }
 
                             $newName = $file->getRandomName();
                             if (!empty($this->config['file_name'])) {
-                                $newName = $this->config['file_name'] . '.' . $ext;
+                                $safeBase = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $this->config['file_name']);
+                                if ($safeBase !== '') {
+                                    $newName = $safeBase . '.' . $ext;
+                                }
                             }
 
                             if ($file->move($path, $newName)) {
                                 $this->uploadData = [
                                     'file_name'   => $newName,
-                                    'file_type'   => $clientMime,
+                                    'file_type'   => $realMime ?: $clientMime,
                                     'file_path'   => $path,
                                     'full_path'   => rtrim($path, '/\\') . '/' . $newName,
                                     'raw_name'    => pathinfo($newName, PATHINFO_FILENAME),
@@ -124,6 +166,7 @@ abstract class BaseController extends Controller
                                 ];
                                 return true;
                             }
+                            $this->errors = $file->getErrorString() ?: 'Gagal menyimpan berkas unggahan.';
                             return false;
                         }
 

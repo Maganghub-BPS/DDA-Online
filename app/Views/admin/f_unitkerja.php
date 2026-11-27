@@ -44,6 +44,7 @@ if ($mode == "edt" || $mode == "act_edt") {
                 
                 <div class="card-body p-4 pt-3">
                     <form action="<?php echo base_URL(); ?>index.php/admin/master_opd/<?php echo esc($act); ?>" method="post" accept-charset="utf-8">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="idp" value="<?php echo esc($idp); ?>">
 
                         <div class="row g-3">

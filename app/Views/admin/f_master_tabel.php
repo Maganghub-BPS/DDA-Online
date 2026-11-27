@@ -80,6 +80,7 @@ if ($mode == "edt" || $mode == "act_edt") {
             <div class="card-body p-3 px-4">
                 <!-- Form Utama Master Tabel -->
                 <form id="form-master-tabel" action="<?php echo base_URL(); ?>index.php/admin/master_tabel/<?php echo $act; ?>" method="post" accept-charset="utf-8">
+                    <?= csrf_field() ?>
                     <!-- Hidden field penanganan bentrok nomor: 'shift', 'collab', atau 'none' -->
                     <input type="hidden" name="conflict_resolution" id="conflict_resolution" value="">
                     <!-- Hidden field ID tabel (khusus saat mode edit) -->
@@ -433,9 +434,9 @@ if ($mode == "edt" || $mode == "act_edt") {
 <?php endif; ?>
 
 <!-- Select2 CSS and JS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" integrity="sha384-OXVF05DQEe311p6ohU11NwlnX08FzMCsyoXzGOaL+83dKAb3qS17yZJxESl8YrJQ" crossorigin="anonymous" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" integrity="sha384-IrMr0LFnIMa9H6HhC5VVqVuWNEIwspnRLKQc0SUyPj4Cy4s02DiWDZEoJOo5WNK6" crossorigin="anonymous" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" integrity="sha384-d3UHjPdzJkZuk5H3qKYMLRyWLAQBJbby2yr2Q58hXXtAGF8RSNO9jpLDlKKPv5v3" crossorigin="anonymous"></script>
 
 <style>
     /* ===== SELECT2 CUSTOM OVERRIDES SESUAI TEMA AKSARA (BPS NAVY #154679) ===== */
@@ -808,7 +809,6 @@ $(document).ready(function() {
 
 
 <?php if ($act == "act_add"): ?>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // =========================================================================

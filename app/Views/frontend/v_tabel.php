@@ -3164,7 +3164,7 @@ if ($primary_result):
     <div style="display:none;"><?= csrf_field() ?></div>
     
     <!-- Load jsPDF and AutoTable for PDF Export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" integrity="sha384-vxxMdt1K6XlME6zkLsgFrrHIeC7XIdAo1GW/uhhObjJXnymxiIi/eoMXsKJA13ZJ" crossorigin="anonymous"></script>
     </div>
 </div>

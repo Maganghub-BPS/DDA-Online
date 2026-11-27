@@ -73,6 +73,7 @@
         <div class="d-flex align-items-center justify-content-between">
             <h5 class="mb-0 fw-bold"><i class="bi bi-activity me-2 text-primary"></i>Monitoring Kegiatan Harian</h5>
             <form class="d-flex" method="post" action="<?php echo base_URL(); ?>index.php/admin/kontrak/cari">
+                <?= csrf_field() ?>
                 <div class="input-group input-group-sm" style="width: 260px;">
                     <input type="text" class="form-control" name="q" placeholder="Cari kegiatan..." required>
                     <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>

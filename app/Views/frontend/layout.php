@@ -20,13 +20,13 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha384-blOohCVdhjmtROpu8+CfTnUWham9nkX7P7OZQMst+RUnhtoY/9qemFAkIKOYxDI3" crossorigin="anonymous">
     <!-- AOS CSS -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" integrity="sha384-/rJKQnzOkEo+daG0jMjU1IwwY9unxt1NBw3Ef2fmOJ3PW/TfAg2KXVoWwMZQZtw9" crossorigin="anonymous">
     
     <style>
         :root {
@@ -695,7 +695,7 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
     <nav class="navbar navbar-expand-lg navbar-custom <?= !$isHome ? 'scrolled' : '' ?>" id="mainNavbar">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="<?= base_url() ?>" title="AKSARA: Akses Data Provinsi Jawa Tengah Dalam Angka">
-                <img src="<?= base_url('aset/images/logo-aksara.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" class="navbar-brand-logo-img me-2">
+                <img src="<?= base_url('aset/images/logo-aksara.png') ?>?v=1.0" alt="Logo AKSARA" class="navbar-brand-logo-img me-2">
                 <div class="d-flex flex-column">
                     <div class="brand-title">AKSARA</div>
                     <span class="brand-subtitle">Akses Data Provinsi Jawa Tengah Dalam Angka</span>
@@ -742,7 +742,7 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
                 <!-- Kolom 1: Profil / Brand -->
                 <div class="col-12 col-lg-5 pe-lg-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
-                        <img src="<?= base_url('aset/images/logo-aksara.png') ?>?v=<?= time() ?>" alt="Logo AKSARA" width="64" height="64" class="footer-logo-img">
+                        <img src="<?= base_url('aset/images/logo-aksara.png') ?>?v=1.0" alt="Logo AKSARA" width="64" height="64" class="footer-logo-img">
                         <div>
                             <div class="footer-brand-title">
                                 AKSARA
@@ -843,9 +843,9 @@ $isLogin = (strpos($uri, 'login') !== false || strpos(current_url(), 'login') !=
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     <!-- AOS Script -->
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" integrity="sha384-wziAfh6b/qT+3LrqebF9WeK4+J5sehS6FA10J1t3a866kJ/fvU5UwofWnQyzLtwu" crossorigin="anonymous"></script>
     <script>
         AOS.init({
             once: true,

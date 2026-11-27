@@ -245,6 +245,7 @@
                                 <i class="bi bi-person-plus-fill text-primary me-1"></i> Tambah Pegawai (LO BPS) ke Tim Ini:
                             </label>
                             <form action="<?php echo base_url('admin/master_tim/act_add_anggota'); ?>" method="post" class="row g-2 align-items-center">
+                                <?= csrf_field() ?>
                                 <input type="hidden" name="kode_tim" value="<?php echo htmlspecialchars($b->kode_tim); ?>">
                                 <div class="col-sm-9">
                                     <select name="id_admin" class="form-select border-0 text-sm py-2 px-3 bg-white border-radius-md shadow-none" required>
@@ -361,6 +362,7 @@
             </div>
 
             <form action="<?php echo base_url('admin/master_tim/act_add_tim'); ?>" method="post">
+                <?= csrf_field() ?>
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label text-xxs font-weight-bolder text-secondary mb-1 ps-1 text-uppercase ls-1">Nama Tim</label>

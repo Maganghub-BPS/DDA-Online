@@ -135,6 +135,7 @@
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-2">
                     <form method="post" action="<?php echo base_URL(); ?>index.php/admin/manage_admin/cari" onsubmit="return false;" class="flex-grow-1">
+                        <?= csrf_field() ?>
                         <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                             <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
                             <input type="text" id="inputSearchAdmin" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari admin..." style="box-shadow: none;" autocomplete="off">
@@ -208,14 +209,38 @@
                             </span>
                         </td>
                         <td class="text-center">
+                            <?php
+                                $currentAdminId = (int) session()->get('admin_id');
+                                $isSelf = ((int) $b->id === $currentAdminId);
+                                $isTargetSuperAdmin = in_array(strtolower(trim((string) $b->level)), ['super admin', 'superadmin'], true);
+                                $canEditTarget = !$isTargetSuperAdmin || $isSelf;
+                                $canDeleteTarget = !$isTargetSuperAdmin && !$isSelf;
+                            ?>
                             <div class="d-flex gap-1 justify-content-center">
-                                <a href="<?php echo base_URL(); ?>index.php/admin/manage_admin/edt/<?php echo $b->id; ?>" class="btn btn-icon-only btn-outline-primary btn-sm border-radius-lg shadow-none" title="Edit Admin">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="<?php echo base_URL()?>index.php/admin/manage_admin/del/<?php echo $b->id?>" class="btn btn-icon-only btn-outline-danger btn-sm border-radius-lg shadow-none" title="Hapus Admin" onclick="return confirm('Anda Yakin ingin menghapus data admin ini?')">
-                                    <i class="bi bi-trash"></i>
-                                </a>
-                            </div>                  
+                                <?php if ($canEditTarget): ?>
+                                    <a href="<?php echo base_URL(); ?>index.php/admin/manage_admin/edt/<?php echo (int) $b->id; ?>" class="btn btn-icon-only btn-outline-primary btn-sm border-radius-lg shadow-none" title="Edit Admin">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-icon-only btn-outline-secondary btn-sm border-radius-lg shadow-none" disabled title="Akun sesama Super Admin dilindungi">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                <?php endif; ?>
+
+                                <?php if ($canDeleteTarget): ?>
+                                    <form method="post" action="<?= base_URL('index.php/admin/manage_admin/del/' . (int) $b->id) ?>" class="d-inline" onsubmit="return confirm('Anda yakin ingin menghapus data admin ini?')">
+                                        <?= csrf_field() ?>
+                                        <input type="hidden" name="id" value="<?= (int) $b->id ?>">
+                                        <button type="submit" class="btn btn-icon-only btn-outline-danger btn-sm border-radius-lg shadow-none" title="Hapus Admin">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-icon-only btn-outline-secondary btn-sm border-radius-lg shadow-none" disabled title="<?= $isSelf ? 'Akun sendiri tidak dapat dihapus' : 'Akun Super Admin tidak dapat dihapus' ?>">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php 

@@ -35,6 +35,7 @@ if ($mode == "edt" || $mode == "act_edt") {
 </div><!-- /.navbar -->
 	
 	<form action="<?php echo base_URL()?>index.php/admin/surat_keluar/<?php echo $act; ?>" method="post" accept-charset="utf-8" enctype="multipart/form-data">
+	<?= csrf_field() ?>
 	
 	<input type="hidden" name="idp" value="<?php echo $idp; ?>">
 	

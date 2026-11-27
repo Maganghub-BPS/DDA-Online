@@ -19,6 +19,7 @@
 
         <div class="modal-body p-4">
             <form action="<?php echo base_URL()?>index.php/admin/oi/act_del/" name="modal_popup" method="POST">
+                <?= csrf_field() ?>
                 <input type="hidden" name="id" value="<?php echo $id; ?>" />
 
                 <div class="alert bg-gray-50 border-0 rounded-3 mb-4 d-flex align-items-center">

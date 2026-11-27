@@ -614,6 +614,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="<?php echo site_url('admin/act_update_isi'); ?>" method="post">
+                <?= csrf_field() ?>
                 <div class="modal-body p-4">
                     <input type="hidden" name="id_tabel" id="id_tabel_modal">
                     <div class="mb-4">

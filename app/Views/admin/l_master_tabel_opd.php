@@ -138,6 +138,7 @@ $is_bps = isset($is_bps) ? (bool)$is_bps : (session()->get('admin_unitkerja') ==
             <!-- Input Pencarian Cepat Usulan (Real-time Filter) -->
             <div class="col-lg-5">
                 <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/cari" onsubmit="return false;">
+                    <?= csrf_field() ?>
                     <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                         <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
                         <input type="text" id="inputSearchUsulan" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Ketik untuk mencari usulan..." style="box-shadow: none;" autocomplete="off">

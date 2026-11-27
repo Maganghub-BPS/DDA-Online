@@ -153,6 +153,7 @@ $jenis_rekap = $jenis_rekap ?? service('request')->getPost('jenis_rekap') ?? '0'
 
             <div class="col-lg-8">
                 <form id="formRekap" method="post" action="<?php echo site_url('admin/report'); ?>">
+                    <?= csrf_field() ?>
                     <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-3">
                         <!-- Jenis Rekap Dropdown -->
                         <div class="input-group input-group-sm input-group-alternative border-radius-lg overflow-hidden shadow-none border" style="max-width: 320px; border-color: #e9ecef !important;">

@@ -69,6 +69,7 @@ if ($mode == "edt" || $mode == "act_edt") {
             
             <div class="card-body p-4">
                 <form id="form-add-opd" action="<?php echo base_URL(); ?>index.php/admin/master_tabel_opd/<?php echo $act; ?>" method="post" accept-charset="utf-8" enctype="multipart/form-data">
+                <?= csrf_field() ?>
                 
                 <input type="hidden" name="idp" value="<?php echo $idp; ?>">
                 <input type="hidden" name="conflict_resolution" id="conflict_resolution" value="">

@@ -56,7 +56,17 @@ class Exceptions extends BaseConfig
      *
      * @var list<string>
      */
-    public array $sensitiveDataInTrace = [];
+    public array $sensitiveDataInTrace = [
+        'password',
+        'p',
+        'p1',
+        'p2',
+        'p3',
+        'SATUDATA_TOKEN',
+        'SMTP_PASS',
+        'EXCEL_SECRET_SALT',
+        'database/default/password',
+    ];
 
     /**
      * --------------------------------------------------------------------------

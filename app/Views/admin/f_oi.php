@@ -42,6 +42,7 @@ if ($mode == "edt" || $mode == "act_edt") {
             <div class="card-body p-4">
                 <?php echo session()->getFlashdata("k"); ?>
                 <form action="<?php echo base_URL() ?>index.php/admin/oi/<?php echo $act; ?>" method="post" accept-charset="utf-8" enctype="multipart/form-data">
+                <?= csrf_field() ?>
                 <input type="hidden" name="idp" value="<?php echo $idp; ?>">
 
                 <div class="mb-4">

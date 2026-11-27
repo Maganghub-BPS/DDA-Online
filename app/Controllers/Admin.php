@@ -12,8 +12,48 @@ use Psr\Log\LoggerInterface;
 class Admin extends BaseController
 {
 	public $m_kelolakegiatan;
-	public $web_model;
 	public $upload;
+
+	private function isSuperAdminLevel(?string $level): bool
+	{
+		$lvl = strtolower(trim((string) $level));
+		return in_array($lvl, ['super admin', 'superadmin'], true);
+	}
+
+	/**
+	 * Validasi ekstensi, ukuran, MIME asli, dan magic bytes berkas unggahan langsung.
+	 */
+	private function validateUploadedAsset(
+		\CodeIgniter\HTTP\Files\UploadedFile $file,
+		array $allowedExts,
+		array $allowedMimes,
+		int $maxBytes,
+		string $magicPrefix = ''
+	): ?string {
+		$ext = strtolower((string) ($file->getClientExtension() ?: $file->getExtension()));
+		if (!in_array($ext, $allowedExts, true)) {
+			return 'Ekstensi berkas tidak valid! Hanya diizinkan: .' . implode(', .', $allowedExts) . '.';
+		}
+
+		if ($file->getSize() > $maxBytes) {
+			$maxMb = round($maxBytes / (1024 * 1024), 1);
+			return "Ukuran berkas melebihi batas maksimal ({$maxMb} MB).";
+		}
+
+		$realMime = strtolower((string) $file->getMimeType());
+		if (!in_array($realMime, $allowedMimes, true)) {
+			return 'Tipe konten berkas tidak sesuai dengan format yang diizinkan.';
+		}
+
+		if ($magicPrefix !== '') {
+			$head = (string) @file_get_contents($file->getTempName(), false, null, 0, strlen($magicPrefix));
+			if ($head !== $magicPrefix) {
+				return 'Isi berkas tidak sesuai dengan format dokumen yang diharapkan.';
+			}
+		}
+
+		return null;
+	}
 
 	public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
 	{
@@ -241,18 +281,41 @@ class Admin extends BaseController
 
 		//ambil variabel Postingan
 		$idp					= $this->input->post('idp');
-		$username				= $this->input->post('username');
-		$password				= md5($this->input->post('password'));
+		$username				= trim((string) ($this->input->post('username') ?? ''));
+		$rawPass				= (string) ($this->input->post('password') ?? '');
+		$rawPass2				= (string) ($this->input->post('password2') ?? '');
+		$password				= md5($rawPass);
 		$nama					= $this->input->post('nama');
 		$nip					= $this->input->post('nip');
 		$level					= $this->input->post('level');
 		$unitkerja				= $this->input->post('unitkerja');
 		$email					= $this->input->post('email');
 		$cari					= $this->input->post('q');
+		$currentAdminId			= (int) $this->session->get('admin_id');
 
 
 		if ($mau_ke == "del") {
-			$this->db->query("DELETE FROM t_admin WHERE id = ?", [$idu]);
+			if (strtolower($this->request->getMethod()) !== 'post') {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Permintaan hapus admin harus melalui tombol Hapus yang sah.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+
+			$targetId = (int) ($this->request->getPost('id') ?: $idu);
+			$target = $this->db->query("SELECT id, level FROM t_admin WHERE id = ? LIMIT 1", [$targetId])->getRow();
+			if (!$target) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akun admin tidak ditemukan.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+			if ($targetId === $currentAdminId) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Anda tidak dapat menghapus akun Anda sendiri.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+			if ($this->isSuperAdminLevel($target->level)) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Sesama akun Super Admin tidak dapat dihapus.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+
+			$this->db->query("DELETE FROM t_admin WHERE id = ?", [$targetId]);
 			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been deleted </div>");
 			return redirect()->to('admin/manage_admin');
 		} else if ($mau_ke == "cari") {
@@ -261,13 +324,25 @@ class Admin extends BaseController
 		} else if ($mau_ke == "add") {
 			$a['page']		= "f_manage_admin";
 		} else if ($mau_ke == "edt") {
-			$a['datpil']	= $this->db->query("SELECT * FROM t_admin WHERE id = ?", [$idu])->getRow();
+			$datpil = $this->db->query("SELECT * FROM t_admin WHERE id = ?", [$idu])->getRow();
+			if (!$datpil) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akun admin tidak ditemukan.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+			if ($this->isSuperAdminLevel($datpil->level) && (int) $datpil->id !== $currentAdminId) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Anda tidak memiliki izin mengubah akun Super Admin lain.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+			$a['datpil']	= $datpil;
 			$a['page']		= "f_manage_admin";
 		} else if ($mau_ke == "act_add") {
 			$cek_user_exist = $this->db->query("SELECT username FROM t_admin WHERE username = ?", [$username])->getNumRows();
 
-			if (strlen($username) < 3) {
+			if (strlen($username) < 4) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Username minimal 4 huruf</div>");
+				return redirect()->to('admin/manage_admin');
+			} else if ($rawPass === '' || $rawPass !== $rawPass2) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Password wajib diisi dan harus cocok dengan konfirmasi password.</div>");
 				return redirect()->to('admin/manage_admin');
 			} else if ($cek_user_exist > 0) {
 				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Username telah dipakai. Ganti yang lain..!</div>");
@@ -277,12 +352,33 @@ class Admin extends BaseController
 				$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			}
 
-			$this->session->setFlashdata("k", "<div class=\"alert alert-success\" id=\"alert\">Data has been added</div>");
 			return redirect()->to('admin/manage_admin');
 		} else if ($mau_ke == "act_edt") {
-			if ($password == md5("-")) {
+			$target = $this->db->query("SELECT * FROM t_admin WHERE id = ? LIMIT 1", [(int) $idp])->getRow();
+			if (!$target) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Akun admin tidak ditemukan.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+			if ($this->isSuperAdminLevel($target->level) && (int) $target->id !== $currentAdminId) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Anda tidak memiliki izin mengubah akun Super Admin lain.</div>");
+				return redirect()->to('admin/manage_admin');
+			}
+			if ((int) $target->id === $currentAdminId) {
+				$level = $target->level;
+			}
+
+			if (strlen($username) < 4) {
+				$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Username minimal 4 huruf</div>");
+				return redirect()->to('admin/manage_admin/edt/' . (int) $idp);
+			}
+
+			if ($rawPass === '-') {
 				$this->db->query("UPDATE t_admin SET username = ?, nama = ?, nip = ?, level = ?, email=?, id_unitkerja=? WHERE id = ?", [$username, $nama, $nip, $level, $email, $unitkerja, $idp]);
 			} else {
+				if ($rawPass === '' || $rawPass !== $rawPass2) {
+					$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">Konfirmasi password baru tidak cocok.</div>");
+					return redirect()->to('admin/manage_admin/edt/' . (int) $idp);
+				}
 				$this->db->query("UPDATE t_admin SET username = ?, password = ?, nama = ?, nip = ?, level = ?, email=?, id_unitkerja=? WHERE id = ?", [$username, $password, $nama, $nip, $level, $email, $unitkerja, $idp]);
 			}
 
@@ -389,9 +485,17 @@ class Admin extends BaseController
 
 	public function do_login()
 	{
-		$u 		= $this->input->post('u');
+		$u 		= trim((string) ($this->input->post('u') ?? ''));
 		$ta 	= $this->input->post('ta');
-		$p 		= md5($this->input->post('p'));
+
+		$throttler = \Config\Services::throttler();
+		$throttleKey = 'login_' . md5((string) $this->request->getIPAddress() . '|' . strtolower($u));
+		if ($throttler->check($throttleKey, 5, MINUTE) === false) {
+			$this->session->setFlashdata("k", "<div id=\"alert\" class=\"alert alert-danger\">Terlalu banyak percobaan login. Silakan coba lagi dalam 1 menit.</div>");
+			return redirect()->to('admin/login');
+		}
+
+		$p 		= md5((string) ($this->input->post('p') ?? ''));
 
 		$q_cek	= $this->db->query("SELECT * FROM t_admin WHERE username = ? AND password = ?", [$u, $p]);
 		$j_cek	= $q_cek->getNumRows();
@@ -400,6 +504,7 @@ class Admin extends BaseController
 		//echo $this->db->getLastQuery();
 
 		if ($j_cek == 1) {
+			$this->session->regenerate(true);
 			$data = array(
 				'admin_id' => $d_cek->id,
 				'admin_user' => $d_cek->username,
@@ -2968,7 +3073,15 @@ class Admin extends BaseController
 			$seg4 = $uri->getTotalSegments() >= 4 ? $uri->getSegment(4) : null;
 			$id_api = (!empty($seg3) && $seg3 !== 'view_portal_tabel') ? $seg3 : (!empty($seg4) ? $seg4 : null);
 		}
-		$table_id = (int)($this->request->getGet('table_id') ?: $this->request->getGet('id_db') ?: 0);
+		$rawTableId = $this->request->getGet('table_id');
+		if ($rawTableId === null || $rawTableId === '') {
+			$rawTableId = $this->request->getGet('id_db');
+		}
+		if ($rawTableId !== null && $rawTableId !== '' && !ctype_digit((string) $rawTableId)) {
+			$this->session->setFlashdata("k", '<div class="alert alert-danger" id="alert">Parameter table_id tidak valid.</div>');
+			return redirect()->to('admin/dda');
+		}
+		$table_id = ($rawTableId !== null && $rawTableId !== '') ? (int) $rawTableId : 0;
 		if (empty($id_api)) {
 			$a['page'] = "d_amain";
 			$this->session->setFlashdata("k", '<div class="alert alert-danger" id="alert">ID Portal Data tidak ditemukan</div>');
@@ -3026,6 +3139,9 @@ class Admin extends BaseController
 				$id_p = explode('data/', $id_p)[1];
 			}
 			$id_p = trim($id_p, '/ ');
+			if (!preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $id_p)) {
+				continue;
+			}
 
 			$page = 1;
 			$all_rows = [];
@@ -3034,7 +3150,7 @@ class Admin extends BaseController
 
 			do {
 				$offset = ($page - 1) * 100;
-				$url = "https://satudata.jatengprov.go.id/api/v1/data/{$id_p}?peruntukan=DDA";
+				$url = "https://satudata.jatengprov.go.id/api/v1/data/" . rawurlencode($id_p) . "?peruntukan=DDA";
 				$res = $this->callApi2($url);
 
 				if ($res && !isset($res['error'])) {
@@ -3235,6 +3351,16 @@ class Admin extends BaseController
 		$file = $this->request->getFile('file_mapping');
 		if (!$file || !$file->isValid()) {
 			return redirect()->back()->with('k', '<div class="alert alert-danger">File tidak valid atau tidak terbaca!</div>');
+		}
+
+		$uploadErr = $this->validateUploadedAsset(
+			$file,
+			['csv', 'txt'],
+			['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel', 'application/octet-stream'],
+			5 * 1024 * 1024
+		);
+		if ($uploadErr !== null) {
+			return redirect()->back()->with('k', '<div class="alert alert-danger">' . esc($uploadErr) . '</div>');
 		}
 
 		$handle = fopen($file->getTempName(), "r");
@@ -3928,7 +4054,7 @@ class Admin extends BaseController
 	 * @param bool $forceReexport Paksa periksa dan sinkronkan tanpa cek signature
 	 * @return array Ringkasan perubahan ['changed_to_filled' => [...], 'changed_to_empty' => [...], 'db_sig' => ...]
 	 */
-	public function syncDynamicTablesRealtime(string $ta, bool $forceReexport = false): array
+	protected function syncDynamicTablesRealtime(string $ta, bool $forceReexport = false): array
 	{
 		$uploadPath = WRITEPATH . 'uploads/';
 		$matchedJson = $uploadPath . "dda_matched_{$ta}.json";
@@ -4504,14 +4630,20 @@ class Admin extends BaseController
 			return $this->response->setJSON(['status' => 'error', 'message' => 'File PDF tidak valid atau gagal diunggah: ' . $err]);
 		}
 		
-		$ext = strtolower($file->getClientExtension() ?: $file->getExtension());
-		if ($ext != 'pdf') {
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Hanya file PDF yang diizinkan.']);
+		$uploadErr = $this->validateUploadedAsset(
+			$file,
+			['pdf'],
+			['application/pdf'],
+			50 * 1024 * 1024,
+			'%PDF-'
+		);
+		if ($uploadErr !== null) {
+			return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => $uploadErr]);
 		}
 
 		$uploadPath = WRITEPATH . 'uploads/';
 		if (!is_dir($uploadPath)) {
-			mkdir($uploadPath, 0777, true);
+			mkdir($uploadPath, 0755, true);
 		}
 
 		// Pindahkan dulu ke file temporer unik agar file asli 2026/tahun lain tidak langsung tertimpa sebelum deteksi tahun cover PDF
@@ -4594,7 +4726,8 @@ class Admin extends BaseController
 
 		if (!$result) {
 			$safeMsg = mb_convert_encoding($output ?? 'Tidak ada output dari Python engine.', 'UTF-8', 'UTF-8');
-			return $this->response->setJSON(['status' => 'error', 'message' => 'Error parsing Python output. Detail: ' . $safeMsg]);
+			log_message('error', 'Error parsing Python output: ' . $safeMsg);
+			return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal memproses berkas PDF. Silakan periksa format dokumen atau hubungi administrator.']);
 		}
 
 		$result['db_sig'] = $this->getDynamicConfigSignature((string)$ta);
@@ -6428,7 +6561,7 @@ class Admin extends BaseController
 			clearstatcache(true, $cacheFile);
 			if (!file_exists($cacheFile) || filesize($cacheFile) === 0) {
 				log_message('error', 'Gagal render halaman PDF: ' . ($out ?? ''));
-				return $this->response->setStatusCode(500)->setBody('Gagal merender halaman PDF: ' . htmlspecialchars($out ?? 'Unknown error'));
+				return $this->response->setStatusCode(500)->setBody('Gagal merender halaman PDF.');
 			}
 		}
 
@@ -8505,11 +8638,17 @@ class Admin extends BaseController
 			]);
 		}
 
-		$ext = strtolower($file->getClientExtension());
-		if ($ext !== 'xlsx') {
+		$uploadErr = $this->validateUploadedAsset(
+			$file,
+			['xlsx'],
+			['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/octet-stream'],
+			15 * 1024 * 1024,
+			'PK'
+		);
+		if ($uploadErr !== null) {
 			return $this->response->setStatusCode(400)->setJSON([
 				'status'  => 'error',
-				'message' => 'Format berkas tidak valid! Harap unggah berkas berekstensi .xlsx.'
+				'message' => $uploadErr
 			]);
 		}
 
@@ -8917,13 +9056,18 @@ class Admin extends BaseController
 			return redirect()->back();
 		}
 
-		$ext = strtolower($file->getClientExtension());
-		if ($ext !== 'xlsx') {
-			$errMsg = 'Format berkas tidak valid! Harap unggah berkas berekstensi .xlsx.';
+		$uploadErr = $this->validateUploadedAsset(
+			$file,
+			['xlsx'],
+			['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/octet-stream'],
+			15 * 1024 * 1024,
+			'PK'
+		);
+		if ($uploadErr !== null) {
 			if ($this->request->isAJAX()) {
-				return $this->response->setJSON(['status' => 'error', 'message' => $errMsg]);
+				return $this->response->setStatusCode(400)->setJSON(['status' => 'error', 'message' => $uploadErr]);
 			}
-			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">{$errMsg}</div>");
+			$this->session->setFlashdata("k", "<div class=\"alert alert-danger\" id=\"alert\">" . esc($uploadErr) . "</div>");
 			return redirect()->back();
 		}
 

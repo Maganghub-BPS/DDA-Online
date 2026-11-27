@@ -29,15 +29,16 @@ $jenis_rekap = service('request')->getPost('jenis_rekap');
 <!--	
 <div class="alert alert-dismissable alert-success">
   <button type="button" class="close" data-dismiss="alert">x</button>
-  <strong>Well done!</strong> You successfully read <a href="http://bootswatch.com/amelia/#" class="alert-link">this important alert message</a>.
+  <strong>Well done!</strong> You successfully read <a href="#" class="alert-link">this important alert message</a>.
 </div>
 	
 <div class="alert alert-dismissable alert-danger">
   <button type="button" class="close" data-dismiss="alert">x</button>
-  <strong>Oh snap!</strong> <a href="http://bootswatch.com/amelia/#" class="alert-link">Change a few things up</a> and try submitting again.
+  <strong>Oh snap!</strong> <a href="#" class="alert-link">Change a few things up</a> and try submitting again.
 </div>	
 -->
 <form class="navbar-form navbar-left" method="post" action="<?php echo base_URL(); ?>index.php/admin/rekap/">
+<?= csrf_field() ?>
 <select name="jenis_rekap" class="form-control" tabindex="3" style="width: 400px" required><option value=""> - Jenis Rekap - </option>
 			<?php
 				$l_jenis_rekap	= array('Petugas Berdasarkan Jenis Kelamin','Petugas Berdasarkan Jenis Pendidikan','Petugas Berdasarkan Kelompok Umur','Petugas Berdasarkan Pilihan Jenis Operator','Petugas Berdasarkan Rekomendator','Petugas Berdasarkan Pilihan Shift','Petugas Berdasarkan Nilai');

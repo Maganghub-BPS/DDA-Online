@@ -140,6 +140,7 @@
             <div class="col-lg-6">
                 <div class="d-flex align-items-center gap-2">
                     <form method="post" action="<?php echo base_URL(); ?>index.php/admin/master_opd/cari" class="flex-grow-1" onsubmit="return false;">
+                        <?= csrf_field() ?>
                         <div class="input-group input-group-sm input-group-alternative border-radius-lg border shadow-none px-2 py-1" style="background: #f8f9fa;">
                             <span class="input-group-text bg-transparent border-0"><i class="bi bi-search text-muted"></i></span>
                             <input type="text" id="inputSearchOPD" class="form-control bg-transparent border-0 ps-0 text-sm" name="q" placeholder="Cari instansi..." style="box-shadow: none;" autocomplete="off">

@@ -47,3 +47,21 @@ Options -Indexes
 # Disable server signature start
 ServerSignature Off
 # Disable server signature end
+
+# Sembunyikan header X-Powered-By & lindungi file statis
+<IfModule mod_headers.c>
+	Header unset X-Powered-By
+	Header always unset X-Powered-By
+	Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+# Blokir akses langsung ke file sensitif / cadangan
+<FilesMatch "(^\.env|\.bak$|\.sql$|\.log$|composer\.(json|lock)|Thumbs\.db)$">
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+	<IfModule !mod_authz_core.c>
+		Order allow,deny
+		Deny from all
+	</IfModule>
+</FilesMatch>

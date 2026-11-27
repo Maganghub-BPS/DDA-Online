@@ -56,4 +56,8 @@ $paths = new Paths();
 // LOAD THE FRAMEWORK BOOTSTRAP FILE
 require $paths->systemDirectory . '/Boot.php';
 
+if (function_exists('header_remove')) {
+    @header_remove('X-Powered-By');
+}
+
 exit(Boot::bootWeb($paths));

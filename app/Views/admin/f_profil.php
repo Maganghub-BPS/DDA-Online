@@ -18,6 +18,7 @@
 
                 <div class="card-body p-4 pt-4">
                     <form action="<?php echo base_URL(); ?>index.php/admin/profil/act_edt" method="post" accept-charset="utf-8">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="idp" value="<?php echo (int)($datpil->id ?? 0); ?>">
 
                         <div class="row g-4">

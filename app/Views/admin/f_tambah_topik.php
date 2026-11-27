@@ -84,6 +84,7 @@ $nama_opd = $query_unitkerja ? $query_unitkerja->unitkerja_ind : 'Forum OPD';
                 </div>
 
                 <form action="<?php echo base_URL() ?>index.php/admin/forum_diskusi/act_add_topik" method="post">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="id_unitkerja" value="<?php echo $id_unitkerja; ?>">
 
                     <div class="opd-badge-container p-3 mb-4">

@@ -9,21 +9,21 @@
     <meta name="<?= csrf_token() ?>" content="<?= csrf_hash() ?>" id="meta-csrf">
 
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <!-- Google Fonts Preconnect & Stylesheet -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&family=Public+Sans:wght@300;400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
-    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=<?= time() ?>">
+    <link rel="icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=1.0">
+    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('aset/images/logo-aksara.png'); ?>?v=1.0">
 
     <!-- jQuery & jQuery UI (tetap dipertahankan untuk AJAX & plugin) -->
-    <link rel="stylesheet" href="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.css" />
-    <script src="<?php echo base_url(); ?>aset/js/jquery.min.js"></script>
-    <script src="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.js"></script>
+    <link rel="stylesheet" href="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.css?v=1.14.1" />
+    <script src="<?php echo base_url(); ?>aset/js/jquery.min.js?v=3.7.1"></script>
+    <script src="<?php echo base_url(); ?>aset/js/jquery/jquery-ui.js?v=1.14.1"></script>
     <script>
         // Registrasi global CSRF X-CSRF-TOKEN seketika setelah jQuery termuat
         // agar AJAX di $(document).ready() view anak (mis. trigger_export=1) selalu membawa token valid.
@@ -55,9 +55,9 @@
     <?php endif; ?>
 
     <!-- Bootstrap 5 JS Bundle (includes Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js" integrity="sha384-YB/DdIkloKoRpclWB8bNcYXWakt57USgtQPDzvnIDHYU0lasD5eWlXVo1S4ODukY" crossorigin="anonymous"></script>
 
     <style>
         :root {
@@ -820,7 +820,7 @@
         <!-- ===== SIDEBAR ===== -->
         <aside id="sidebar">
             <div class="sidebar-header">
-                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png?v=<?= time() ?>" alt="Logo AKSARA">
+                <img src="<?php echo base_url(); ?>aset/images/logo-aksara.png?v=1.0" alt="Logo AKSARA">
                 <div class="brand-text" title="Akses Data Provinsi Jawa Tengah Dalam Angka">AKSARA</div>
             </div>
 

@@ -77,6 +77,7 @@ $hariini = tgl_jam_sql(date('Y-m-d'));
             </div>
             <div class="card-body">
                 <form action="<?php echo base_URL()?>index.php/admin/forum_diskusi/add_comment" method="post">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="id_topik" value="<?php echo esc($id_topik);?>">
                     <input type="hidden" name="id_unitkerja" value="<?php echo esc($id_unitkerja);?>">
                     <div class="mb-3">

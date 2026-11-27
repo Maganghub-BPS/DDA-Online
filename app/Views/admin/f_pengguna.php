@@ -18,6 +18,7 @@
                 
                 <div class="card-body p-4 pt-3">
                     <form action="<?php echo base_URL(); ?>index.php/admin/pengguna/act_edt" method="post" accept-charset="utf-8" enctype="multipart/form-data">
+                        <?= csrf_field() ?>
                         <input type="hidden" name="idp" value="<?php echo esc($data->id); ?>">
 
                         <div class="row g-3">
